@@ -1,0 +1,126 @@
+C:\Users\�ntel pc\AppData\Roaming\Python\Python313\site-packages\openpyxl\styles\stylesheet.py:237: UserWarning: Workbook contains no default style, apply openpyxl's default
+  warn("Workbook contains no default style, apply openpyxl's default")
+
+============================================================================
+ADIM 1: Kaynak dosyalari oku ve kolon listelerini dogrula
+============================================================================
+   MusteriListesi       satir= 1596  kolon= 77  (brief'te 11 kolon belirtilmisti, +66 ekstra)
+   RutTanimListesi      satir= 1016  kolon= 14  (brief'te 9 kolon belirtilmisti, +5 ekstra)
+   SevkiyatRaporuKup    satir= 1586  kolon= 27  (brief'te 10 kolon belirtilmisti, +17 ekstra)
+   Beklenen kolonlarin tamami mevcut. Ekstra kolonlar yok sayiliyor.
+
+============================================================================
+ADIM 2: MusteriListesi dedup (MusteriKodu bazinda)
+============================================================================
+   girdi satir=1596  tekil MusteriKodu=1401  fazlalik=195
+   tekrar gruplarinda farklilasan kolonlar: ['STKod', 'STKodu']
+   Tekrarlar SADECE satis temsilcisi kiriliminden kaynaklaniyor -> ilk satir guvenle tutulabilir, diger 75 kolon ozdes.
+   KURAL: ilk_satir_st_birlestirildi
+   cikti satir=1401  (silinen=195)
+   birden fazla temsilcisi olan musteri=182
+
+============================================================================
+ADIM 3: Hedef bolge filtresi (Sehir bazinda)
+============================================================================
+   girdi tekil musteri=1401  tekil sehir=23
+     cekirdek     musteri= 1107  [İZMİR:597, AYDIN:168, MUĞLA:131, MANİSA:117, DENİZLİ:94]
+     sinir_dahil  musteri=  185  [BALIKESİR:115, ÇANAKKALE:59, UŞAK:11]
+     bolge_disi   musteri=  109  [ANTALYA:47, İSTANBUL:18, BURSA:15, ANKARA:5, ESKİŞEHİR:5, ADANA:4, BURDUR:3, MERSIN:3, GİRESUN:2, KONYA:2, BİLECİK:1, ISPARTA:1, KÜTAHYA:1, KOCAELİ:1, GAZİANTEP:1]
+   KARAR: Antalya haric (45/47 Pasif-Iptal). Usak + Balikesir + Canakkale dahil.
+   cikti satir=1292  (bolge disi ayrildi=109)
+
+============================================================================
+ADIM 4: RutTanimListesi join (MusteriKod = MusteriKodu)
+============================================================================
+   rut satir=1016  tekil MusteriKod=1016
+   rut tarafi 1:1 (her musteri tek rutta) -> join'de cogullama riski yok
+   satir 1292 -> 1292 (left join, cogullama yok: OK)
+   rut bilgisi eslesen musteri=969  eslesmeyen=323
+   rutta olup bolge filtresine takilan musteri=47
+
+============================================================================
+ADIM 5: SevkiyatRaporuKup agregasyonu ve join
+============================================================================
+   sevkiyat satir=1586  tekil musteri=437
+   BelgeTarihi parse edilemeyen=0
+   tarih araligi: 2025-12-12 .. 2026-07-24 (224 gun)
+   NetFiyat sayiya cevrilemeyen=0  Agirlik cevrilemeyen=0
+   Agirlik GRAM kabul edildi -> kg'a bolundu (medyan 185.5 kg/teslimat)
+   agregasyon: 1586 sevkiyat satiri -> 437 musteri ozeti
+   satir 1292 -> 1292 (cogullama yok: OK)
+   sevkiyat gecmisi olan musteri=421  hic teslimat almamis=871
+   sevkiyati olup bolge filtresine takilan musteri=16
+
+============================================================================
+ADIM 6: Koordinat cozumleme (mevcut + Nominatim geocode)
+============================================================================
+   ERP'den gelen gecerli koordinat=421  (0.0 oldugu icin elenen=12)
+   geocode edilmesi gereken=871
+   cache'te hazir 27 sorgu var
+   ... 25/871 islendi  (mahalle=16 ilce=3 basarisiz=6)  0.2 dk
+   ... 50/871 islendi  (mahalle=36 ilce=6 basarisiz=8)  0.7 dk
+   ... 75/871 islendi  (mahalle=48 ilce=19 basarisiz=8)  1.4 dk
+   ... 100/871 islendi  (mahalle=59 ilce=33 basarisiz=8)  1.9 dk
+   ... 125/871 islendi  (mahalle=78 ilce=37 basarisiz=10)  2.4 dk
+   ... 150/871 islendi  (mahalle=92 ilce=43 basarisiz=15)  2.9 dk
+   ... 175/871 islendi  (mahalle=108 ilce=52 basarisiz=15)  3.3 dk
+   ... 200/871 islendi  (mahalle=123 ilce=56 basarisiz=21)  3.6 dk
+   ... 225/871 islendi  (mahalle=137 ilce=63 basarisiz=25)  4.1 dk
+   ... 250/871 islendi  (mahalle=152 ilce=68 basarisiz=30)  4.7 dk
+   ... 275/871 islendi  (mahalle=157 ilce=77 basarisiz=41)  4.8 dk
+   ... 300/871 islendi  (mahalle=160 ilce=89 basarisiz=51)  5.0 dk
+   ... 325/871 islendi  (mahalle=174 ilce=100 basarisiz=51)  5.5 dk
+   ... 350/871 islendi  (mahalle=191 ilce=108 basarisiz=51)  5.9 dk
+   ... 375/871 islendi  (mahalle=198 ilce=122 basarisiz=55)  6.2 dk
+   ... 400/871 islendi  (mahalle=211 ilce=133 basarisiz=56)  6.7 dk
+   ... 425/871 islendi  (mahalle=230 ilce=139 basarisiz=56)  7.1 dk
+   ... 450/871 islendi  (mahalle=236 ilce=139 basarisiz=75)  7.6 dk
+   ... 475/871 islendi  (mahalle=248 ilce=149 basarisiz=78)  7.9 dk
+   ... 500/871 islendi  (mahalle=263 ilce=158 basarisiz=79)  8.3 dk
+   ... 525/871 islendi  (mahalle=277 ilce=168 basarisiz=80)  8.6 dk
+   ... 550/871 islendi  (mahalle=291 ilce=179 basarisiz=80)  8.8 dk
+   ... 575/871 islendi  (mahalle=310 ilce=184 basarisiz=81)  9.2 dk
+   ... 600/871 islendi  (mahalle=324 ilce=195 basarisiz=81)  9.5 dk
+   ... 625/871 islendi  (mahalle=334 ilce=210 basarisiz=81)  9.7 dk
+   ... 650/871 islendi  (mahalle=348 ilce=221 basarisiz=81)  10.1 dk
+   ... 675/871 islendi  (mahalle=366 ilce=227 basarisiz=82)  10.5 dk
+   ... 700/871 islendi  (mahalle=378 ilce=240 basarisiz=82)  10.8 dk
+   ... 725/871 islendi  (mahalle=395 ilce=248 basarisiz=82)  11.1 dk
+   ... 750/871 islendi  (mahalle=417 ilce=251 basarisiz=82)  11.5 dk
+   ... 775/871 islendi  (mahalle=434 ilce=259 basarisiz=82)  11.7 dk
+   ... 800/871 islendi  (mahalle=448 ilce=266 basarisiz=86)  11.9 dk
+   ... 825/871 islendi  (mahalle=463 ilce=274 basarisiz=88)  12.1 dk
+   ... 850/871 islendi  (mahalle=485 ilce=276 basarisiz=89)  12.5 dk
+   ... 871/871 islendi  (mahalle=501 ilce=281 basarisiz=89)  12.8 dk
+   
+   SONUC: koordinati olan musteri=1203 / 1292 (%93.1)
+      nominatim_mahalle        501   (mahalle_merkezi)
+      erp                      421   (saha_gps)
+      nominatim_ilce           281   (ilce_merkezi)
+      basarisiz                 89   (yok)
+   UYARI: mahalle merkezine dusen 501 musteri 342 noktada yigiliyor (en kalabalik nokta=6 musteri)
+
+============================================================================
+ADIM 7: Cikti tablosunu olustur
+============================================================================
+   cikti tablosu: 1292 satir x 24 kolon
+
+============================================================================
+ADIM 8: Dosyalari yaz
+============================================================================
+   ANA CIKTI            musteriler_temiz.csv              1292 satir
+   geocode basarisiz    geocode_basarisiz.csv               89 satir
+   bolge disi (referans)bolge_disi_musteriler.csv          109 satir
+   calisma raporu       etl_rapor.json                  
+
+============================================================================
+ADIM 9: OZET
+============================================================================
+   musteri              1292
+   koordinatli          1203  (%93.1)
+   koordinatsiz         89
+   rut bilgisi olan     969
+   sevkiyat gecmisi olan421
+   toplam ciro          51,461,753.55 TL
+   toplam agirlik       784,782.7 kg
+   sure                 770.4 sn

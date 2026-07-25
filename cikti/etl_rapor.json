@@ -1,0 +1,60 @@
+{
+  "calisma_zamani": "2026-07-25T07:51:55.235341+00:00",
+  "dedup": {
+    "kural": "ilk_satir_st_birlestirildi",
+    "girdi": 1596,
+    "cikti": 1401,
+    "farklilasan_kolonlar": [
+      "STKod",
+      "STKodu"
+    ]
+  },
+  "bolge": {
+    "girdi": 1401,
+    "cikti": 1292,
+    "bolge_disi": 109,
+    "dahil_iller": [
+      "AYDIN",
+      "BALIKESİR",
+      "DENİZLİ",
+      "MANİSA",
+      "MUĞLA",
+      "UŞAK",
+      "ÇANAKKALE",
+      "İZMİR"
+    ]
+  },
+  "rut": {
+    "rut_satir": 1016,
+    "eslesen": 969,
+    "eslesmeyen": 323,
+    "bolge_disi_rut": 47
+  },
+  "sevkiyat": {
+    "sevkiyat_satir": 1586,
+    "musteri_ozeti": 437,
+    "eslesen": 421,
+    "tarih_bozuk": 0,
+    "tarih_min": "2025-12-12",
+    "tarih_max": "2026-07-24",
+    "bolge_disi_sevkiyat": 16
+  },
+  "geocode": {
+    "erp": 421,
+    "mahalle": 501,
+    "ilce": 281,
+    "basarisiz": 89,
+    "toplam_koordinatli": 1203
+  },
+  "cikti": {
+    "satir": 1292,
+    "kolon": 24,
+    "koordinatli": 1203,
+    "geocode_basarisiz": 89,
+    "rutlu": 969,
+    "sevkiyatli": 421,
+    "toplam_ciro": 51461753.55,
+    "toplam_agirlik_kg": 784782.6799999999,
+    "sure_sn": 770.4
+  }
+}

@@ -1,0 +1,2688 @@
+{
+ "yolören mah.17 cad.akinlar avm no:24 i̇ç ka, edremi̇t, balikesi̇r, türkiye": {},
+ "yolören mahallesi, edremi̇t, balikesi̇r, türkiye": {
+  "lat": 39.6080243,
+  "lon": 26.9761978,
+  "tip": "square",
+  "display": "Yolören Köy Meydanı, Eroğlan, Yolören, Edremit, Balıkesir, Marmara Bölgesi, 10300, Türkiye"
+ },
+ "kocacami̇ mh. atatürk cd. no:5/b, burhani̇ye, balikesi̇r, türkiye": {},
+ "burhani̇ye, balikesi̇r, türkiye": {
+  "lat": 39.5030179,
+  "lon": 26.9807391,
+  "tip": "administrative",
+  "display": "Burhaniye, Balıkesir, Marmara Bölgesi, 10700, Türkiye"
+ },
+ "bentbaşi mah. gn ali̇ hi̇kmet paşa cad. ural apt. no: 45 d, bandirma, balikesi̇r, türkiye": {},
+ "bentbaşi mahallesi, bandirma, balikesi̇r, türkiye": {
+  "lat": 40.3502633,
+  "lon": 27.9716759,
+  "tip": "administrative",
+  "display": "Bentbaşı Mahallesi, Bandırma, Balıkesir, Marmara Bölgesi, Türkiye"
+ },
+ "600 evler mah. 1351 sk.no:7, bandirma, balikesi̇r, türkiye": {},
+ "600 evler mahallesi, bandirma, balikesi̇r, türkiye": {
+  "lat": 40.3362669,
+  "lon": 27.9893492,
+  "tip": "administrative",
+  "display": "600 Evler Mahallesi, Bandırma, Balıkesir, Marmara Bölgesi, Türkiye"
+ },
+ "akçay mah.107.sk.no:12/a-10/edremi̇t sev ad:cumhuri̇yet bvl.pinarbaşi avm.balikesi̇/akçay, edremi̇t, balikesi̇r, türkiye": {},
+ "akçay mahallesi, edremi̇t, balikesi̇r, türkiye": {
+  "lat": 39.590521,
+  "lon": 26.9285019,
+  "tip": "atm",
+  "display": "Türkiye İş Bankası, İzmir - Çanakkale Yolu, Sarıkız, Akçay, Edremit, Balıkesir, Marmara Bölgesi, 10310, Türkiye"
+ },
+ "sunullah mah. 907 sk. lale sit. no: 10, bandirma, balikesi̇r, türkiye": {},
+ "sunullah mahallesi, bandirma, balikesi̇r, türkiye": {
+  "lat": 40.3460881,
+  "lon": 27.9717615,
+  "tip": "administrative",
+  "display": "Sunullah Mahallesi, Bandırma, Balıkesir, Marmara Bölgesi, Türkiye"
+ },
+ "plevne mah. cumhuri̇yet cad. no:36 a, balikesi̇r, türkiye": {},
+ "plevne mahallesi, balikesi̇r, türkiye": {
+  "lat": 40.0960065,
+  "lon": 27.6519763,
+  "tip": "administrative",
+  "display": "Plevne Mahallesi, Gönen, Balıkesir, Marmara Bölgesi, Türkiye"
+ },
+ "hami̇di̇ye mh fati̇h cad. queen park c blok n:27/c i̇ç kapi n:4 kepez köyü, çanakkale, türkiye": {},
+ "barbaros mah. ceyhan sk. troya palas 3.etap no: 1 i̇ç kapi no: 3, çanakkale, türkiye": {},
+ "barbaros mahallesi, çanakkale, türkiye": {
+  "lat": 40.1267499,
+  "lon": 26.4190186,
+  "tip": "administrative",
+  "display": "Barbaros Mahallesi, Çanakkale, Marmara Bölgesi, 17020, Türkiye"
+ },
+ "çarşi mah. aşiklar sok. no: 26, manyas, balikesi̇r, türkiye": {},
+ "çarşi mahallesi, manyas, balikesi̇r, türkiye": {
+  "lat": 40.0447826,
+  "lon": 27.968992,
+  "tip": "suburb",
+  "display": "Çarşı, Kulak, Manyas, Balıkesir, Marmara Bölgesi, 10470, Türkiye"
+ },
+ "cevat paşa mah. bahri̇ye üçok cad. yasa apartmani no: 20 i̇ç kapi no: 1, çanakkale, türkiye": {},
+ "cevat paşa mahallesi, çanakkale, türkiye": {
+  "lat": 40.156709,
+  "lon": 26.4289059,
+  "tip": "administrative",
+  "display": "Cevat Paşa Mahallesi, Çanakkale, Marmara Bölgesi, Türkiye"
+ },
+ "boğazkent mh.şehi̇t öğretmen nuri̇ye ak cd. viyana evler no: 82 a kepez beldesi̇, merkez, çanakkale, türkiye": {},
+ "merkez, çanakkale, türkiye": {
+  "lat": 40.146271,
+  "lon": 26.4028892,
+  "tip": "administrative",
+  "display": "Çanakkale, Marmara Bölgesi, Türkiye"
+ },
+ "barbaros mah. 100.yil cad. no:13/1, çanakkale, türkiye": {},
+ "hami̇di̇ye mah. sitki paşa cd. no: 22/a, edremi̇t, balikesi̇r, türkiye": {},
+ "hami̇di̇ye mahallesi, edremi̇t, balikesi̇r, türkiye": {
+  "lat": 39.5919978,
+  "lon": 27.0116858,
+  "tip": "suburb",
+  "display": "Hamidiye, Kadıköy, Edremit, Balıkesir, Marmara Bölgesi, 10302, Türkiye"
+ },
+ "cevatpaşa mh.pi̇ri̇ rei̇s cd.no:12/b, çanakkale, türkiye": {},
+ "esenler mahallesi, çanakkale, türkiye": {
+  "lat": 40.1686686,
+  "lon": 26.4141395,
+  "tip": "administrative",
+  "display": "Esenler Mahallesi, Çanakkale, Marmara Bölgesi, Türkiye"
+ },
+ "gazi̇celal mahallesi, edremi̇t, balikesi̇r, türkiye": {
+  "lat": 39.5976995,
+  "lon": 27.0109383,
+  "tip": "suburb",
+  "display": "Gazicelal, Kadıköy, Edremit, Balıkesir, Marmara Bölgesi, 10302, Türkiye"
+ },
+ "ali̇ hi̇kmet paşa mahallesi, çanakkale, türkiye": {},
+ "ayvalik, balikesi̇r, türkiye": {
+  "lat": 39.3180962,
+  "lon": 26.6916708,
+  "tip": "administrative",
+  "display": "Ayvalık, Balıkesir, Marmara Bölgesi, Türkiye"
+ },
+ "haydar çavuş mahallesi, bandirma, balikesi̇r, türkiye": {
+  "lat": 40.3529991,
+  "lon": 27.9710379,
+  "tip": "administrative",
+  "display": "Haydar Çavuş Mahallesi, Bandırma, Balıkesir, Marmara Bölgesi, Türkiye"
+ },
+ "vehbi̇bey mahallesi, ayvalik, balikesi̇r, türkiye": {
+  "lat": 39.318008,
+  "lon": 26.6928527,
+  "tip": "administrative",
+  "display": "Fevzipaşa-Vehbibey Mahallesi, Ayvalık, Balıkesir, Marmara Bölgesi, 10400, Türkiye"
+ },
+ "paşakonak mahallesi, bandirma, balikesi̇r, türkiye": {
+  "lat": 40.3405321,
+  "lon": 27.9596731,
+  "tip": "administrative",
+  "display": "Paşakonak Mahallesi, Bandırma, Balıkesir, Marmara Bölgesi, Türkiye"
+ },
+ "bandirma, balikesi̇r, türkiye": {
+  "lat": 40.3554705,
+  "lon": 27.9697603,
+  "tip": "administrative",
+  "display": "Bandırma, Balıkesir, Marmara Bölgesi, Türkiye"
+ },
+ "paşakent mahallesi, bandirma, balikesi̇r, türkiye": {
+  "lat": 40.34455,
+  "lon": 27.9511401,
+  "tip": "administrative",
+  "display": "Paşakent Mahallesi, Bandırma, Balıkesir, Marmara Bölgesi, Türkiye"
+ },
+ "şahi̇ndere mahallesi, edremi̇t, balikesi̇r, türkiye": {
+  "lat": 39.5736995,
+  "lon": 26.7650664,
+  "tip": "suburb",
+  "display": "Şahindere, Edremit, Balıkesir, Marmara Bölgesi, 10870, Türkiye"
+ },
+ "bahçeli̇evler mahallesi, balikesi̇r, türkiye": {
+  "lat": 39.5071481,
+  "lon": 26.9683175,
+  "tip": "suburb",
+  "display": "Bahçelievler, Burhaniye, Balıkesir, Marmara Bölgesi, 10700, Türkiye"
+ },
+ "gündoğdu mahallesi, gönen, balikesi̇r, türkiye": {
+  "lat": 40.1023504,
+  "lon": 27.6707089,
+  "tip": "administrative",
+  "display": "Gündoğdu Mahallesi, Gönen, Balıkesir, Marmara Bölgesi, Türkiye"
+ },
+ "kasaplar mahallesi, balikesi̇r, türkiye": {
+  "lat": 39.636008,
+  "lon": 27.8817826,
+  "tip": "administrative",
+  "display": "Kasaplar Mahallesi, Altıeylül, Balıkesir, Marmara Bölgesi, Türkiye"
+ },
+ "altinkum mahallesi, edremi̇t, balikesi̇r, türkiye": {
+  "lat": 39.5729236,
+  "lon": 26.9411428,
+  "tip": "atm",
+  "display": "Türkiye İş Bankası, Atatürk Caddesi, İkizçay, Akçay, Edremit, Balıkesir, Marmara Bölgesi, 10305, Türkiye"
+ },
+ "17 eylül mahallesi, bandirma, balikesi̇r, türkiye": {
+  "lat": 40.3482205,
+  "lon": 27.9789451,
+  "tip": "administrative",
+  "display": "17 Eylül Mahallesi, Bandırma, Balıkesir, Marmara Bölgesi, Türkiye"
+ },
+ "yali mahallesi, erdek, balikesi̇r, türkiye": {
+  "lat": 40.3948576,
+  "lon": 27.7946491,
+  "tip": "administrative",
+  "display": "Yalı Mahallesi, Erdek, Balıkesir, Marmara Bölgesi, Türkiye"
+ },
+ "edremi̇t, balikesi̇r, türkiye": {
+  "lat": 39.5938352,
+  "lon": 27.0156844,
+  "tip": "administrative",
+  "display": "Edremit, Balıkesir, Marmara Bölgesi, Türkiye"
+ },
+ "dere mahallesi, bandirma, balikesi̇r, türkiye": {
+  "lat": 40.3507469,
+  "lon": 27.9694168,
+  "tip": "administrative",
+  "display": "Dere Mahallesi, Bandırma, Balıkesir, Marmara Bölgesi, Türkiye"
+ },
+ "i̇ki̇zçay mahallesi, edremi̇t, balikesi̇r, türkiye": {
+  "lat": 39.5852929,
+  "lon": 26.941663,
+  "tip": "suburb",
+  "display": "İkizçay, Akçay, Edremit, Balıkesir, Marmara Bölgesi, 10305, Türkiye"
+ },
+ "kocacami̇ mahallesi, burhani̇ye, balikesi̇r, türkiye": {
+  "lat": 39.5031519,
+  "lon": 26.9802945,
+  "tip": "bank",
+  "display": "Türkiye İş Bankası, 27, Hürriyet Caddesi, Hacıahmet, Şarköy, Burhaniye, Balıkesir, Marmara Bölgesi, 10700, Türkiye"
+ },
+ "1.oruçgazi̇ mahallesi, balikesi̇r, türkiye": {
+  "lat": 39.6551049,
+  "lon": 27.8822389,
+  "tip": "administrative",
+  "display": "1. Oruçgazi Mahallesi, Balıkesir, Karesi, Balıkesir, Marmara Bölgesi, 10010, Türkiye"
+ },
+ "küçükköy mahallesi, ayvalik, balikesi̇r, türkiye": {
+  "lat": 39.2895062,
+  "lon": 26.6871732,
+  "tip": "administrative",
+  "display": "Küçükköy Mahallesi, Ayvalık, Balıkesir, Marmara Bölgesi, 10410, Türkiye"
+ },
+ "ege mahallesi, balikesi̇r, türkiye": {
+  "lat": 39.6518105,
+  "lon": 27.8868225,
+  "tip": "administrative",
+  "display": "Ege Mahallesi, Balıkesir, Karesi, Balıkesir, Marmara Bölgesi, Türkiye"
+ },
+ "sarikiz mahallesi, edremi̇t, balikesi̇r, türkiye": {
+  "lat": 39.5845487,
+  "lon": 26.9299149,
+  "tip": "suburb",
+  "display": "Sarıkız, Akçay, Edremit, Balıkesir, Marmara Bölgesi, 10310, Türkiye"
+ },
+ "öğretmenler mahallesi, burhani̇ye, balikesi̇r, türkiye": {
+  "lat": 39.4890843,
+  "lon": 26.9337483,
+  "tip": "suburb",
+  "display": "Öğretmenler, Burhaniye, Balıkesir, Marmara Bölgesi, 10700, Türkiye"
+ },
+ "beşköprü mahallesi, ortaca, muğla, türkiye": {
+  "lat": 36.8332607,
+  "lon": 28.7639654,
+  "tip": "supermarket",
+  "display": "Türkiye Tarım Kredi Kooperatif Market, Cumhuriyet Cadde, Beşköprü, Dalaklı, Ortaca, Muğla, Ege Bölgesi, 48600, Türkiye"
+ },
+ "foça mahallesi, fethi̇ye, muğla, türkiye": {
+  "lat": 36.6622712,
+  "lon": 29.1192078,
+  "tip": "administrative",
+  "display": "Foça Mahallesi, Fethiye, Muğla, Ege Bölgesi, Türkiye"
+ },
+ "bodrum, muğla, türkiye": {
+  "lat": 37.0343987,
+  "lon": 27.430651,
+  "tip": "administrative",
+  "display": "Bodrum, Muğla, Ege Bölgesi, Türkiye"
+ },
+ "hi̇sarönü mahallesi, marmari̇s, muğla, türkiye": {},
+ "marmari̇s, muğla, türkiye": {
+  "lat": 36.8522547,
+  "lon": 28.2742661,
+  "tip": "administrative",
+  "display": "Marmaris, Muğla, Ege Bölgesi, Türkiye"
+ },
+ "geli̇şi̇m mahallesi, köyceği̇z, muğla, türkiye": {
+  "lat": 36.9800242,
+  "lon": 28.6811735,
+  "tip": "tertiary",
+  "display": "Gelişim Caddesi, Toparlar, Çayiçi, Toparlar Mahallesi, Köyceğiz, Muğla, Ege Bölgesi, 48804, Türkiye"
+ },
+ "tepe mahallesi, marmari̇s, muğla, türkiye": {
+  "lat": 36.8543835,
+  "lon": 28.276239,
+  "tip": "government",
+  "display": "Tepe Mahallesi Muhtarlığı, 33 Sokak, Tepe, Marmaris, Muğla, Ege Bölgesi, 48706, Türkiye"
+ },
+ "eski̇çeşme mahallesi, bodrum, muğla, türkiye": {
+  "lat": 37.0363833,
+  "lon": 27.4205584,
+  "tip": "administrative",
+  "display": "Eskiçeşme Mahallesi, Bodrum, Muğla, Ege Bölgesi, Türkiye"
+ },
+ "dalyan mahallesi, ortaca, muğla, türkiye": {
+  "lat": 36.8465984,
+  "lon": 28.7100481,
+  "tip": "fuel",
+  "display": "Türkiye Petrolleri, Dalyan Atatürk Bulvarı, Cumhuriyet, Okçular, Ortaca, Muğla, Ege Bölgesi, 48600, Türkiye"
+ },
+ "yeni̇ mahallesi, yatağan, muğla, türkiye": {},
+ "yatağan, muğla, türkiye": {
+  "lat": 37.3416697,
+  "lon": 28.1395113,
+  "tip": "administrative",
+  "display": "Yatağan, Muğla, Ege Bölgesi, Türkiye"
+ },
+ "meşeli̇k mahallesi, mi̇las, muğla, türkiye": {},
+ "mi̇las, muğla, türkiye": {
+  "lat": 37.3162709,
+  "lon": 27.7799762,
+  "tip": "administrative",
+  "display": "Milas, Muğla, Ege Bölgesi, Türkiye"
+ },
+ "cumhuri̇yet mahallesi, yatağan, muğla, türkiye": {
+  "lat": 37.287958,
+  "lon": 27.8010451,
+  "tip": "fuel",
+  "display": "TP İke Petrol, Yatağan - Milas Yolu, Cumhuriyet, Beçin, Milas, Muğla, Ege Bölgesi, 48200, Türkiye"
+ },
+ "terzi̇ai̇leler mahallesi, ortaca, muğla, türkiye": {},
+ "ortaca, muğla, türkiye": {
+  "lat": 36.8389038,
+  "lon": 28.7654166,
+  "tip": "administrative",
+  "display": "Ortaca, Muğla, Ege Bölgesi, Türkiye"
+ },
+ "akyol mahallesi, yatağan, muğla, türkiye": {},
+ "gümbet mahallesi, bodrum, muğla, türkiye": {},
+ "karahalli, uşak, türkiye": {
+  "lat": 38.3206332,
+  "lon": 29.5313412,
+  "tip": "administrative",
+  "display": "Karahallı, Uşak, Ege Bölgesi, Türkiye"
+ },
+ "üçeylül mahallesi, buharkent, aydin, türkiye": {
+  "lat": 37.9630882,
+  "lon": 28.7450302,
+  "tip": "suburb",
+  "display": "Üçeylül, Savcıllı, Buharkent, Aydın, Ege Bölgesi, 09670, Türkiye"
+ },
+ "yeni mahallesi, nazi̇lli̇, aydin, türkiye": {
+  "lat": 37.9041472,
+  "lon": 28.3116458,
+  "tip": "suburb",
+  "display": "Yeni Sanayi, Nazilli, Aydın, Ege Bölgesi, 09900, Türkiye"
+ },
+ "cumhuriyet mahallesi, nazi̇lli̇, aydin, türkiye": {
+  "lat": 37.9128034,
+  "lon": 28.3289445,
+  "tip": "suburb",
+  "display": "Cumhuriyet, Nazilli, Aydın, Ege Bölgesi, 09800, Türkiye"
+ },
+ "beseylül mahallesi, kuyucak, aydin, türkiye": {
+  "lat": 37.9108118,
+  "lon": 28.4559524,
+  "tip": "suburb",
+  "display": "Beşeylül Merkez, Kuyucak, Aydın, Ege Bölgesi, Türkiye"
+ },
+ "kemer mahallesi, di̇di̇m, aydin, türkiye": {},
+ "di̇di̇m, aydin, türkiye": {
+  "lat": 37.3696865,
+  "lon": 27.2684841,
+  "tip": "administrative",
+  "display": "Didim, Aydın, Ege Bölgesi, Türkiye"
+ },
+ "efeler mahallesi, di̇di̇m, aydin, türkiye": {
+  "lat": 37.3744424,
+  "lon": 27.2639354,
+  "tip": "suburb",
+  "display": "Efeler, Didim, Aydın, Ege Bölgesi, 09270, Türkiye"
+ },
+ "gi̇rne mahallesi, di̇di̇m, aydin, türkiye": {},
+ "yavansu mahallesi, kuşadasi, aydin, türkiye": {},
+ "kuşadasi, aydin, türkiye": {
+  "lat": 37.8632398,
+  "lon": 27.266873,
+  "tip": "administrative",
+  "display": "Kuşadası, Aydın, Ege Bölgesi, Türkiye"
+ },
+ "cuma mahallesi, di̇di̇m, aydin, türkiye": {},
+ "çarşi mahallesi, köşk, aydin, türkiye": {
+  "lat": 37.853458,
+  "lon": 28.0549621,
+  "tip": "suburb",
+  "display": "Çarşı, Köşk, Aydın, Ege Bölgesi, Türkiye"
+ },
+ "soğukkuyu mahallesi, köşk, aydin, türkiye": {
+  "lat": 37.8536783,
+  "lon": 28.0481386,
+  "tip": "suburb",
+  "display": "Soğukkuyu, Köşk, Aydın, Ege Bölgesi, Türkiye"
+ },
+ "karakollar mahallesi, çi̇ne, aydin, türkiye": {},
+ "çi̇ne, aydin, türkiye": {
+  "lat": 37.6124716,
+  "lon": 28.0623096,
+  "tip": "administrative",
+  "display": "Çine, Aydın, Ege Bölgesi, 09500, Türkiye"
+ },
+ "cumhuri̇yet mahallesi, di̇di̇m, aydin, türkiye": {
+  "lat": 37.3787565,
+  "lon": 27.272031,
+  "tip": "suburb",
+  "display": "Cumhuriyet, Didim, Aydın, Ege Bölgesi, 09270, Türkiye"
+ },
+ "umurlu mahallesi, di̇di̇m, aydin, türkiye": {},
+ "cumhuri̇yet mahallesi, kuşadasi, aydin, türkiye": {
+  "lat": 37.8570129,
+  "lon": 27.2632625,
+  "tip": "administrative",
+  "display": "Cumhuriyet Mahallesi, Kuşadası, Aydın, Ege Bölgesi, Türkiye"
+ },
+ "efeeler mahallesi, di̇di̇m, aydin, türkiye": {},
+ "kuyucak, aydin, türkiye": {
+  "lat": 37.9097685,
+  "lon": 28.4596723,
+  "tip": "stop",
+  "display": "Kuyucak, Denizli - Aydın Yolu, Fatih, Kuyucak, Aydın, Ege Bölgesi, Türkiye"
+ },
+ "kurtuluş mahallesi, di̇di̇m, aydin, türkiye": {},
+ "atça mahallesi, sultanhi̇sar, aydin, türkiye": {
+  "lat": 37.883416,
+  "lon": 28.2122871,
+  "tip": "stop",
+  "display": "Atça, D320, Kurtuluş, Sultanhisar, Aydın, Ege Bölgesi, 09650, Türkiye"
+ },
+ "cumhuri̇yet mahallesi, nazi̇lli̇, aydin, türkiye": {
+  "lat": 37.9128034,
+  "lon": 28.3289445,
+  "tip": "suburb",
+  "display": "Cumhuriyet, Nazilli, Aydın, Ege Bölgesi, 09800, Türkiye"
+ },
+ "karaova mahallesi, kuşadasi, aydin, türkiye": {},
+ "mi̇mar si̇nan mahallesi, di̇di̇m, aydin, türkiye": {},
+ "yeni̇ mahallesi, di̇di̇m, aydin, türkiye": {},
+ "cumhuri̇yet mahallesi, i̇nci̇rli̇ova, aydin, türkiye": {
+  "lat": 37.8509589,
+  "lon": 27.7275824,
+  "tip": "suburb",
+  "display": "Cumhuriyet, İncirliova, Aydın, Ege Bölgesi, Türkiye"
+ },
+ "konak mahallesi, söke, aydin, türkiye": {
+  "lat": 37.7529441,
+  "lon": 27.4040946,
+  "tip": "suburb",
+  "display": "Konak Mah., Konak Mahallesi, Söke, Aydın, Ege Bölgesi, 09200, Türkiye"
+ },
+ "i̇ki̇çeşmeli̇k mahallesi, kuşadasi, aydin, türkiye": {},
+ "tepeci̇k mahallesi, di̇di̇m, aydin, türkiye": {},
+ "yeni̇cami̇i̇ mahallesi, söke, aydin, türkiye": {
+  "lat": 37.7508048,
+  "lon": 27.4076744,
+  "tip": "administrative",
+  "display": "Yenicamii Mahallesi, Söke, Aydın, Ege Bölgesi, Türkiye"
+ },
+ "yeni̇ mahallesi, nazi̇lli̇, aydin, türkiye": {
+  "lat": 37.9041472,
+  "lon": 28.3116458,
+  "tip": "suburb",
+  "display": "Yeni Sanayi, Nazilli, Aydın, Ege Bölgesi, 09900, Türkiye"
+ },
+ "yaylali mahallesi, karacasu, aydin, türkiye": {
+  "lat": 37.7309291,
+  "lon": 28.611381,
+  "tip": "suburb",
+  "display": "Yaylalı, Karacasu, Aydın, Ege Bölgesi, Türkiye"
+ },
+ "i̇sabeyli̇ mahallesi, nazi̇lli̇, aydin, türkiye": {},
+ "nazi̇lli̇, aydin, türkiye": {
+  "lat": 37.9140609,
+  "lon": 28.3270857,
+  "tip": "station",
+  "display": "Nazilli, 173 Sk., Cumhuriyet, Nazilli, Aydın, Ege Bölgesi, 09800, Türkiye"
+ },
+ "meşruti̇yet mahallesi, di̇di̇m, aydin, türkiye": {},
+ "cumhuri̇yet mahallesi, söke, aydin, türkiye": {
+  "lat": 37.7444727,
+  "lon": 27.4069384,
+  "tip": "suburb",
+  "display": "Cumhuriyet, Söke, Aydın, Ege Bölgesi, 09200, Türkiye"
+ },
+ "akbük mahallesi, di̇di̇m, aydin, türkiye": {
+  "lat": 37.4103078,
+  "lon": 27.373853,
+  "tip": "residential",
+  "display": "Blue Lagoon Akbük Sitesi, Fevzipaşa Mah., Didim, Aydın, Ege Bölgesi, Türkiye"
+ },
+ "fati̇h mahallesi, deni̇zli̇, türkiye": {
+  "lat": 38.1524997,
+  "lon": 29.0667289,
+  "tip": "suburb",
+  "display": "Fatih, Güney, Denizli, Ege Bölgesi, Türkiye"
+ },
+ "hürriyet mahallesi, honaz, deni̇zli̇, türkiye": {
+  "lat": 37.7617959,
+  "lon": 29.2712625,
+  "tip": "suburb",
+  "display": "Hürriyet, Honaz, Denizli, Ege Bölgesi, 20330, Türkiye"
+ },
+ "topraklı mahallesi, deni̇zli̇, türkiye": {},
+ "mahmudiye mahallesi, bozkurt, deni̇zli̇, türkiye": {
+  "lat": 37.8225651,
+  "lon": 29.612242,
+  "tip": "suburb",
+  "display": "Mahmudiye, Bozkurt, Denizli, Ege Bölgesi, Türkiye"
+ },
+ "gerzele mahallesi, deni̇zli̇, türkiye": {
+  "lat": 37.7491493,
+  "lon": 29.0526322,
+  "tip": "administrative",
+  "display": "Gerzele Mahallesi, Merkezefendi, Denizli, Ege Bölgesi, Türkiye"
+ },
+ "turan mahallesi, sarayköy, deni̇zli̇, türkiye": {
+  "lat": 37.9305827,
+  "lon": 28.9235365,
+  "tip": "suburb",
+  "display": "Turan, Yakayurt, Sarayköy, Denizli, Ege Bölgesi, 20300, Türkiye"
+ },
+ "saraylar mahallesi, deni̇zli̇, türkiye": {
+  "lat": 37.7845175,
+  "lon": 29.0845166,
+  "tip": "administrative",
+  "display": "Saraylar Mahallesi, Merkezefendi, Denizli, Ege Bölgesi, 20010, Türkiye"
+ },
+ "i̇sti̇klal mahallesi, deni̇zli̇, türkiye": {
+  "lat": 37.765747,
+  "lon": 29.0948144,
+  "tip": "administrative",
+  "display": "İstiklal Mahallesi, Pamukkale, Denizli, Ege Bölgesi, 20150, Türkiye"
+ },
+ "kinikli mahallesi, deni̇zli̇, türkiye": {
+  "lat": 37.7463475,
+  "lon": 29.0931229,
+  "tip": "administrative",
+  "display": "Kınıklı Mahallesi, Pamukkale, Denizli, Ege Bölgesi, Türkiye"
+ },
+ "cumhuri̇yet mahallesi, kale, deni̇zli̇, türkiye": {
+  "lat": 37.4455695,
+  "lon": 28.8489624,
+  "tip": "administrative",
+  "display": "Cumhuriyet Mahallesi, Kale, Denizli, Ege Bölgesi, Türkiye"
+ },
+ "kale, deni̇zli̇, türkiye": {
+  "lat": 37.4437871,
+  "lon": 28.8463079,
+  "tip": "administrative",
+  "display": "Kale, Denizli, Ege Bölgesi, Türkiye"
+ },
+ "topraklik mahallesi, deni̇zli̇, türkiye": {
+  "lat": 37.7821118,
+  "lon": 29.0911959,
+  "tip": "administrative",
+  "display": "Topraklık Mahallesi, Pamukkale, Denizli, Ege Bölgesi, Türkiye"
+ },
+ "i̇nci̇li̇pinar mahallesi, deni̇zli̇, türkiye": {
+  "lat": 37.7603602,
+  "lon": 29.1002802,
+  "tip": "administrative",
+  "display": "İncilipınar Mahallesi, Pamukkale, Denizli, Ege Bölgesi, Türkiye"
+ },
+ "deği̇rmenönü mahallesi, deni̇zli̇, türkiye": {
+  "lat": 37.7724793,
+  "lon": 29.0814636,
+  "tip": "administrative",
+  "display": "Değirmenönü Mahallesi, Merkezefendi, Denizli, Ege Bölgesi, Türkiye"
+ },
+ "hallaçlar mahallesi, deni̇zli̇, türkiye": {
+  "lat": 37.7746433,
+  "lon": 29.0037778,
+  "tip": "administrative",
+  "display": "Hallaçlar Mahallesi, Merkezefendi, Denizli, Ege Bölgesi, Türkiye"
+ },
+ "kurtulus mahallesi, buldan, deni̇zli̇, türkiye": {
+  "lat": 38.0459154,
+  "lon": 28.8286722,
+  "tip": "suburb",
+  "display": "Kurtuluş, Buldan, Denizli, Ege Bölgesi, Türkiye"
+ },
+ "yukari mahallesi, acipayam, deni̇zli̇, türkiye": {},
+ "acipayam, deni̇zli̇, türkiye": {
+  "lat": 37.4273777,
+  "lon": 29.3505097,
+  "tip": "administrative",
+  "display": "Acıpayam, Denizli, Ege Bölgesi, 20800, Türkiye"
+ },
+ "eski̇ hi̇sar mahallesi, deni̇zli̇, türkiye": {},
+ "çatlar mahallesi, çi̇vri̇l, deni̇zli̇, türkiye": {},
+ "çi̇vri̇l, deni̇zli̇, türkiye": {
+  "lat": 38.3005877,
+  "lon": 29.7373813,
+  "tip": "administrative",
+  "display": "Çivril, Denizli, Ege Bölgesi, 20600, Türkiye"
+ },
+ "kizilcabölük mahallesi, tavas, deni̇zli̇, türkiye": {},
+ "tavas, deni̇zli̇, türkiye": {
+  "lat": 37.5729263,
+  "lon": 29.0712601,
+  "tip": "administrative",
+  "display": "Tavas, Denizli, Ege Bölgesi, Türkiye"
+ },
+ "fesleğen mahallesi, deni̇zli̇, türkiye": {
+  "lat": 37.7685113,
+  "lon": 29.0926285,
+  "tip": "administrative",
+  "display": "Fesleğen Mahallesi, Pamukkale, Denizli, Ege Bölgesi, Türkiye"
+ },
+ "kurtluca mahallesi, deni̇zli̇, türkiye": {},
+ "zeyti̇nköy mahallesi, deni̇zli̇, türkiye": {
+  "lat": 37.7405252,
+  "lon": 29.1189578,
+  "tip": "administrative",
+  "display": "Zeytinköy Mahallesi, Pamukkale, Denizli, Ege Bölgesi, Türkiye"
+ },
+ "hacikaplanlar mahallesi, deni̇zli̇, türkiye": {
+  "lat": 37.7744928,
+  "lon": 29.0925257,
+  "tip": "administrative",
+  "display": "Hacıkaplanlar Mahallesi, Pamukkale, Denizli, Ege Bölgesi, Türkiye"
+ },
+ "yeni̇ mahallesi, çameli̇, deni̇zli̇, türkiye": {},
+ "çameli̇, deni̇zli̇, türkiye": {
+  "lat": 37.0761111,
+  "lon": 29.3447222,
+  "tip": "administrative",
+  "display": "Çameli, Denizli, Ege Bölgesi, Türkiye"
+ },
+ "kale mahallesi, deni̇zli̇, türkiye": {
+  "lat": 37.7996035,
+  "lon": 29.1618242,
+  "tip": "park",
+  "display": "Kale Mahallesi Parkı, Kale, Pamukkale, Denizli, Ege Bölgesi, Türkiye"
+ },
+ "i̇smetpaşa mahallesi, sarayköy, deni̇zli̇, türkiye": {},
+ "sarayköy, deni̇zli̇, türkiye": {
+  "lat": 37.9244344,
+  "lon": 28.9230836,
+  "tip": "administrative",
+  "display": "Sarayköy, Denizli, Ege Bölgesi, 20300, Türkiye"
+ },
+ "merkezefendi̇ mahallesi, deni̇zli̇, türkiye": {
+  "lat": 37.7784563,
+  "lon": 29.0656533,
+  "tip": "administrative",
+  "display": "Merkezefendi Mahallesi, Merkezefendi, Denizli, Ege Bölgesi, 20000, Türkiye"
+ },
+ "cumhuriyet mahallesi, buldan, deni̇zli̇, türkiye": {
+  "lat": 38.0433849,
+  "lon": 28.8402325,
+  "tip": "suburb",
+  "display": "Cumhuriyet, Buldan, Denizli, Ege Bölgesi, Türkiye"
+ },
+ "mahmudi̇ye mahallesi, bozkurt, deni̇zli̇, türkiye": {
+  "lat": 37.8225651,
+  "lon": 29.612242,
+  "tip": "suburb",
+  "display": "Mahmudiye, Bozkurt, Denizli, Ege Bölgesi, Türkiye"
+ },
+ "cumhuri̇yet mahallesi, buldan, deni̇zli̇, türkiye": {
+  "lat": 38.0433849,
+  "lon": 28.8402325,
+  "tip": "suburb",
+  "display": "Cumhuriyet, Buldan, Denizli, Ege Bölgesi, Türkiye"
+ },
+ "torbali, i̇zmi̇r, türkiye": {
+  "lat": 38.1701193,
+  "lon": 27.347338,
+  "tip": "station",
+  "display": "Torbalı, 5058 Sk., Torbalı Mahallesi, Torbalı, İzmir, Ege Bölgesi, 35860, Türkiye"
+ },
+ "karaburun, i̇zmi̇r, türkiye": {
+  "lat": 38.6354423,
+  "lon": 26.5098027,
+  "tip": "administrative",
+  "display": "Karaburun, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "sali̇hli̇, mani̇sa, türkiye": {
+  "lat": 38.4829405,
+  "lon": 28.1309046,
+  "tip": "stop",
+  "display": "Salihli, 87 Sk., Şehitler, Salihli, Adala, Manisa, Ege Bölgesi, 45310, Türkiye"
+ },
+ "soma, mani̇sa, türkiye": {
+  "lat": 39.1987193,
+  "lon": 27.6241754,
+  "tip": "station",
+  "display": "Soma, Soma Çevre Yolu, Samsacı, Yırca, Soma, Manisa, Ege Bölgesi, 45510, Türkiye"
+ },
+ "akhi̇sar, mani̇sa, türkiye": {
+  "lat": 38.9240528,
+  "lon": 27.8401895,
+  "tip": "administrative",
+  "display": "Akhisar, Manisa, Ege Bölgesi, Türkiye"
+ },
+ "alaşehi̇r, mani̇sa, türkiye": {
+  "lat": 38.3507471,
+  "lon": 28.516575,
+  "tip": "administrative",
+  "display": "Alaşehir, Manisa, Ege Bölgesi, 45600, Türkiye"
+ },
+ "dokuzkavaklar mahallesi, deni̇zli̇, türkiye": {
+  "lat": 37.7895315,
+  "lon": 29.1048379,
+  "tip": "administrative",
+  "display": "Dokuzkavaklar Mahallesi, Pamukkale, Denizli, Ege Bölgesi, Türkiye"
+ },
+ "deli̇ktaş mahallesi, deni̇zli̇, türkiye": {
+  "lat": 37.7790772,
+  "lon": 29.1016646,
+  "tip": "administrative",
+  "display": "Deliktaş Mahallesi, Pamukkale, Denizli, Ege Bölgesi, Türkiye"
+ },
+ "peli̇tli̇bağ mahallesi, deni̇zli̇, türkiye": {
+  "lat": 37.7716299,
+  "lon": 29.0949959,
+  "tip": "administrative",
+  "display": "Pelitlibağ Mahallesi, Pamukkale, Denizli, Ege Bölgesi, Türkiye"
+ },
+ "mehmetçi̇k mahallesi, deni̇zli̇, türkiye": {
+  "lat": 37.8191412,
+  "lon": 29.606266,
+  "tip": "suburb",
+  "display": "Mehmetçik, Bozkurt, Denizli, Ege Bölgesi, Türkiye"
+ },
+ "altintaş mahallesi, nazi̇lli̇, aydin, türkiye": {
+  "lat": 37.9177089,
+  "lon": 28.3266803,
+  "tip": "suburb",
+  "display": "Altıntaş, Nazilli, Aydın, Ege Bölgesi, 09800, Türkiye"
+ },
+ "gi̇rne mahallesi, aydin, türkiye": {
+  "lat": 37.8524363,
+  "lon": 27.8230317,
+  "tip": "administrative",
+  "display": "Girne Mahallesi, Aydın, Efeler, Aydın, Ege Bölgesi, 09100, Türkiye"
+ },
+ "yeni̇ mahallesi, koçarli, aydin, türkiye": {},
+ "koçarli, aydin, türkiye": {
+  "lat": 37.7622182,
+  "lon": 27.7073376,
+  "tip": "administrative",
+  "display": "Koçarlı, Aydın, Ege Bölgesi, Türkiye"
+ },
+ "cumhuri̇yet mahallesi, aydin, türkiye": {
+  "lat": 37.8433009,
+  "lon": 27.8361617,
+  "tip": "suburb",
+  "display": "Cumhuriyet, Cumhuriyet Mahallesi, Efeler, Aydın, Ege Bölgesi, 09020, Türkiye"
+ },
+ "doğu mahallesi, yeni̇pazar, aydin, türkiye": {},
+ "yeni̇pazar, aydin, türkiye": {
+  "lat": 37.8232925,
+  "lon": 28.1957304,
+  "tip": "administrative",
+  "display": "Yenipazar, Aydın, Ege Bölgesi, Türkiye"
+ },
+ "efeler mahallesi, aydin, türkiye": {
+  "lat": 37.843097,
+  "lon": 27.8255183,
+  "tip": "administrative",
+  "display": "Efeler Mahallesi, Aydın, Efeler, Aydın, Ege Bölgesi, Türkiye"
+ },
+ "çakmak mahallesi, deni̇zli̇, türkiye": {
+  "lat": 37.7883435,
+  "lon": 29.0120885,
+  "tip": "administrative",
+  "display": "Çakmak Mahallesi, Merkezefendi, Denizli, Ege Bölgesi, Türkiye"
+ },
+ "muratdede mahallesi, deni̇zli̇, türkiye": {
+  "lat": 37.7841538,
+  "lon": 29.0732048,
+  "tip": "administrative",
+  "display": "Muratdede Mahallesi, Merkezefendi, Denizli, Ege Bölgesi, Türkiye"
+ },
+ "kuşpinar mahallesi, deni̇zli̇, türkiye": {
+  "lat": 37.7646024,
+  "lon": 29.0841626,
+  "tip": "administrative",
+  "display": "Kuşpınar Mahallesi, Pamukkale, Denizli, Ege Bölgesi, Türkiye"
+ },
+ "murat dede mahallesi, deni̇zli̇, türkiye": {
+  "lat": 37.7845688,
+  "lon": 29.0760287,
+  "tip": "place_of_worship",
+  "display": "Murat Dede Cami, Necmettin Erbakan, Muratdede Mahallesi, Merkezefendi, Denizli, Ege Bölgesi, 20100, Türkiye"
+ },
+ "bornova, i̇zmi̇r, türkiye": {
+  "lat": 38.4661896,
+  "lon": 27.2191942,
+  "tip": "administrative",
+  "display": "Bornova, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "esenli̇k mahallesi, karabağlar, i̇zmi̇r, türkiye": {
+  "lat": 38.3966597,
+  "lon": 27.1124405,
+  "tip": "administrative",
+  "display": "Esenlik Mahallesi, Karabağlar, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "merkez efendi̇ mahallesi, deni̇zli̇, türkiye": {
+  "lat": 37.7784563,
+  "lon": 29.0656533,
+  "tip": "administrative",
+  "display": "Merkezefendi Mahallesi, Merkezefendi, Denizli, Ege Bölgesi, 20000, Türkiye"
+ },
+ "karahasanli mahallesi, deni̇zli̇, türkiye": {
+  "lat": 37.8072828,
+  "lon": 29.0246018,
+  "tip": "administrative",
+  "display": "Karahasanlı Mahallesi, Merkezefendi, Denizli, Ege Bölgesi, 20050, Türkiye"
+ },
+ "karahasanlar mahallesi, deni̇zli̇, türkiye": {},
+ "menemen, i̇zmi̇r, türkiye": {
+  "lat": 38.6033618,
+  "lon": 27.0764308,
+  "tip": "train_station",
+  "display": "Menemen, Niyazi Kaplangı Caddesi, Menemen, Esatpaşa Mahallesi, Menemen, İzmir, Ege Bölgesi, 35660, Türkiye"
+ },
+ "cami̇kebi̇r mahallesi, kuşadasi, aydin, türkiye": {
+  "lat": 37.8601484,
+  "lon": 27.258255,
+  "tip": "administrative",
+  "display": "Camikebir Mahallesi, Kuşadası, Aydın, Ege Bölgesi, 90400, Türkiye"
+ },
+ "türkmen mahallesi, kuşadasi, aydin, türkiye": {
+  "lat": 37.8631928,
+  "lon": 27.263301,
+  "tip": "administrative",
+  "display": "Türkmen Mahallesi, Kuşadası, Aydın, Ege Bölgesi, Türkiye"
+ },
+ "bodrum mumcular gokpinar mahallesi, bodrum, muğla, türkiye": {},
+ "düğerek mahallesi, muğla, türkiye": {},
+ "çi̇ğli̇, i̇zmi̇r, türkiye": {
+  "lat": 38.4916582,
+  "lon": 27.0634346,
+  "tip": "station",
+  "display": "Çiğli, Semra Aksu Caddesi, Ataşehir Mahallesi, Çiğli, İzmir, Ege Bölgesi, 35620, Türkiye"
+ },
+ "turan mahallesi, ti̇re, i̇zmi̇r, türkiye": {
+  "lat": 38.0787732,
+  "lon": 27.7158882,
+  "tip": "administrative",
+  "display": "Turan Mahallesi, Tire, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "kültür mahallesi, ali̇ağa, i̇zmi̇r, türkiye": {
+  "lat": 38.8049218,
+  "lon": 26.9833613,
+  "tip": "administrative",
+  "display": "Kültür Mahallesi, Aliağa, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "cumhuri̇yet mahallesi, çi̇ne, aydin, türkiye": {
+  "lat": 37.6157442,
+  "lon": 28.0548441,
+  "tip": "suburb",
+  "display": "Cumhuriyet, Karakollar, Çine, Aydın, Ege Bölgesi, 09500, Türkiye"
+ },
+ "ali̇ hi̇kmet paşa mahallesi, balikesi̇r, türkiye": {
+  "lat": 39.656762,
+  "lon": 27.8877559,
+  "tip": "administrative",
+  "display": "Ali Hikmet Paşa Mahallesi, Balıkesir, Karesi, Balıkesir, Marmara Bölgesi, Türkiye"
+ },
+ "davutlar mahallesi, kuşadasi, aydin, türkiye": {
+  "lat": 37.7330284,
+  "lon": 27.2944185,
+  "tip": "administrative",
+  "display": "Davutlar Mahallesi, Kuşadası, Aydın, Ege Bölgesi, Türkiye"
+ },
+ "yildirim beyazit mahallesi, bornova, i̇zmi̇r, türkiye": {
+  "lat": 38.43844,
+  "lon": 27.1874805,
+  "tip": "administrative",
+  "display": "Yıldırım Beyazıt Mahallesi, Bornova, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "bayindir, i̇zmi̇r, türkiye": {
+  "lat": 38.212768,
+  "lon": 27.6489919,
+  "tip": "stop",
+  "display": "Bayındır, Atatürk Caddesi, Fatih Mahallesi, Bayındır, İzmir, Ege Bölgesi, 35840, Türkiye"
+ },
+ "cami̇ mahallesi, bayindir, i̇zmi̇r, türkiye": {
+  "lat": 38.2243081,
+  "lon": 27.6467085,
+  "tip": "administrative",
+  "display": "Camii Mahallesi, Bayındır, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "şakran sayfi̇ye mahallesi, ali̇ağa, i̇zmi̇r, türkiye": {
+  "lat": 38.8881798,
+  "lon": 27.06341,
+  "tip": "administrative",
+  "display": "Şakran Sayfiye Mahallesi, Aliağa, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "atatürk mahallesi, menderes, i̇zmi̇r, türkiye": {
+  "lat": 38.0684576,
+  "lon": 27.0023056,
+  "tip": "administrative",
+  "display": "Gümüldür Atatürk Mahallesi, Menderes, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "bergama, i̇zmi̇r, türkiye": {
+  "lat": 39.1189476,
+  "lon": 27.1773642,
+  "tip": "administrative",
+  "display": "Bergama, İzmir, Ege Bölgesi, 35700, Türkiye"
+ },
+ "maltepe mahallesi, bergama, i̇zmi̇r, türkiye": {
+  "lat": 39.1089897,
+  "lon": 27.1726591,
+  "tip": "administrative",
+  "display": "Maltepe Mahallesi, Bergama, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "cumhuri̇yer mahallesi, aydin, türkiye": {},
+ "vali̇ rahmi̇ bey mahallesi, buca, i̇zmi̇r, türkiye": {
+  "lat": 38.3878981,
+  "lon": 27.1703989,
+  "tip": "administrative",
+  "display": "Vali Rahmi Bey Mahallesi, Buca, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "yeni mahallesi, ali̇ağa, i̇zmi̇r, türkiye": {
+  "lat": 38.7953363,
+  "lon": 27.0733165,
+  "tip": "neighbourhood",
+  "display": "Yeni Karaköy, Karaköy Mahallesi, Aliağa, İzmir, Ege Bölgesi, 35800, Türkiye"
+ },
+ "karabağlar, i̇zmi̇r, türkiye": {
+  "lat": 38.3865299,
+  "lon": 27.134722,
+  "tip": "administrative",
+  "display": "Karabağlar, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "şemi̇kler mahallesi, karşiyaka, i̇zmi̇r, türkiye": {
+  "lat": 38.4755359,
+  "lon": 27.0950001,
+  "tip": "administrative",
+  "display": "Şemikler Mahallesi, Karşıyaka, İzmir, Ege Bölgesi, 35560, Türkiye"
+ },
+ "mustafa kemal atatürk mahallesi, foça, i̇zmi̇r, türkiye": {
+  "lat": 38.7406854,
+  "lon": 26.8396877,
+  "tip": "administrative",
+  "display": "Mustafa Kemal Atatürk Mahallesi, Foça, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "karşiyaka, i̇zmi̇r, türkiye": {
+  "lat": 38.5034452,
+  "lon": 27.1134554,
+  "tip": "administrative",
+  "display": "Karşıyaka, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "ata mahallesi, aydin, türkiye": {
+  "lat": 37.839359,
+  "lon": 27.8543791,
+  "tip": "suburb",
+  "display": "Ata, Aydın, Efeler, Aydın, Ege Bölgesi, 09010, Türkiye"
+ },
+ "umurlu mahallesi, aydin, türkiye": {},
+ "söke, aydin, türkiye": {
+  "lat": 37.7519762,
+  "lon": 27.4056294,
+  "tip": "administrative",
+  "display": "Söke, Aydın, Ege Bölgesi, 09200, Türkiye"
+ },
+ "cumhuri̇yet mahallesi, karşiyaka, i̇zmi̇r, türkiye": {
+  "lat": 38.4816523,
+  "lon": 27.0962096,
+  "tip": "administrative",
+  "display": "Cumhuriyet Mahallesi, Karşıyaka, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "alaçati̇ mahallesi, çeşme, i̇zmi̇r, türkiye": {
+  "lat": 38.2847573,
+  "lon": 26.3745176,
+  "tip": "administrative",
+  "display": "Alaçatı Mahallesi, Çeşme, İzmir, Ege Bölgesi, 35937, Türkiye"
+ },
+ "cami̇vasat mahallesi, edremi̇t, balikesi̇r, türkiye": {
+  "lat": 39.5910558,
+  "lon": 27.0228374,
+  "tip": "suburb",
+  "display": "Camivasat, Edremit, Balıkesir, Marmara Bölgesi, 10302, Türkiye"
+ },
+ "kurtuluş mahallesi, gönen, balikesi̇r, türkiye": {
+  "lat": 40.111262,
+  "lon": 27.6583278,
+  "tip": "administrative",
+  "display": "Kurtuluş Mahallesi, Gönen, Balıkesir, Marmara Bölgesi, 10900, Türkiye"
+ },
+ "cumhuri̇yet mahallesi, balikesi̇r, türkiye": {
+  "lat": 39.3878404,
+  "lon": 27.6566823,
+  "tip": "suburb",
+  "display": "Cumhuriyet, Savaştepe, Balıkesir, Marmara Bölgesi, Türkiye"
+ },
+ "şeyh müftü mahallesi, balikesi̇r, türkiye": {
+  "lat": 40.0351355,
+  "lon": 28.4103406,
+  "tip": "place_of_worship",
+  "display": "Şeyh Müftü Camii, Balıkesir Caddesi, Şeyhmüftü, Mustafakemalpaşa, Bursa, Marmara Bölgesi, Türkiye"
+ },
+ "cevatpaşa mahallesi, balikesi̇r, türkiye": {},
+ "namik kemal mahallesi, balikesi̇r, türkiye": {
+  "lat": 39.3826516,
+  "lon": 26.5859812,
+  "tip": "administrative",
+  "display": "Namık Kemal Mahallesi, Ayvalık, Balıkesir, Marmara Bölgesi, Türkiye"
+ },
+ "geli̇bolu, çanakkale, türkiye": {
+  "lat": 40.4054063,
+  "lon": 26.6722539,
+  "tip": "administrative",
+  "display": "Gelibolu, Çanakkale, Marmara Bölgesi, Türkiye"
+ },
+ "cami̇kebi̇r mahallesi, ezi̇ne, çanakkale, türkiye": {
+  "lat": 39.7694755,
+  "lon": 26.3498443,
+  "tip": "administrative",
+  "display": "Camikebir Mahallesi, Ezine, Çanakkale, Marmara Bölgesi, Türkiye"
+ },
+ "cumhuri̇yet mahallesi, çanakkale, türkiye": {
+  "lat": 40.0972459,
+  "lon": 26.3891601,
+  "tip": "administrative",
+  "display": "Cumhuriyet Mahallesi, Kepez Beldesi, Çanakkale, Marmara Bölgesi, Türkiye"
+ },
+ "boğazkent mahallesi, çanakkale, türkiye": {
+  "lat": 40.1025638,
+  "lon": 26.3994598,
+  "tip": "administrative",
+  "display": "Boğazkent Mahallesi, Kepez Beldesi, Çanakkale, Marmara Bölgesi, 17110, Türkiye"
+ },
+ "fati̇h mahallesi, gökçeada, çanakkale, türkiye": {},
+ "gökçeada, çanakkale, türkiye": {
+  "lat": 40.2003874,
+  "lon": 25.9084625,
+  "tip": "town",
+  "display": "Gökçeada, Çanakkale, Marmara Bölgesi, 17760, Türkiye"
+ },
+ "şi̇ri̇ntepe mahallesi, balikesi̇r, türkiye": {},
+ "esenler mahallesi, balikesi̇r, türkiye": {},
+ "kemalpaşa mahallesi, balikesi̇r, türkiye": {
+  "lat": 39.3917907,
+  "lon": 26.8404943,
+  "tip": "suburb",
+  "display": "Kemalpaşa, Yaya, Gömeç, Balıkesir, Marmara Bölgesi, 10715, Türkiye"
+ },
+ "sakarya mahallesi, balikesi̇r, türkiye": {
+  "lat": 39.5834668,
+  "lon": 27.4832366,
+  "tip": "suburb",
+  "display": "Sakarya, İvrindi, Balıkesir, Marmara Bölgesi, 10770, Türkiye"
+ },
+ "yazicizade mahallesi, geli̇bolu, çanakkale, türkiye": {
+  "lat": 40.4332126,
+  "lon": 26.6811953,
+  "tip": "administrative",
+  "display": "Yazıcızade Mahallesi, Gelibolu, Çanakkale, Marmara Bölgesi, Türkiye"
+ },
+ "ayvacik, çanakkale, türkiye": {
+  "lat": 39.601185,
+  "lon": 26.4031312,
+  "tip": "administrative",
+  "display": "Ayvacık, Çanakkale, Marmara Bölgesi, Türkiye"
+ },
+ "dursunbey, balikesi̇r, türkiye": {
+  "lat": 39.5472927,
+  "lon": 28.6529869,
+  "tip": "station",
+  "display": "Dursunbey, İstasyon Caddesi, Dursunbey, Çiftçi, İstasyon, Dursunbey, Balıkesir, Marmara Bölgesi, Türkiye"
+ },
+ "çali mahallesi, balikesi̇r, türkiye": {
+  "lat": 39.381092,
+  "lon": 27.6595751,
+  "tip": "residential",
+  "display": "Çalı Sokağı, İstiklal, Savaştepe, Balıkesir, Marmara Bölgesi, Türkiye"
+ },
+ "yahşi̇bey mahallesi, balikesi̇r, türkiye": {},
+ "i̇hsani̇ye mahallesi, çanakkale, türkiye": {},
+ "merkez, mani̇sa, türkiye": {
+  "lat": 38.6138191,
+  "lon": 27.4105668,
+  "tip": "administrative",
+  "display": "Merkez Efendi Mahallesi, Yunus Emre, Manisa, Ege Bölgesi, 45120, Türkiye"
+ },
+ "turgutlu, mani̇sa, türkiye": {
+  "lat": 38.5099987,
+  "lon": 27.7071726,
+  "tip": "station",
+  "display": "Turgutlu, Kooperatif Sokak, İstasyonaltı Mahallesi Turgutlu, Turgutlu, Manisa, Ege Bölgesi, 45400, Türkiye"
+ },
+ "cumhuri̇yet mahallesi, sali̇hli̇, mani̇sa, türkiye": {
+  "lat": 38.482174,
+  "lon": 28.1504059,
+  "tip": "administrative",
+  "display": "Cumhuriyet, Hacıbektaşlı, Salihli, Adala, Manisa, Ege Bölgesi, Türkiye"
+ },
+ "kula, mani̇sa, türkiye": {
+  "lat": 38.5468907,
+  "lon": 28.6474338,
+  "tip": "administrative",
+  "display": "Kula, Manisa, Ege Bölgesi, 45170, Türkiye"
+ },
+ "atatürk mahallesi, sali̇hli̇, mani̇sa, türkiye": {
+  "lat": 38.4873988,
+  "lon": 28.1397525,
+  "tip": "suburb",
+  "display": "Atatürk, Salihli, Adala, Manisa, Ege Bölgesi, 45310, Türkiye"
+ },
+ "i̇smet i̇nönü mahallesi, menemen, i̇zmi̇r, türkiye": {
+  "lat": 38.5998857,
+  "lon": 27.0786012,
+  "tip": "administrative",
+  "display": "İsmet İnönü Mahallesi, Menemen, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "uğur mumcu mahallesi, menemen, i̇zmi̇r, türkiye": {
+  "lat": 38.6035699,
+  "lon": 27.0817541,
+  "tip": "administrative",
+  "display": "Uğur Mumcu Mahallesi, Menemen, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "fevzi̇ paşa mahallesi, foça, i̇zmi̇r, türkiye": {},
+ "foça, i̇zmi̇r, türkiye": {
+  "lat": 38.668916,
+  "lon": 26.7547749,
+  "tip": "administrative",
+  "display": "Foça, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "1. anafartalar mahallesi, mani̇sa, türkiye": {
+  "lat": 38.6140459,
+  "lon": 27.4324919,
+  "tip": "administrative",
+  "display": "1.Anafartalar Mahallesi, Şehzadeler, Manisa, Ege Bölgesi, 45020, Türkiye"
+ },
+ "ergene mahallesi, bornova, i̇zmi̇r, türkiye": {
+  "lat": 38.4675937,
+  "lon": 27.2185438,
+  "tip": "administrative",
+  "display": "Ergene Mahallesi, Bornova, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "bahri̇ye kaya mansuroğlu mahallesi, bayrakli, i̇zmi̇r, türkiye": {},
+ "bayrakli, i̇zmi̇r, türkiye": {
+  "lat": 38.4639144,
+  "lon": 27.1644029,
+  "tip": "station",
+  "display": "Bayraklı, Zeki Yavaş Sokağı, Bayraklı Mahallesi, Bayraklı, İzmir, Ege Bölgesi, 35530, Türkiye"
+ },
+ "32 çay mahallesi, bayrakli, i̇zmi̇r, türkiye": {
+  "lat": 38.4706785,
+  "lon": 27.1797403,
+  "tip": "administrative",
+  "display": "Çay Mahallesi, Bayraklı, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "alpaslan mahallesi, bayrakli, i̇zmi̇r, türkiye": {
+  "lat": 38.4712047,
+  "lon": 27.1637964,
+  "tip": "administrative",
+  "display": "Alpaslan Mahallesi, Bayraklı, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "tepeci̇k mahallesi, seferi̇hi̇sar, i̇zmi̇r, türkiye": {
+  "lat": 38.179946,
+  "lon": 26.8355999,
+  "tip": "administrative",
+  "display": "Tepecik Mahallesi, Seferihisar, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "urla, i̇zmi̇r, türkiye": {
+  "lat": 38.3228184,
+  "lon": 26.7672998,
+  "tip": "administrative",
+  "display": "Urla, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "balçova, i̇zmi̇r, türkiye": {
+  "lat": 38.3953128,
+  "lon": 27.05787,
+  "tip": "administrative",
+  "display": "Balçova, İzmir, Ege Bölgesi, 35330, Türkiye"
+ },
+ "eği̇ti̇m mahallesi, balçova, i̇zmi̇r, türkiye": {
+  "lat": 38.3945049,
+  "lon": 27.0591619,
+  "tip": "administrative",
+  "display": "Eğitim Mahallesi, Balçova, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "h. i̇sa mahallesi, urla, i̇zmi̇r, türkiye": {
+  "lat": 38.3250947,
+  "lon": 26.7668526,
+  "tip": "administrative",
+  "display": "Hacı İsa Mahallesi, Urla, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "altintaş mahallesi, urla, i̇zmi̇r, türkiye": {
+  "lat": 38.3206529,
+  "lon": 26.7573515,
+  "tip": "administrative",
+  "display": "Altıntaş Mahallesi, Urla, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "ataşehi̇r mahallesi, çi̇ğli̇, i̇zmi̇r, türkiye": {
+  "lat": 38.4891551,
+  "lon": 27.062681,
+  "tip": "administrative",
+  "display": "Ataşehir Mahallesi, Çiğli, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "koşukavak mahallesi, bornova, i̇zmi̇r, türkiye": {
+  "lat": 38.4298011,
+  "lon": 27.1986111,
+  "tip": "administrative",
+  "display": "Koşukavak Mahallesi, Bornova, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "barbaros mahallesi, bornova, i̇zmi̇r, türkiye": {
+  "lat": 38.4361694,
+  "lon": 27.1912167,
+  "tip": "administrative",
+  "display": "Barbaros Mahallesi, Bornova, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "balatçik mahallesi, çi̇ğli̇, i̇zmi̇r, türkiye": {
+  "lat": 38.5141497,
+  "lon": 27.0399181,
+  "tip": "administrative",
+  "display": "Balatçık Mahallesi, Çiğli, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "a balatçik mahallesi, çi̇ğli̇, i̇zmi̇r, türkiye": {
+  "lat": 38.5141497,
+  "lon": 27.0399181,
+  "tip": "administrative",
+  "display": "Balatçık Mahallesi, Çiğli, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "gazi̇emi̇r, i̇zmi̇r, türkiye": {
+  "lat": 38.3262756,
+  "lon": 27.1399665,
+  "tip": "station",
+  "display": "Gaziemir, 351. Sokak, Dokuz Eylül Mahallesi, Gaziemir, İzmir, Ege Bölgesi, 35410, Türkiye"
+ },
+ "emek mahallesi, bayrakli, i̇zmi̇r, türkiye": {
+  "lat": 38.4702421,
+  "lon": 27.125782,
+  "tip": "administrative",
+  "display": "Emek Mahallesi, Bayraklı, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "atatürk mahallesi, buca, i̇zmi̇r, türkiye": {
+  "lat": 38.3784033,
+  "lon": 27.1806754,
+  "tip": "administrative",
+  "display": "Atatürk Mahallesi, Buca, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "hacii̇lyas mahallesi, mi̇las, muğla, türkiye": {
+  "lat": 37.3145144,
+  "lon": 27.7781737,
+  "tip": "suburb",
+  "display": "Hacı İlyas, Milas, Muğla, Ege Bölgesi, 48200, Türkiye"
+ },
+ "bahari̇ye mahallesi, karşiyaka, i̇zmi̇r, türkiye": {
+  "lat": 38.461686,
+  "lon": 27.1161239,
+  "tip": "administrative",
+  "display": "Bahariye Mahallesi, Karşıyaka, İzmir, Ege Bölgesi, 35600, Türkiye"
+ },
+ "bahçeli̇evler mahallesi, karşiyaka, i̇zmi̇r, türkiye": {
+  "lat": 38.4662877,
+  "lon": 27.1171287,
+  "tip": "administrative",
+  "display": "Bahçelievler Mahallesi, Karşıyaka, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "çelti̇kçi̇ mahallesi, söke, aydin, türkiye": {
+  "lat": 37.7490932,
+  "lon": 27.404906,
+  "tip": "suburb",
+  "display": "Çeltikçi Mah., Söke, Aydın, Ege Bölgesi, 09200, Türkiye"
+ },
+ "i̇mbatli mahallesi, karşiyaka, i̇zmi̇r, türkiye": {
+  "lat": 38.4726676,
+  "lon": 27.1090559,
+  "tip": "administrative",
+  "display": "İmbatlı Mahallesi, Karşıyaka, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "yali mahallesi, çi̇ğli̇, i̇zmi̇r, türkiye": {},
+ "güllük mahallesi, mi̇las, muğla, türkiye": {
+  "lat": 37.2376272,
+  "lon": 27.5984146,
+  "tip": "government",
+  "display": "Güllük Mahallesi Muhtarlığı, 348. Sk., Güllük, Milas, Muğla, Ege Bölgesi, Türkiye"
+ },
+ "gölbaşi mahallesi, bodrum, muğla, türkiye": {},
+ "belevi̇ mahallesi, selçuk, i̇zmi̇r, türkiye": {
+  "lat": 38.0140648,
+  "lon": 27.4490648,
+  "tip": "administrative",
+  "display": "Belevi Mahallesi, Selçuk, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "torbali mahallesi, torbali, i̇zmi̇r, türkiye": {
+  "lat": 38.1716783,
+  "lon": 27.3484468,
+  "tip": "administrative",
+  "display": "Torbalı Mahallesi, Torbalı, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "rei̇s mahallesi, karabağlar, i̇zmi̇r, türkiye": {
+  "lat": 38.3949499,
+  "lon": 27.1142629,
+  "tip": "administrative",
+  "display": "Reis Mahallesi, Karabağlar, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "deği̇rmendere mahallesi, kuşadasi, aydin, türkiye": {
+  "lat": 37.83814,
+  "lon": 27.2610423,
+  "tip": "government",
+  "display": "Değirmendere mahallesi muhtarlığı, 3622. Sokak, Sanayi Sitesi, Değirmendere, Kuşadası, Aydın, Ege Bölgesi, 09400, Türkiye"
+ },
+ "alpkent mahallesi, torbali, i̇zmi̇r, türkiye": {
+  "lat": 38.1672585,
+  "lon": 27.3561286,
+  "tip": "administrative",
+  "display": "Alpkent Mahallesi, Torbalı, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "çayboyu mahallesi, kavaklidere, muğla, türkiye": {},
+ "kavaklidere, muğla, türkiye": {
+  "lat": 37.4456315,
+  "lon": 28.364925,
+  "tip": "administrative",
+  "display": "Kavaklıdere, Muğla, Ege Bölgesi, Türkiye"
+ },
+ "köprübaşi mahallesi, ula, muğla, türkiye": {},
+ "ula, muğla, türkiye": {
+  "lat": 37.1029233,
+  "lon": 28.416366,
+  "tip": "administrative",
+  "display": "Ula, Muğla, Ege Bölgesi, Türkiye"
+ },
+ "köyceği̇z, muğla, türkiye": {
+  "lat": 36.958501,
+  "lon": 28.6889436,
+  "tip": "administrative",
+  "display": "Köyceğiz, Muğla, Ege Bölgesi, Türkiye"
+ },
+ "dalaman, muğla, türkiye": {
+  "lat": 36.7672142,
+  "lon": 28.8002737,
+  "tip": "administrative",
+  "display": "Dalaman, Muğla, Ege Bölgesi, 48770, Türkiye"
+ },
+ "ayrancilar mahallesi, torbali, i̇zmi̇r, türkiye": {
+  "lat": 38.2493603,
+  "lon": 27.2758448,
+  "tip": "administrative",
+  "display": "Ayrancılar Mahallesi, Torbalı, İzmir, Ege Bölgesi, 35870, Türkiye"
+ },
+ "i̇. paşa mahallesi, mi̇las, muğla, türkiye": {
+  "lat": 37.3086935,
+  "lon": 27.7798307,
+  "tip": "suburb",
+  "display": "İsmet Paşa, Milas, Muğla, Ege Bölgesi, 48277, Türkiye"
+ },
+ "osmangazi̇ mahallesi, bayrakli, i̇zmi̇r, türkiye": {
+  "lat": 38.4716063,
+  "lon": 27.1859357,
+  "tip": "administrative",
+  "display": "Osmangazi Mahallesi, Bayraklı, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "armutalan mahallesi, marmari̇s, muğla, türkiye": {},
+ "fethi̇ye, muğla, türkiye": {
+  "lat": 36.6221154,
+  "lon": 29.1153384,
+  "tip": "administrative",
+  "display": "Fethiye, Muğla, Ege Bölgesi, Türkiye"
+ },
+ "merkez mahallesi, dalaman, muğla, türkiye": {
+  "lat": 36.7678512,
+  "lon": 28.8090272,
+  "tip": "suburb",
+  "display": "Merkez, Dalaman, Muğla, Ege Bölgesi, 48770, Türkiye"
+ },
+ "şeyh mahallesi, muğla, türkiye": {
+  "lat": 37.2175483,
+  "lon": 28.3656219,
+  "tip": "administrative",
+  "display": "Şeyh Mahallesi, Menteşe, Muğla, Ege Bölgesi, Türkiye"
+ },
+ "taşyaka mahallesi, fethi̇ye, muğla, türkiye": {
+  "lat": 36.6221034,
+  "lon": 29.1267,
+  "tip": "administrative",
+  "display": "Taşyaka Mahallesi, Fethiye, Muğla, Ege Bölgesi, 48300, Türkiye"
+ },
+ "balibey mahallesi, muğla, türkiye": {
+  "lat": 37.2186475,
+  "lon": 28.3641462,
+  "tip": "administrative",
+  "display": "Balıbey Mahallesi, Menteşe, Muğla, Ege Bölgesi, Türkiye"
+ },
+ "yali mahallesi, karşiyaka, i̇zmi̇r, türkiye": {
+  "lat": 38.4677487,
+  "lon": 27.0912444,
+  "tip": "administrative",
+  "display": "Yalı Mahallesi, Karşıyaka, İzmir, Ege Bölgesi, 35550, Türkiye"
+ },
+ "buharkent, aydin, türkiye": {
+  "lat": 37.9526579,
+  "lon": 28.7385258,
+  "tip": "station",
+  "display": "Buharkent, Aydın-Denizli Otoyolu, Kabaağaç, Sarayköy, Aydın, Ege Bölgesi, 09670, Türkiye"
+ },
+ "tuzla mahallesi, fethi̇ye, muğla, türkiye": {
+  "lat": 36.6259191,
+  "lon": 29.1246784,
+  "tip": "suburb",
+  "display": "Tuzla, Tuzla Mahallesi, Fethiye, Muğla, Ege Bölgesi, 48300, Türkiye"
+ },
+ "terzi̇ali̇ler mahallesi, ortaca, muğla, türkiye": {
+  "lat": 36.8332607,
+  "lon": 28.7639654,
+  "tip": "supermarket",
+  "display": "Türkiye Tarım Kredi Kooperatif Market, Cumhuriyet Cadde, Beşköprü, Dalaklı, Ortaca, Muğla, Ege Bölgesi, 48600, Türkiye"
+ },
+ "gazi̇ mahallesi, gazi̇emi̇r, i̇zmi̇r, türkiye": {
+  "lat": 38.3224928,
+  "lon": 27.1269715,
+  "tip": "administrative",
+  "display": "Gazi Mahallesi, Gaziemir, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "paşali mahallesi, muğla, türkiye": {},
+ "tersane mahallesi, karşiyaka, i̇zmi̇r, türkiye": {
+  "lat": 38.4615483,
+  "lon": 27.1269152,
+  "tip": "administrative",
+  "display": "Tersane Mahallesi, Karşıyaka, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "atifbey mahallesi, gazi̇emi̇r, i̇zmi̇r, türkiye": {
+  "lat": 38.3215855,
+  "lon": 27.1293958,
+  "tip": "administrative",
+  "display": "Atıfbey Mahallesi, Gaziemir, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "ati̇lla mahallesi, konak, i̇zmi̇r, türkiye": {
+  "lat": 38.4072633,
+  "lon": 27.1259491,
+  "tip": "administrative",
+  "display": "Atilla Mahallesi, İzmir, Konak, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "vatan mahallesi, konak, i̇zmi̇r, türkiye": {
+  "lat": 38.4241143,
+  "lon": 27.1418644,
+  "tip": "electronics",
+  "display": "Vatan Bilgisayar, Hürriyet Bulvarı, İsmet Kaptan Mahallesi, İzmir, Konak, İzmir, Ege Bölgesi, 35210, Türkiye"
+ },
+ "karaçulha mahallesi, fethi̇ye, muğla, türkiye": {},
+ "konak, i̇zmi̇r, türkiye": {
+  "lat": 38.4187168,
+  "lon": 27.1282675,
+  "tip": "administrative",
+  "display": "Konak, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "gümüşlük mahallesi, mi̇las, muğla, türkiye": {
+  "lat": 37.3163471,
+  "lon": 27.7744595,
+  "tip": "suburb",
+  "display": "Gümüşlük, Milas, Muğla, Ege Bölgesi, 48160, Türkiye"
+ },
+ "pinarli belen mahallesi, bodrum, muğla, türkiye": {},
+ "gazi̇paşa mahallesi, di̇ki̇li̇, i̇zmi̇r, türkiye": {
+  "lat": 39.0621907,
+  "lon": 26.8803799,
+  "tip": "administrative",
+  "display": "Gazipaşa Mahallesi, Dikili, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "fati̇h mahallesi, ti̇re, i̇zmi̇r, türkiye": {
+  "lat": 38.0983104,
+  "lon": 27.7158344,
+  "tip": "administrative",
+  "display": "Fatih Mahallesi, Tire, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "mi̇thatpaşa mahallesi, menderes, i̇zmi̇r, türkiye": {
+  "lat": 38.2524145,
+  "lon": 27.137084,
+  "tip": "administrative",
+  "display": "Mithatpaşa Mahallesi, Menderes, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "maltepe mahallesi, çi̇ğli̇, i̇zmi̇r, türkiye": {
+  "lat": 38.4910976,
+  "lon": 27.074218,
+  "tip": "administrative",
+  "display": "Maltepe Mahallesi, Çiğli, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "hacieyüplü mahallesi, deni̇zli̇, türkiye": {
+  "lat": 37.8323397,
+  "lon": 29.026913,
+  "tip": "administrative",
+  "display": "Hacıeyüplü Mahallesi, Merkezefendi, Denizli, Ege Bölgesi, Türkiye"
+ },
+ "musli̇hi̇tti̇n mahallesi, muğla, türkiye": {
+  "lat": 37.2181413,
+  "lon": 28.3576472,
+  "tip": "administrative",
+  "display": "Muslihittin Mahallesi, Menteşe, Muğla, Ege Bölgesi, Türkiye"
+ },
+ "yazibaşi mahallesi, torbali, i̇zmi̇r, türkiye": {
+  "lat": 38.2394308,
+  "lon": 27.3191246,
+  "tip": "administrative",
+  "display": "Yazıbaşı Mahallesi, Torbalı, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "mumcular mahallesi, bodrum, muğla, türkiye": {},
+ "turbey mahallesi, bergama, i̇zmi̇r, türkiye": {},
+ "halkapinar mahallesi, konak, i̇zmi̇r, türkiye": {
+  "lat": 38.4311773,
+  "lon": 27.1645185,
+  "tip": "administrative",
+  "display": "Halkapınar Mahallesi, İzmir, Konak, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "haci veli̇ mahallesi, foça, i̇zmi̇r, türkiye": {},
+ "i̇smetpaşa mahallesi, di̇ki̇li̇, i̇zmi̇r, türkiye": {
+  "lat": 39.0740357,
+  "lon": 26.8949175,
+  "tip": "administrative",
+  "display": "İsmetpaşa Mahallesi, Dikili, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "100. yil mahallesi, bandirma, balikesi̇r, türkiye": {
+  "lat": 40.3436484,
+  "lon": 27.9942834,
+  "tip": "administrative",
+  "display": "100. Yıl Mahallesi, Bandırma, Balıkesir, Marmara Bölgesi, Türkiye"
+ },
+ "emi̇rbeyazit mahallesi, muğla, türkiye": {
+  "lat": 37.2164311,
+  "lon": 28.362938,
+  "tip": "administrative",
+  "display": "Emirbeyazıt Mahallesi, Menteşe, Muğla, Ege Bölgesi, 48050, Türkiye"
+ },
+ "paşa alani mahallesi, balikesi̇r, türkiye": {
+  "lat": 39.6610936,
+  "lon": 27.9049819,
+  "tip": "administrative",
+  "display": "Paşa Alanı Mahallesi, Balıkesir, Karesi, Balıkesir, Marmara Bölgesi, 10085, Türkiye"
+ },
+ "nergi̇z mahallesi, karşiyaka, i̇zmi̇r, türkiye": {
+  "lat": 38.4609332,
+  "lon": 27.1068886,
+  "tip": "administrative",
+  "display": "Nergiz Mahallesi, Karşıyaka, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "atakent mahallesi, karşiyaka, i̇zmi̇r, türkiye": {
+  "lat": 38.4663511,
+  "lon": 27.0880288,
+  "tip": "administrative",
+  "display": "Atakent Mahallesi, Karşıyaka, İzmir, Ege Bölgesi, 35590, Türkiye"
+ },
+ "postacilar mahallesi, bayrakli, i̇zmi̇r, türkiye": {
+  "lat": 38.4816406,
+  "lon": 27.1200162,
+  "tip": "administrative",
+  "display": "Postacılar Mahallesi, Bayraklı, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "soğanli mahallesi, çanakkale, türkiye": {},
+ "beşevler mahallesi, çanakkale, türkiye": {},
+ "yildirim mahallesi, çanakkale, türkiye": {
+  "lat": 40.4089388,
+  "lon": 26.671815,
+  "tip": "residential",
+  "display": "Cevdet Yıldırım Sokak, Camiikebir, Camiikebir Mahallesi, Gelibolu, Çanakkale, Marmara Bölgesi, 17500, Türkiye"
+ },
+ "hürri̇yet mahallesi, çanakkale, türkiye": {},
+ "odunluk mahallesi, çanakkale, türkiye": {},
+ "ertuğrulgazi̇ mahallesi, çanakkale, türkiye": {},
+ "sakarya mahallesi, çanakkale, türkiye": {},
+ "güzelyali si̇teler mahallesi, çanakkale, türkiye": {},
+ "bağlaralti mahallesi, çanakkale, türkiye": {},
+ "yeni̇karaman mahallesi, çanakkale, türkiye": {},
+ "karaman mahallesi, çanakkale, türkiye": {
+  "lat": 40.0942265,
+  "lon": 26.3922103,
+  "tip": "residential",
+  "display": "Karaman Sk., Cumhuriyet Mahallesi, Kepez Beldesi, Çanakkale, Marmara Bölgesi, 17110, Türkiye"
+ },
+ "kurtoğlu mahallesi, çanakkale, türkiye": {},
+ "alaaddi̇nbey mahallesi, çanakkale, türkiye": {},
+ "30 ağustos zafer mahallesi, çanakkale, türkiye": {},
+ "kuruçeşme mahallesi, çanakkale, türkiye": {},
+ "ahmet yesevi̇ mahallesi, çanakkale, türkiye": {},
+ "üçevler mahallesi, çanakkale, türkiye": {},
+ "çi̇ri̇şhane mahallesi, çanakkale, türkiye": {},
+ "karaağaç mahallesi, çanakkale, türkiye": {
+  "lat": 39.3918304,
+  "lon": 26.8387057,
+  "tip": "fuel",
+  "display": "Türkiye Petrolleri, İzmir - Çanakkale Yolu, Mithatpaşa, Karaağaç, Gömeç, Balıkesir, Marmara Bölgesi, 10716, Türkiye"
+ },
+ "haciseyfetti̇n mahallesi, çanakkale, türkiye": {},
+ "atatürk mahallesi, i̇zmi̇r, türkiye": {
+  "lat": 39.1023586,
+  "lon": 27.1935983,
+  "tip": "administrative",
+  "display": "Atatürk Mahallesi, Bergama, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "atif bey mahallesi, gazi̇emi̇r, i̇zmi̇r, türkiye": {},
+ "arap hasan mahallesi, karabağlar, i̇zmi̇r, türkiye": {
+  "lat": 38.4006765,
+  "lon": 27.1088226,
+  "tip": "administrative",
+  "display": "Arap Hasan Mahallesi, Karabağlar, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "çamliçay mahallesi, urla, i̇zmi̇r, türkiye": {
+  "lat": 38.3712715,
+  "lon": 26.8522131,
+  "tip": "administrative",
+  "display": "Çamlıçay Mahallesi, Urla, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "kazim di̇ri̇k mahallesi, bornova, i̇zmi̇r, türkiye": {},
+ "osmangazi̇ mahallesi, bornova, i̇zmi̇r, türkiye": {
+  "lat": 38.4670853,
+  "lon": 27.2000127,
+  "tip": "bus_stop",
+  "display": "Osmangazi Köprü, Osman Gazi Caddesi, Atatürk Mahallesi, Bornova, İzmir, Ege Bölgesi, 35030, Türkiye"
+ },
+ "yamanlar mahallesi, bayrakli, i̇zmi̇r, türkiye": {
+  "lat": 38.4799213,
+  "lon": 27.1319809,
+  "tip": "administrative",
+  "display": "Yamanlar Mahallesi, Bayraklı, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "bayrakli mahallesi, bayrakli, i̇zmi̇r, türkiye": {
+  "lat": 38.4638457,
+  "lon": 27.1646872,
+  "tip": "administrative",
+  "display": "Bayraklı Mahallesi, Bayraklı, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "alaşehi̇r mahallesi, çi̇ğli̇, i̇zmi̇r, türkiye": {},
+ "menderes, i̇zmi̇r, türkiye": {
+  "lat": 38.2551566,
+  "lon": 27.1381399,
+  "tip": "administrative",
+  "display": "Menderes, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "güzelbahçe, i̇zmi̇r, türkiye": {
+  "lat": 38.375516,
+  "lon": 26.8755527,
+  "tip": "administrative",
+  "display": "Güzelbahçe, İzmir, Ege Bölgesi, 35310, Türkiye"
+ },
+ "kemalpaşa, i̇zmi̇r, türkiye": {
+  "lat": 38.4694649,
+  "lon": 27.4002143,
+  "tip": "station",
+  "display": "Kemalpaşa, Bursa-İzmir Otoyolu, Ansızca Mahallesi, Kemalpaşa, İzmir, Ege Bölgesi, 35730, Türkiye"
+ },
+ "kemalpaşa mahallesi, bornova, i̇zmi̇r, türkiye": {
+  "lat": 38.429104,
+  "lon": 27.2664549,
+  "tip": "administrative",
+  "display": "Kemalpaşa Mahallesi, Bornova, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "göztepe mahallesi, konak, i̇zmi̇r, türkiye": {
+  "lat": 38.3973139,
+  "lon": 27.0918506,
+  "tip": "administrative",
+  "display": "Göztepe Mahallesi, İzmir, Konak, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "ulucak i̇sti̇klal mahallesi, kemalpaşa, i̇zmi̇r, türkiye": {
+  "lat": 38.4791186,
+  "lon": 27.358118,
+  "tip": "quarter",
+  "display": "Ulucak, İstiklal Mahallesi, Kemalpaşa, İzmir, Ege Bölgesi, 35735, Türkiye"
+ },
+ "şi̇fne mahallesi, bornova, i̇zmi̇r, türkiye": {},
+ "cumhuri̇yet mahallesi, ti̇re, i̇zmi̇r, türkiye": {
+  "lat": 38.0880202,
+  "lon": 27.730418,
+  "tip": "administrative",
+  "display": "Cumhuriyet Mahallesi, Tire, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "dedebaşi mahallesi, çi̇ğli̇, i̇zmi̇r, türkiye": {},
+ "cumhuri̇yet mahallesi, karaburun, i̇zmi̇r, türkiye": {
+  "lat": 38.6352337,
+  "lon": 26.5092576,
+  "tip": "pedestrian",
+  "display": "Cumhuriyet Caddesi, Merkez Mahallesi, Karaburun, İzmir, Ege Bölgesi, 35960, Türkiye"
+ },
+ "demi̇rköprü mahallesi, karşiyaka, i̇zmi̇r, türkiye": {
+  "lat": 38.4680994,
+  "lon": 27.0995996,
+  "tip": "administrative",
+  "display": "Demirköprü Mahallesi, Karşıyaka, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "güzel yali mahallesi, konak, i̇zmi̇r, türkiye": {},
+ "m.fevzi̇ çakmak mahallesi, urla, i̇zmi̇r, türkiye": {
+  "lat": 38.3688091,
+  "lon": 26.8344874,
+  "tip": "administrative",
+  "display": "M.Fevzi Çakmak Mahallesi, Urla, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "dedebaşi mahallesi, karşiyaka, i̇zmi̇r, türkiye": {
+  "lat": 38.4689178,
+  "lon": 27.1058459,
+  "tip": "administrative",
+  "display": "Dedebaşı Mahallesi, Karşıyaka, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "murat rei̇s mahallesi, konak, i̇zmi̇r, türkiye": {
+  "lat": 38.4030711,
+  "lon": 27.1086302,
+  "tip": "administrative",
+  "display": "Murat Reis Mahallesi, İzmir, Konak, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "teleferi̇k mahallesi, balçova, i̇zmi̇r, türkiye": {
+  "lat": 38.3820922,
+  "lon": 27.0570997,
+  "tip": "administrative",
+  "display": "Teleferik Mahallesi, Balçova, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "çi̇çek mahallesi, bayrakli, i̇zmi̇r, türkiye": {
+  "lat": 38.4678427,
+  "lon": 27.1700589,
+  "tip": "administrative",
+  "display": "Çiçek Mahallesi, Bayraklı, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "yeni̇kale mahallesi, narlidere, i̇zmi̇r, türkiye": {
+  "lat": 38.3949989,
+  "lon": 27.0088783,
+  "tip": "administrative",
+  "display": "Yenikale Mahallesi, Narlıdere, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "kemal rei̇s mahallesi, konak, i̇zmi̇r, türkiye": {
+  "lat": 38.4068653,
+  "lon": 27.1142131,
+  "tip": "administrative",
+  "display": "Kemal Reis Mahallesi, İzmir, Konak, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "biyiklar mahallesi, bayindir, i̇zmi̇r, türkiye": {
+  "lat": 38.2224751,
+  "lon": 27.6529166,
+  "tip": "administrative",
+  "display": "Bıyıklar Mahallesi, Bayındır, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "esatpaşa mahallesi, menemen, i̇zmi̇r, türkiye": {
+  "lat": 38.6054001,
+  "lon": 27.0743447,
+  "tip": "administrative",
+  "display": "Esatpaşa Mahallesi, Menemen, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "gaybi̇ mahallesi, menemen, i̇zmi̇r, türkiye": {
+  "lat": 38.6083941,
+  "lon": 27.067033,
+  "tip": "administrative",
+  "display": "Gaybi Mahallesi, Menemen, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "kurtuluş mahallesi, ti̇re, i̇zmi̇r, türkiye": {
+  "lat": 38.0898716,
+  "lon": 27.7366584,
+  "tip": "administrative",
+  "display": "Kurtuluş Mahallesi, Tire, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "i̇nönü mahallesi, ödemi̇ş, i̇zmi̇r, türkiye": {
+  "lat": 38.2465244,
+  "lon": 27.9771223,
+  "tip": "administrative",
+  "display": "İnönü Mahallesi, Ödemiş, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "yeni̇ mahallesi, ti̇re, i̇zmi̇r, türkiye": {
+  "lat": 38.087407,
+  "lon": 27.7340259,
+  "tip": "administrative",
+  "display": "Yeni Mahallesi, Tire, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "bostanli mahallesi, çi̇ğli̇, i̇zmi̇r, türkiye": {},
+ "ertuğrul mahallesi, bergama, i̇zmi̇r, türkiye": {
+  "lat": 39.1187329,
+  "lon": 27.1784561,
+  "tip": "administrative",
+  "display": "Ertuğrul Mahallesi, Bergama, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "oğlanansi atatürk mahallesi, menderes, i̇zmi̇r, türkiye": {},
+ "um mahallesi, yatağan, muğla, türkiye": {},
+ "yeni̇gün mahallesi, konak, i̇zmi̇r, türkiye": {
+  "lat": 38.4215847,
+  "lon": 27.1371868,
+  "tip": "administrative",
+  "display": "Yenigün Mahallesi, İzmir, Konak, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "patlangiç mahallesi, fethi̇ye, muğla, türkiye": {
+  "lat": 36.6179809,
+  "lon": 29.1448419,
+  "tip": "administrative",
+  "display": "Patlangıç Mahallesi, Fethiye, Muğla, Ege Bölgesi, Türkiye"
+ },
+ "fati̇h mahallesi, bayindir, i̇zmi̇r, türkiye": {
+  "lat": 38.2158392,
+  "lon": 27.6497365,
+  "tip": "administrative",
+  "display": "Fatih Mahallesi, Bayındır, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "bostanli mahallesi, karşiyaka, i̇zmi̇r, türkiye": {
+  "lat": 38.4570347,
+  "lon": 27.0983563,
+  "tip": "administrative",
+  "display": "Bostanlı Mahallesi, Karşıyaka, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "hasanefendi̇ ramazan paşa mahallesi, merkez, aydin, türkiye": {
+  "lat": 37.8499846,
+  "lon": 27.8414936,
+  "tip": "administrative",
+  "display": "Hasanefendi - Ramazan Paşa Mahallesi, Efeler, Aydın, Ege Bölgesi, Türkiye"
+ },
+ "merkez, aydin, türkiye": {
+  "lat": 37.8471749,
+  "lon": 27.8337255,
+  "tip": "administrative",
+  "display": "Efeler, Aydın, Ege Bölgesi, Türkiye"
+ },
+ "karaçali mahallesi, dalaman, muğla, türkiye": {
+  "lat": 36.7493985,
+  "lon": 28.8088111,
+  "tip": "school",
+  "display": "Karaçalı İlkokulu, Alemdar Cadde, Merkez, Cumabeleni, Dalaman, Muğla, Ege Bölgesi, 48770, Türkiye"
+ },
+ "menteşeoğlu mahallesi, fethi̇ye, muğla, türkiye": {
+  "lat": 36.6335906,
+  "lon": 29.1531195,
+  "tip": "administrative",
+  "display": "Menteşeoğlu Mahallesi, Fethiye, Muğla, Ege Bölgesi, Türkiye"
+ },
+ "umurça mahallesi, bodrum, muğla, türkiye": {},
+ "turgutrei̇s mahallesi, bodrum, muğla, türkiye": {
+  "lat": 36.9755293,
+  "lon": 27.2675571,
+  "tip": "tertiary",
+  "display": "Turgutreis Caddesi, Günbatımı Sitesi, Akyarlar Mahallesi, Bodrum, Muğla, Ege Bölgesi, 48960, Türkiye"
+ },
+ "altintop mahallesi, deni̇zli̇, türkiye": {
+  "lat": 37.772438,
+  "lon": 29.0854185,
+  "tip": "administrative",
+  "display": "Altıntop Mahallesi, Merkezefendi, Denizli, Ege Bölgesi, Türkiye"
+ },
+ "si̇teler mahallesi, deni̇zli̇, türkiye": {
+  "lat": 37.7523094,
+  "lon": 29.0957211,
+  "tip": "administrative",
+  "display": "Siteler Mahallesi, Pamukkale, Denizli, Ege Bölgesi, Türkiye"
+ },
+ "laleli̇ mahallesi, buca, i̇zmi̇r, türkiye": {
+  "lat": 38.3984575,
+  "lon": 27.1513516,
+  "tip": "administrative",
+  "display": "Laleli Mahallesi, Buca, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "peli̇tbağ mahallesi, deni̇zli̇, türkiye": {},
+ "atatürk mahallesi, selçuk, i̇zmi̇r, türkiye": {
+  "lat": 37.9498351,
+  "lon": 27.3678777,
+  "tip": "administrative",
+  "display": "Atatürk Mahallesi, Selçuk, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "müsli̇hi̇tti̇n mahallesi, muğla, türkiye": {
+  "lat": 37.2181413,
+  "lon": 28.3576472,
+  "tip": "administrative",
+  "display": "Muslihittin Mahallesi, Menteşe, Muğla, Ege Bölgesi, Türkiye"
+ },
+ "kötekli̇ mahallesi, muğla, türkiye": {
+  "lat": 37.193728,
+  "lon": 28.3696126,
+  "tip": "atm",
+  "display": "Türkiye İş Bankası, Uğur Mumcu Bulvarı, Emirbeyazıt Mahallesi, Muğla, Menteşe, Muğla, Ege Bölgesi, 48050, Türkiye"
+ },
+ "ata mahallesi, merkez, aydin, türkiye": {
+  "lat": 37.839359,
+  "lon": 27.8543791,
+  "tip": "suburb",
+  "display": "Ata, Aydın, Efeler, Aydın, Ege Bölgesi, 09010, Türkiye"
+ },
+ "orta mahallesi, merkez, aydin, türkiye": {
+  "lat": 37.8479812,
+  "lon": 27.8514949,
+  "tip": "bus_stop",
+  "display": "Doğu Gazi Bulvarı Orta Durağı, Dogu Gazi Bulvarı, Cuma, Cuma Mahallesi, Efeler, Aydın, Ege Bölgesi, 09110, Türkiye"
+ },
+ "cüneytbey mahallesi, menderes, i̇zmi̇r, türkiye": {
+  "lat": 38.2482464,
+  "lon": 27.1337464,
+  "tip": "administrative",
+  "display": "Cüneytbey Mahallesi, Menderes, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "m.kemal atatürk mahallesi, foça, i̇zmi̇r, türkiye": {
+  "lat": 38.6530153,
+  "lon": 26.9022153,
+  "tip": "administrative",
+  "display": "Kemal Atatürk Mahallesi, Foça, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "ertuğrul mahallesi, torbali, i̇zmi̇r, türkiye": {
+  "lat": 38.1576755,
+  "lon": 27.3589181,
+  "tip": "administrative",
+  "display": "Ertuğrul Mahallesi, Torbalı, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "manavkuyu mahallesi, bayrakli, i̇zmi̇r, türkiye": {
+  "lat": 38.4622669,
+  "lon": 27.1909314,
+  "tip": "administrative",
+  "display": "Manavkuyu Mahallesi, Bayraklı, İzmir, Ege Bölgesi, 35535, Türkiye"
+ },
+ "yaylaköy mahallesi, kuşadasi, aydin, türkiye": {
+  "lat": 37.784976,
+  "lon": 27.3369803,
+  "tip": "administrative",
+  "display": "Yaylaköy Mahallesi, Kuşadası, Aydın, Ege Bölgesi, Türkiye"
+ },
+ "ali̇ fuat cebesoy mahallesi, karabağlar, i̇zmi̇r, türkiye": {
+  "lat": 38.3792267,
+  "lon": 27.1083099,
+  "tip": "administrative",
+  "display": "Ali Fuat Cebesoy Mahallesi, Karabağlar, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "durak mahallesi, merkez, uşak, türkiye": {
+  "lat": 38.6729278,
+  "lon": 29.4173147,
+  "tip": "administrative",
+  "display": "Durak Mahallesi, Uşak, Ege Bölgesi, 64000, Türkiye"
+ },
+ "kurtuluş mahallesi, merkez, uşak, türkiye": {
+  "lat": 38.6741206,
+  "lon": 29.4040316,
+  "tip": "administrative",
+  "display": "Kurtuluş Mahallesi, Uşak, Ege Bölgesi, 64100, Türkiye"
+ },
+ "soğuksu mahallesi, alaşehi̇r, mani̇sa, türkiye": {
+  "lat": 38.3486739,
+  "lon": 28.5154223,
+  "tip": "administrative",
+  "display": "Soğuksu Mahallesi, Alaşehir, Manisa, Ege Bölgesi, Türkiye"
+ },
+ "yaka mahallesi, urla, i̇zmi̇r, türkiye": {
+  "lat": 38.3251632,
+  "lon": 26.7572309,
+  "tip": "administrative",
+  "display": "Yaka Mahallesi, Urla, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "yurdoğlu mahallesi, karabağlar, i̇zmi̇r, türkiye": {
+  "lat": 38.3619102,
+  "lon": 27.0947754,
+  "tip": "administrative",
+  "display": "Yurdoğlu Mahallesi, Karabağlar, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "çamlik mahallesi, selçuk, i̇zmi̇r, türkiye": {
+  "lat": 37.8856274,
+  "lon": 27.3828863,
+  "tip": "administrative",
+  "display": "Çamlık Mahallesi, Selçuk, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "güvendi̇k mahallesi, urla, i̇zmi̇r, türkiye": {
+  "lat": 38.3978946,
+  "lon": 26.7276893,
+  "tip": "administrative",
+  "display": "Güvendik Mahallesi, Urla, İzmir, Ege Bölgesi, 35450, Türkiye"
+ },
+ "erzene mahallesi, bornova, i̇zmi̇r, türkiye": {
+  "lat": 38.465288,
+  "lon": 27.2211347,
+  "tip": "administrative",
+  "display": "Erzene Mahallesi, Bornova, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "muradi̇ye mahallesi, mani̇sa, türkiye": {
+  "lat": 38.6591542,
+  "lon": 27.3375263,
+  "tip": "administrative",
+  "display": "Muradiye Mahallesi, Yunus Emre, Manisa, Ege Bölgesi, 45140, Türkiye"
+ },
+ "muratbey mahallesi, torbali, i̇zmi̇r, türkiye": {
+  "lat": 38.1522667,
+  "lon": 27.3536932,
+  "tip": "administrative",
+  "display": "Muratbey Mahallesi, Torbalı, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "haciveli̇ mahallesi, foça, i̇zmi̇r, türkiye": {
+  "lat": 38.6592692,
+  "lon": 26.8552849,
+  "tip": "administrative",
+  "display": "Hacıveli Mahallesi, Foça, İzmir, Ege Bölgesi, 35683, Türkiye"
+ },
+ "gölenye mahallesi, marmari̇s, muğla, türkiye": {},
+ "çarşi mahallesi, bodrum, muğla, türkiye": {
+  "lat": 37.0346629,
+  "lon": 27.4327171,
+  "tip": "administrative",
+  "display": "Çarşı Mahallesi, Bodrum, Muğla, Ege Bölgesi, Türkiye"
+ },
+ "mi̇thatpaşa cad. ilica mahallesi, balçova, i̇zmi̇r, türkiye": {},
+ "ödemi̇ş, i̇zmi̇r, türkiye": {
+  "lat": 38.2220766,
+  "lon": 27.9654515,
+  "tip": "stop",
+  "display": "Ödemiş, Fakülte Caddesi, Emmioğlu Mahallesi, Üç Eylül Mahallesi, Ödemiş, İzmir, Ege Bölgesi, 35750, Türkiye"
+ },
+ "sali̇hpaşalar mahallesi, merkez, muğla, türkiye": {},
+ "merkez, muğla, türkiye": {
+  "lat": 36.7678512,
+  "lon": 28.8090272,
+  "tip": "suburb",
+  "display": "Merkez, Dalaman, Muğla, Ege Bölgesi, 48770, Türkiye"
+ },
+ "bahri̇ye üçok mahallesi, karşiyaka, i̇zmi̇r, türkiye": {
+  "lat": 38.4590051,
+  "lon": 27.1095382,
+  "tip": "administrative",
+  "display": "Bahriye Üçok Mahallesi, Karşıyaka, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "69a yi̇ği̇tler mahallesi, buca, i̇zmi̇r, türkiye": {
+  "lat": 38.3965831,
+  "lon": 27.1569994,
+  "tip": "administrative",
+  "display": "Yiğitler Mahallesi, Buca, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "muradi̇ye mahallesi, merkez, mani̇sa, türkiye": {},
+ "yeni̇ mahallesi, fethi̇ye, muğla, türkiye": {
+  "lat": 36.6540641,
+  "lon": 29.1206604,
+  "tip": "pharmacy",
+  "display": "Yeni Ertürk, 893. Sokak, Akarca Mahallesi, Fethiye, Muğla, Ege Bölgesi, 48518, Türkiye"
+ },
+ "kozağaç mahallesi, buca, i̇zmi̇r, türkiye": {
+  "lat": 38.3791182,
+  "lon": 27.1735883,
+  "tip": "administrative",
+  "display": "Kozağaç Mahallesi, Buca, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "akarca mahallesi, fethi̇ye, muğla, türkiye": {
+  "lat": 36.6533998,
+  "lon": 29.1224145,
+  "tip": "administrative",
+  "display": "Akarca Mahallesi, Fethiye, Muğla, Ege Bölgesi, Türkiye"
+ },
+ "turan mahallesi, nazi̇lli̇, aydin, türkiye": {
+  "lat": 37.9174339,
+  "lon": 28.3313972,
+  "tip": "suburb",
+  "display": "Turan, Nazilli, Aydın, Ege Bölgesi, 09800, Türkiye"
+ },
+ "ege mahallesi, kuşadasi, aydin, türkiye": {
+  "lat": 37.866132,
+  "lon": 27.276319,
+  "tip": "suburb",
+  "display": "Ege, Kuşadası, Aydın, Ege Bölgesi, 90400, Türkiye"
+ },
+ "burgaz mahallesi, mi̇las, muğla, türkiye": {
+  "lat": 37.3176899,
+  "lon": 27.7793647,
+  "tip": "suburb",
+  "display": "Burgaz, Milas, Muğla, Ege Bölgesi, 48160, Türkiye"
+ },
+ "buca, i̇zmi̇r, türkiye": {
+  "lat": 38.3834933,
+  "lon": 27.1686508,
+  "tip": "administrative",
+  "display": "Buca, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "aydinoğlu mahallesi, merkez, deni̇zli̇, türkiye": {},
+ "merkez, deni̇zli̇, türkiye": {
+  "lat": 37.7784563,
+  "lon": 29.0656533,
+  "tip": "administrative",
+  "display": "Merkezefendi Mahallesi, Merkezefendi, Denizli, Ege Bölgesi, 20000, Türkiye"
+ },
+ "buca koop mahallesi, buca, i̇zmi̇r, türkiye": {
+  "lat": 38.3681072,
+  "lon": 27.1792704,
+  "tip": "administrative",
+  "display": "Buca Koop Mahallesi, Buca, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "adalet mahallesi, deni̇zli̇, türkiye": {
+  "lat": 37.7804129,
+  "lon": 29.0297132,
+  "tip": "administrative",
+  "display": "Adalet Mahallesi, Merkezefendi, Denizli, Ege Bölgesi, Türkiye"
+ },
+ "kadinlar deni̇zi̇ mahallesi, kuşadasi, aydin, türkiye": {
+  "lat": 37.8513954,
+  "lon": 27.258026,
+  "tip": "secondary",
+  "display": "Kadınlar Denizi Yolu, Hacıfeyzullah Mahallesi, Kuşadası, Aydın, Ege Bölgesi, 90400, Türkiye"
+ },
+ "gürpinar mahallesi, bornova, i̇zmi̇r, türkiye": {
+  "lat": 38.4271103,
+  "lon": 27.2662498,
+  "tip": "administrative",
+  "display": "Gürpınar Mahallesi, Bornova, İzmir, Ege Bölgesi, 35060, Türkiye"
+ },
+ "ali̇ağa, i̇zmi̇r, türkiye": {
+  "lat": 38.8034265,
+  "lon": 26.9713731,
+  "tip": "administrative",
+  "display": "Aliağa, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "çukuralti mahallesi, menderes, i̇zmi̇r, türkiye": {
+  "lat": 38.0204863,
+  "lon": 27.0966019,
+  "tip": "administrative",
+  "display": "Çukuraltı Mahallesi, Menderes, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "ti̇re, i̇zmi̇r, türkiye": {
+  "lat": 38.0925722,
+  "lon": 27.7280375,
+  "tip": "stop",
+  "display": "Tire, Fahrettin Altay Caddesi, Fatih, Fatih Mahallesi, Tire, İzmir, Ege Bölgesi, 35900, Türkiye"
+ },
+ "çamlikebi̇r mahallesi, menemen, i̇zmi̇r, türkiye": {},
+ "türkcedi̇t mahallesi, kinik, i̇zmi̇r, türkiye": {
+  "lat": 39.0855101,
+  "lon": 27.3876819,
+  "tip": "administrative",
+  "display": "Türkcedit Mahallesi, Kınık, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "30 agustos mahallesi, menemen, i̇zmi̇r, türkiye": {
+  "lat": 38.5533467,
+  "lon": 27.0464174,
+  "tip": "administrative",
+  "display": "30 Ağustos Mahallesi, Menemen, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "fahretti̇n altay mahallesi, karabağlar, i̇zmi̇r, türkiye": {
+  "lat": 38.3953931,
+  "lon": 27.068135,
+  "tip": "administrative",
+  "display": "Fahrettin Altay Mahallesi, Karabağlar, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "akdeni̇z mahallesi, konak, i̇zmi̇r, türkiye": {
+  "lat": 38.4244882,
+  "lon": 27.1329276,
+  "tip": "administrative",
+  "display": "Akdeniz Mahallesi, İzmir, Konak, İzmir, Ege Bölgesi, 35210, Türkiye"
+ },
+ "kalabak mahallesi, urla, i̇zmi̇r, türkiye": {
+  "lat": 38.354921,
+  "lon": 26.8099399,
+  "tip": "administrative",
+  "display": "Kalabak Mahallesi, Urla, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "dumlupinar mahallesi, i̇zmi̇r, türkiye": {
+  "lat": 38.0817353,
+  "lon": 27.7279441,
+  "tip": "administrative",
+  "display": "Dumlupınar Mahallesi, Tire, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "aş mahallesi, kinik, i̇zmi̇r, türkiye": {
+  "lat": 39.0868407,
+  "lon": 27.3517023,
+  "tip": "administrative",
+  "display": "Poyracık Mahallesi, Kınık, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "kocatepe mahallesi, konak, i̇zmi̇r, türkiye": {
+  "lat": 38.4073517,
+  "lon": 27.129331,
+  "tip": "administrative",
+  "display": "Kocatepe Mahallesi, İzmir, Konak, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "alaçati mahallesi, çeşme, i̇zmi̇r, türkiye": {
+  "lat": 38.2847573,
+  "lon": 26.3745176,
+  "tip": "administrative",
+  "display": "Alaçatı Mahallesi, Çeşme, İzmir, Ege Bölgesi, 35937, Türkiye"
+ },
+ "şi̇ri̇ntepe mahallesi, çi̇ğli̇, i̇zmi̇r, türkiye": {
+  "lat": 38.4934044,
+  "lon": 27.0680021,
+  "tip": "administrative",
+  "display": "Şirintepe Mahallesi, Çiğli, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "örnekköy mahallesi, karşiyaka, i̇zmi̇r, türkiye": {
+  "lat": 38.479797,
+  "lon": 27.1103059,
+  "tip": "administrative",
+  "display": "Örnekköy Mahallesi, Karşıyaka, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "yelki̇ mahallesi, güzelbahçe, i̇zmi̇r, türkiye": {
+  "lat": 38.3409365,
+  "lon": 26.86664,
+  "tip": "administrative",
+  "display": "Yelki Mahallesi, Güzelbahçe, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "zafer mahallesi, i̇zmi̇r, türkiye": {
+  "lat": 39.1177512,
+  "lon": 27.1761472,
+  "tip": "administrative",
+  "display": "Zafer Mahallesi, Bergama, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "fevzi̇ çakmak mahallesi, balçova, i̇zmi̇r, türkiye": {
+  "lat": 38.3865074,
+  "lon": 27.0556171,
+  "tip": "administrative",
+  "display": "Fevzi Çakmak Mahallesi, Balçova, İzmir, Ege Bölgesi, 35330, Türkiye"
+ },
+ "çandarli mahallesi, di̇ki̇li̇, i̇zmi̇r, türkiye": {
+  "lat": 38.9375423,
+  "lon": 26.9328964,
+  "tip": "administrative",
+  "display": "Çandarlı Mahallesi, Dikili, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "zübeyde hanim mahallesi, karşiyaka, i̇zmi̇r, türkiye": {
+  "lat": 38.4914811,
+  "lon": 27.1095407,
+  "tip": "administrative",
+  "display": "Zübeyde Hanım Mahallesi, Karşıyaka, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "güzelyali mahallesi, konak, i̇zmi̇r, türkiye": {
+  "lat": 38.3961251,
+  "lon": 27.0857954,
+  "tip": "administrative",
+  "display": "Güzelyalı Mahallesi, İzmir, Konak, İzmir, Ege Bölgesi, 35290, Türkiye"
+ },
+ "tekeli̇ fevzi̇ çakmak mahallesi, menderes, i̇zmi̇r, türkiye": {
+  "lat": 38.1886759,
+  "lon": 27.1899524,
+  "tip": "administrative",
+  "display": "Tekeli Fevzi Çakmak Mahallesi, Menderes, İzmir, Ege Bölgesi, 35477, Türkiye"
+ },
+ "8 eylül mahallesi, kemalpaşa, i̇zmi̇r, türkiye": {
+  "lat": 38.4324466,
+  "lon": 27.4095581,
+  "tip": "administrative",
+  "display": "8 Eylül Mahallesi, Kemalpaşa, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "armutlu 85.yil cumhuri̇yet mahallesi, kemalpaşa, i̇zmi̇r, türkiye": {
+  "lat": 38.4073876,
+  "lon": 27.5261831,
+  "tip": "secondary",
+  "display": "Armutlu İzmir Caddesi, Armutlu, 85. Yıl Cumhuriyet Mahallesi, Aşağıkızılca Mahallesi, Kemalpaşa, İzmir, Ege Bölgesi, 35737, Türkiye"
+ },
+ "gümüşpala mahallesi, bayrakli, i̇zmi̇r, türkiye": {
+  "lat": 38.4692259,
+  "lon": 27.1368594,
+  "tip": "administrative",
+  "display": "Gümüşpala Mahallesi, Bayraklı, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "soğukkuyu mahallesi, bayrakli, i̇zmi̇r, türkiye": {
+  "lat": 38.4734871,
+  "lon": 27.1194878,
+  "tip": "administrative",
+  "display": "Soğukkuyu Mahallesi, Bayraklı, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "mi̇thatpaşa vad.ilica mahallesi, narlidere, i̇zmi̇r, türkiye": {},
+ "narlidere, i̇zmi̇r, türkiye": {
+  "lat": 38.3954414,
+  "lon": 27.0010982,
+  "tip": "administrative",
+  "display": "Narlıdere, İzmir, Ege Bölgesi, 35320, Türkiye"
+ },
+ "16 eylül mahallesi, çeşme, i̇zmi̇r, türkiye": {
+  "lat": 38.3258574,
+  "lon": 26.3050061,
+  "tip": "administrative",
+  "display": "16 Eylül Mahallesi, Çeşme, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "hidirak mahallesi, seferi̇hi̇sar, i̇zmi̇r, türkiye": {},
+ "seferi̇hi̇sar, i̇zmi̇r, türkiye": {
+  "lat": 38.1950292,
+  "lon": 26.8342193,
+  "tip": "administrative",
+  "display": "Seferihisar, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "ali̇ riza avni̇ bul. bahçeli̇evler mahallesi, karabağlar, i̇zmi̇r, türkiye": {},
+ "akin kivanç sokak postacilar mahallesi, bayrakli, i̇zmi̇r, türkiye": {
+  "lat": 38.4791835,
+  "lon": 27.1240007,
+  "tip": "residential",
+  "display": "Akın Kıvanç Sokak, Yeni Girne, Soğukkuyu Mahallesi, Bayraklı, İzmir, Ege Bölgesi, 35520, Türkiye"
+ },
+ "esenyali mahallesi, karabağlar, i̇zmi̇r, türkiye": {
+  "lat": 38.3939705,
+  "lon": 27.0913282,
+  "tip": "administrative",
+  "display": "Esenyalı Mahallesi, Karabağlar, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "mermerli̇ mahallesi, menemen, i̇zmi̇r, türkiye": {
+  "lat": 38.6100613,
+  "lon": 27.0674296,
+  "tip": "administrative",
+  "display": "Mermerli Mahallesi, Menemen, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "aksoy mahallesi, karşiyaka, i̇zmi̇r, türkiye": {
+  "lat": 38.4550638,
+  "lon": 27.108723,
+  "tip": "administrative",
+  "display": "Aksoy Mahallesi, Karşıyaka, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "m.aki̇f ersoy mahallesi, kemalpaşa, i̇zmi̇r, türkiye": {},
+ "k.di̇rli̇k mahallesi, bornova, i̇zmi̇r, türkiye": {},
+ "kasimpaşa mahallesi, menemen, i̇zmi̇r, türkiye": {
+  "lat": 38.6086765,
+  "lon": 27.0721729,
+  "tip": "administrative",
+  "display": "Kasımpaşa Mahallesi, Menemen, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "onur mahallesi, balçova, i̇zmi̇r, türkiye": {
+  "lat": 38.3915902,
+  "lon": 27.0520209,
+  "tip": "administrative",
+  "display": "Onur Mahallesi, Balçova, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "fevzi̇ çakmak mahallesi, foça, i̇zmi̇r, türkiye": {
+  "lat": 38.7417482,
+  "lon": 26.8332008,
+  "tip": "administrative",
+  "display": "Fevzi Çakmak Mahallesi, Foça, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "yeni̇mahalle mahallesi, çi̇ğli̇, i̇zmi̇r, türkiye": {
+  "lat": 38.4958778,
+  "lon": 27.0535841,
+  "tip": "administrative",
+  "display": "Yeni Mahalle Mahallesi, Çiğli, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "horozgediği mahallesi, ali̇ağa, i̇zmi̇r, türkiye": {
+  "lat": 38.7345441,
+  "lon": 26.9225989,
+  "tip": "administrative",
+  "display": "Horozgediği Mahallesi, Aliağa, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "çatalkaya mahallesi, narlidere, i̇zmi̇r, türkiye": {
+  "lat": 38.3926928,
+  "lon": 27.0014374,
+  "tip": "administrative",
+  "display": "Çatalkaya Mahallesi, Narlıdere, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "29 eki̇m mahallesi, menemen, i̇zmi̇r, türkiye": {
+  "lat": 38.5454842,
+  "lon": 27.0392998,
+  "tip": "administrative",
+  "display": "29 Ekim Mahallesi, Menemen, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "egemenli̇k mahallesi, bornova, i̇zmi̇r, türkiye": {
+  "lat": 38.4264864,
+  "lon": 27.2295296,
+  "tip": "administrative",
+  "display": "Egemenlik Mahallesi, Bornova, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "fi̇kri̇ altay mahallesi, karşiyaka, i̇zmi̇r, türkiye": {
+  "lat": 38.4746276,
+  "lon": 27.1019973,
+  "tip": "administrative",
+  "display": "Fikri Altay Mahallesi, Karşıyaka, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "siğacik mahallesi, seferi̇hi̇sar, i̇zmi̇r, türkiye": {
+  "lat": 38.1931856,
+  "lon": 26.786015,
+  "tip": "administrative",
+  "display": "Sığacık Mahallesi, Seferihisar, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "cami̇kebi̇r mahallesi, seferi̇hi̇sar, i̇zmi̇r, türkiye": {
+  "lat": 38.1962534,
+  "lon": 26.8385116,
+  "tip": "administrative",
+  "display": "Camikebir Mahallesi, Seferihisar, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "narli mahallesi, narlidere, i̇zmi̇r, türkiye": {
+  "lat": 38.3940392,
+  "lon": 27.005159,
+  "tip": "administrative",
+  "display": "Narlı Mahallesi, Narlıdere, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "seki̇z eylül mahallesi, kemalpaşa, i̇zmi̇r, türkiye": {
+  "lat": 38.4324466,
+  "lon": 27.4095581,
+  "tip": "administrative",
+  "display": "8 Eylül Mahallesi, Kemalpaşa, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "pi̇ri̇ rei̇s mahallesi, konak, i̇zmi̇r, türkiye": {
+  "lat": 38.404821,
+  "lon": 27.1149642,
+  "tip": "administrative",
+  "display": "Piri Reis Mahallesi, İzmir, Konak, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "i̇nkilap mahallesi, i̇zmi̇r, türkiye": {
+  "lat": 38.3919407,
+  "lon": 27.146971,
+  "tip": "administrative",
+  "display": "İnkılap Mahallesi, Buca, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "kazimdi̇ri̇k mahallesi, bornova, i̇zmi̇r, türkiye": {
+  "lat": 38.4594994,
+  "lon": 27.2111158,
+  "tip": "administrative",
+  "display": "Kazımdirik Mahallesi, Bornova, İzmir, Ege Bölgesi, 35100, Türkiye"
+ },
+ "çankaya mahallesi, konak, i̇zmi̇r, türkiye": {
+  "lat": 38.4047173,
+  "lon": 27.1012228,
+  "tip": "administrative",
+  "display": "Çankaya Mahallesi, İzmir, Konak, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "çamli mahallesi, güzelbahçe, i̇zmi̇r, türkiye": {
+  "lat": 38.3139141,
+  "lon": 26.859942,
+  "tip": "administrative",
+  "display": "Çamlı Mahallesi, Güzelbahçe, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "85. yil cumhuri̇yet mahallesi, kemalpaşa, i̇zmi̇r, türkiye": {
+  "lat": 38.4064556,
+  "lon": 27.5293779,
+  "tip": "administrative",
+  "display": "85. Yıl Cumhuriyet Mahallesi, Kemalpaşa, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "yelalti mahallesi, urla, i̇zmi̇r, türkiye": {
+  "lat": 38.3226,
+  "lon": 26.7689076,
+  "tip": "administrative",
+  "display": "Yelaltı Mahallesi, Urla, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "yaylacik mahallesi, i̇zmi̇r, türkiye": {
+  "lat": 38.3902427,
+  "lon": 27.1752803,
+  "tip": "administrative",
+  "display": "Yaylacık Mahallesi, Buca, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "yeşi̇lova mahallesi, bornova, i̇zmi̇r, türkiye": {
+  "lat": 38.4397371,
+  "lon": 27.2054946,
+  "tip": "administrative",
+  "display": "Yeşilova Mahallesi, Bornova, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "i̇tob osb mahallesi, menderes, i̇zmi̇r, türkiye": {},
+ "yeni̇kent mahallesi, urla, i̇zmi̇r, türkiye": {
+  "lat": 38.3332004,
+  "lon": 26.7696836,
+  "tip": "administrative",
+  "display": "Yenikent Mahallesi, Urla, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "utku mahallesi, mani̇sa, türkiye": {
+  "lat": 38.6124274,
+  "lon": 27.4288916,
+  "tip": "administrative",
+  "display": "Utku Mahallesi, Şehzadeler, Manisa, Ege Bölgesi, Türkiye"
+ },
+ "gazi̇ler mahallesi, sali̇hli̇, mani̇sa, türkiye": {
+  "lat": 38.4881572,
+  "lon": 28.1429832,
+  "tip": "suburb",
+  "display": "Gaziler, Salihli, Adala, Manisa, Ege Bölgesi, 45310, Türkiye"
+ },
+ "ragip bey mahallesi, akhi̇sar, mani̇sa, türkiye": {
+  "lat": 38.9194529,
+  "lon": 27.8347957,
+  "tip": "suburb",
+  "display": "Ragıpbey, Ragıpbey Mahallesi, Akhisar, Manisa, Ege Bölgesi, 45200, Türkiye"
+ },
+ "selvilitepe mahallesi, turgutlu, mani̇sa, türkiye": {
+  "lat": 38.4860397,
+  "lon": 27.7037699,
+  "tip": "suburb",
+  "display": "Selvilitepe, Turgutlu, Manisa, Ege Bölgesi, 45400, Türkiye"
+ },
+ "peker mahallesi, mani̇sa, türkiye": {
+  "lat": 38.618252,
+  "lon": 27.4294793,
+  "tip": "administrative",
+  "display": "Peker Mahallesi, Şehzadeler, Manisa, Ege Bölgesi, Türkiye"
+ },
+ "kurtuluş mahallesi, alaşehi̇r, mani̇sa, türkiye": {
+  "lat": 38.3536717,
+  "lon": 28.5248852,
+  "tip": "suburb",
+  "display": "Kurtuluş, Alaşehir, Manisa, Ege Bölgesi, 45600, Türkiye"
+ },
+ "di̇rmi̇l mahallesi, bodrum, muğla, türkiye": {},
+ "ulucami̇ mahallesi, köyceği̇z, muğla, türkiye": {
+  "lat": 36.9597366,
+  "lon": 28.683153,
+  "tip": "administrative",
+  "display": "Ulucami Mahallesi, Köyceğiz, Muğla, Ege Bölgesi, Türkiye"
+ },
+ "karaburun mahallesi, ortaca, muğla, türkiye": {
+  "lat": 36.8465984,
+  "lon": 28.7100481,
+  "tip": "fuel",
+  "display": "Türkiye Petrolleri, Dalyan Atatürk Bulvarı, Cumhuriyet, Okçular, Ortaca, Muğla, Ege Bölgesi, 48600, Türkiye"
+ },
+ "kibris şehi̇tleri̇ cd. cevat şaki̇r mahallesi, bodrum, muğla, türkiye": {},
+ "mesruti̇yet mahallesi, aydin, türkiye": {
+  "lat": 37.8524352,
+  "lon": 27.8334632,
+  "tip": "administrative",
+  "display": "Meşrutiyet Mahallesi, Efeler, Aydın, Ege Bölgesi, Türkiye"
+ },
+ "sirakapilar mahallesi, deni̇zli̇, türkiye": {
+  "lat": 37.7784261,
+  "lon": 29.0792487,
+  "tip": "administrative",
+  "display": "Sırakapılar Mahallesi, Merkezefendi, Denizli, Ege Bölgesi, 20100, Türkiye"
+ },
+ "surakapilar mahallesi, deni̇zli̇, türkiye": {},
+ "ören mahallesi, mi̇las, muğla, türkiye": {
+  "lat": 37.0412662,
+  "lon": 27.9575474,
+  "tip": "townhall",
+  "display": "Ören Mahallesi Muhtarligi, İsmet İnönü Cd., Ören, Milas, Muğla, Ege Bölgesi, 48220, Türkiye"
+ },
+ "çarşi mahallesi, çi̇vri̇l, deni̇zli̇, türkiye": {
+  "lat": 38.3032938,
+  "lon": 29.7310859,
+  "tip": "administrative",
+  "display": "Çarşı Mahallesi, Çivril, Denizli, Ege Bölgesi, Türkiye"
+ },
+ "yeşi̇lüzümlü mahallesi, fethi̇ye, muğla, türkiye": {},
+ "meşruti̇yet mahallesi, aydin, türkiye": {
+  "lat": 37.8524352,
+  "lon": 27.8334632,
+  "tip": "administrative",
+  "display": "Meşrutiyet Mahallesi, Efeler, Aydın, Ege Bölgesi, Türkiye"
+ },
+ "yunusemre mahallesi, deni̇zli̇, türkiye": {
+  "lat": 37.7476818,
+  "lon": 29.1042178,
+  "tip": "administrative",
+  "display": "Yunusemre Mahallesi, Pamukkale, Denizli, Ege Bölgesi, Türkiye"
+ },
+ "kurtuluş mahallesi, aydin, türkiye": {
+  "lat": 37.8411649,
+  "lon": 27.8429701,
+  "tip": "suburb",
+  "display": "Kurtuluş, Kurtuluş Mahallesi, Efeler, Aydın, Ege Bölgesi, 09020, Türkiye"
+ },
+ "ulucak mustafa kemal atatürk mahallesi, kemalpaşa, i̇zmi̇r, türkiye": {
+  "lat": 38.4707823,
+  "lon": 27.3467149,
+  "tip": "motorway_junction",
+  "display": "Ulucak, Bursa-İzmir Otoyolu, Mustafa Kemal Atatürk Mahallesi, Kemalpaşa, İzmir, Ege Bölgesi, 35735, Türkiye"
+ },
+ "mansuroğlu mahallesi, bayrakli, i̇zmi̇r, türkiye": {
+  "lat": 38.4545266,
+  "lon": 27.1889231,
+  "tip": "administrative",
+  "display": "Mansuroğlu Mahallesi, Bayraklı, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "75. yil mahallesi, bayrakli, i̇zmi̇r, türkiye": {
+  "lat": 38.4742189,
+  "lon": 27.1567729,
+  "tip": "administrative",
+  "display": "75. Yıl Mahallesi, Bayraklı, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "cumhuri̇yet mahallesi, foça, i̇zmi̇r, türkiye": {
+  "lat": 38.7349328,
+  "lon": 26.8766288,
+  "tip": "administrative",
+  "display": "Cumhuriyet Mahallesi, Foça, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "adakale mahallesi, mani̇sa, türkiye": {
+  "lat": 38.6085207,
+  "lon": 27.425909,
+  "tip": "administrative",
+  "display": "Adakale Mahallesi, Şehzadeler, Manisa, Ege Bölgesi, Türkiye"
+ },
+ "yeni̇mahalle mahallesi, mani̇sa, türkiye": {
+  "lat": 38.6197109,
+  "lon": 27.4139373,
+  "tip": "administrative",
+  "display": "Yenimahalle Mahallesi, Yunus Emre, Manisa, Ege Bölgesi, 45030, Türkiye"
+ },
+ "güzelyurt mahallesi, mani̇sa, türkiye": {
+  "lat": 38.6262136,
+  "lon": 27.3845638,
+  "tip": "administrative",
+  "display": "Güzelyurt Mah., Yunus Emre, Manisa, Ege Bölgesi, 45030, Türkiye"
+ },
+ "altay mahallesi, turgutlu, mani̇sa, türkiye": {
+  "lat": 38.4984352,
+  "lon": 27.7086425,
+  "tip": "administrative",
+  "display": "Altay Mahallesi, Turgutlu, Manisa, Ege Bölgesi, Türkiye"
+ },
+ "subaşi mahallesi, turgutlu, mani̇sa, türkiye": {
+  "lat": 38.4916706,
+  "lon": 27.697402,
+  "tip": "administrative",
+  "display": "Subaşı Mahallesi, Turgutlu, Manisa, Ege Bölgesi, Türkiye"
+ },
+ "yüzbaşi şerafetti̇n mahallesi, karabağlar, i̇zmi̇r, türkiye": {
+  "lat": 38.3664734,
+  "lon": 27.0961546,
+  "tip": "administrative",
+  "display": "Yüzbaşı Şerafettin Mahallesi, Karabağlar, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "i̇nönü mahallesi, akhi̇sar, mani̇sa, türkiye": {
+  "lat": 38.9149202,
+  "lon": 27.838068,
+  "tip": "administrative",
+  "display": "İnönü Mahallesi, Akhisar, Manisa, Ege Bölgesi, Türkiye"
+ },
+ "bozköy mahallesi, ali̇ağa, i̇zmi̇r, türkiye": {
+  "lat": 38.7203651,
+  "lon": 26.964433,
+  "tip": "administrative",
+  "display": "Bozköy Mahallesi, Aliağa, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "küçükçi̇ğli̇ mahallesi, çi̇ğli̇, i̇zmi̇r, türkiye": {
+  "lat": 38.5011075,
+  "lon": 27.0541834,
+  "tip": "pharmacy",
+  "display": "Küçükçiğli Eczanesi, Anadolu Caddesi, Küçük Çiğli Mahallesi, Çiğli, İzmir, Ege Bölgesi, 35620, Türkiye"
+ },
+ "30 ağustos mahallesi, menemen, i̇zmi̇r, türkiye": {
+  "lat": 38.5533467,
+  "lon": 27.0464174,
+  "tip": "administrative",
+  "display": "30 Ağustos Mahallesi, Menemen, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "musalla mahallesi, çeşme, i̇zmi̇r, türkiye": {
+  "lat": 38.3223117,
+  "lon": 26.303482,
+  "tip": "administrative",
+  "display": "Musalla Mahallesi, Çeşme, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "i̇zkent mahallesi, çi̇ğli̇, i̇zmi̇r, türkiye": {
+  "lat": 38.510442,
+  "lon": 27.0648915,
+  "tip": "administrative",
+  "display": "İzkent Mahallesi, Çiğli, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "ilica mahallesi, çeşme, i̇zmi̇r, türkiye": {
+  "lat": 38.3083827,
+  "lon": 26.3607464,
+  "tip": "administrative",
+  "display": "Ilıca Mahallesi, Çeşme, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "kemer mahallesi, aydin, türkiye": {
+  "lat": 37.8596708,
+  "lon": 27.8266154,
+  "tip": "suburb",
+  "display": "Kemer, Aydın, Efeler, Aydın, Ege Bölgesi, 09100, Türkiye"
+ },
+ "kurtuluş mahallesi, sali̇hli̇, mani̇sa, türkiye": {
+  "lat": 38.4761676,
+  "lon": 28.1578285,
+  "tip": "suburb",
+  "display": "Kurtuluş, Hacıbektaşlı, Salihli, Adala, Manisa, Ege Bölgesi, 45310, Türkiye"
+ },
+ "korutürk mahallesi, balçova, i̇zmi̇r, türkiye": {
+  "lat": 38.3910693,
+  "lon": 27.0447873,
+  "tip": "administrative",
+  "display": "Korutürk Mahallesi, Balçova, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "atatürk mahallesi, gölmarmara, mani̇sa, türkiye": {
+  "lat": 38.7160294,
+  "lon": 27.9176867,
+  "tip": "suburb",
+  "display": "Atatürk, Gölmarmara, Manisa, Ege Bölgesi, Türkiye"
+ },
+ "c boğazi̇çi̇ mahallesi, konak, i̇zmi̇r, türkiye": {
+  "lat": 38.4202239,
+  "lon": 27.1693961,
+  "tip": "administrative",
+  "display": "Boğaziçi Mahallesi, İzmir, Konak, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "i̇stasyon mahallesi, alaşehi̇r, mani̇sa, türkiye": {
+  "lat": 38.3626315,
+  "lon": 28.5126221,
+  "tip": "suburb",
+  "display": "İstasyon, Baklacı, Alaşehir, Manisa, Ege Bölgesi, 45600, Türkiye"
+ },
+ "sali̇mbey mahallesi, di̇ki̇li̇, i̇zmi̇r, türkiye": {
+  "lat": 39.0638401,
+  "lon": 26.8874609,
+  "tip": "administrative",
+  "display": "Salimbey Mahallesi, Dikili, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "ertuğrul mahallesi, di̇ki̇li̇, i̇zmi̇r, türkiye": {},
+ "di̇ki̇li̇, i̇zmi̇r, türkiye": {
+  "lat": 39.0749706,
+  "lon": 26.8892495,
+  "tip": "administrative",
+  "display": "Dikili, İzmir, Ege Bölgesi, 35980, Türkiye"
+ },
+ "orhani̇ye mahallesi, muğla, türkiye": {
+  "lat": 37.2152342,
+  "lon": 28.3683149,
+  "tip": "administrative",
+  "display": "Orhaniye Mahallesi, Menteşe, Muğla, Ege Bölgesi, Türkiye"
+ },
+ "cumhuri̇yet mahallesi, muğla, türkiye": {
+  "lat": 37.3004091,
+  "lon": 27.7828923,
+  "tip": "suburb",
+  "display": "Cumhuriyet, Milas, Muğla, Ege Bölgesi, 48277, Türkiye"
+ },
+ "doğanay mahallesi, karabağlar, i̇zmi̇r, türkiye": {
+  "lat": 38.3947857,
+  "lon": 27.1172394,
+  "tip": "administrative",
+  "display": "Doğanay Mahallesi, Karabağlar, İzmir, Ege Bölgesi, Türkiye"
+ },
+ "şehi̇tali̇bey mahallesi, eşme, uşak, türkiye": {},
+ "eşme, uşak, türkiye": {
+  "lat": 38.3983765,
+  "lon": 28.9689603,
+  "tip": "station",
+  "display": "Eşme, İnönü Caddesi, Şehit Alibey Mahallesi, Eşme, Uşak, Ege Bölgesi, Türkiye"
+ },
+ "adnan menderes mahallesi, aydin, türkiye": {
+  "lat": 37.7596719,
+  "lon": 27.703582,
+  "tip": "suburb",
+  "display": "Adnan Menderes, Büyükdere, Koçarlı, Aydın, Ege Bölgesi, Türkiye"
+ },
+ "cami̇kebi̇r mahallesi, germenci̇k, aydin, türkiye": {
+  "lat": 37.8708052,
+  "lon": 27.6029134,
+  "tip": "suburb",
+  "display": "Camikebir, Germencik, Aydın, Ege Bölgesi, 09700, Türkiye"
+ },
+ "ramazan paşa mahallesi, aydin, türkiye": {
+  "lat": 37.8493533,
+  "lon": 27.839912,
+  "tip": "suburb",
+  "display": "Hasanefendi-Ramazan Paşa, Hasanefendi - Ramazan Paşa Mahallesi, Efeler, Aydın, Ege Bölgesi, 09110, Türkiye"
+ },
+ "yeni̇ mahallesi, karpuzlu, aydin, türkiye": {},
+ "karpuzlu, aydin, türkiye": {
+  "lat": 37.5590294,
+  "lon": 27.8360916,
+  "tip": "administrative",
+  "display": "Karpuzlu, Aydın, Ege Bölgesi, 09540, Türkiye"
+ }
+}
