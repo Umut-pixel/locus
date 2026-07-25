@@ -80,7 +80,8 @@ create index if not exists {TABLO}_konum_idx        on public.{TABLO} (lat, lon)
     where lat is not null;
 
 -- Haritada sadece konumu olan aktif musteriler
-create or replace view public.{TABLO}_harita as
+create or replace view public.{TABLO}_harita
+with (security_invoker = true) as
 select musteri_kodu, unvan, sehir, ilce, lat, lon, rut_kod, rut_aciklama,
        ziyaret_sira, son_teslimat_tarihi, toplam_teslimat_sayisi,
        toplam_agirlik, toplam_tutar, son_teslimattan_gecen_gun,
@@ -93,10 +94,23 @@ select musteri_kodu, unvan, sehir, ilce, lat, lon, rut_kod, rut_aciklama,
        end as risk_durumu
 from public.{TABLO}
 where lat is not null and lon is not null;
+
+alter table public.{TABLO} enable row level security;
+
+do $$ begin
+  create policy "{TABLO}_select_public"
+    on public.{TABLO}
+    for select
+    to anon, authenticated
+    using (true);
+exception when duplicate_object then null;
+end $$;
 """
 
 
 def ortam_oku() -> tuple[str, str]:
+    from dotenv import load_dotenv
+    load_dotenv(PROJE_DIZIN / ".env")
     url = os.environ.get("SUPABASE_URL", "").strip().rstrip("/")
     key = os.environ.get("SUPABASE_SERVICE_KEY", "").strip()
     eksik = [ad for ad, d in (("SUPABASE_URL", url), ("SUPABASE_SERVICE_KEY", key)) if not d]
