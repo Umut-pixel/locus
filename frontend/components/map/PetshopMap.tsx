@@ -10,18 +10,32 @@ import type { MusteriFeatureCollection } from "@/lib/geojson";
 import type { MusteriHarita } from "@/lib/types";
 
 const SOURCE_ID = "musteriler";
+const ROUTE_SOURCE_ID = "route-points";
 const CLUSTER_LAYER = "clusters";
 const CLUSTER_COUNT_LAYER = "cluster-count";
 const POINT_LAYER = "unclustered-point";
 const SELECTED_LAYER = "selected-point";
+const ROUTE_LAYER = "route-highlight";
+const ROUTE_GLOW_LAYER = "route-highlight-glow";
+const ROUTE_HIGHLIGHT_COLOR = "#22d3ee";
+const EMPTY_FEATURE_COLLECTION: MusteriFeatureCollection = {
+  type: "FeatureCollection",
+  features: [],
+};
 
 interface PetshopMapProps {
   data: MusteriFeatureCollection;
   selectedMusteriKodu: string | null;
+  highlightedRutKod: string | null;
   onSelectMusteri: (musteri: MusteriHarita | null) => void;
 }
 
-export function PetshopMap({ data, selectedMusteriKodu, onSelectMusteri }: PetshopMapProps) {
+export function PetshopMap({
+  data,
+  selectedMusteriKodu,
+  highlightedRutKod,
+  onSelectMusteri,
+}: PetshopMapProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const loadedRef = useRef(false);
@@ -58,6 +72,13 @@ export function PetshopMap({ data, selectedMusteriKodu, onSelectMusteri }: Petsh
         cluster: true,
         clusterMaxZoom: 13,
         clusterRadius: 45,
+      });
+
+      // Kümelenmeyen ayrı kaynak: rota vurgusu, ana katman kümelense bile
+      // (uzak zoom seviyelerinde) her zaman tekil noktalarda görünür kalsın.
+      map.addSource(ROUTE_SOURCE_ID, {
+        type: "geojson",
+        data: EMPTY_FEATURE_COLLECTION,
       });
 
       map.addLayer({
@@ -131,6 +152,31 @@ export function PetshopMap({ data, selectedMusteriKodu, onSelectMusteri }: Petsh
       });
 
       map.addLayer({
+        id: ROUTE_GLOW_LAYER,
+        type: "circle",
+        source: ROUTE_SOURCE_ID,
+        paint: {
+          "circle-radius": 18,
+          "circle-color": ROUTE_HIGHLIGHT_COLOR,
+          "circle-opacity": 0.25,
+          "circle-blur": 0.9,
+        },
+      });
+
+      map.addLayer({
+        id: ROUTE_LAYER,
+        type: "circle",
+        source: ROUTE_SOURCE_ID,
+        paint: {
+          "circle-radius": 12,
+          "circle-color": "rgba(0,0,0,0)",
+          "circle-stroke-width": 3,
+          "circle-stroke-color": ROUTE_HIGHLIGHT_COLOR,
+          "circle-stroke-opacity": 1,
+        },
+      });
+
+      map.addLayer({
         id: SELECTED_LAYER,
         type: "circle",
         source: SOURCE_ID,
@@ -139,7 +185,7 @@ export function PetshopMap({ data, selectedMusteriKodu, onSelectMusteri }: Petsh
           "circle-radius": 11,
           "circle-color": "rgba(0,0,0,0)",
           "circle-stroke-width": 3,
-          "circle-stroke-color": "#111827",
+          "circle-stroke-color": "#f8fafc",
         },
       });
 
@@ -147,6 +193,7 @@ export function PetshopMap({ data, selectedMusteriKodu, onSelectMusteri }: Petsh
         closeButton: false,
         closeOnClick: false,
         offset: 12,
+        className: "petshop-popup",
       });
 
       map.on("mouseenter", POINT_LAYER, (e) => {
@@ -158,9 +205,9 @@ export function PetshopMap({ data, selectedMusteriKodu, onSelectMusteri }: Petsh
         popup
           .setLngLat([lon, lat])
           .setHTML(
-            `<div style="font-size:12px;line-height:1.4">
-              <strong>${escapeHtml(props.unvan)}</strong><br/>
-              ${escapeHtml(props.sehir ?? "")}${props.ilce ? " / " + escapeHtml(props.ilce) : ""}
+            `<div style="font-family:ui-monospace,monospace;font-size:11px;line-height:1.45">
+              <div style="font-weight:600;letter-spacing:0.04em;text-transform:uppercase">${escapeHtml(props.unvan)}</div>
+              <div style="opacity:0.65;margin-top:2px">${escapeHtml(props.sehir ?? "")}${props.ilce ? " / " + escapeHtml(props.ilce) : ""}</div>
             </div>`
           )
           .addTo(map);
@@ -226,6 +273,32 @@ export function PetshopMap({ data, selectedMusteriKodu, onSelectMusteri }: Petsh
       selectedMusteriKodu ?? "__none__",
     ]);
   }, [selectedMusteriKodu]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !loadedRef.current) return;
+    const routeSource = map.getSource(ROUTE_SOURCE_ID) as
+      | mapboxgl.GeoJSONSource
+      | undefined;
+    if (!routeSource) return;
+
+    if (!highlightedRutKod) {
+      routeSource.setData(EMPTY_FEATURE_COLLECTION);
+      return;
+    }
+
+    const matching = data.features.filter(
+      (feature) => feature.properties.rut_kod === highlightedRutKod
+    );
+    routeSource.setData({ type: "FeatureCollection", features: matching });
+    if (matching.length === 0) return;
+
+    const bounds = new mapboxgl.LngLatBounds();
+    for (const feature of matching) {
+      bounds.extend(feature.geometry.coordinates as [number, number]);
+    }
+    map.fitBounds(bounds, { padding: 80, maxZoom: 15, duration: 600 });
+  }, [highlightedRutKod, data]);
 
   if (!MAPBOX_TOKEN) {
     return (

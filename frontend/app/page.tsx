@@ -22,6 +22,7 @@ export default function Home() {
   const [selectedMusteri, setSelectedMusteri] = useState<MusteriHarita | null>(
     null
   );
+  const [highlightedRutKod, setHighlightedRutKod] = useState<string | null>(null);
 
   const cities = useMemo(() => {
     const set = new Set<string>();
@@ -80,6 +81,16 @@ export default function Home() {
     setSearch("");
   }, []);
 
+  const handleSelectMusteri = useCallback((musteri: MusteriHarita | null) => {
+    setSelectedMusteri(musteri);
+    setHighlightedRutKod(null);
+  }, []);
+
+  const handleCloseDetail = useCallback(() => {
+    setSelectedMusteri(null);
+    setHighlightedRutKod(null);
+  }, []);
+
   const filterProps = {
     cities,
     selectedCities,
@@ -103,7 +114,8 @@ export default function Home() {
         <PetshopMap
           data={geojson}
           selectedMusteriKodu={selectedMusteri?.musteri_kodu ?? null}
-          onSelectMusteri={setSelectedMusteri}
+          highlightedRutKod={highlightedRutKod}
+          onSelectMusteri={handleSelectMusteri}
         />
 
         <div className="pointer-events-none absolute inset-0 flex flex-col justify-between gap-3 p-3 sm:p-4">
@@ -119,7 +131,8 @@ export default function Home() {
             {selectedMusteri && (
               <CustomerDetailCard
                 musteri={selectedMusteri}
-                onClose={() => setSelectedMusteri(null)}
+                onClose={handleCloseDetail}
+                onShowRoute={setHighlightedRutKod}
               />
             )}
           </div>

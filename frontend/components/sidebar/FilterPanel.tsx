@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { SearchIcon, XIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -42,9 +43,11 @@ export function FilterPanel({
 }: FilterPanelProps) {
   return (
     <div className="flex h-full flex-col gap-4 overflow-y-auto p-4">
-      <div>
-        <h1 className="text-lg font-semibold">Petshop Müşteri Haritası</h1>
-        <p className="text-sm text-muted-foreground">
+      <div className="border-l-2 border-primary pl-2.5">
+        <h1 className="font-mono text-sm font-semibold tracking-wide uppercase">
+          Petshop Müşteri Haritası
+        </h1>
+        <p className="text-xs text-muted-foreground">
           Ege bölgesi müşteri dağılımı ve teslimat risk durumu
         </p>
       </div>
@@ -52,7 +55,7 @@ export function FilterPanel({
       <div className="grid grid-cols-3 gap-2">
         <StatCard label="Haritalı" value={stats.toplam} />
         <StatCard label="Görünen" value={stats.gorunen} />
-        <StatCard label="Riskli" value={stats.riskli} />
+        <StatCard label="Riskli" value={stats.riskli} accent={RISK_COLORS.riskli} />
       </div>
 
       <div className="relative">
@@ -68,9 +71,7 @@ export function FilterPanel({
       <Separator />
 
       <div>
-        <p className="mb-2 text-xs font-semibold text-muted-foreground">
-          Risk durumu
-        </p>
+        <SectionLabel>Risk durumu</SectionLabel>
         <div className="flex flex-wrap gap-1.5">
           {RISK_ORDER.map((risk) => (
             <RiskChip
@@ -86,9 +87,7 @@ export function FilterPanel({
       <Separator />
 
       <div className="flex min-h-0 flex-1 flex-col">
-        <p className="mb-2 text-xs font-semibold text-muted-foreground">
-          Şehir
-        </p>
+        <SectionLabel>Şehir</SectionLabel>
         <div className="flex flex-wrap gap-1.5 overflow-y-auto">
           {cities.map((city) => (
             <Button
@@ -96,7 +95,7 @@ export function FilterPanel({
               size="sm"
               variant={selectedCities.includes(city) ? "default" : "outline"}
               onClick={() => onToggleCity(city)}
-              className="text-xs"
+              className="font-mono text-xs"
             >
               {city}
             </Button>
@@ -105,7 +104,12 @@ export function FilterPanel({
       </div>
 
       {hasActiveFilters && (
-        <Button variant="ghost" size="sm" onClick={onReset} className="gap-1.5">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onReset}
+          className="gap-1.5 font-mono text-xs tracking-wide uppercase"
+        >
           <XIcon className="size-3.5" />
           Filtreleri temizle
         </Button>
@@ -114,12 +118,34 @@ export function FilterPanel({
   );
 }
 
-function StatCard({ label, value }: { label: string; value: number }) {
+function SectionLabel({ children }: { children: ReactNode }) {
   return (
-    <Card size="sm" className="gap-0.5 py-2 text-center">
+    <p className="mb-2 font-mono text-[10px] tracking-widest text-muted-foreground uppercase">
+      {children}
+    </p>
+  );
+}
+
+function StatCard({
+  label,
+  value,
+  accent,
+}: {
+  label: string;
+  value: number;
+  accent?: string;
+}) {
+  return (
+    <Card
+      size="sm"
+      className="gap-0.5 border-t-2 py-2 text-center"
+      style={{ borderTopColor: accent ?? "var(--primary)" }}
+    >
       <CardContent className="px-2">
-        <p className="text-lg font-semibold tabular-nums">{value}</p>
-        <p className="text-[11px] text-muted-foreground">{label}</p>
+        <p className="font-mono text-lg font-semibold tabular-nums">{value}</p>
+        <p className="font-mono text-[10px] tracking-wide text-muted-foreground uppercase">
+          {label}
+        </p>
       </CardContent>
     </Card>
   );
@@ -139,7 +165,7 @@ function RiskChip({
       size="sm"
       variant={active ? "default" : "outline"}
       onClick={onClick}
-      className="gap-1.5 text-xs"
+      className="gap-1.5 font-mono text-xs"
     >
       <span
         className="size-2 shrink-0 rounded-full"

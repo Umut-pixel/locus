@@ -5,7 +5,7 @@
  * ve geçerli bir Mapbox public access token yeterli.
  */
 export const MAPBOX_STYLE_URL =
-  "mapbox://styles/umutt/cmqpjeid3001m01s67kbq1804";
+  "mapbox://styles/umutt/cms05mge200p701qz7pld78tv";
 
 export const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN ?? "";
 

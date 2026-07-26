@@ -16,10 +16,10 @@ const HASSASIYET_ORDER: GeocodeHassasiyet[] = [
 
 export function RiskLegend() {
   return (
-    <Card className="pointer-events-auto w-56 gap-3 py-3 shadow-lg">
+    <Card className="pointer-events-auto w-56 gap-3 border-t-2 border-t-primary py-3 shadow-lg">
       <CardContent className="flex flex-col gap-3 px-3">
         <div>
-          <p className="mb-1.5 text-xs font-semibold text-muted-foreground">
+          <p className="mb-1.5 font-mono text-[10px] tracking-widest text-muted-foreground uppercase">
             Risk durumu
           </p>
           <ul className="flex flex-col gap-1">
@@ -29,13 +29,13 @@ export function RiskLegend() {
                   className="h-2.5 w-2.5 shrink-0 rounded-full"
                   style={{ backgroundColor: RISK_COLORS[risk] }}
                 />
-                <span>{RISK_LABELS[risk]}</span>
+                <span className="font-mono text-[11px]">{RISK_LABELS[risk]}</span>
               </li>
             ))}
           </ul>
         </div>
         <div>
-          <p className="mb-1.5 text-xs font-semibold text-muted-foreground">
+          <p className="mb-1.5 font-mono text-[10px] tracking-widest text-muted-foreground uppercase">
             Konum hassasiyeti
           </p>
           <ul className="flex flex-col gap-1">
@@ -45,7 +45,7 @@ export function RiskLegend() {
                   className="h-2.5 w-2.5 shrink-0 rounded-full bg-foreground"
                   style={{ opacity: HASSASIYET_OPACITY[h] }}
                 />
-                <span>{HASSASIYET_LABELS[h]}</span>
+                <span className="font-mono text-[11px]">{HASSASIYET_LABELS[h]}</span>
               </li>
             ))}
           </ul>
