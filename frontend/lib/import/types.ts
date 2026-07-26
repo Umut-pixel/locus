@@ -12,6 +12,11 @@ export interface UploadResult {
   eslesmeyenMusteriKodlari: string[];
   dedupUyari?: boolean;
   uyarilar?: string[];
+  /** Supabase yukleme_loglari.id */
+  yuklemeId?: string;
+  /** ISO-8601 — dosyanın sisteme işlendiği an */
+  yuklenmeZamani?: string;
+  dosyaAdi?: string;
 }
 
 export interface MusteriUpsertRow {

@@ -111,8 +111,15 @@ end $$;
 def ortam_oku() -> tuple[str, str]:
     from dotenv import load_dotenv
     load_dotenv(PROJE_DIZIN / ".env")
-    url = os.environ.get("SUPABASE_URL", "").strip().rstrip("/")
-    key = os.environ.get("SUPABASE_SERVICE_KEY", "").strip()
+    # Tek .env: SUPABASE_URL veya NEXT_PUBLIC_SUPABASE_URL
+    url = (
+        os.environ.get("SUPABASE_URL", "").strip()
+        or os.environ.get("NEXT_PUBLIC_SUPABASE_URL", "").strip()
+    ).rstrip("/")
+    key = (
+        os.environ.get("SUPABASE_SERVICE_KEY", "").strip()
+        or os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "").strip()
+    )
     eksik = [ad for ad, d in (("SUPABASE_URL", url), ("SUPABASE_SERVICE_KEY", key)) if not d]
     if eksik:
         print("HATA: su ortam degiskenleri tanimli degil: " + ", ".join(eksik))

@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "sync-env": "node scripts/sync-env.mjs",
+    "predev": "node scripts/sync-env.mjs",
+    "prebuild": "node scripts/sync-env.mjs",
     "dev": "next dev --webpack",
     "build": "next build --webpack",
     "start": "next start",

@@ -5,20 +5,34 @@ import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 
 import { DEFAULT_MAP_VIEW, MAPBOX_STYLE_URL, MAPBOX_TOKEN } from "@/lib/mapbox-style";
+import { snapSegmentsToRoads } from "@/lib/mapbox-directions";
+import {
+  buildRouteLineCollection,
+  buildRouteWaypointSegments,
+  sortRouteFeatures,
+} from "@/lib/route-line";
 import { RISK_COLORS } from "@/lib/risk-style";
 import type { MusteriFeatureCollection } from "@/lib/geojson";
 import type { MusteriHarita } from "@/lib/types";
 
 const SOURCE_ID = "musteriler";
 const ROUTE_SOURCE_ID = "route-points";
+const ROUTE_LINE_SOURCE_ID = "route-line";
 const CLUSTER_LAYER = "clusters";
 const CLUSTER_COUNT_LAYER = "cluster-count";
 const POINT_LAYER = "unclustered-point";
 const SELECTED_LAYER = "selected-point";
 const ROUTE_LAYER = "route-highlight";
 const ROUTE_GLOW_LAYER = "route-highlight-glow";
+const ROUTE_LINE_LAYER = "route-line";
+const ROUTE_LINE_CASING_LAYER = "route-line-casing";
+const ROUTE_ORDER_LAYER = "route-order-labels";
 const ROUTE_HIGHLIGHT_COLOR = "#22d3ee";
 const EMPTY_FEATURE_COLLECTION: MusteriFeatureCollection = {
+  type: "FeatureCollection",
+  features: [],
+};
+const EMPTY_LINE_COLLECTION: GeoJSON.FeatureCollection = {
   type: "FeatureCollection",
   features: [],
 };
@@ -88,11 +102,14 @@ export function PetshopMap({
         clusterRadius: 45,
       });
 
-      // Kümelenmeyen ayrı kaynak: rota vurgusu, ana katman kümelense bile
-      // (uzak zoom seviyelerinde) her zaman tekil noktalarda görünür kalsın.
+      // Kümelenmeyen ayrı kaynak: rota noktaları + ziyaret sırası çizgisi.
       map.addSource(ROUTE_SOURCE_ID, {
         type: "geojson",
         data: EMPTY_FEATURE_COLLECTION,
+      });
+      map.addSource(ROUTE_LINE_SOURCE_ID, {
+        type: "geojson",
+        data: EMPTY_LINE_COLLECTION,
       });
 
       // Küme baloncukları: parlak mavi yerine UI'daki kırık beyaz
@@ -159,6 +176,36 @@ export function PetshopMap({
         },
       });
 
+      // Rota çizgisi (ziyaret_sira sırasıyla) — noktaların altında
+      map.addLayer({
+        id: ROUTE_LINE_CASING_LAYER,
+        type: "line",
+        source: ROUTE_LINE_SOURCE_ID,
+        layout: {
+          "line-join": "round",
+          "line-cap": "round",
+        },
+        paint: {
+          "line-color": "#0e7490",
+          "line-width": 5,
+          "line-opacity": 0.45,
+        },
+      });
+      map.addLayer({
+        id: ROUTE_LINE_LAYER,
+        type: "line",
+        source: ROUTE_LINE_SOURCE_ID,
+        layout: {
+          "line-join": "round",
+          "line-cap": "round",
+        },
+        paint: {
+          "line-color": ROUTE_HIGHLIGHT_COLOR,
+          "line-width": 2.5,
+          "line-opacity": 0.9,
+        },
+      });
+
       map.addLayer({
         id: ROUTE_GLOW_LAYER,
         type: "circle",
@@ -181,6 +228,27 @@ export function PetshopMap({
           "circle-stroke-width": 3,
           "circle-stroke-color": ROUTE_HIGHLIGHT_COLOR,
           "circle-stroke-opacity": 1,
+        },
+      });
+
+      map.addLayer({
+        id: ROUTE_ORDER_LAYER,
+        type: "symbol",
+        source: ROUTE_SOURCE_ID,
+        filter: ["has", "ziyaret_sira"],
+        minzoom: 10,
+        layout: {
+          "text-field": ["to-string", ["get", "ziyaret_sira"]],
+          "text-size": 11,
+          "text-font": ["Arial Unicode MS Bold"],
+          "text-allow-overlap": false,
+          "text-optional": true,
+          "text-offset": [0, -1.6],
+        },
+        paint: {
+          "text-color": ROUTE_HIGHLIGHT_COLOR,
+          "text-halo-color": "#0a0a0b",
+          "text-halo-width": 1.5,
         },
       });
 
@@ -313,25 +381,91 @@ export function PetshopMap({
     const routeSource = map.getSource(ROUTE_SOURCE_ID) as
       | mapboxgl.GeoJSONSource
       | undefined;
-    if (!routeSource) return;
+    const lineSource = map.getSource(ROUTE_LINE_SOURCE_ID) as
+      | mapboxgl.GeoJSONSource
+      | undefined;
+    if (!routeSource || !lineSource) return;
+
+    const setBackgroundDim = (active: boolean) => {
+      if (map.getLayer(CLUSTER_LAYER)) {
+        map.setPaintProperty(CLUSTER_LAYER, "circle-opacity", active ? 0.18 : 1);
+        map.setPaintProperty(
+          CLUSTER_LAYER,
+          "circle-stroke-opacity",
+          active ? 0.12 : 1
+        );
+      }
+      if (map.getLayer(CLUSTER_COUNT_LAYER)) {
+        map.setPaintProperty(CLUSTER_COUNT_LAYER, "text-opacity", active ? 0.2 : 1);
+      }
+      if (map.getLayer(POINT_LAYER)) {
+        map.setFilter(
+          POINT_LAYER,
+          active
+            ? [
+                "all",
+                ["!", ["has", "point_count"]],
+                ["==", ["to-string", ["get", "rut_kod"]], String(highlightedRutKod)],
+              ]
+            : ["!", ["has", "point_count"]]
+        );
+      }
+    };
 
     if (!highlightedRutKod) {
       routeSource.setData(EMPTY_FEATURE_COLLECTION);
+      lineSource.setData(EMPTY_LINE_COLLECTION);
+      setBackgroundDim(false);
       return;
     }
 
     const matching = data.features.filter(
-      (feature) => feature.properties.rut_kod === highlightedRutKod
+      (feature) => String(feature.properties.rut_kod) === String(highlightedRutKod)
     );
-    routeSource.setData({ type: "FeatureCollection", features: matching });
-    if (matching.length === 0) return;
+    const sorted = sortRouteFeatures(matching);
+    const routeOpts = {
+      selectedMusteriKodu,
+      maxHopKm: 12,
+      visitWindow: 10,
+    };
+    const segments = buildRouteWaypointSegments(sorted, routeOpts);
+    // Önce kuş uçuşu göster, Directions gelince yollara oturt
+    const straight = buildRouteLineCollection(sorted, routeOpts);
 
-    const bounds = new mapboxgl.LngLatBounds();
-    for (const feature of matching) {
-      bounds.extend(feature.geometry.coordinates as [number, number]);
+    routeSource.setData({ type: "FeatureCollection", features: sorted });
+    lineSource.setData(straight);
+    setBackgroundDim(true);
+
+    const zoomCoords =
+      straight.features.length > 0
+        ? straight.features.flatMap(
+            (f) => f.geometry.coordinates as [number, number][]
+          )
+        : sorted.map((f) => f.geometry.coordinates as [number, number]);
+    if (zoomCoords.length > 0) {
+      const bounds = new mapboxgl.LngLatBounds();
+      for (const c of zoomCoords) bounds.extend(c);
+      map.fitBounds(bounds, { padding: 100, maxZoom: 13, duration: 600 });
     }
-    map.fitBounds(bounds, { padding: 80, maxZoom: 15, duration: 600 });
-  }, [highlightedRutKod, data]);
+
+    if (segments.length === 0) return;
+
+    const ac = new AbortController();
+    snapSegmentsToRoads(segments, ac.signal)
+      .then((roadLines) => {
+        if (ac.signal.aborted || !mapRef.current) return;
+        if (roadLines.features.length > 0) {
+          lineSource.setData(roadLines);
+        }
+      })
+      .catch((err) => {
+        if ((err as Error).name !== "AbortError") {
+          console.warn("[route] directions failed, keeping straight lines", err);
+        }
+      });
+
+    return () => ac.abort();
+  }, [highlightedRutKod, data, selectedMusteriKodu]);
 
   if (!MAPBOX_TOKEN) {
     return (

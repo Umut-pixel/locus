@@ -5,7 +5,8 @@ const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
 if (!url || !anonKey) {
   throw new Error(
-    "NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY tanımlı değil. frontend/.env.local dosyasını kontrol edin."
+    "NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY tanımlı değil. " +
+      "Repo kökündeki .env dosyasını kontrol edip 'npm run sync-env' (veya npm run dev) çalıştırın."
   );
 }
 

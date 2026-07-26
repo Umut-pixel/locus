@@ -396,6 +396,12 @@ export function DataImportFlow({ onClose, onComplete }: DataImportFlowProps) {
             <dl className="flex flex-col gap-1.5 text-xs">
               <DetailRow label="Kaynak" value={file?.name ?? "—"} />
               <DetailRow label="Tip" value={TIP_LABEL[result.tip]} />
+              {result.yuklenmeZamani && (
+                <DetailRow
+                  label="Zaman"
+                  value={new Date(result.yuklenmeZamani).toLocaleString("tr-TR")}
+                />
+              )}
               <DetailRow
                 label="İşlenen"
                 value={`${formatNumber(result.islenenSatir)} satır`}

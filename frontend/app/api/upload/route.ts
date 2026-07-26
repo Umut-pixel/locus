@@ -8,10 +8,12 @@ import {
   parseRutTanimListesi,
   parseSevkiyatRaporuKup,
   readWorkbook,
+  type DosyaTipi,
   type UploadResult,
 } from "@/lib/import";
 import {
   MUSTERILER_TABLE,
+  YUKLEME_LOGLARI_TABLE,
   createSupabaseAdmin,
 } from "@/lib/supabase-admin";
 
@@ -22,6 +24,10 @@ const BATCH = 250;
 
 function jsonError(message: string, status = 400) {
   return NextResponse.json({ error: message }, { status });
+}
+
+function nowIso() {
+  return new Date().toISOString();
 }
 
 async function fetchExistingCodes(
@@ -60,18 +66,20 @@ async function upsertBatch(
 /**
  * Kısmi alan güncellemesi — upsert kullanılamaz: PostgREST INSERT
  * aşamasında unvan NOT NULL ihlali üretir (mevcut PK olsa bile).
+ * guncellendi trigger ile otomatik set edilir; yine de açıkça gönderiyoruz.
  */
 async function updateByMusteriKodu(
   admin: ReturnType<typeof createSupabaseAdmin>,
   rows: Array<{ musteri_kodu: string } & Record<string, unknown>>
 ): Promise<void> {
+  const ts = nowIso();
   for (let i = 0; i < rows.length; i += BATCH) {
     const chunk = rows.slice(i, i + BATCH);
     const results = await Promise.all(
       chunk.map(({ musteri_kodu, ...fields }) =>
         admin
           .from(MUSTERILER_TABLE)
-          .update(fields)
+          .update({ ...fields, guncellendi: ts })
           .eq("musteri_kodu", musteri_kodu)
       )
     );
@@ -80,6 +88,42 @@ async function updateByMusteriKodu(
       throw new Error(`Güncelleme başarısız: ${failed.error.message}`);
     }
   }
+}
+
+async function kaydetYuklemeLogu(
+  admin: ReturnType<typeof createSupabaseAdmin>,
+  input: {
+    dosyaAdi: string;
+    dosyaTipi: DosyaTipi;
+    dosyaBoyutu: number;
+    result: UploadResult;
+  }
+): Promise<{ id: string; yuklenmeZamani: string }> {
+  const { data, error } = await admin
+    .from(YUKLEME_LOGLARI_TABLE)
+    .insert({
+      dosya_adi: input.dosyaAdi,
+      dosya_tipi: input.dosyaTipi,
+      dosya_boyutu_byte: input.dosyaBoyutu,
+      islenen_satir: input.result.islenenSatir,
+      yeni_musteri: input.result.yeniMusteri,
+      guncellenen_musteri: input.result.guncellenenMusteri,
+      geocode_basarisiz: input.result.geocodeBasarisiz,
+      eslesmeyen_kod_sayisi: input.result.eslesmeyenMusteriKodlari.length,
+      uyarilar: input.result.uyarilar ?? null,
+      durum: "ok",
+    })
+    .select("id, yuklenme_zamani")
+    .single();
+
+  if (error || !data) {
+    throw new Error(`Yükleme logu yazılamadı: ${error?.message ?? "bilinmeyen"}`);
+  }
+
+  return {
+    id: data.id as string,
+    yuklenmeZamani: data.yuklenme_zamani as string,
+  };
 }
 
 export async function POST(request: Request) {
@@ -116,7 +160,7 @@ export async function POST(request: Request) {
       return jsonError("Excel başlık satırı bulunamadı.");
     }
 
-    let tip;
+    let tip: DosyaTipi;
     try {
       tip = detectDosyaTipi(workbook.headers);
     } catch (err) {
@@ -126,6 +170,9 @@ export async function POST(request: Request) {
 
     const admin = createSupabaseAdmin();
     const uyarilar: string[] = [];
+    const ts = nowIso();
+
+    let result: UploadResult;
 
     if (tip === "MusteriListesi") {
       const parsed = parseMusteriListesi(workbook.rows);
@@ -146,8 +193,6 @@ export async function POST(request: Request) {
       const yeni = codes.filter((c) => !existing.has(c)).length;
       const guncellenen = codes.length - yeni;
 
-      // Mevcut kayıtlarda lat/lon null ise koordinat kolonlarını gönderme —
-      // aksi halde eski saha GPS değerleri silinir.
       const payloads = geocoded.rows.map((r) => {
         const base: Record<string, unknown> = {
           musteri_kodu: r.musteri_kodu,
@@ -161,6 +206,7 @@ export async function POST(request: Request) {
           durum: r.durum,
           posta_kodu: r.posta_kodu,
           musteri_grubu: r.musteri_grubu,
+          guncellendi: ts,
         };
         if (r.lat != null && r.lon != null) {
           base.lat = r.lat;
@@ -178,7 +224,7 @@ export async function POST(request: Request) {
 
       await upsertBatch(admin, payloads);
 
-      const result: UploadResult = {
+      result = {
         tip,
         islenenSatir: parsed.islenenSatir,
         yeniMusteri: yeni,
@@ -188,10 +234,7 @@ export async function POST(request: Request) {
         dedupUyari: parsed.dedupUyari,
         uyarilar: uyarilar.length ? uyarilar : undefined,
       };
-      return NextResponse.json(result);
-    }
-
-    if (tip === "RutTanimListesi") {
+    } else if (tip === "RutTanimListesi") {
       const parsed = parseRutTanimListesi(workbook.rows);
       const codes = parsed.rows.map((r) => r.musteri_kodu);
       const existing = await fetchExistingCodes(admin, codes);
@@ -216,7 +259,7 @@ export async function POST(request: Request) {
         );
       }
 
-      const result: UploadResult = {
+      result = {
         tip,
         islenenSatir: parsed.islenenSatir,
         yeniMusteri: 0,
@@ -225,50 +268,61 @@ export async function POST(request: Request) {
         eslesmeyenMusteriKodlari: eslesmeyen,
         uyarilar: uyarilar.length ? uyarilar : undefined,
       };
-      return NextResponse.json(result);
-    }
+    } else {
+      // SevkiyatRaporuKup
+      const parsed = parseSevkiyatRaporuKup(workbook.rows);
+      if (parsed.tarihBozuk > 0) {
+        uyarilar.push(`${parsed.tarihBozuk} satırda BelgeTarihi parse edilemedi.`);
+      }
 
-    // SevkiyatRaporuKup
-    const parsed = parseSevkiyatRaporuKup(workbook.rows);
-    if (parsed.tarihBozuk > 0) {
-      uyarilar.push(`${parsed.tarihBozuk} satırda BelgeTarihi parse edilemedi.`);
-    }
+      const codes = parsed.rows.map((r) => r.musteri_kodu);
+      const existing = await fetchExistingCodes(admin, codes);
+      const eslesen = parsed.rows.filter((r) => existing.has(r.musteri_kodu));
+      const eslesmeyen = parsed.rows
+        .filter((r) => !existing.has(r.musteri_kodu))
+        .map((r) => r.musteri_kodu);
 
-    const codes = parsed.rows.map((r) => r.musteri_kodu);
-    const existing = await fetchExistingCodes(admin, codes);
-    const eslesen = parsed.rows.filter((r) => existing.has(r.musteri_kodu));
-    const eslesmeyen = parsed.rows
-      .filter((r) => !existing.has(r.musteri_kodu))
-      .map((r) => r.musteri_kodu);
-
-    await updateByMusteriKodu(
-      admin,
-      eslesen.map((r) => ({
-        musteri_kodu: r.musteri_kodu,
-        son_teslimat_tarihi: r.son_teslimat_tarihi,
-        ilk_teslimat_tarihi: r.ilk_teslimat_tarihi,
-        toplam_teslimat_sayisi: r.toplam_teslimat_sayisi,
-        toplam_agirlik: r.toplam_agirlik,
-        toplam_tutar: r.toplam_tutar,
-        son_teslimattan_gecen_gun: r.son_teslimattan_gecen_gun,
-      }))
-    );
-
-    if (eslesmeyen.length) {
-      uyarilar.push(
-        `${eslesmeyen.length} musteri_kodu tabloda yok — sevkiyat alanları atlandı.`
+      await updateByMusteriKodu(
+        admin,
+        eslesen.map((r) => ({
+          musteri_kodu: r.musteri_kodu,
+          son_teslimat_tarihi: r.son_teslimat_tarihi,
+          ilk_teslimat_tarihi: r.ilk_teslimat_tarihi,
+          toplam_teslimat_sayisi: r.toplam_teslimat_sayisi,
+          toplam_agirlik: r.toplam_agirlik,
+          toplam_tutar: r.toplam_tutar,
+          son_teslimattan_gecen_gun: r.son_teslimattan_gecen_gun,
+        }))
       );
+
+      if (eslesmeyen.length) {
+        uyarilar.push(
+          `${eslesmeyen.length} musteri_kodu tabloda yok — sevkiyat alanları atlandı.`
+        );
+      }
+
+      result = {
+        tip,
+        islenenSatir: parsed.islenenSatir,
+        yeniMusteri: 0,
+        guncellenenMusteri: eslesen.length,
+        geocodeBasarisiz: 0,
+        eslesmeyenMusteriKodlari: eslesmeyen,
+        uyarilar: uyarilar.length ? uyarilar : undefined,
+      };
     }
 
-    const result: UploadResult = {
-      tip,
-      islenenSatir: parsed.islenenSatir,
-      yeniMusteri: 0,
-      guncellenenMusteri: eslesen.length,
-      geocodeBasarisiz: 0,
-      eslesmeyenMusteriKodlari: eslesmeyen,
-      uyarilar: uyarilar.length ? uyarilar : undefined,
-    };
+    const log = await kaydetYuklemeLogu(admin, {
+      dosyaAdi: file.name,
+      dosyaTipi: tip,
+      dosyaBoyutu: file.size,
+      result,
+    });
+
+    result.yuklemeId = log.id;
+    result.yuklenmeZamani = log.yuklenmeZamani;
+    result.dosyaAdi = file.name;
+
     return NextResponse.json(result);
   } catch (err) {
     const message =

@@ -59,3 +59,50 @@ do $$ begin
     using (true);
 exception when duplicate_object then null;
 end $$;
+
+-- Satır her UPDATE'te guncellendi otomatik artsın
+create or replace function public.set_guncellendi()
+returns trigger
+language plpgsql
+as $$
+begin
+  new.guncellendi := now();
+  return new;
+end;
+$$;
+
+drop trigger if exists musteriler_set_guncellendi on public.musteriler;
+create trigger musteriler_set_guncellendi
+  before update on public.musteriler
+  for each row
+  execute function public.set_guncellendi();
+
+-- Dosya yükleme geçmişi (timestamp + özet)
+create table if not exists public.yukleme_loglari (
+    id                    uuid primary key default gen_random_uuid(),
+    dosya_adi             text not null,
+    dosya_tipi            text not null,
+    dosya_boyutu_byte     bigint,
+    yuklenme_zamani       timestamptz not null default now(),
+    islenen_satir         integer not null default 0,
+    yeni_musteri          integer not null default 0,
+    guncellenen_musteri   integer not null default 0,
+    geocode_basarisiz     integer not null default 0,
+    eslesmeyen_kod_sayisi integer not null default 0,
+    uyarilar              jsonb,
+    durum                 text not null default 'ok'
+);
+
+create index if not exists yukleme_loglari_zaman_idx
+  on public.yukleme_loglari (yuklenme_zamani desc);
+
+alter table public.yukleme_loglari enable row level security;
+
+do $$ begin
+  create policy "yukleme_loglari_select_public"
+    on public.yukleme_loglari
+    for select
+    to anon, authenticated
+    using (true);
+exception when duplicate_object then null;
+end $$;

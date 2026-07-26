@@ -1,4 +1,5 @@
 .env
+.env.local
 __pycache__/
 *.pyc
 .venv/
@@ -10,3 +11,5 @@ frontend/.next/
 frontend/out/
 frontend/.env*.local
 frontend/*.tsbuildinfo
+
+# .env.example commit edilir (şifre yok)

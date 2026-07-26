@@ -14,7 +14,8 @@ export function createSupabaseAdmin(): SupabaseClient {
 
   if (!url || !key) {
     throw new Error(
-      "SUPABASE_SERVICE_KEY (veya SUPABASE_SERVICE_ROLE_KEY) ve NEXT_PUBLIC_SUPABASE_URL tanımlı değil."
+      "SUPABASE_SERVICE_KEY ve SUPABASE_URL / NEXT_PUBLIC_SUPABASE_URL tanımlı değil. " +
+        "Repo kökündeki .env dosyasını kontrol edin (Vercel'de Environment Variables)."
     );
   }
 
@@ -24,3 +25,4 @@ export function createSupabaseAdmin(): SupabaseClient {
 }
 
 export const MUSTERILER_TABLE = "musteriler";
+export const YUKLEME_LOGLARI_TABLE = "yukleme_loglari";
