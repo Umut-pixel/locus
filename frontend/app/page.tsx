@@ -15,6 +15,7 @@ import { RiskLegend } from "@/components/map/RiskLegend";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import type { ImportStage } from "@/components/import/DataImportFlow";
 import { useIsMobileLayout } from "@/hooks/useMediaQuery";
 import { useMusteriHarita } from "@/hooks/useMusteriHarita";
 import { musterilerToGeoJSON } from "@/lib/geojson";
@@ -60,6 +61,7 @@ export default function Home() {
   const [panelAnchor, setPanelAnchor] = useState<PanelAnchor | null>(null);
   const [highlightedRutKod, setHighlightedRutKod] = useState<string | null>(null);
   const [importOpen, setImportOpen] = useState(false);
+  const [importActivity, setImportActivity] = useState<ImportStage | null>(null);
 
   const mapAreaRef = useRef<HTMLDivElement | null>(null);
 
@@ -156,6 +158,7 @@ export default function Home() {
     stats,
     onReset: resetFilters,
     hasActiveFilters,
+    importActivity,
   };
 
   const showLegend = !(isMobileLayout && selectedMusteri);
@@ -163,7 +166,7 @@ export default function Home() {
 
   return (
     <div className="relative flex h-dvh w-dvw overflow-hidden">
-      <aside className="hidden w-72 shrink-0 border-r border-sidebar-border bg-sidebar lg:block xl:w-80">
+      <aside className="hidden w-80 shrink-0 border-r border-sidebar-border bg-sidebar lg:block xl:w-[22.5rem]">
         <FilterPanel {...filterProps} />
       </aside>
 
@@ -184,7 +187,7 @@ export default function Home() {
             paddingBottom: "max(0.5rem, env(safe-area-inset-bottom))",
           }}
         >
-          <div className="flex min-h-0 w-full max-w-full flex-col items-stretch gap-2 sm:max-w-[min(100%,380px)] sm:items-start sm:gap-3">
+          <div className="flex min-h-0 w-full max-w-full flex-col items-stretch gap-1.5 sm:max-w-[18.5rem] sm:items-start">
             <div className="flex items-center gap-2">
               <div className="pointer-events-auto lg:hidden">
                 <MobileFilterSheet {...filterProps} />
@@ -195,13 +198,13 @@ export default function Home() {
                   setImportOpen((open) => !open);
                   if (!importOpen && isMobileLayout) handleCloseDetail();
                 }}
-                className="pointer-events-auto h-9 gap-1.5 rounded-full border px-3 shadow-md sm:h-8 sm:px-2.5"
+                className="pointer-events-auto h-8 gap-1.5 rounded-full border px-2.5 shadow-md"
               >
                 <UploadIcon className="size-3.5" />
-                <span className="text-xs sm:text-sm">Veri yükle</span>
+                <span className="text-xs">Veri yükle</span>
               </Button>
               {refreshing && (
-                <span className="pointer-events-none rounded-full border bg-popover/90 px-2.5 py-1 font-mono text-[10px] tracking-wide text-muted-foreground uppercase shadow-md">
+                <span className="pointer-events-none rounded-full border bg-popover/90 px-2 py-0.5 font-mono text-[10px] tracking-wide text-muted-foreground uppercase shadow-md">
                   Yenileniyor…
                 </span>
               )}
@@ -209,14 +212,18 @@ export default function Home() {
             <AnimatePresence>
               {importOpen && (
                 <DataImportFlow
-                  onClose={() => setImportOpen(false)}
+                  onClose={() => {
+                    setImportOpen(false);
+                    setImportActivity(null);
+                  }}
                   onComplete={refresh}
+                  onStageChange={setImportActivity}
                 />
               )}
             </AnimatePresence>
           </div>
 
-          <div className="flex flex-wrap items-end justify-between gap-2 sm:gap-3">
+          <div className="flex items-end justify-end">
             {showLegend && <RiskLegend />}
           </div>
         </div>

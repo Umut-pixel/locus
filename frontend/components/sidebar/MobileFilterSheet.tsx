@@ -11,6 +11,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { FilterPanel, type FilterStats } from "@/components/sidebar/FilterPanel";
+import type { ImportActivity } from "@/lib/agent-states";
 import type { RiskDurumu } from "@/lib/types";
 
 interface MobileFilterSheetProps {
@@ -24,6 +25,7 @@ interface MobileFilterSheetProps {
   stats: FilterStats;
   onReset: () => void;
   hasActiveFilters: boolean;
+  importActivity?: ImportActivity | null;
 }
 
 export function MobileFilterSheet(props: MobileFilterSheetProps) {
@@ -43,7 +45,7 @@ export function MobileFilterSheet(props: MobileFilterSheetProps) {
       </SheetTrigger>
       <SheetContent
         side="left"
-        className="w-[min(20rem,calc(100vw-2.5rem))] max-w-none p-0 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] sm:max-w-80"
+        className="w-[min(22.5rem,calc(100vw-2rem))] max-w-none p-0 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] sm:max-w-[22.5rem]"
       >
         <SheetHeader className="sr-only">
           <SheetTitle>Filtreler</SheetTitle>
