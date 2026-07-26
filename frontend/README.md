@@ -16,11 +16,13 @@ npm install
 NEXT_PUBLIC_SUPABASE_URL=https://pzepnmzxrwnlhixdrgzm.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=<Project Locus anon key>
 NEXT_PUBLIC_MAPBOX_TOKEN=<Mapbox public access token, pk.xxx>
+SUPABASE_SERVICE_KEY=<service_role key — yalnızca sunucu /api/upload>
 ```
 
 - **Supabase anon key**: Settings → API → `anon` `public` key. RLS + `select`
   policy zaten `musteriler_harita` view'ında kurulu, bu key tarayıcıya
-  güvenle konabilir. `service_role` anahtarı **asla** buraya konmaz.
+  güvenle konabilir. `service_role` anahtarı **asla** `NEXT_PUBLIC_*` olarak
+  konmaz; yalnızca `SUPABASE_SERVICE_KEY` ile sunucu tarafında kullanılır.
 - **Mapbox token**: [account.mapbox.com/access-tokens](https://account.mapbox.com/access-tokens/)
   üzerinden alınan **public** (pk.xxx) token. Harita stili (`Outdoors`,
   `umutt` hesabında yayınlı, id `cmqpjeid3001m01s67kbq1804`) `mapbox://`

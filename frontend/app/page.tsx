@@ -21,7 +21,7 @@ import { musterilerToGeoJSON } from "@/lib/geojson";
 import type { MusteriHarita, RiskDurumu } from "@/lib/types";
 
 export default function Home() {
-  const { data: rows, loading, error } = useMusteriHarita();
+  const { data: rows, loading, error, refresh } = useMusteriHarita();
 
   const [selectedCities, setSelectedCities] = useState<string[]>([]);
   const [selectedRisk, setSelectedRisk] = useState<RiskDurumu | null>(null);
@@ -166,7 +166,10 @@ export default function Home() {
             </div>
             <AnimatePresence>
               {importOpen && (
-                <DataImportFlow onClose={() => setImportOpen(false)} />
+                <DataImportFlow
+                  onClose={() => setImportOpen(false)}
+                  onComplete={refresh}
+                />
               )}
             </AnimatePresence>
           </div>

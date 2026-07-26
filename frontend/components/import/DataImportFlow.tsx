@@ -20,53 +20,49 @@ import {
 } from "motion/react";
 
 import { Button } from "@/components/ui/button";
+import type { UploadResult } from "@/lib/import/types";
 import { cn } from "@/lib/utils";
 
-// Segment dolgusu için orta doygunlukta yeşil — koyu zeminde net ama neon değil.
 const PROGRESS_FILL = "#2fae74";
-// Rozet ve eşleştirme şeridi için sönük, koyu zümrüt yüzey + üzerinde okunur nane tonu.
 const SURFACE_BG = "#1b4433";
 const SURFACE_FG = "#8fe3ba";
 const WARN = "#fbbf24";
 const PROGRESS_SEGMENTS = 10;
 
-// Aşamalar arasında bilinçli bekleme süreleri: her adımın gözle takip
-// edilebilmesi için (referans görsellerdeki gibi "duran" bir akış).
 const UPLOAD_FILL_MS = 1900;
 const UPLOAD_SNAP_MS = 320;
 const HOLD_BEFORE_MATCH_MS = 550;
-const MATCHING_MS = 2300;
 
-/**
- * idle → uploading → uploaded → matching → done
- * Her aşama bir öncekine zincirli; öğeler "yoktan" sırayla kurulur.
- */
-type Stage = "idle" | "uploading" | "uploaded" | "matching" | "done";
+type Stage = "idle" | "uploading" | "uploaded" | "matching" | "done" | "error";
 
 const ENTER = { duration: 0.3, ease: [0.22, 0.8, 0.36, 1] } as const;
 
+const TIP_LABEL: Record<UploadResult["tip"], string> = {
+  MusteriListesi: "MusteriListesi",
+  RutTanimListesi: "RutTanimListesi",
+  SevkiyatRaporuKup: "SevkiyatRaporuKup",
+};
+
 interface DataImportFlowProps {
   onClose: () => void;
+  onComplete?: () => void;
 }
 
-export function DataImportFlow({ onClose }: DataImportFlowProps) {
+export function DataImportFlow({ onClose, onComplete }: DataImportFlowProps) {
   const [stage, setStage] = useState<Stage>("idle");
   const [file, setFile] = useState<{ name: string; size: number } | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [result, setResult] = useState<UploadResult | null>(null);
 
-  // Progress MotionValue üzerinden akar: segment dolguları transform (scaleX)
-  // ile güncellenir, React re-render tetiklenmez.
   const progress = useMotionValue(0);
 
   const inputRef = useRef<HTMLInputElement | null>(null);
   const readerRef = useRef<FileReader | null>(null);
-  /** Okunan içerik — Excel/CSV ayrıştırma eklendiğinde buradan parse edilecek. */
-  const bufferRef = useRef<ArrayBuffer | null>(null);
+  const fileBlobRef = useRef<File | null>(null);
   const timeoutsRef = useRef<number[]>([]);
-  // Yükleme bitişi iki koşula bağlı: dosya gerçekten okundu + bar animasyonu
-  // hedefine ulaştı. Hangisi geç biterse son adımı o tamamlar.
   const gateRef = useRef({ readDone: false, animDone: false });
+  const abortRef = useRef<AbortController | null>(null);
 
   const clearTimers = useCallback(() => {
     for (const id of timeoutsRef.current) window.clearTimeout(id);
@@ -76,6 +72,7 @@ export function DataImportFlow({ onClose }: DataImportFlowProps) {
   useEffect(
     () => () => {
       readerRef.current?.abort();
+      abortRef.current?.abort();
       clearTimers();
     },
     [clearTimers]
@@ -87,27 +84,72 @@ export function DataImportFlow({ onClose }: DataImportFlowProps) {
 
   const reset = useCallback(() => {
     readerRef.current?.abort();
+    abortRef.current?.abort();
     clearTimers();
     gateRef.current = { readDone: false, animDone: false };
     progress.stop();
     progress.set(0);
-    bufferRef.current = null;
+    fileBlobRef.current = null;
     setFile(null);
     setError(null);
+    setResult(null);
     setStage("idle");
   }, [clearTimers, progress]);
 
-  const finishUpload = useCallback(() => {
-    animate(progress, 1, { duration: UPLOAD_SNAP_MS / 1000, ease: "easeOut" }).then(
-      () => {
-        setStage("uploaded");
-        schedule(() => setStage("matching"), HOLD_BEFORE_MATCH_MS);
-        // Concept: eşleştirme süresi şimdilik sabit; Excel ayrıştırma
-        // eklendiğinde "done" gerçek işlemin bitişine bağlanacak.
-        schedule(() => setStage("done"), HOLD_BEFORE_MATCH_MS + MATCHING_MS);
+  const runUpload = useCallback(async () => {
+    const blob = fileBlobRef.current;
+    if (!blob) {
+      setError("Dosya kayboldu — tekrar seçin.");
+      setStage("error");
+      return;
+    }
+
+    setStage("matching");
+    setError(null);
+
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    try {
+      const body = new FormData();
+      body.append("file", blob, blob.name);
+
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body,
+        signal: controller.signal,
+      });
+
+      const data = (await res.json()) as UploadResult & { error?: string };
+      if (!res.ok) {
+        setError(data.error ?? "Yükleme başarısız.");
+        setStage("error");
+        return;
       }
-    );
-  }, [progress, schedule]);
+
+      setResult(data);
+      setStage("done");
+      onComplete?.();
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
+      setError(
+        err instanceof Error ? err.message : "Ağ hatası — tekrar deneyin."
+      );
+      setStage("error");
+    }
+  }, [onComplete]);
+
+  const finishUpload = useCallback(() => {
+    animate(progress, 1, {
+      duration: UPLOAD_SNAP_MS / 1000,
+      ease: "easeOut",
+    }).then(() => {
+      setStage("uploaded");
+      schedule(() => {
+        void runUpload();
+      }, HOLD_BEFORE_MATCH_MS);
+    });
+  }, [progress, schedule, runUpload]);
 
   const maybeFinish = useCallback(() => {
     if (gateRef.current.readDone && gateRef.current.animDone) finishUpload();
@@ -115,8 +157,18 @@ export function DataImportFlow({ onClose }: DataImportFlowProps) {
 
   const handleFile = useCallback(
     (picked: File) => {
+      const lower = picked.name.toLowerCase();
+      if (!lower.endsWith(".xlsx") && !lower.endsWith(".xls")) {
+        setError("Yalnızca .xlsx / .xls dosyaları kabul edilir.");
+        setStage("error");
+        setFile({ name: picked.name, size: picked.size });
+        return;
+      }
+
+      fileBlobRef.current = picked;
       setFile({ name: picked.name, size: picked.size });
       setError(null);
+      setResult(null);
       setStage("uploading");
       gateRef.current = { readDone: false, animDone: false };
       progress.set(0);
@@ -124,20 +176,18 @@ export function DataImportFlow({ onClose }: DataImportFlowProps) {
       const reader = new FileReader();
       readerRef.current = reader;
       reader.onload = () => {
-        bufferRef.current = reader.result as ArrayBuffer;
         gateRef.current.readDone = true;
         maybeFinish();
       };
       reader.onerror = () => {
         setError("Dosya okunamadı — tekrar deneyin.");
+        fileBlobRef.current = null;
         setFile(null);
         progress.set(0);
         setStage("idle");
       };
       reader.readAsArrayBuffer(picked);
 
-      // Segmentlerin soldan sağa tek tek, sabit hızda dolduğu net bir ilerleme
-      // hissi için doğrusal (linear) — ease-out ilk segmentleri sıkıştırırdı.
       animate(progress, 0.92, {
         duration: UPLOAD_FILL_MS / 1000,
         ease: "linear",
@@ -150,7 +200,12 @@ export function DataImportFlow({ onClose }: DataImportFlowProps) {
   );
 
   const uploadedVisible =
-    stage === "uploaded" || stage === "matching" || stage === "done";
+    stage === "uploaded" ||
+    stage === "matching" ||
+    stage === "done" ||
+    stage === "error";
+
+  const stripVisible = stage === "matching" || stage === "done";
 
   return (
     <motion.div
@@ -160,8 +215,6 @@ export function DataImportFlow({ onClose }: DataImportFlowProps) {
       transition={{ duration: 0.22, ease: "easeOut" }}
       className="pointer-events-auto flex max-h-[calc(100dvh-7rem)] w-[380px] max-w-full flex-col gap-2 overflow-y-auto"
     >
-      {/* Yükleme kartı + eşleştirme şeridi: tek fiziksel yüzey (overflow-hidden
-          sayesinde şerit karta "yapışık" görünür, ayrı bir kutu değil). */}
       <div className="overflow-hidden rounded-2xl border bg-popover text-popover-foreground shadow-[0_16px_48px_-12px_rgba(0,0,0,0.6)]">
         <div className="p-3.5">
           <div className="flex items-center gap-2">
@@ -169,7 +222,9 @@ export function DataImportFlow({ onClose }: DataImportFlowProps) {
               Müşteri verisi yükle
             </h2>
             <AnimatePresence>
-              {uploadedVisible && (
+              {(stage === "uploaded" ||
+                stage === "matching" ||
+                stage === "done") && (
                 <motion.span
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -178,7 +233,7 @@ export function DataImportFlow({ onClose }: DataImportFlowProps) {
                   style={{ color: SURFACE_FG, backgroundColor: SURFACE_BG }}
                 >
                   <CheckIcon className="size-3" />
-                  Yüklendi
+                  {stage === "done" ? "Tamam" : "Yüklendi"}
                 </motion.span>
               )}
             </AnimatePresence>
@@ -192,7 +247,6 @@ export function DataImportFlow({ onClose }: DataImportFlowProps) {
             </button>
           </div>
 
-          {/* Boş bırakma alanı ↔ dosya rafı: aynı yüzeyin içinde dönüşür */}
           <div
             className={cn(
               "mt-2.5 rounded-lg p-2.5 transition-colors",
@@ -228,7 +282,7 @@ export function DataImportFlow({ onClose }: DataImportFlowProps) {
                   <UploadIcon className="size-4" />
                   <p className="text-xs">Dosya seç veya buraya sürükle</p>
                   <p className="font-mono text-[10px] tracking-widest uppercase opacity-70">
-                    XLSX · CSV
+                    XLSX · XLS
                   </p>
                 </motion.div>
               ) : (
@@ -249,13 +303,16 @@ export function DataImportFlow({ onClose }: DataImportFlowProps) {
                       {formatFileSize(file?.size ?? 0)}
                     </p>
                   </div>
-                  <ProgressSegments progress={progress} />
+                  {(stage === "uploading" || stage === "uploaded") && (
+                    <ProgressSegments progress={progress} />
+                  )}
                 </motion.div>
               )}
             </AnimatePresence>
             <input
               ref={inputRef}
               type="file"
+              accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
               className="hidden"
               onChange={(e) => {
                 const picked = e.target.files?.[0];
@@ -265,12 +322,19 @@ export function DataImportFlow({ onClose }: DataImportFlowProps) {
             />
           </div>
 
-          {error && <p className="mt-2 text-xs text-destructive">{error}</p>}
+          {error && (
+            <div
+              className="mt-2.5 flex items-start gap-2 rounded-lg px-2.5 py-1.5"
+              style={{ backgroundColor: `${WARN}14`, color: WARN }}
+            >
+              <TriangleAlertIcon className="mt-0.5 size-3.5 shrink-0" />
+              <span className="font-mono text-[11px] leading-snug">{error}</span>
+            </div>
+          )}
         </div>
 
-        {/* Eşleştirme şeridi: alttan yükseklik kazanarak belirir, karta yapışık */}
         <AnimatePresence>
-          {(stage === "matching" || stage === "done") && (
+          {stripVisible && (
             <motion.div
               key="strip"
               initial={{ height: 0, opacity: 0 }}
@@ -291,7 +355,11 @@ export function DataImportFlow({ onClose }: DataImportFlowProps) {
                     className="inline-flex shrink-0"
                     style={{ color: SURFACE_FG }}
                     animate={{ rotate: 360 }}
-                    transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
+                    transition={{
+                      repeat: Infinity,
+                      duration: 1,
+                      ease: "linear",
+                    }}
                   >
                     <RefreshCwIcon className="size-3.5" />
                   </motion.span>
@@ -306,8 +374,8 @@ export function DataImportFlow({ onClose }: DataImportFlowProps) {
                   style={{ color: SURFACE_FG }}
                 >
                   {stage === "matching"
-                    ? "Satırlar şemayla eşleştiriliyor..."
-                    : "Şema eşleştirmesi tamamlandı"}
+                    ? "Satırlar işleniyor..."
+                    : "İşlem tamamlandı"}
                 </span>
               </motion.div>
             </motion.div>
@@ -315,9 +383,8 @@ export function DataImportFlow({ onClose }: DataImportFlowProps) {
         </AnimatePresence>
       </div>
 
-      {/* Sonuç paneli: bağlı yüzeyden ayrı, kendi kartında altta belirir */}
       <AnimatePresence>
-        {stage === "done" && (
+        {stage === "done" && result && (
           <motion.div
             key="details"
             initial={{ opacity: 0, y: -12 }}
@@ -326,23 +393,72 @@ export function DataImportFlow({ onClose }: DataImportFlowProps) {
             transition={ENTER}
             className="rounded-2xl border bg-popover p-3 text-popover-foreground shadow-[0_16px_48px_-12px_rgba(0,0,0,0.6)]"
           >
-            {/* Concept değerler — Excel ayrıştırma eklendiğinde bufferRef
-                içeriğinden gelen gerçek parse sonuçları yazılacak. */}
             <dl className="flex flex-col gap-1.5 text-xs">
               <DetailRow label="Kaynak" value={file?.name ?? "—"} />
-              <DetailRow label="Kayıt" value="1.248 satır" />
-              <DetailRow label="Şema" value="Geçerli" />
-              <DetailRow label="Dönem" value="Nisan 2026" />
+              <DetailRow label="Tip" value={TIP_LABEL[result.tip]} />
+              <DetailRow
+                label="İşlenen"
+                value={`${formatNumber(result.islenenSatir)} satır`}
+              />
+              {result.yeniMusteri > 0 && (
+                <DetailRow
+                  label="Yeni"
+                  value={`${formatNumber(result.yeniMusteri)} müşteri`}
+                />
+              )}
+              <DetailRow
+                label="Güncellenen"
+                value={`${formatNumber(result.guncellenenMusteri)} müşteri`}
+              />
+              {result.tip === "MusteriListesi" && (
+                <DetailRow
+                  label="Geocode yok"
+                  value={`${formatNumber(result.geocodeBasarisiz)}`}
+                />
+              )}
+              {result.eslesmeyenMusteriKodlari.length > 0 && (
+                <DetailRow
+                  label="Eşleşmeyen"
+                  value={`${formatNumber(result.eslesmeyenMusteriKodlari.length)} kod`}
+                />
+              )}
             </dl>
-            <div
-              className="mt-2.5 flex items-center gap-2 rounded-lg px-2.5 py-1.5"
-              style={{ backgroundColor: `${WARN}14`, color: WARN }}
-            >
-              <TriangleAlertIcon className="size-3.5 shrink-0" />
-              <span className="font-mono text-[11px]">
-                3 satırda konum bilgisi eksik
-              </span>
-            </div>
+
+            {(result.dedupUyari ||
+              (result.uyarilar && result.uyarilar.length > 0) ||
+              result.geocodeBasarisiz > 0) && (
+              <div
+                className="mt-2.5 flex items-start gap-2 rounded-lg px-2.5 py-1.5"
+                style={{ backgroundColor: `${WARN}14`, color: WARN }}
+              >
+                <TriangleAlertIcon className="mt-0.5 size-3.5 shrink-0" />
+                <span className="font-mono text-[11px] leading-snug">
+                  {result.uyarilar?.[0] ??
+                    (result.geocodeBasarisiz > 0
+                      ? `${result.geocodeBasarisiz} satırda konum çözülemedi`
+                      : "Dedup varsayımı bozuldu — kontrol edin")}
+                </span>
+              </div>
+            )}
+
+            {result.eslesmeyenMusteriKodlari.length > 0 && (
+              <div className="mt-2.5 max-h-28 overflow-y-auto rounded-lg bg-muted/30 px-2.5 py-1.5">
+                <p className="mb-1 font-mono text-[10px] tracking-wide text-muted-foreground uppercase">
+                  Eşleşmeyen musteri_kodu
+                </p>
+                <ul className="flex flex-col gap-0.5 font-mono text-[11px] tabular-nums">
+                  {result.eslesmeyenMusteriKodlari.slice(0, 40).map((kod) => (
+                    <li key={kod}>{kod}</li>
+                  ))}
+                  {result.eslesmeyenMusteriKodlari.length > 40 && (
+                    <li className="text-muted-foreground">
+                      … +{result.eslesmeyenMusteriKodlari.length - 40} daha
+                    </li>
+                  )}
+                </ul>
+              </div>
+            )}
+
             <Button
               variant="ghost"
               size="sm"
@@ -354,11 +470,32 @@ export function DataImportFlow({ onClose }: DataImportFlowProps) {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <AnimatePresence>
+        {stage === "error" && uploadedVisible && (
+          <motion.div
+            key="retry"
+            initial={{ opacity: 0, y: -12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -12 }}
+            transition={ENTER}
+            className="rounded-2xl border bg-popover p-3 text-popover-foreground shadow-[0_16px_48px_-12px_rgba(0,0,0,0.6)]"
+          >
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={reset}
+              className="w-full rounded-full text-xs"
+            >
+              Tekrar dene
+            </Button>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }
 
-/** 10 ayrık segment; her segmentin dolgusu progress'ten türetilen scaleX. */
 function ProgressSegments({ progress }: { progress: MotionValue<number> }) {
   return (
     <div className="mt-2 flex gap-[3px]">
@@ -401,13 +538,15 @@ function DetailRow({ label, value }: { label: string; value: string }) {
 function FileIcon({ name }: { name?: string }) {
   const ext = name?.split(".").pop()?.toLowerCase();
   const Icon =
-    ext === "xlsx" || ext === "xls" || ext === "csv"
-      ? FileSpreadsheetIcon
-      : FileTextIcon;
+    ext === "xlsx" || ext === "xls" ? FileSpreadsheetIcon : FileTextIcon;
   return <Icon className="size-4" />;
 }
 
 function formatFileSize(bytes: number): string {
   if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1).replace(".", ",")} MB`;
+}
+
+function formatNumber(n: number): string {
+  return n.toLocaleString("tr-TR");
 }
