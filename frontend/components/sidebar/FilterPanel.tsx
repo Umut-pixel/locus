@@ -1,27 +1,35 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useId, type ReactNode } from "react";
 import { SearchIcon, XIcon } from "lucide-react";
+import { motion } from "motion/react";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { SegmentBar } from "@/components/ui/segment-bar";
 import { Separator } from "@/components/ui/separator";
-import { RISK_COLORS, RISK_LABELS, RISK_ORDER } from "@/lib/risk-style";
+import { cn } from "@/lib/utils";
+import {
+  RISK_COLORS,
+  RISK_LABELS,
+  RISK_ORDER,
+  RISK_SHORT_LABELS,
+} from "@/lib/risk-style";
 import type { RiskDurumu } from "@/lib/types";
 
 export interface FilterStats {
   toplam: number;
   gorunen: number;
   riskli: number;
+  dagilim: Record<RiskDurumu, number>;
 }
 
 interface FilterPanelProps {
   cities: string[];
   selectedCities: string[];
   onToggleCity: (city: string) => void;
-  selectedRisks: RiskDurumu[];
-  onToggleRisk: (risk: RiskDurumu) => void;
+  selectedRisk: RiskDurumu | null;
+  onSelectRisk: (risk: RiskDurumu | null) => void;
   search: string;
   onSearchChange: (value: string) => void;
   stats: FilterStats;
@@ -33,8 +41,8 @@ export function FilterPanel({
   cities,
   selectedCities,
   onToggleCity,
-  selectedRisks,
-  onToggleRisk,
+  selectedRisk,
+  onSelectRisk,
   search,
   onSearchChange,
   stats,
@@ -42,29 +50,42 @@ export function FilterPanel({
   hasActiveFilters,
 }: FilterPanelProps) {
   return (
-    <div className="flex h-full flex-col gap-4 overflow-y-auto p-4">
-      <div className="border-l-2 border-primary pl-2.5">
-        <h1 className="font-mono text-sm font-semibold tracking-wide uppercase">
-          Petshop Müşteri Haritası
-        </h1>
-        <p className="text-xs text-muted-foreground">
+    <div className="flex h-full flex-col gap-5 overflow-y-auto p-4">
+      <div>
+        <h1 className="text-sm font-medium">Petshop Müşteri Haritası</h1>
+        <p className="mt-0.5 text-xs text-muted-foreground">
           Ege bölgesi müşteri dağılımı ve teslimat risk durumu
         </p>
       </div>
 
       <div className="grid grid-cols-3 gap-2">
-        <StatCard label="Haritalı" value={stats.toplam} />
-        <StatCard label="Görünen" value={stats.gorunen} />
-        <StatCard label="Riskli" value={stats.riskli} accent={RISK_COLORS.riskli} />
+        <StatTile
+          label="Haritalı"
+          value={stats.toplam}
+          ratio={1}
+          color="var(--muted-foreground)"
+        />
+        <StatTile
+          label="Görünen"
+          value={stats.gorunen}
+          ratio={stats.toplam > 0 ? stats.gorunen / stats.toplam : 0}
+          color="var(--foreground)"
+        />
+        <StatTile
+          label="Riskli"
+          value={stats.riskli}
+          ratio={stats.gorunen > 0 ? stats.riskli / stats.gorunen : 0}
+          color={RISK_COLORS.riskli}
+        />
       </div>
 
       <div className="relative">
-        <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
+        <SearchIcon className="pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2 text-muted-foreground" />
         <Input
           value={search}
           onChange={(e) => onSearchChange(e.target.value)}
           placeholder="Müşteri adı veya kodu ara..."
-          className="pl-8"
+          className="rounded-full bg-muted/40 pl-8.5"
         />
       </div>
 
@@ -72,16 +93,8 @@ export function FilterPanel({
 
       <div>
         <SectionLabel>Risk durumu</SectionLabel>
-        <div className="flex flex-wrap gap-1.5">
-          {RISK_ORDER.map((risk) => (
-            <RiskChip
-              key={risk}
-              risk={risk}
-              active={selectedRisks.includes(risk)}
-              onClick={() => onToggleRisk(risk)}
-            />
-          ))}
-        </div>
+        <RiskSegmentedControl value={selectedRisk} onChange={onSelectRisk} />
+        <RiskDagilim dagilim={stats.dagilim} gorunen={stats.gorunen} />
       </div>
 
       <Separator />
@@ -95,7 +108,7 @@ export function FilterPanel({
               size="sm"
               variant={selectedCities.includes(city) ? "default" : "outline"}
               onClick={() => onToggleCity(city)}
-              className="font-mono text-xs"
+              className="rounded-full text-xs"
             >
               {city}
             </Button>
@@ -108,7 +121,7 @@ export function FilterPanel({
           variant="ghost"
           size="sm"
           onClick={onReset}
-          className="gap-1.5 font-mono text-xs tracking-wide uppercase"
+          className="gap-1.5 rounded-full text-xs"
         >
           <XIcon className="size-3.5" />
           Filtreleri temizle
@@ -118,60 +131,162 @@ export function FilterPanel({
   );
 }
 
+/**
+ * "Tümü + risk seviyeleri" segmentli pill filtre — aktif segmentin altındaki
+ * highlight, Motion layoutId ile segmentler arasında kayarak taşınır.
+ */
+function RiskSegmentedControl({
+  value,
+  onChange,
+}: {
+  value: RiskDurumu | null;
+  onChange: (risk: RiskDurumu | null) => void;
+}) {
+  // FilterPanel hem sidebar'da hem mobil sheet'te mount olabildiği için
+  // layoutId'nin instance başına benzersiz olması gerekir.
+  const instanceId = useId();
+  const options: { key: string; risk: RiskDurumu | null; label: string }[] = [
+    { key: "all", risk: null, label: "Tümü" },
+    ...RISK_ORDER.map((risk) => ({
+      key: risk,
+      risk: risk as RiskDurumu | null,
+      label: RISK_SHORT_LABELS[risk],
+    })),
+  ];
+
+  return (
+    <div
+      role="radiogroup"
+      aria-label="Risk durumu filtresi"
+      className="flex w-full items-stretch rounded-full border bg-muted/40 p-1"
+    >
+      {options.map((option) => {
+        const active = value === option.risk;
+        return (
+          <button
+            key={option.key}
+            type="button"
+            role="radio"
+            aria-checked={active}
+            onClick={() => onChange(option.risk)}
+            className={cn(
+              "relative min-w-0 flex-auto rounded-full px-1 py-1.5 text-[10px] font-medium whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
+              active
+                ? "text-foreground"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            {active && (
+              <motion.span
+                layoutId={`risk-segment-${instanceId}`}
+                className="absolute inset-0 rounded-full bg-secondary shadow-sm ring-1 ring-border"
+                transition={{ type: "spring", stiffness: 480, damping: 38 }}
+              />
+            )}
+            <span className="relative z-10">{option.label}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/** Görünen müşterilerin risk dağılımı — segmentli blok bar + sayımlar. */
+function RiskDagilim({
+  dagilim,
+  gorunen,
+}: {
+  dagilim: Record<RiskDurumu, number>;
+  gorunen: number;
+}) {
+  const TOTAL_BLOCKS = 24;
+
+  // Sayıları blok sayısına dağıt; yuvarlama artıklarını en büyük paya ekle.
+  const blocks: { risk: RiskDurumu; count: number }[] = [];
+  if (gorunen > 0) {
+    let used = 0;
+    for (const risk of RISK_ORDER) {
+      const exact = (dagilim[risk] / gorunen) * TOTAL_BLOCKS;
+      const count = dagilim[risk] > 0 ? Math.max(1, Math.round(exact)) : 0;
+      blocks.push({ risk, count });
+      used += count;
+    }
+    let overflow = used - TOTAL_BLOCKS;
+    while (overflow !== 0 && blocks.some((b) => b.count > 1)) {
+      const biggest = blocks.reduce((a, b) => (b.count > a.count ? b : a));
+      biggest.count -= Math.sign(overflow);
+      overflow -= Math.sign(overflow);
+    }
+  }
+
+  // Blok sayısı ve DOM sırası sabit; filtre değişince yalnızca renkler değişir,
+  // geçiş CSS transition + kademeli delay ile soldan sağa dalga olarak animasyonlanır.
+  const colors: string[] = Array(TOTAL_BLOCKS).fill("var(--secondary)");
+  let cursor = 0;
+  for (const { risk, count } of blocks) {
+    for (let i = 0; i < count && cursor < TOTAL_BLOCKS; i++) {
+      colors[cursor++] = RISK_COLORS[risk];
+    }
+  }
+
+  return (
+    <div className="mt-3">
+      <div className="flex gap-[3px]" role="img" aria-label="Risk dağılımı">
+        {colors.map((color, i) => (
+          <span
+            key={i}
+            className="h-2 min-w-0 flex-1 rounded-[1.5px] transition-colors duration-300 ease-out"
+            style={{ backgroundColor: color, transitionDelay: `${i * 12}ms` }}
+          />
+        ))}
+      </div>
+      <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
+        {RISK_ORDER.map((risk) => (
+          <span
+            key={risk}
+            title={`${RISK_LABELS[risk]}: ${dagilim[risk]}`}
+            className="inline-flex items-center gap-1 font-mono text-[10px] tabular-nums text-muted-foreground"
+          >
+            <span
+              className="size-1.5 rounded-full"
+              style={{ backgroundColor: RISK_COLORS[risk] }}
+            />
+            {dagilim[risk]}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function SectionLabel({ children }: { children: ReactNode }) {
   return (
-    <p className="mb-2 font-mono text-[10px] tracking-widest text-muted-foreground uppercase">
+    <p className="mb-2.5 text-[10px] font-medium tracking-[0.14em] text-muted-foreground uppercase">
       {children}
     </p>
   );
 }
 
-function StatCard({
+function StatTile({
   label,
   value,
-  accent,
+  ratio,
+  color,
 }: {
   label: string;
   value: number;
-  accent?: string;
+  ratio: number;
+  color: string;
 }) {
   return (
-    <Card
-      size="sm"
-      className="gap-0.5 border-t-2 py-2 text-center"
-      style={{ borderTopColor: accent ?? "var(--primary)" }}
-    >
-      <CardContent className="px-2">
-        <p className="font-mono text-lg font-semibold tabular-nums">{value}</p>
-        <p className="font-mono text-[10px] tracking-wide text-muted-foreground uppercase">
-          {label}
-        </p>
-      </CardContent>
-    </Card>
-  );
-}
-
-function RiskChip({
-  risk,
-  active,
-  onClick,
-}: {
-  risk: RiskDurumu;
-  active: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <Button
-      size="sm"
-      variant={active ? "default" : "outline"}
-      onClick={onClick}
-      className="gap-1.5 font-mono text-xs"
-    >
-      <span
-        className="size-2 shrink-0 rounded-full"
-        style={{ backgroundColor: RISK_COLORS[risk] }}
-      />
-      {RISK_LABELS[risk]}
-    </Button>
+    <div className="rounded-xl border bg-muted/30 p-2.5">
+      <p className="text-[10px] font-medium tracking-[0.1em] text-muted-foreground uppercase">
+        {label}
+      </p>
+      <p className="mt-1 font-mono text-lg leading-none font-semibold tabular-nums">
+        {value}
+      </p>
+      <SegmentBar className="mt-2" segments={8} value={ratio} color={color} />
+    </div>
   );
 }

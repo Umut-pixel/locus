@@ -17,8 +17,8 @@ interface MobileFilterSheetProps {
   cities: string[];
   selectedCities: string[];
   onToggleCity: (city: string) => void;
-  selectedRisks: RiskDurumu[];
-  onToggleRisk: (risk: RiskDurumu) => void;
+  selectedRisk: RiskDurumu | null;
+  onSelectRisk: (risk: RiskDurumu | null) => void;
   search: string;
   onSearchChange: (value: string) => void;
   stats: FilterStats;
@@ -34,7 +34,7 @@ export function MobileFilterSheet(props: MobileFilterSheetProps) {
           <Button
             variant="secondary"
             size="icon"
-            className="pointer-events-auto shadow-md"
+            className="pointer-events-auto rounded-full border shadow-md"
           />
         }
       >

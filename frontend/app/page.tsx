@@ -1,12 +1,19 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
+import { UploadIcon } from "lucide-react";
+import { AnimatePresence } from "motion/react";
 
-import { CustomerDetailCard } from "@/components/sidebar/CustomerDetailCard";
+import {
+  CustomerDetailPanel,
+  type PanelAnchor,
+} from "@/components/map/CustomerDetailPanel";
+import { DataImportFlow } from "@/components/import/DataImportFlow";
 import { FilterPanel } from "@/components/sidebar/FilterPanel";
 import { MobileFilterSheet } from "@/components/sidebar/MobileFilterSheet";
 import { RiskLegend } from "@/components/map/RiskLegend";
 import { PetshopMap } from "@/components/map/PetshopMap";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useMusteriHarita } from "@/hooks/useMusteriHarita";
@@ -17,12 +24,16 @@ export default function Home() {
   const { data: rows, loading, error } = useMusteriHarita();
 
   const [selectedCities, setSelectedCities] = useState<string[]>([]);
-  const [selectedRisks, setSelectedRisks] = useState<RiskDurumu[]>([]);
+  const [selectedRisk, setSelectedRisk] = useState<RiskDurumu | null>(null);
   const [search, setSearch] = useState("");
   const [selectedMusteri, setSelectedMusteri] = useState<MusteriHarita | null>(
     null
   );
+  const [panelAnchor, setPanelAnchor] = useState<PanelAnchor | null>(null);
   const [highlightedRutKod, setHighlightedRutKod] = useState<string | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
+
+  const mapAreaRef = useRef<HTMLDivElement | null>(null);
 
   const cities = useMemo(() => {
     const set = new Set<string>();
@@ -38,7 +49,7 @@ export default function Home() {
       if (selectedCities.length > 0 && (!row.sehir || !selectedCities.includes(row.sehir))) {
         return false;
       }
-      if (selectedRisks.length > 0 && !selectedRisks.includes(row.risk_durumu)) {
+      if (selectedRisk && row.risk_durumu !== selectedRisk) {
         return false;
       }
       if (query) {
@@ -47,21 +58,30 @@ export default function Home() {
       }
       return true;
     });
-  }, [rows, selectedCities, selectedRisks, search]);
+  }, [rows, selectedCities, selectedRisk, search]);
 
   const geojson = useMemo(() => musterilerToGeoJSON(filteredRows), [filteredRows]);
 
-  const stats = useMemo(
-    () => ({
+  const stats = useMemo(() => {
+    const dagilim: Record<RiskDurumu, number> = {
+      saglikli: 0,
+      izlenmeli: 0,
+      riskli: 0,
+      hic_teslimat_yok: 0,
+    };
+    for (const row of filteredRows) {
+      dagilim[row.risk_durumu] += 1;
+    }
+    return {
       toplam: rows.length,
       gorunen: filteredRows.length,
-      riskli: filteredRows.filter((r) => r.risk_durumu === "riskli").length,
-    }),
-    [rows, filteredRows]
-  );
+      riskli: dagilim.riskli,
+      dagilim,
+    };
+  }, [rows, filteredRows]);
 
   const hasActiveFilters =
-    selectedCities.length > 0 || selectedRisks.length > 0 || search.trim().length > 0;
+    selectedCities.length > 0 || selectedRisk !== null || search.trim().length > 0;
 
   const toggleCity = useCallback((city: string) => {
     setSelectedCities((prev) =>
@@ -69,25 +89,32 @@ export default function Home() {
     );
   }, []);
 
-  const toggleRisk = useCallback((risk: RiskDurumu) => {
-    setSelectedRisks((prev) =>
-      prev.includes(risk) ? prev.filter((r) => r !== risk) : [...prev, risk]
-    );
-  }, []);
-
   const resetFilters = useCallback(() => {
     setSelectedCities([]);
-    setSelectedRisks([]);
+    setSelectedRisk(null);
     setSearch("");
   }, []);
 
-  const handleSelectMusteri = useCallback((musteri: MusteriHarita | null) => {
-    setSelectedMusteri(musteri);
-    setHighlightedRutKod(null);
+  const handleSelectMusteri = useCallback(
+    (musteri: MusteriHarita | null, screenPoint?: { x: number; y: number }) => {
+      setSelectedMusteri(musteri);
+      setPanelAnchor(
+        musteri && screenPoint
+          ? { x: screenPoint.x, y: screenPoint.y, instant: false }
+          : null
+      );
+      setHighlightedRutKod(null);
+    },
+    []
+  );
+
+  const handleAnchorMove = useCallback((point: { x: number; y: number }) => {
+    setPanelAnchor({ x: point.x, y: point.y, instant: true });
   }, []);
 
   const handleCloseDetail = useCallback(() => {
     setSelectedMusteri(null);
+    setPanelAnchor(null);
     setHighlightedRutKod(null);
   }, []);
 
@@ -95,8 +122,8 @@ export default function Home() {
     cities,
     selectedCities,
     onToggleCity: toggleCity,
-    selectedRisks,
-    onToggleRisk: toggleRisk,
+    selectedRisk,
+    onSelectRisk: setSelectedRisk,
     search,
     onSearchChange: setSearch,
     stats,
@@ -106,36 +133,63 @@ export default function Home() {
 
   return (
     <div className="relative flex h-dvh w-dvw overflow-hidden">
-      <aside className="hidden w-80 shrink-0 border-r bg-background lg:block">
+      <aside className="hidden w-80 shrink-0 border-r border-sidebar-border bg-sidebar lg:block">
         <FilterPanel {...filterProps} />
       </aside>
 
-      <div className="relative flex-1">
+      <div ref={mapAreaRef} className="relative flex-1">
         <PetshopMap
           data={geojson}
           selectedMusteriKodu={selectedMusteri?.musteri_kodu ?? null}
+          selectedLngLat={
+            selectedMusteri ? [selectedMusteri.lon, selectedMusteri.lat] : null
+          }
           highlightedRutKod={highlightedRutKod}
           onSelectMusteri={handleSelectMusteri}
+          onAnchorMove={handleAnchorMove}
         />
 
         <div className="pointer-events-none absolute inset-0 flex flex-col justify-between gap-3 p-3 sm:p-4">
-          <div className="flex items-start justify-between">
-            <div className="pointer-events-auto lg:hidden">
-              <MobileFilterSheet {...filterProps} />
+          <div className="flex min-h-0 flex-col items-start gap-3">
+            <div className="flex items-center gap-2">
+              <div className="pointer-events-auto lg:hidden">
+                <MobileFilterSheet {...filterProps} />
+              </div>
+              <Button
+                variant="secondary"
+                onClick={() => setImportOpen((open) => !open)}
+                className="pointer-events-auto gap-1.5 rounded-full border shadow-md"
+              >
+                <UploadIcon className="size-3.5" />
+                Veri yükle
+              </Button>
             </div>
-            <div />
+            <AnimatePresence>
+              {importOpen && (
+                <DataImportFlow onClose={() => setImportOpen(false)} />
+              )}
+            </AnimatePresence>
           </div>
 
           <div className="flex flex-wrap items-end justify-between gap-3">
             <RiskLegend />
-            {selectedMusteri && (
-              <CustomerDetailCard
+          </div>
+        </div>
+
+        {/* Tıklanan noktanın yanında açılan contextual detay paneli */}
+        <div className="pointer-events-none absolute inset-0 overflow-hidden">
+          <AnimatePresence>
+            {selectedMusteri && panelAnchor && (
+              <CustomerDetailPanel
+                key={selectedMusteri.musteri_kodu}
                 musteri={selectedMusteri}
+                anchor={panelAnchor}
+                containerRef={mapAreaRef}
                 onClose={handleCloseDetail}
                 onShowRoute={setHighlightedRutKod}
               />
             )}
-          </div>
+          </AnimatePresence>
         </div>
 
         {loading && (

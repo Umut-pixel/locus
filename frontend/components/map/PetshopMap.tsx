@@ -26,21 +26,31 @@ const EMPTY_FEATURE_COLLECTION: MusteriFeatureCollection = {
 interface PetshopMapProps {
   data: MusteriFeatureCollection;
   selectedMusteriKodu: string | null;
+  /** Seçili noktanın koordinatı — panel anchor'ı bu noktadan projekte edilir. */
+  selectedLngLat: [number, number] | null;
   highlightedRutKod: string | null;
-  onSelectMusteri: (musteri: MusteriHarita | null) => void;
+  onSelectMusteri: (
+    musteri: MusteriHarita | null,
+    screenPoint?: { x: number; y: number }
+  ) => void;
+  /** Pan/zoom sırasında seçili noktanın ekran konumunu yukarı bildirir. */
+  onAnchorMove: (point: { x: number; y: number }) => void;
 }
 
 export function PetshopMap({
   data,
   selectedMusteriKodu,
+  selectedLngLat,
   highlightedRutKod,
   onSelectMusteri,
+  onAnchorMove,
 }: PetshopMapProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const loadedRef = useRef(false);
   const dataRef = useRef(data);
   const onSelectRef = useRef(onSelectMusteri);
+  const onAnchorMoveRef = useRef(onAnchorMove);
 
   useEffect(() => {
     dataRef.current = data;
@@ -49,6 +59,10 @@ export function PetshopMap({
   useEffect(() => {
     onSelectRef.current = onSelectMusteri;
   }, [onSelectMusteri]);
+
+  useEffect(() => {
+    onAnchorMoveRef.current = onAnchorMove;
+  }, [onAnchorMove]);
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current || !MAPBOX_TOKEN) return;
@@ -81,24 +95,18 @@ export function PetshopMap({
         data: EMPTY_FEATURE_COLLECTION,
       });
 
+      // Küme baloncukları: parlak mavi yerine UI'daki kırık beyaz
+      // primary'nin harita karşılığı — koyu sayı, yumuşak dış halka.
       map.addLayer({
         id: CLUSTER_LAYER,
         type: "circle",
         source: SOURCE_ID,
         filter: ["has", "point_count"],
         paint: {
-          "circle-color": [
-            "step",
-            ["get", "point_count"],
-            "#60a5fa",
-            10,
-            "#3b82f6",
-            30,
-            "#1d4ed8",
-          ],
+          "circle-color": "#e9eaec",
           "circle-radius": ["step", ["get", "point_count"], 16, 10, 22, 30, 28],
-          "circle-stroke-width": 2,
-          "circle-stroke-color": "#ffffff",
+          "circle-stroke-width": 5,
+          "circle-stroke-color": "rgba(233,234,236,0.22)",
         },
       });
 
@@ -112,7 +120,7 @@ export function PetshopMap({
           "text-font": ["Arial Unicode MS Bold"],
           "text-size": 12,
         },
-        paint: { "text-color": "#ffffff" },
+        paint: { "text-color": "#1c1d20" },
       });
 
       map.addLayer({
@@ -146,8 +154,8 @@ export function PetshopMap({
             0.6,
           ],
           "circle-radius": 7,
-          "circle-stroke-width": 1.5,
-          "circle-stroke-color": "#ffffff",
+          "circle-stroke-width": 1.25,
+          "circle-stroke-color": "rgba(255,255,255,0.85)",
         },
       });
 
@@ -184,8 +192,8 @@ export function PetshopMap({
         paint: {
           "circle-radius": 11,
           "circle-color": "rgba(0,0,0,0)",
-          "circle-stroke-width": 3,
-          "circle-stroke-color": "#f8fafc",
+          "circle-stroke-width": 2.5,
+          "circle-stroke-color": "#f4f4f5",
         },
       });
 
@@ -205,9 +213,9 @@ export function PetshopMap({
         popup
           .setLngLat([lon, lat])
           .setHTML(
-            `<div style="font-family:ui-monospace,monospace;font-size:11px;line-height:1.45">
-              <div style="font-weight:600;letter-spacing:0.04em;text-transform:uppercase">${escapeHtml(props.unvan)}</div>
-              <div style="opacity:0.65;margin-top:2px">${escapeHtml(props.sehir ?? "")}${props.ilce ? " / " + escapeHtml(props.ilce) : ""}</div>
+            `<div style="line-height:1.45">
+              <div style="font-family:var(--font-geist-sans),system-ui,sans-serif;font-size:12px;font-weight:500">${escapeHtml(props.unvan)}</div>
+              <div style="font-family:var(--font-geist-mono),ui-monospace,monospace;font-size:10px;letter-spacing:0.06em;text-transform:uppercase;opacity:0.6;margin-top:3px">${escapeHtml(props.sehir ?? "")}${props.ilce ? " / " + escapeHtml(props.ilce) : ""}</div>
             </div>`
           )
           .addTo(map);
@@ -220,8 +228,15 @@ export function PetshopMap({
 
       map.on("click", POINT_LAYER, (e) => {
         const feature = e.features?.[0];
-        if (!feature) return;
-        onSelectRef.current(feature.properties as MusteriHarita);
+        if (!feature || feature.geometry.type !== "Point") return;
+        // Anchor'ı tıklama noktasından değil marker merkezinden projekte et
+        // ki panel her zaman noktanın kendisine hizalansın.
+        const [lon, lat] = feature.geometry.coordinates as [number, number];
+        const screen = map.project([lon, lat]);
+        onSelectRef.current(feature.properties as MusteriHarita, {
+          x: screen.x,
+          y: screen.y,
+        });
       });
 
       map.on("mouseenter", CLUSTER_LAYER, () => {
@@ -263,6 +278,24 @@ export function PetshopMap({
     const source = map.getSource(SOURCE_ID) as mapboxgl.GeoJSONSource | undefined;
     source?.setData(data);
   }, [data]);
+
+  // Pan/zoom/resize boyunca seçili noktanın ekran konumunu yukarı taşı;
+  // floating panel bu sayede noktayı birebir takip eder.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !selectedLngLat) return;
+
+    const update = () => {
+      const screen = map.project(selectedLngLat);
+      onAnchorMoveRef.current({ x: screen.x, y: screen.y });
+    };
+    map.on("move", update);
+    map.on("resize", update);
+    return () => {
+      map.off("move", update);
+      map.off("resize", update);
+    };
+  }, [selectedLngLat]);
 
   useEffect(() => {
     const map = mapRef.current;
