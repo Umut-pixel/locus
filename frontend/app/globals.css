@@ -137,6 +137,29 @@
   }
 }
 
+/* Mapbox kontrolleri — notch / home indicator ve üst toolbar ile çakışmasın */
+.mapboxgl-ctrl-top-right {
+  top: max(0.5rem, env(safe-area-inset-top, 0px));
+  right: max(0.5rem, env(safe-area-inset-right, 0px));
+}
+
+.mapboxgl-ctrl-bottom-right,
+.mapboxgl-ctrl-bottom-left {
+  bottom: max(0.25rem, env(safe-area-inset-bottom, 0px));
+}
+
+@media (max-width: 639px) {
+  .mapboxgl-ctrl-top-right {
+    /* Sol üstte filtre + yükle butonları; zoom sağda kalsın */
+    top: max(3.25rem, calc(env(safe-area-inset-top, 0px) + 2.75rem));
+  }
+
+  .mapboxgl-ctrl-attrib {
+    font-size: 9px !important;
+    max-width: 40vw;
+  }
+}
+
 /* Mapbox hover popup — floating panel katmanıyla aynı yüzey dili */
 .petshop-popup .mapboxgl-popup-content {
   background: oklch(0.215 0.005 260) !important;

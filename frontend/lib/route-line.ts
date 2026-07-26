@@ -2,11 +2,13 @@ import type { Feature, FeatureCollection, LineString, Point } from "geojson";
 
 import type { MusteriHarita } from "./types";
 
-/** Ardışık duraklar bu km'yi aşarsa çizgi kesilir (ERP sırası coğrafi değil). */
-export const ROUTE_MAX_HOP_KM = 12;
-
-/** Seçili müşterinin ziyaret sırası ± bu kadar komşu bağlanır. */
-export const ROUTE_VISIT_WINDOW = 10;
+/**
+ * Ardışık ziyaretler bu mesafeyi aşarsa ERP sırası coğrafi olarak kopuk
+ * kabul edilir (aynı rut_kod altında İzmir+Muğla karışımı gibi).
+ * Çizgi bu kopuklarda bölünür; ekranda yalnızca seçili müşterinin
+ * bağlı olduğu bileşen gösterilir.
+ */
+export const ROUTE_MAX_HOP_KM = 90;
 
 type MusteriPointFeature = Feature<Point, MusteriHarita>;
 type LngLat = [number, number];
@@ -31,7 +33,11 @@ function sortByZiyaretSira(features: MusteriPointFeature[]): MusteriPointFeature
     if (sa == null && sb == null) return 0;
     if (sa == null) return 1;
     if (sb == null) return -1;
-    return sa - sb;
+    if (sa !== sb) return sa - sb;
+    return a.properties.musteri_kodu.localeCompare(
+      b.properties.musteri_kodu,
+      "tr"
+    );
   });
 }
 
@@ -44,62 +50,67 @@ function dedupeCoords(coords: LngLat[]): LngLat[] {
   return out;
 }
 
-function filterVisitWindow(
-  sorted: MusteriPointFeature[],
-  selectedMusteriKodu: string | null | undefined,
-  visitWindow: number
+/**
+ * Ziyaret sırasına göre hop-bağlı bileşenlere ayır.
+ * Seçili müşteri varsa yalnızca onun bileşenini döndür — aksi halde
+ * ERP'nin coğrafi olarak kopuk "aynı rut" kayıtları iki rota gibi görünür.
+ */
+export function selectRouteComponent(
+  routeFeatures: MusteriPointFeature[],
+  options?: {
+    selectedMusteriKodu?: string | null;
+    maxHopKm?: number;
+  }
 ): MusteriPointFeature[] {
-  if (!selectedMusteriKodu) return sorted;
-  const selected = sorted.find((f) => f.properties.musteri_kodu === selectedMusteriKodu);
-  const sira = selected?.properties.ziyaret_sira;
-  if (sira == null) return sorted;
-  return sorted.filter((f) => {
-    const s = f.properties.ziyaret_sira;
-    if (s == null) return f.properties.musteri_kodu === selectedMusteriKodu;
-    return Math.abs(s - sira) <= visitWindow;
-  });
+  const maxHopKm = options?.maxHopKm ?? ROUTE_MAX_HOP_KM;
+  const sorted = sortByZiyaretSira(routeFeatures);
+  if (sorted.length === 0) return [];
+
+  const components: MusteriPointFeature[][] = [];
+  let current: MusteriPointFeature[] = [sorted[0]];
+
+  for (let i = 1; i < sorted.length; i++) {
+    const prev = sorted[i - 1].geometry.coordinates as LngLat;
+    const next = sorted[i].geometry.coordinates as LngLat;
+    if (haversineKm(prev, next) > maxHopKm) {
+      components.push(current);
+      current = [sorted[i]];
+    } else {
+      current.push(sorted[i]);
+    }
+  }
+  components.push(current);
+
+  const selected = options?.selectedMusteriKodu;
+  if (!selected) {
+    // Seçim yoksa en kalabalık bileşeni göster (tek "rota" hissi)
+    return components.reduce((best, c) =>
+      c.length > best.length ? c : best
+    );
+  }
+
+  const hit = components.find((c) =>
+    c.some((f) => f.properties.musteri_kodu === selected)
+  );
+  return hit ?? components.reduce((best, c) =>
+    c.length > best.length ? c : best
+  );
 }
 
-/** Hop limitine göre waypoint segmentleri (Directions / düz çizgi ortak girdi). */
+/** Tek bileşen → Directions / düz çizgi için waypoint listeleri. */
 export function buildRouteWaypointSegments(
   routeFeatures: MusteriPointFeature[],
   options?: {
     selectedMusteriKodu?: string | null;
     maxHopKm?: number;
-    visitWindow?: number;
   }
 ): LngLat[][] {
-  const maxHopKm = options?.maxHopKm ?? ROUTE_MAX_HOP_KM;
-  const visitWindow = options?.visitWindow ?? ROUTE_VISIT_WINDOW;
-
-  const sorted = filterVisitWindow(
-    sortByZiyaretSira(routeFeatures),
-    options?.selectedMusteriKodu,
-    visitWindow
-  );
-
+  const component = selectRouteComponent(routeFeatures, options);
   const coords = dedupeCoords(
-    sorted.map((f) => f.geometry.coordinates as LngLat)
+    component.map((f) => f.geometry.coordinates as LngLat)
   );
-
   if (coords.length < 2) return [];
-
-  const segments: LngLat[][] = [];
-  let current: LngLat[] = [coords[0]];
-
-  for (let i = 1; i < coords.length; i++) {
-    const prev = coords[i - 1];
-    const next = coords[i];
-    if (haversineKm(prev, next) > maxHopKm) {
-      if (current.length >= 2) segments.push(current);
-      current = [next];
-    } else {
-      current.push(next);
-    }
-  }
-  if (current.length >= 2) segments.push(current);
-
-  return segments;
+  return [coords];
 }
 
 /** Düz (kuş uçuşu) çizgi — Directions başarısız olursa yedek. */
@@ -108,7 +119,6 @@ export function buildRouteLineCollection(
   options?: {
     selectedMusteriKodu?: string | null;
     maxHopKm?: number;
-    visitWindow?: number;
   }
 ): FeatureCollection<LineString> {
   const segments = buildRouteWaypointSegments(routeFeatures, options);

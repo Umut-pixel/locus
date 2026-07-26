@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import dynamic from "next/dynamic";
+import { useCallback, useDeferredValue, useMemo, useRef, useState } from "react";
 import { UploadIcon } from "lucide-react";
 import { AnimatePresence } from "motion/react";
 
@@ -8,24 +9,51 @@ import {
   CustomerDetailPanel,
   type PanelAnchor,
 } from "@/components/map/CustomerDetailPanel";
-import { DataImportFlow } from "@/components/import/DataImportFlow";
 import { FilterPanel } from "@/components/sidebar/FilterPanel";
 import { MobileFilterSheet } from "@/components/sidebar/MobileFilterSheet";
 import { RiskLegend } from "@/components/map/RiskLegend";
-import { PetshopMap } from "@/components/map/PetshopMap";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useIsMobileLayout } from "@/hooks/useMediaQuery";
 import { useMusteriHarita } from "@/hooks/useMusteriHarita";
 import { musterilerToGeoJSON } from "@/lib/geojson";
+import { filterRowsLocally } from "@/lib/map-filter";
 import type { MusteriHarita, RiskDurumu } from "@/lib/types";
 
+/** Mapbox ~1.8MB — ilk paint'ten sonra yükle */
+const PetshopMap = dynamic(
+  () =>
+    import("@/components/map/PetshopMap").then((m) => m.PetshopMap),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-full w-full items-center justify-center bg-background">
+        <div className="flex w-56 flex-col gap-2 rounded-2xl border bg-card p-4 shadow-md">
+          <Skeleton className="h-3 w-3/4" />
+          <Skeleton className="h-3 w-1/2" />
+          <p className="mt-1 text-xs text-muted-foreground">Harita yükleniyor…</p>
+        </div>
+      </div>
+    ),
+  }
+);
+
+/** Import paneli yalnızca açılınca chunk edilsin */
+const DataImportFlow = dynamic(
+  () =>
+    import("@/components/import/DataImportFlow").then((m) => m.DataImportFlow),
+  { ssr: false }
+);
+
 export default function Home() {
-  const { data: rows, loading, error, refresh } = useMusteriHarita();
+  const { data: rows, loading, refreshing, error, refresh } = useMusteriHarita();
+  const isMobileLayout = useIsMobileLayout();
 
   const [selectedCities, setSelectedCities] = useState<string[]>([]);
   const [selectedRisk, setSelectedRisk] = useState<RiskDurumu | null>(null);
   const [search, setSearch] = useState("");
+  const deferredSearch = useDeferredValue(search);
   const [selectedMusteri, setSelectedMusteri] = useState<MusteriHarita | null>(
     null
   );
@@ -35,6 +63,15 @@ export default function Home() {
 
   const mapAreaRef = useRef<HTMLDivElement | null>(null);
 
+  const filterState = useMemo(
+    () => ({
+      cities: selectedCities,
+      risk: selectedRisk,
+      search: deferredSearch,
+    }),
+    [selectedCities, selectedRisk, deferredSearch]
+  );
+
   const cities = useMemo(() => {
     const set = new Set<string>();
     for (const row of rows) {
@@ -43,24 +80,17 @@ export default function Home() {
     return Array.from(set).sort((a, b) => a.localeCompare(b, "tr"));
   }, [rows]);
 
-  const filteredRows = useMemo(() => {
-    const query = search.trim().toLocaleLowerCase("tr");
-    return rows.filter((row) => {
-      if (selectedCities.length > 0 && (!row.sehir || !selectedCities.includes(row.sehir))) {
-        return false;
-      }
-      if (selectedRisk && row.risk_durumu !== selectedRisk) {
-        return false;
-      }
-      if (query) {
-        const haystack = `${row.unvan} ${row.musteri_kodu}`.toLocaleLowerCase("tr");
-        if (!haystack.includes(query)) return false;
-      }
-      return true;
-    });
-  }, [rows, selectedCities, selectedRisk, search]);
+  const filteredRows = useMemo(
+    () => filterRowsLocally(rows, filterState),
+    [rows, filterState]
+  );
 
-  const geojson = useMemo(() => musterilerToGeoJSON(filteredRows), [filteredRows]);
+  // Clustering doğru kalsın diye filtreli GeoJSON; rows değişince / filtre
+  // deferred search ile yeniden kurulur (yazarken her tuşta değil).
+  const geojson = useMemo(
+    () => musterilerToGeoJSON(filteredRows),
+    [filteredRows]
+  );
 
   const stats = useMemo(() => {
     const dagilim: Record<RiskDurumu, number> = {
@@ -81,7 +111,9 @@ export default function Home() {
   }, [rows, filteredRows]);
 
   const hasActiveFilters =
-    selectedCities.length > 0 || selectedRisk !== null || search.trim().length > 0;
+    selectedCities.length > 0 ||
+    selectedRisk !== null ||
+    search.trim().length > 0;
 
   const toggleCity = useCallback((city: string) => {
     setSelectedCities((prev) =>
@@ -99,18 +131,13 @@ export default function Home() {
     (musteri: MusteriHarita | null, screenPoint?: { x: number; y: number }) => {
       setSelectedMusteri(musteri);
       setPanelAnchor(
-        musteri && screenPoint
-          ? { x: screenPoint.x, y: screenPoint.y, instant: false }
-          : null
+        musteri && screenPoint ? { x: screenPoint.x, y: screenPoint.y } : null
       );
       setHighlightedRutKod(null);
+      if (musteri) setImportOpen(false);
     },
     []
   );
-
-  const handleAnchorMove = useCallback((point: { x: number; y: number }) => {
-    setPanelAnchor({ x: point.x, y: point.y, instant: true });
-  }, []);
 
   const handleCloseDetail = useCallback(() => {
     setSelectedMusteri(null);
@@ -131,38 +158,53 @@ export default function Home() {
     hasActiveFilters,
   };
 
+  const showLegend = !(isMobileLayout && selectedMusteri);
+  const showBlockingLoader = loading && rows.length === 0;
+
   return (
     <div className="relative flex h-dvh w-dvw overflow-hidden">
-      <aside className="hidden w-80 shrink-0 border-r border-sidebar-border bg-sidebar lg:block">
+      <aside className="hidden w-72 shrink-0 border-r border-sidebar-border bg-sidebar lg:block xl:w-80">
         <FilterPanel {...filterProps} />
       </aside>
 
-      <div ref={mapAreaRef} className="relative flex-1">
+      <div ref={mapAreaRef} className="relative min-w-0 flex-1">
         <PetshopMap
           data={geojson}
           selectedMusteriKodu={selectedMusteri?.musteri_kodu ?? null}
-          selectedLngLat={
-            selectedMusteri ? [selectedMusteri.lon, selectedMusteri.lat] : null
-          }
           highlightedRutKod={highlightedRutKod}
           onSelectMusteri={handleSelectMusteri}
-          onAnchorMove={handleAnchorMove}
         />
 
-        <div className="pointer-events-none absolute inset-0 flex flex-col justify-between gap-3 p-3 sm:p-4">
-          <div className="flex min-h-0 flex-col items-start gap-3">
+        <div
+          className="pointer-events-none absolute inset-0 flex flex-col justify-between gap-2 p-2 sm:gap-3 sm:p-3 md:p-4"
+          style={{
+            paddingTop: "max(0.5rem, env(safe-area-inset-top))",
+            paddingLeft: "max(0.5rem, env(safe-area-inset-left))",
+            paddingRight: "max(0.5rem, env(safe-area-inset-right))",
+            paddingBottom: "max(0.5rem, env(safe-area-inset-bottom))",
+          }}
+        >
+          <div className="flex min-h-0 w-full max-w-full flex-col items-stretch gap-2 sm:max-w-[min(100%,380px)] sm:items-start sm:gap-3">
             <div className="flex items-center gap-2">
               <div className="pointer-events-auto lg:hidden">
                 <MobileFilterSheet {...filterProps} />
               </div>
               <Button
                 variant="secondary"
-                onClick={() => setImportOpen((open) => !open)}
-                className="pointer-events-auto gap-1.5 rounded-full border shadow-md"
+                onClick={() => {
+                  setImportOpen((open) => !open);
+                  if (!importOpen && isMobileLayout) handleCloseDetail();
+                }}
+                className="pointer-events-auto h-9 gap-1.5 rounded-full border px-3 shadow-md sm:h-8 sm:px-2.5"
               >
                 <UploadIcon className="size-3.5" />
-                Veri yükle
+                <span className="text-xs sm:text-sm">Veri yükle</span>
               </Button>
+              {refreshing && (
+                <span className="pointer-events-none rounded-full border bg-popover/90 px-2.5 py-1 font-mono text-[10px] tracking-wide text-muted-foreground uppercase shadow-md">
+                  Yenileniyor…
+                </span>
+              )}
             </div>
             <AnimatePresence>
               {importOpen && (
@@ -174,12 +216,11 @@ export default function Home() {
             </AnimatePresence>
           </div>
 
-          <div className="flex flex-wrap items-end justify-between gap-3">
-            <RiskLegend />
+          <div className="flex flex-wrap items-end justify-between gap-2 sm:gap-3">
+            {showLegend && <RiskLegend />}
           </div>
         </div>
 
-        {/* Tıklanan noktanın yanında açılan contextual detay paneli */}
         <div className="pointer-events-none absolute inset-0 overflow-hidden">
           <AnimatePresence>
             {selectedMusteri && panelAnchor && (
@@ -195,9 +236,9 @@ export default function Home() {
           </AnimatePresence>
         </div>
 
-        {loading && (
-          <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-background/60">
-            <Card className="w-64">
+        {showBlockingLoader && (
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-background/60 p-4">
+            <Card className="w-[min(100%,16rem)]">
               <CardContent className="flex flex-col gap-2">
                 <Skeleton className="h-4 w-3/4" />
                 <Skeleton className="h-4 w-1/2" />
@@ -209,9 +250,9 @@ export default function Home() {
           </div>
         )}
 
-        {error && (
-          <div className="absolute inset-0 flex items-center justify-center bg-background/80 p-6">
-            <Card className="max-w-sm">
+        {error && rows.length === 0 && (
+          <div className="absolute inset-0 flex items-center justify-center bg-background/80 p-4 sm:p-6">
+            <Card className="w-full max-w-sm">
               <CardContent>
                 <p className="text-sm font-medium text-destructive">
                   Veri yüklenemedi

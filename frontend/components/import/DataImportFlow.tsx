@@ -58,7 +58,6 @@ export function DataImportFlow({ onClose, onComplete }: DataImportFlowProps) {
   const progress = useMotionValue(0);
 
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const readerRef = useRef<FileReader | null>(null);
   const fileBlobRef = useRef<File | null>(null);
   const timeoutsRef = useRef<number[]>([]);
   const gateRef = useRef({ readDone: false, animDone: false });
@@ -71,7 +70,6 @@ export function DataImportFlow({ onClose, onComplete }: DataImportFlowProps) {
 
   useEffect(
     () => () => {
-      readerRef.current?.abort();
       abortRef.current?.abort();
       clearTimers();
     },
@@ -83,7 +81,6 @@ export function DataImportFlow({ onClose, onComplete }: DataImportFlowProps) {
   }, []);
 
   const reset = useCallback(() => {
-    readerRef.current?.abort();
     abortRef.current?.abort();
     clearTimers();
     gateRef.current = { readDone: false, animDone: false };
@@ -165,28 +162,14 @@ export function DataImportFlow({ onClose, onComplete }: DataImportFlowProps) {
         return;
       }
 
+      // Dosyayı belleğe kopyalamadan sakla — parse sunucuda (/api/upload).
       fileBlobRef.current = picked;
       setFile({ name: picked.name, size: picked.size });
       setError(null);
       setResult(null);
       setStage("uploading");
-      gateRef.current = { readDone: false, animDone: false };
+      gateRef.current = { readDone: true, animDone: false };
       progress.set(0);
-
-      const reader = new FileReader();
-      readerRef.current = reader;
-      reader.onload = () => {
-        gateRef.current.readDone = true;
-        maybeFinish();
-      };
-      reader.onerror = () => {
-        setError("Dosya okunamadı — tekrar deneyin.");
-        fileBlobRef.current = null;
-        setFile(null);
-        progress.set(0);
-        setStage("idle");
-      };
-      reader.readAsArrayBuffer(picked);
 
       animate(progress, 0.92, {
         duration: UPLOAD_FILL_MS / 1000,
@@ -213,7 +196,7 @@ export function DataImportFlow({ onClose, onComplete }: DataImportFlowProps) {
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
       transition={{ duration: 0.22, ease: "easeOut" }}
-      className="pointer-events-auto flex max-h-[calc(100dvh-7rem)] w-[380px] max-w-full flex-col gap-2 overflow-y-auto"
+      className="pointer-events-auto flex w-full max-w-[min(100%,380px)] flex-col gap-2 overflow-y-auto overscroll-contain max-h-[min(70dvh,calc(100dvh-6.5rem-env(safe-area-inset-bottom)))] sm:max-h-[calc(100dvh-7rem)]"
     >
       <div className="overflow-hidden rounded-2xl border bg-popover text-popover-foreground shadow-[0_16px_48px_-12px_rgba(0,0,0,0.6)]">
         <div className="p-3.5">

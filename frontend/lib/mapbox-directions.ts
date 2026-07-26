@@ -4,8 +4,35 @@ import { MAPBOX_TOKEN } from "./mapbox-style";
 
 /** Directions API tek istekte en fazla 25 waypoint kabul eder. */
 const MAX_WAYPOINTS = 25;
+/** Bellek cache — aynı rota tekrarında ağ çağrısını atlar. */
+const CACHE_MAX = 48;
 
 type LngLat = [number, number];
+
+const routeCache = new Map<string, LngLat[]>();
+
+function cacheKey(waypoints: LngLat[]): string {
+  return waypoints.map(([lon, lat]) => `${lon.toFixed(5)},${lat.toFixed(5)}`).join(";");
+}
+
+function cacheGet(key: string): LngLat[] | undefined {
+  const hit = routeCache.get(key);
+  if (!hit) return undefined;
+  // LRU: yeniden ekle
+  routeCache.delete(key);
+  routeCache.set(key, hit);
+  return hit;
+}
+
+function cacheSet(key: string, value: LngLat[]): void {
+  if (routeCache.has(key)) routeCache.delete(key);
+  routeCache.set(key, value);
+  while (routeCache.size > CACHE_MAX) {
+    const oldest = routeCache.keys().next().value;
+    if (oldest == null) break;
+    routeCache.delete(oldest);
+  }
+}
 
 /**
  * Mapbox Directions (driving) — noktaları yollara oturtur.
@@ -16,6 +43,10 @@ export async function fetchDrivingRoute(
   signal?: AbortSignal
 ): Promise<LngLat[] | null> {
   if (!MAPBOX_TOKEN || waypoints.length < 2) return null;
+
+  const key = cacheKey(waypoints);
+  const cached = cacheGet(key);
+  if (cached) return cached;
 
   const chunks = chunkWaypoints(waypoints, MAX_WAYPOINTS);
   const merged: LngLat[] = [];
@@ -28,12 +59,15 @@ export async function fetchDrivingRoute(
     if (i === 0) {
       merged.push(...path);
     } else {
-      // Chunk'lar 1 nokta örtüşmeli; tekrarlayan ilk noktayı at
       merged.push(...path.slice(1));
     }
   }
 
-  return merged.length >= 2 ? merged : null;
+  if (merged.length >= 2) {
+    cacheSet(key, merged);
+    return merged;
+  }
+  return null;
 }
 
 export async function snapSegmentsToRoads(
@@ -42,19 +76,37 @@ export async function snapSegmentsToRoads(
 ): Promise<FeatureCollection<LineString>> {
   const features: Feature<LineString>[] = [];
 
-  for (let i = 0; i < segments.length; i++) {
-    const seg = segments[i];
-    if (seg.length < 2) continue;
+  // Segmentleri sınırlı paralellikte çek (sıralıya göre hızlı, rate-limit dostu)
+  const CONCURRENCY = 2;
+  for (let i = 0; i < segments.length; i += CONCURRENCY) {
+    if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
+    const batch = segments.slice(i, i + CONCURRENCY);
+    const results = await Promise.all(
+      batch.map(async (seg, j) => {
+        if (seg.length < 2) return null;
+        const road = await fetchDrivingRoute(seg, signal);
+        return {
+          index: i + j,
+          coords: road ?? seg,
+          snapped: Boolean(road),
+        };
+      })
+    );
 
-    const road = await fetchDrivingRoute(seg, signal);
-    const coords = road ?? seg;
-
-    features.push({
-      type: "Feature",
-      properties: { segment: i, snapped: Boolean(road) },
-      geometry: { type: "LineString", coordinates: coords },
-    });
+    for (const r of results) {
+      if (!r) continue;
+      features.push({
+        type: "Feature",
+        properties: { segment: r.index, snapped: r.snapped },
+        geometry: { type: "LineString", coordinates: r.coords },
+      });
+    }
   }
+
+  features.sort(
+    (a, b) =>
+      Number(a.properties?.segment ?? 0) - Number(b.properties?.segment ?? 0)
+  );
 
   return { type: "FeatureCollection", features };
 }
@@ -67,7 +119,6 @@ function chunkWaypoints(waypoints: LngLat[], size: number): LngLat[][] {
   while (start < waypoints.length - 1) {
     const end = Math.min(start + size, waypoints.length);
     chunks.push(waypoints.slice(start, end));
-    // Sonraki chunk bir önceki son noktadan başlasın (süreklilik)
     start = end - 1;
     if (end === waypoints.length) break;
   }

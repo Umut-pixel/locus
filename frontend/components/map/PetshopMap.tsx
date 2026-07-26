@@ -9,8 +9,13 @@ import { snapSegmentsToRoads } from "@/lib/mapbox-directions";
 import {
   buildRouteLineCollection,
   buildRouteWaypointSegments,
+  selectRouteComponent,
   sortRouteFeatures,
 } from "@/lib/route-line";
+import {
+  revealRouteLine,
+  type RouteRevealTween,
+} from "@/lib/route-reveal";
 import { RISK_COLORS } from "@/lib/risk-style";
 import type { MusteriFeatureCollection } from "@/lib/geojson";
 import type { MusteriHarita } from "@/lib/types";
@@ -27,7 +32,10 @@ const ROUTE_GLOW_LAYER = "route-highlight-glow";
 const ROUTE_LINE_LAYER = "route-line";
 const ROUTE_LINE_CASING_LAYER = "route-line-casing";
 const ROUTE_ORDER_LAYER = "route-order-labels";
-const ROUTE_HIGHLIGHT_COLOR = "#22d3ee";
+const ROUTE_HIGHLIGHT_COLOR = "#ffffff";
+const ROUTE_LINE_COLOR = "#ffffff";
+/** Directions gelene kadar çizgiyi gizle; bu süre dolunca düz çizgi yedeği. */
+const ROUTE_SNAP_TIMEOUT_MS = 4000;
 const EMPTY_FEATURE_COLLECTION: MusteriFeatureCollection = {
   type: "FeatureCollection",
   features: [],
@@ -40,31 +48,26 @@ const EMPTY_LINE_COLLECTION: GeoJSON.FeatureCollection = {
 interface PetshopMapProps {
   data: MusteriFeatureCollection;
   selectedMusteriKodu: string | null;
-  /** Seçili noktanın koordinatı — panel anchor'ı bu noktadan projekte edilir. */
-  selectedLngLat: [number, number] | null;
   highlightedRutKod: string | null;
   onSelectMusteri: (
     musteri: MusteriHarita | null,
     screenPoint?: { x: number; y: number }
   ) => void;
-  /** Pan/zoom sırasında seçili noktanın ekran konumunu yukarı bildirir. */
-  onAnchorMove: (point: { x: number; y: number }) => void;
 }
 
 export function PetshopMap({
   data,
   selectedMusteriKodu,
-  selectedLngLat,
   highlightedRutKod,
   onSelectMusteri,
-  onAnchorMove,
 }: PetshopMapProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const loadedRef = useRef(false);
   const dataRef = useRef(data);
   const onSelectRef = useRef(onSelectMusteri);
-  const onAnchorMoveRef = useRef(onAnchorMove);
+  const routeTweenRef = useRef<RouteRevealTween | null>(null);
+  const dataSignatureRef = useRef<string>("");
 
   useEffect(() => {
     dataRef.current = data;
@@ -73,10 +76,6 @@ export function PetshopMap({
   useEffect(() => {
     onSelectRef.current = onSelectMusteri;
   }, [onSelectMusteri]);
-
-  useEffect(() => {
-    onAnchorMoveRef.current = onAnchorMove;
-  }, [onAnchorMove]);
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current || !MAPBOX_TOKEN) return;
@@ -186,9 +185,9 @@ export function PetshopMap({
           "line-cap": "round",
         },
         paint: {
-          "line-color": "#0e7490",
-          "line-width": 5,
-          "line-opacity": 0.45,
+          "line-color": "#0a0a0b",
+          "line-width": 2.25,
+          "line-opacity": 0.28,
         },
       });
       map.addLayer({
@@ -200,9 +199,9 @@ export function PetshopMap({
           "line-cap": "round",
         },
         paint: {
-          "line-color": ROUTE_HIGHLIGHT_COLOR,
-          "line-width": 2.5,
-          "line-opacity": 0.9,
+          "line-color": ROUTE_LINE_COLOR,
+          "line-width": 1.25,
+          "line-opacity": 0.88,
         },
       });
 
@@ -236,13 +235,13 @@ export function PetshopMap({
         type: "symbol",
         source: ROUTE_SOURCE_ID,
         filter: ["has", "ziyaret_sira"],
-        minzoom: 10,
+        minzoom: 8,
         layout: {
           "text-field": ["to-string", ["get", "ziyaret_sira"]],
           "text-size": 11,
           "text-font": ["Arial Unicode MS Bold"],
-          "text-allow-overlap": false,
-          "text-optional": true,
+          "text-allow-overlap": true,
+          "text-ignore-placement": true,
           "text-offset": [0, -1.6],
         },
         paint: {
@@ -344,26 +343,13 @@ export function PetshopMap({
     const map = mapRef.current;
     if (!map || !loadedRef.current) return;
     const source = map.getSource(SOURCE_ID) as mapboxgl.GeoJSONSource | undefined;
-    source?.setData(data);
+    if (!source) return;
+    // Aynı veri setini tekrar setData etme (gereksiz re-cluster)
+    const sig = `${data.features.length}:${data.features[0]?.properties.musteri_kodu ?? ""}:${data.features[data.features.length - 1]?.properties.musteri_kodu ?? ""}`;
+    if (sig === dataSignatureRef.current) return;
+    dataSignatureRef.current = sig;
+    source.setData(data);
   }, [data]);
-
-  // Pan/zoom/resize boyunca seçili noktanın ekran konumunu yukarı taşı;
-  // floating panel bu sayede noktayı birebir takip eder.
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map || !selectedLngLat) return;
-
-    const update = () => {
-      const screen = map.project(selectedLngLat);
-      onAnchorMoveRef.current({ x: screen.x, y: screen.y });
-    };
-    map.on("move", update);
-    map.on("resize", update);
-    return () => {
-      map.off("move", update);
-      map.off("resize", update);
-    };
-  }, [selectedLngLat]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -386,7 +372,10 @@ export function PetshopMap({
       | undefined;
     if (!routeSource || !lineSource) return;
 
-    const setBackgroundDim = (active: boolean) => {
+    const setBackgroundDim = (
+      active: boolean,
+      visibleMusteriKodlari?: string[]
+    ) => {
       if (map.getLayer(CLUSTER_LAYER)) {
         map.setPaintProperty(CLUSTER_LAYER, "circle-opacity", active ? 0.18 : 1);
         map.setPaintProperty(
@@ -399,20 +388,31 @@ export function PetshopMap({
         map.setPaintProperty(CLUSTER_COUNT_LAYER, "text-opacity", active ? 0.2 : 1);
       }
       if (map.getLayer(POINT_LAYER)) {
-        map.setFilter(
-          POINT_LAYER,
-          active
-            ? [
-                "all",
-                ["!", ["has", "point_count"]],
-                ["==", ["to-string", ["get", "rut_kod"]], String(highlightedRutKod)],
-              ]
-            : ["!", ["has", "point_count"]]
-        );
+        if (!active) {
+          map.setFilter(POINT_LAYER, ["!", ["has", "point_count"]]);
+        } else if (visibleMusteriKodlari && visibleMusteriKodlari.length > 0) {
+          map.setFilter(POINT_LAYER, [
+            "all",
+            ["!", ["has", "point_count"]],
+            ["in", ["get", "musteri_kodu"], ["literal", visibleMusteriKodlari]],
+          ]);
+        } else {
+          map.setFilter(POINT_LAYER, [
+            "all",
+            ["!", ["has", "point_count"]],
+            ["==", ["to-string", ["get", "rut_kod"]], String(highlightedRutKod)],
+          ]);
+        }
       }
     };
 
+    const killRouteTween = () => {
+      routeTweenRef.current?.kill();
+      routeTweenRef.current = null;
+    };
+
     if (!highlightedRutKod) {
+      killRouteTween();
       routeSource.setData(EMPTY_FEATURE_COLLECTION);
       lineSource.setData(EMPTY_LINE_COLLECTION);
       setBackgroundDim(false);
@@ -423,48 +423,98 @@ export function PetshopMap({
       (feature) => String(feature.properties.rut_kod) === String(highlightedRutKod)
     );
     const sorted = sortRouteFeatures(matching);
-    const routeOpts = {
+    // ERP aynı rut_kod altında coğrafi olarak kopuk duraklar taşıyabiliyor
+    // (ör. 509: İzmir + Muğla). Yalnızca seçili müşterinin hop-bağlı
+    // bileşenini çiz — iki ayrı "rota" hissi oluşmasın.
+    const component = selectRouteComponent(sorted, {
       selectedMusteriKodu,
-      maxHopKm: 12,
-      visitWindow: 10,
-    };
+    });
+    const routeOpts = { selectedMusteriKodu };
     const segments = buildRouteWaypointSegments(sorted, routeOpts);
-    // Önce kuş uçuşu göster, Directions gelince yollara oturt
     const straight = buildRouteLineCollection(sorted, routeOpts);
+    const componentKodlari = component.map((f) => f.properties.musteri_kodu);
 
-    routeSource.setData({ type: "FeatureCollection", features: sorted });
-    lineSource.setData(straight);
-    setBackgroundDim(true);
+    // Durakları (bileşen) hemen göster; çizgiyi Directions bitene kadar gizle.
+    routeSource.setData({ type: "FeatureCollection", features: component });
+    lineSource.setData(EMPTY_LINE_COLLECTION);
+    setBackgroundDim(true, componentKodlari);
 
-    const zoomCoords =
-      straight.features.length > 0
-        ? straight.features.flatMap(
-            (f) => f.geometry.coordinates as [number, number][]
-          )
-        : sorted.map((f) => f.geometry.coordinates as [number, number]);
+    const zoomCoords = component.map(
+      (f) => f.geometry.coordinates as [number, number]
+    );
     if (zoomCoords.length > 0) {
       const bounds = new mapboxgl.LngLatBounds();
       for (const c of zoomCoords) bounds.extend(c);
-      map.fitBounds(bounds, { padding: 100, maxZoom: 13, duration: 600 });
+      const w = map.getContainer().clientWidth;
+      const h = map.getContainer().clientHeight;
+      const pad = w < 640
+        ? { top: 56, bottom: Math.min(280, Math.round(h * 0.42)), left: 24, right: 24 }
+        : 80;
+      map.fitBounds(bounds, {
+        padding: pad,
+        maxZoom: zoomCoords.length <= 2 ? 12 : 11,
+        duration: 600,
+      });
     }
 
     if (segments.length === 0) return;
 
     const ac = new AbortController();
-    snapSegmentsToRoads(segments, ac.signal)
+    let cancelled = false;
+    let shownRoads = false;
+
+    const paintRoute = (fc: GeoJSON.FeatureCollection) => {
+      if (cancelled || !mapRef.current) return;
+      killRouteTween();
+      void revealRouteLine(
+        fc,
+        (partial) => {
+          if (cancelled || !mapRef.current) return;
+          lineSource.setData(partial);
+        },
+        { duration: 1.25 }
+      ).then((tween) => {
+        if (cancelled) {
+          tween?.kill();
+          return;
+        }
+        routeTweenRef.current = tween;
+      });
+    };
+
+    const snapPromise = snapSegmentsToRoads(segments, ac.signal);
+
+    const timeoutId = window.setTimeout(() => {
+      // Directions henüz gelmediyse kısa süre sonra düz çizgi yedeği
+      if (!cancelled && !shownRoads && mapRef.current) {
+        paintRoute(straight);
+      }
+    }, ROUTE_SNAP_TIMEOUT_MS);
+
+    snapPromise
       .then((roadLines) => {
-        if (ac.signal.aborted || !mapRef.current) return;
+        if (cancelled || !mapRef.current) return;
+        window.clearTimeout(timeoutId);
         if (roadLines.features.length > 0) {
-          lineSource.setData(roadLines);
+          shownRoads = true;
+          paintRoute(roadLines);
+        } else if (!shownRoads) {
+          paintRoute(straight);
         }
       })
       .catch((err) => {
-        if ((err as Error).name !== "AbortError") {
-          console.warn("[route] directions failed, keeping straight lines", err);
-        }
+        window.clearTimeout(timeoutId);
+        if (cancelled || (err as Error).name === "AbortError") return;
+        console.warn("[route] directions failed, using straight lines", err);
+        paintRoute(straight);
       });
 
-    return () => ac.abort();
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeoutId);
+      killRouteTween();
+      ac.abort();
+    };
   }, [highlightedRutKod, data, selectedMusteriKodu]);
 
   if (!MAPBOX_TOKEN) {

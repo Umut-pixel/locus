@@ -34,14 +34,17 @@ export function MobileFilterSheet(props: MobileFilterSheetProps) {
           <Button
             variant="secondary"
             size="icon"
-            className="pointer-events-auto rounded-full border shadow-md"
+            className="pointer-events-auto size-9 rounded-full border shadow-md sm:size-8"
           />
         }
       >
         <MenuIcon />
         <span className="sr-only">Filtreleri aç</span>
       </SheetTrigger>
-      <SheetContent side="left" className="w-80 p-0 sm:max-w-80">
+      <SheetContent
+        side="left"
+        className="w-[min(20rem,calc(100vw-2.5rem))] max-w-none p-0 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] sm:max-w-80"
+      >
         <SheetHeader className="sr-only">
           <SheetTitle>Filtreler</SheetTitle>
         </SheetHeader>

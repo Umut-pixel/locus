@@ -12,6 +12,11 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: path.join(__dirname),
   },
+  // SheetJS yalnızca API route'ta — client graph'a sızmasın
+  serverExternalPackages: ["xlsx"],
+  experimental: {
+    optimizePackageImports: ["lucide-react", "motion"],
+  },
 };
 
 export default nextConfig;

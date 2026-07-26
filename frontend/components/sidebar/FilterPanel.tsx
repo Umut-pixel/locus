@@ -50,7 +50,7 @@ export function FilterPanel({
   hasActiveFilters,
 }: FilterPanelProps) {
   return (
-    <div className="flex h-full flex-col gap-5 overflow-y-auto p-4">
+    <div className="flex h-full flex-col gap-4 overflow-y-auto overscroll-contain p-3 sm:gap-5 sm:p-4">
       <div>
         <h1 className="text-sm font-medium">Petshop Müşteri Haritası</h1>
         <p className="mt-0.5 text-xs text-muted-foreground">
@@ -58,7 +58,7 @@ export function FilterPanel({
         </p>
       </div>
 
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
         <StatTile
           label="Haritalı"
           value={stats.toplam}
@@ -170,7 +170,7 @@ function RiskSegmentedControl({
             aria-checked={active}
             onClick={() => onChange(option.risk)}
             className={cn(
-              "relative min-w-0 flex-auto rounded-full px-1 py-1.5 text-[10px] font-medium whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
+              "relative min-w-0 flex-auto rounded-full px-0.5 py-1.5 text-[9px] font-medium whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/50 sm:px-1 sm:text-[10px]",
               active
                 ? "text-foreground"
                 : "text-muted-foreground hover:text-foreground"
@@ -279,11 +279,11 @@ function StatTile({
   color: string;
 }) {
   return (
-    <div className="rounded-xl border bg-muted/30 p-2.5">
-      <p className="text-[10px] font-medium tracking-[0.1em] text-muted-foreground uppercase">
+    <div className="rounded-xl border bg-muted/30 p-2 sm:p-2.5">
+      <p className="text-[9px] font-medium tracking-[0.1em] text-muted-foreground uppercase sm:text-[10px]">
         {label}
       </p>
-      <p className="mt-1 font-mono text-lg leading-none font-semibold tabular-nums">
+      <p className="mt-1 font-mono text-base leading-none font-semibold tabular-nums sm:text-lg">
         {value}
       </p>
       <SegmentBar className="mt-2" segments={8} value={ratio} color={color} />
