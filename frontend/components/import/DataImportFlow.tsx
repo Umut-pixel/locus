@@ -55,12 +55,15 @@ interface DataImportFlowProps {
   onClose: () => void;
   onComplete?: () => void;
   onStageChange?: (stage: ImportStage) => void;
+  /** Başarılı yükleme sonucu — asistan analizi için. */
+  onResult?: (result: UploadResult) => void;
 }
 
 export function DataImportFlow({
   onClose,
   onComplete,
   onStageChange,
+  onResult,
 }: DataImportFlowProps) {
   const [stage, setStage] = useState<Stage>("idle");
   const [file, setFile] = useState<{ name: string; size: number } | null>(null);
@@ -146,6 +149,7 @@ export function DataImportFlow({
 
       setResult(data);
       setStage("done");
+      onResult?.(data);
       onComplete?.();
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") return;
@@ -154,7 +158,7 @@ export function DataImportFlow({
       );
       setStage("error");
     }
-  }, [onComplete]);
+  }, [onComplete, onResult]);
 
   const finishUpload = useCallback(() => {
     animate(progress, 1, {
@@ -415,12 +419,10 @@ export function DataImportFlow({
                 label="İşlenen"
                 value={`${formatNumber(result.islenenSatir)} satır`}
               />
-              {result.yeniMusteri > 0 && (
-                <DetailRow
-                  label="Yeni"
-                  value={`${formatNumber(result.yeniMusteri)} müşteri`}
-                />
-              )}
+              <DetailRow
+                label="Yeni"
+                value={`${formatNumber(result.yeniMusteri)} müşteri`}
+              />
               <DetailRow
                 label="Güncellenen"
                 value={`${formatNumber(result.guncellenenMusteri)} müşteri`}
@@ -438,6 +440,22 @@ export function DataImportFlow({
                 />
               )}
             </dl>
+
+            {(result.yeniMusteri > 0 || result.guncellenenMusteri > 0) && (
+              <p className="mt-2 rounded-md bg-muted/30 px-2 py-1.5 font-mono text-[10px] leading-snug text-foreground/75">
+                {result.yeniMusteri > 0 && (
+                  <span>
+                    +{formatNumber(result.yeniMusteri)} yeni
+                    {result.guncellenenMusteri > 0 ? " · " : ""}
+                  </span>
+                )}
+                {result.guncellenenMusteri > 0 && (
+                  <span>
+                    {formatNumber(result.guncellenenMusteri)} güncellendi
+                  </span>
+                )}
+              </p>
+            )}
 
             {(result.dedupUyari ||
               (result.uyarilar && result.uyarilar.length > 0) ||

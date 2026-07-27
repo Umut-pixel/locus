@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/sheet";
 import { FilterPanel, type FilterStats } from "@/components/sidebar/FilterPanel";
 import type { ImportActivity } from "@/lib/agent-states";
+import type { UploadResult } from "@/lib/import/types";
 import type { RiskDurumu } from "@/lib/types";
 
 interface MobileFilterSheetProps {
@@ -26,6 +27,7 @@ interface MobileFilterSheetProps {
   onReset: () => void;
   hasActiveFilters: boolean;
   importActivity?: ImportActivity | null;
+  lastUploadResult?: UploadResult | null;
 }
 
 export function MobileFilterSheet(props: MobileFilterSheetProps) {

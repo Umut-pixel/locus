@@ -16,6 +16,7 @@ import {
   RISK_SHORT_LABELS,
 } from "@/lib/risk-style";
 import type { ImportActivity } from "@/lib/agent-states";
+import type { UploadResult } from "@/lib/import/types";
 import type { RiskDurumu } from "@/lib/types";
 
 export interface FilterStats {
@@ -37,6 +38,7 @@ interface FilterPanelProps {
   onReset: () => void;
   hasActiveFilters: boolean;
   importActivity?: ImportActivity | null;
+  lastUploadResult?: UploadResult | null;
 }
 
 export function FilterPanel({
@@ -51,6 +53,7 @@ export function FilterPanel({
   onReset,
   hasActiveFilters,
   importActivity = null,
+  lastUploadResult = null,
 }: FilterPanelProps) {
   return (
     <div className="flex h-full flex-col overflow-hidden">
@@ -136,7 +139,10 @@ export function FilterPanel({
 
       {/* B — AI: kalan dikey alanın tamamı (şehirin altına doğru büyür) */}
       <div className="flex min-h-0 flex-1 flex-col border-t border-sidebar-border/80 bg-black/20">
-        <AgentAssistant importActivity={importActivity} />
+        <AgentAssistant
+          importActivity={importActivity}
+          lastUploadResult={lastUploadResult}
+        />
       </div>
     </div>
   );

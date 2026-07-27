@@ -83,9 +83,52 @@ export function importActivityToPhase(
   return null;
 }
 
-/** Excel parse sonrası statik analiz metni (yarın veriye bağlanacak). */
+/** Excel parse sonrası statik analiz metni (fallback). */
 export const DEMO_ANALYSIS =
   "1.204 müşteri haritada görünüyor. İzmir yoğunluğu öne çıkıyor; 47 riskli nokta rota odaklı kontrol istiyor. Manisa–Aydın koridorunda teslimat boşluğu belirgin.";
+
+/** Yükleme sonucundan asistan analiz metni. */
+export function buildUploadAnalysis(result: {
+  tip: string;
+  islenenSatir: number;
+  yeniMusteri: number;
+  guncellenenMusteri: number;
+  geocodeBasarisiz: number;
+  eslesmeyenMusteriKodlari: string[];
+  dosyaAdi?: string;
+}): string {
+  const n = (x: number) => x.toLocaleString("tr-TR");
+  const parts: string[] = [];
+
+  parts.push(
+    `${result.dosyaAdi ? `"${result.dosyaAdi}"` : "Dosya"} işlendi: ${n(result.islenenSatir)} satır.`
+  );
+
+  if (result.yeniMusteri > 0 && result.guncellenenMusteri > 0) {
+    parts.push(
+      `${n(result.yeniMusteri)} yeni müşteri eklendi, ${n(result.guncellenenMusteri)} kayıt güncellendi.`
+    );
+  } else if (result.yeniMusteri > 0) {
+    parts.push(`${n(result.yeniMusteri)} yeni müşteri eklendi.`);
+  } else if (result.guncellenenMusteri > 0) {
+    parts.push(`${n(result.guncellenenMusteri)} mevcut kayıt güncellendi.`);
+  } else {
+    parts.push("Yeni veya güncellenen müşteri kaydı yok.");
+  }
+
+  if (result.tip === "MusteriListesi" && result.geocodeBasarisiz > 0) {
+    parts.push(`${n(result.geocodeBasarisiz)} satırda konum çözülemedi.`);
+  }
+
+  if (result.eslesmeyenMusteriKodlari.length > 0) {
+    parts.push(
+      `${n(result.eslesmeyenMusteriKodlari.length)} kod müşteri listesinde eşleşmedi.`
+    );
+  }
+
+  parts.push("Harita yenilendi — güncel dağılımı kontrol edebilirsin.");
+  return parts.join(" ");
+}
 
 /**
  * Düşünce akışı havuzu — Türkçe eğlenceli “AI mırıldanmaları”

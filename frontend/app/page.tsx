@@ -19,6 +19,7 @@ import type { ImportStage } from "@/components/import/DataImportFlow";
 import { useIsMobileLayout } from "@/hooks/useMediaQuery";
 import { useMusteriHarita } from "@/hooks/useMusteriHarita";
 import { musterilerToGeoJSON } from "@/lib/geojson";
+import type { UploadResult } from "@/lib/import/types";
 import { filterRowsLocally } from "@/lib/map-filter";
 import type { MusteriHarita, RiskDurumu } from "@/lib/types";
 
@@ -62,6 +63,9 @@ export default function Home() {
   const [highlightedRutKod, setHighlightedRutKod] = useState<string | null>(null);
   const [importOpen, setImportOpen] = useState(false);
   const [importActivity, setImportActivity] = useState<ImportStage | null>(null);
+  const [lastUploadResult, setLastUploadResult] = useState<UploadResult | null>(
+    null
+  );
 
   const mapAreaRef = useRef<HTMLDivElement | null>(null);
 
@@ -159,6 +163,7 @@ export default function Home() {
     onReset: resetFilters,
     hasActiveFilters,
     importActivity,
+    lastUploadResult,
   };
 
   const showLegend = !(isMobileLayout && selectedMusteri);
@@ -218,6 +223,7 @@ export default function Home() {
                   }}
                   onComplete={refresh}
                   onStageChange={setImportActivity}
+                  onResult={setLastUploadResult}
                 />
               )}
             </AnimatePresence>

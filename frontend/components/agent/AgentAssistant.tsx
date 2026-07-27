@@ -19,11 +19,13 @@ import {
   DEMO_ANALYSIS,
   THOUGHT_FLY_MS,
   THOUGHT_HOLD_MS,
+  buildUploadAnalysis,
   importActivityToPhase,
   pickThoughtSequence,
   type AgentPhase,
   type ImportActivity,
 } from "@/lib/agent-states";
+import type { UploadResult } from "@/lib/import/types";
 import { cn } from "@/lib/utils";
 
 type ChatItem =
@@ -52,6 +54,7 @@ function uid() {
 interface AgentAssistantProps {
   className?: string;
   importActivity?: ImportActivity | null;
+  lastUploadResult?: UploadResult | null;
 }
 
 /**
@@ -61,6 +64,7 @@ interface AgentAssistantProps {
 export function AgentAssistant({
   className,
   importActivity = null,
+  lastUploadResult = null,
 }: AgentAssistantProps) {
   const listId = useId();
   const [phase, setPhase] = useState<AgentPhase>("idle");
@@ -174,6 +178,11 @@ export function AgentAssistant({
     [exitThought, later, showThought]
   );
 
+  const lastUploadResultRef = useRef<UploadResult | null>(null);
+  useEffect(() => {
+    if (lastUploadResult) lastUploadResultRef.current = lastUploadResult;
+  }, [lastUploadResult]);
+
   useEffect(() => {
     if (importActivity === lastImport.current) return;
     lastImport.current = importActivity ?? null;
@@ -219,7 +228,11 @@ export function AgentAssistant({
       exitThought();
       later(THOUGHT_FLY_MS, () => {
         setThought(null);
-        push({ id: uid(), kind: "analysis", text: DEMO_ANALYSIS });
+        const result = lastUploadResultRef.current;
+        const text = result
+          ? buildUploadAnalysis(result)
+          : DEMO_ANALYSIS;
+        push({ id: uid(), kind: "analysis", text });
       });
       later(THOUGHT_FLY_MS + 4000, () => {
         importDriven.current = false;

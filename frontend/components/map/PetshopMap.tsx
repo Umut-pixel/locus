@@ -5,6 +5,17 @@ import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 
 import { DEFAULT_MAP_VIEW, MAPBOX_STYLE_URL, MAPBOX_TOKEN } from "@/lib/mapbox-style";
+import { clusterConfigForZoom, type ClusterConfig } from "@/lib/map-clusters";
+import {
+  CLUSTER_COUNT_LAYER,
+  CLUSTER_LAYER,
+  POINT_LAYER,
+  SELECTED_LAYER,
+  SOURCE_ID,
+  addCustomerLayers,
+  applyClusterDimPaint,
+  recreateCustomerSource,
+} from "@/lib/map-customer-layers";
 import { snapSegmentsToRoads } from "@/lib/mapbox-directions";
 import {
   buildRouteLineCollection,
@@ -16,17 +27,11 @@ import {
   revealRouteLine,
   type RouteRevealTween,
 } from "@/lib/route-reveal";
-import { RISK_COLORS } from "@/lib/risk-style";
 import type { MusteriFeatureCollection } from "@/lib/geojson";
 import type { MusteriHarita } from "@/lib/types";
 
-const SOURCE_ID = "musteriler";
 const ROUTE_SOURCE_ID = "route-points";
 const ROUTE_LINE_SOURCE_ID = "route-line";
-const CLUSTER_LAYER = "clusters";
-const CLUSTER_COUNT_LAYER = "cluster-count";
-const POINT_LAYER = "unclustered-point";
-const SELECTED_LAYER = "selected-point";
 const ROUTE_LAYER = "route-highlight";
 const ROUTE_GLOW_LAYER = "route-highlight-glow";
 const ROUTE_LINE_LAYER = "route-line";
@@ -68,6 +73,10 @@ export function PetshopMap({
   const onSelectRef = useRef(onSelectMusteri);
   const routeTweenRef = useRef<RouteRevealTween | null>(null);
   const dataSignatureRef = useRef<string>("");
+  const clusterConfigRef = useRef<ClusterConfig | null>(null);
+  const clustersDimmedRef = useRef(false);
+  const selectedKodRef = useRef<string | null>(null);
+  const clusterZoomTimerRef = useRef(0);
 
   useEffect(() => {
     dataRef.current = data;
@@ -76,6 +85,10 @@ export function PetshopMap({
   useEffect(() => {
     onSelectRef.current = onSelectMusteri;
   }, [onSelectMusteri]);
+
+  useEffect(() => {
+    selectedKodRef.current = selectedMusteriKodu;
+  }, [selectedMusteriKodu]);
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current || !MAPBOX_TOKEN) return;
@@ -93,12 +106,15 @@ export function PetshopMap({
     map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), "top-right");
 
     map.on("load", () => {
+      const initialCfg = clusterConfigForZoom(map.getZoom());
+      clusterConfigRef.current = initialCfg;
+
       map.addSource(SOURCE_ID, {
         type: "geojson",
         data: dataRef.current,
         cluster: true,
-        clusterMaxZoom: 13,
-        clusterRadius: 45,
+        clusterMaxZoom: initialCfg.maxZoom,
+        clusterRadius: initialCfg.radius,
       });
 
       // Kümelenmeyen ayrı kaynak: rota noktaları + ziyaret sırası çizgisi.
@@ -111,69 +127,7 @@ export function PetshopMap({
         data: EMPTY_LINE_COLLECTION,
       });
 
-      // Küme baloncukları: parlak mavi yerine UI'daki kırık beyaz
-      // primary'nin harita karşılığı — koyu sayı, yumuşak dış halka.
-      map.addLayer({
-        id: CLUSTER_LAYER,
-        type: "circle",
-        source: SOURCE_ID,
-        filter: ["has", "point_count"],
-        paint: {
-          "circle-color": "#e9eaec",
-          "circle-radius": ["step", ["get", "point_count"], 16, 10, 22, 30, 28],
-          "circle-stroke-width": 5,
-          "circle-stroke-color": "rgba(233,234,236,0.22)",
-        },
-      });
-
-      map.addLayer({
-        id: CLUSTER_COUNT_LAYER,
-        type: "symbol",
-        source: SOURCE_ID,
-        filter: ["has", "point_count"],
-        layout: {
-          "text-field": ["get", "point_count_abbreviated"],
-          "text-font": ["Arial Unicode MS Bold"],
-          "text-size": 12,
-        },
-        paint: { "text-color": "#1c1d20" },
-      });
-
-      map.addLayer({
-        id: POINT_LAYER,
-        type: "circle",
-        source: SOURCE_ID,
-        filter: ["!", ["has", "point_count"]],
-        paint: {
-          "circle-color": [
-            "match",
-            ["get", "risk_durumu"],
-            "saglikli",
-            RISK_COLORS.saglikli,
-            "izlenmeli",
-            RISK_COLORS.izlenmeli,
-            "riskli",
-            RISK_COLORS.riskli,
-            "hic_teslimat_yok",
-            RISK_COLORS.hic_teslimat_yok,
-            RISK_COLORS.hic_teslimat_yok,
-          ],
-          "circle-opacity": [
-            "match",
-            ["get", "geocode_hassasiyet"],
-            "saha_gps",
-            1,
-            "mahalle_merkezi",
-            0.75,
-            "ilce_merkezi",
-            0.45,
-            0.6,
-          ],
-          "circle-radius": 7,
-          "circle-stroke-width": 1.25,
-          "circle-stroke-color": "rgba(255,255,255,0.85)",
-        },
-      });
+      addCustomerLayers(map, clustersDimmedRef.current);
 
       // Rota çizgisi (ziyaret_sira sırasıyla) — noktaların altında
       map.addLayer({
@@ -251,19 +205,6 @@ export function PetshopMap({
         },
       });
 
-      map.addLayer({
-        id: SELECTED_LAYER,
-        type: "circle",
-        source: SOURCE_ID,
-        filter: ["==", ["get", "musteri_kodu"], "__none__"],
-        paint: {
-          "circle-radius": 11,
-          "circle-color": "rgba(0,0,0,0)",
-          "circle-stroke-width": 2.5,
-          "circle-stroke-color": "#f4f4f5",
-        },
-      });
-
       const popup = new mapboxgl.Popup({
         closeButton: false,
         closeOnClick: false,
@@ -291,6 +232,23 @@ export function PetshopMap({
       map.on("mouseleave", POINT_LAYER, () => {
         map.getCanvas().style.cursor = "";
         popup.remove();
+      });
+
+      // Zoom bandı değişince küme yarıçapı / maxZoom’u yenile
+      const syncClustersToZoom = () => {
+        const cfg = clusterConfigForZoom(map.getZoom());
+        const prev = clusterConfigRef.current;
+        if (prev && prev.band === cfg.band) return;
+        clusterConfigRef.current = cfg;
+        recreateCustomerSource(map, dataRef.current, cfg, {
+          dimmed: clustersDimmedRef.current,
+          selectedKod: selectedKodRef.current,
+          beforeLayerId: ROUTE_LINE_CASING_LAYER,
+        });
+      };
+      map.on("zoomend", () => {
+        window.clearTimeout(clusterZoomTimerRef.current);
+        clusterZoomTimerRef.current = window.setTimeout(syncClustersToZoom, 120);
       });
 
       map.on("click", POINT_LAYER, (e) => {
@@ -333,6 +291,7 @@ export function PetshopMap({
     });
 
     return () => {
+      window.clearTimeout(clusterZoomTimerRef.current);
       loadedRef.current = false;
       map.remove();
       mapRef.current = null;
@@ -376,17 +335,8 @@ export function PetshopMap({
       active: boolean,
       visibleMusteriKodlari?: string[]
     ) => {
-      if (map.getLayer(CLUSTER_LAYER)) {
-        map.setPaintProperty(CLUSTER_LAYER, "circle-opacity", active ? 0.18 : 1);
-        map.setPaintProperty(
-          CLUSTER_LAYER,
-          "circle-stroke-opacity",
-          active ? 0.12 : 1
-        );
-      }
-      if (map.getLayer(CLUSTER_COUNT_LAYER)) {
-        map.setPaintProperty(CLUSTER_COUNT_LAYER, "text-opacity", active ? 0.2 : 1);
-      }
+      clustersDimmedRef.current = active;
+      applyClusterDimPaint(map, active);
       if (map.getLayer(POINT_LAYER)) {
         if (!active) {
           map.setFilter(POINT_LAYER, ["!", ["has", "point_count"]]);
