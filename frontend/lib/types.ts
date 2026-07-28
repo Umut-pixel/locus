@@ -14,6 +14,7 @@ export interface MusteriHarita {
   rut_aciklama: string | null;
   ziyaret_sira: number | null;
   son_teslimat_tarihi: string | null;
+  ilk_teslimat_tarihi: string | null;
   toplam_teslimat_sayisi: number;
   toplam_agirlik: number;
   toplam_tutar: number;
@@ -21,4 +22,11 @@ export interface MusteriHarita {
   durum: string | null;
   geocode_hassasiyet: GeocodeHassasiyet | null;
   risk_durumu: RiskDurumu;
+  /** ISO timestamptz — satırın son güncellenme anı */
+  guncellendi?: string | null;
+  /**
+   * Son yüklemede etkilenen kayıt mı (0/1). Yeni + güncellenen;
+   * metrik aynı kalsa bile. Haritada dış halka filtresi.
+   */
+  son_yuklemede_guncellendi?: 0 | 1;
 }

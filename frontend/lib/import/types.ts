@@ -1,3 +1,5 @@
+import type { YuklemeKarsilastirma } from "@/lib/snapshot-compare";
+
 export type DosyaTipi =
   | "MusteriListesi"
   | "RutTanimListesi"
@@ -16,7 +18,14 @@ export interface UploadResult {
   yuklemeId?: string;
   /** ISO-8601 — dosyanın sisteme işlendiği an */
   yuklenmeZamani?: string;
+  /**
+   * Haritada dış halka: bu yüklemede DB'ye yazılan tüm müşteri kodları
+   * (yeni + güncellenen; metrik aynı kalsa bile).
+   */
+  etkilenenMusteriKodlari?: string[];
   dosyaAdi?: string;
+  /** Sevkiyat yüklemesinde Ritim Formu portföy özeti */
+  karsilastirma?: YuklemeKarsilastirma;
 }
 
 export interface MusteriUpsertRow {

@@ -50,48 +50,45 @@
 
 :root {
   /*
-   * Koyu charcoal tema — tüm dashboard'un tek renk kaynağı.
-   * Saf siyah yerine kömür grisi yüzeyler, katmanlar arasında küçük
-   * parlaklık adımları (background → sidebar → card → popover) ve
-   * düşük kontrastlı 1px sınırlar. Vurgu: kırık beyaz primary,
-   * renk yalnızca risk/veri anlamı taşıyan yerlerde.
+   * Açık tema — sıcak kağıt zemini; harita light stiliyle uyumlu.
+   * Risk renkleri veri katmanında kalır.
    */
-  --background: oklch(0.16 0.004 260);
-  --foreground: oklch(0.93 0.003 260);
-  --card: oklch(0.195 0.005 260);
-  --card-foreground: oklch(0.93 0.003 260);
-  --popover: oklch(0.215 0.005 260);
-  --popover-foreground: oklch(0.93 0.003 260);
-  --primary: oklch(0.93 0.003 260);
-  --primary-foreground: oklch(0.18 0.005 260);
-  --secondary: oklch(0.26 0.006 260);
-  --secondary-foreground: oklch(0.93 0.003 260);
-  --muted: oklch(0.23 0.005 260);
-  --muted-foreground: oklch(0.65 0.008 260);
-  --accent: oklch(0.27 0.006 260);
-  --accent-foreground: oklch(0.93 0.003 260);
-  --destructive: oklch(0.62 0.19 25);
-  --border: oklch(1 0 0 / 9%);
-  --input: oklch(1 0 0 / 12%);
-  --ring: oklch(0.93 0.003 260 / 35%);
-  --chart-1: oklch(0.62 0.19 25);
-  --chart-2: oklch(0.8 0.15 80);
-  --chart-3: oklch(0.78 0.16 150);
-  --chart-4: oklch(0.78 0.12 215);
-  --chart-5: oklch(0.65 0.008 260);
+  --background: oklch(0.975 0.006 95);
+  --foreground: oklch(0.24 0.012 260);
+  --card: oklch(0.995 0.004 95);
+  --card-foreground: oklch(0.24 0.012 260);
+  --popover: oklch(1 0.003 95);
+  --popover-foreground: oklch(0.24 0.012 260);
+  --primary: oklch(0.28 0.02 260);
+  --primary-foreground: oklch(0.98 0.004 95);
+  --secondary: oklch(0.94 0.008 95);
+  --secondary-foreground: oklch(0.28 0.012 260);
+  --muted: oklch(0.945 0.008 95);
+  --muted-foreground: oklch(0.48 0.014 260);
+  --accent: oklch(0.93 0.01 95);
+  --accent-foreground: oklch(0.28 0.012 260);
+  --destructive: oklch(0.55 0.2 25);
+  --border: oklch(0.28 0.02 260 / 10%);
+  --input: oklch(0.28 0.02 260 / 12%);
+  --ring: oklch(0.45 0.02 260 / 35%);
+  --chart-1: oklch(0.55 0.2 25);
+  --chart-2: oklch(0.72 0.14 80);
+  --chart-3: oklch(0.62 0.14 150);
+  --chart-4: oklch(0.58 0.1 215);
+  --chart-5: oklch(0.48 0.014 260);
   --radius: 0.8rem;
-  --sidebar: oklch(0.175 0.004 260);
-  --sidebar-foreground: oklch(0.93 0.003 260);
-  --sidebar-primary: oklch(0.93 0.003 260);
-  --sidebar-primary-foreground: oklch(0.18 0.005 260);
-  --sidebar-accent: oklch(0.26 0.006 260);
-  --sidebar-accent-foreground: oklch(0.93 0.003 260);
-  --sidebar-border: oklch(1 0 0 / 8%);
-  --sidebar-ring: oklch(0.93 0.003 260 / 35%);
+  --sidebar: oklch(0.985 0.005 95);
+  --sidebar-foreground: oklch(0.24 0.012 260);
+  --sidebar-primary: oklch(0.28 0.02 260);
+  --sidebar-primary-foreground: oklch(0.98 0.004 95);
+  --sidebar-accent: oklch(0.94 0.008 95);
+  --sidebar-accent-foreground: oklch(0.28 0.012 260);
+  --sidebar-border: oklch(0.28 0.02 260 / 9%);
+  --sidebar-ring: oklch(0.45 0.02 260 / 35%);
 }
 
 .dark {
-  /* Dashboard her zaman koyu; .dark sınıfı kullanıldığında aynı token'lar. */
+  /* Koyu charcoal tema */
   --background: oklch(0.16 0.004 260);
   --foreground: oklch(0.93 0.003 260);
   --card: oklch(0.195 0.005 260);
@@ -160,21 +157,25 @@
   }
 }
 
-/* Mapbox hover popup — floating panel katmanıyla aynı yüzey dili */
+/* Mapbox hover popup — tema yüzeyleri */
 .petshop-popup .mapboxgl-popup-content {
-  background: oklch(0.215 0.005 260) !important;
-  color: oklch(0.93 0.003 260) !important;
+  background: var(--popover) !important;
+  color: var(--popover-foreground) !important;
   border-radius: 10px !important;
   padding: 8px 12px !important;
+  box-shadow: 0 12px 32px -8px rgba(0, 0, 0, 0.2) !important;
+  border: 1px solid var(--border);
+}
+
+.dark .petshop-popup .mapboxgl-popup-content {
   box-shadow: 0 12px 32px -8px rgba(0, 0, 0, 0.55) !important;
-  border: 1px solid oklch(1 0 0 / 10%);
 }
 
 .petshop-popup .mapboxgl-popup-tip {
-  border-top-color: oklch(0.215 0.005 260) !important;
-  border-bottom-color: oklch(0.215 0.005 260) !important;
-  border-left-color: oklch(0.215 0.005 260) !important;
-  border-right-color: oklch(0.215 0.005 260) !important;
+  border-top-color: var(--popover) !important;
+  border-bottom-color: var(--popover) !important;
+  border-left-color: var(--popover) !important;
+  border-right-color: var(--popover) !important;
 }
 
 /* ─── Transitions.dev — Input clear with dissolve ─── */

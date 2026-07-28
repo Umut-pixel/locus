@@ -96,6 +96,16 @@ export function buildUploadAnalysis(result: {
   geocodeBasarisiz: number;
   eslesmeyenMusteriKodlari: string[];
   dosyaAdi?: string;
+  karsilastirma?: {
+    kazanim: number;
+    uyari: number;
+    aksiyon: number;
+    ritim: number;
+    sessiz: number;
+    form_dagilim: Record<string, number>;
+    risk_onceki: Record<string, number>;
+    risk_yeni: Record<string, number>;
+  };
 }): string {
   const n = (x: number) => x.toLocaleString("tr-TR");
   const parts: string[] = [];
@@ -124,6 +134,34 @@ export function buildUploadAnalysis(result: {
     parts.push(
       `${n(result.eslesmeyenMusteriKodlari.length)} kod müşteri listesinde eşleşmedi.`
     );
+  }
+
+  const k = result.karsilastirma;
+  if (k && "kazanim" in k) {
+    const bits: string[] = [];
+    if (k.kazanim > 0) bits.push(`${n(k.kazanim)} kazanım`);
+    if (k.uyari > 0) bits.push(`${n(k.uyari)} uyarı`);
+    if (k.aksiyon > 0) bits.push(`${n(k.aksiyon)} aksiyon`);
+    if (bits.length) {
+      parts.push(`Form: ${bits.join(", ")}.`);
+    }
+    const ritimde = k.form_dagilim?.ritimde ?? 0;
+    if (ritimde > 0) {
+      parts.push(`${n(ritimde)} müşteri ritimde.`);
+    } else if (k.ritim > 0 && bits.length === 0) {
+      parts.push(
+        `${n(k.ritim)} müşteri ritimde kaldı — eşik geçilmeden gün artışı sinyal değil.`
+      );
+    }
+
+    const onceRiskli = k.risk_onceki?.riskli ?? 0;
+    const yeniRiskli = k.risk_yeni?.riskli ?? 0;
+    if (onceRiskli !== yeniRiskli) {
+      const delta = yeniRiskli - onceRiskli;
+      parts.push(
+        `Riskli müşteri ${n(onceRiskli)} → ${n(yeniRiskli)} (${delta > 0 ? "+" : ""}${n(delta)}).`
+      );
+    }
   }
 
   parts.push("Harita yenilendi — güncel dağılımı kontrol edebilirsin.");

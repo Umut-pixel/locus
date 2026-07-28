@@ -2690,5 +2690,32 @@
   "lon": 28.1557307,
   "tip": "station",
   "display": "Sultanhisar, 09-01, Zafer, Kabaca, Sultanhisar, Aydın, Ege Bölgesi, Türkiye"
- }
+ },
+ "yeni̇ mahallesi, manyas, balikesi̇r, türkiye": {
+  "lat": 40.0493983,
+  "lon": 27.9769635,
+  "tip": "suburb",
+  "display": "Yenimahalle, Kulak, Manyas, Balıkesir, Marmara Bölgesi, 10470, Türkiye"
+ },
+ "çirpan mahallesi, balikesi̇r, türkiye": {
+  "lat": 40.117317,
+  "lon": 27.750614,
+  "tip": "administrative",
+  "display": "Gökçesu Mahallesi, Gönen, Balıkesir, Marmara Bölgesi, Türkiye"
+ },
+ "gazi̇paşa mahallesi, çanakkale, türkiye": {},
+ "hami̇di̇ye mahallesi, çanakkale, türkiye": {
+  "lat": 40.1011851,
+  "lon": 26.406927,
+  "tip": "administrative",
+  "display": "Hamidiye Mahallesi, Kepez Beldesi, Çanakkale, Marmara Bölgesi, Türkiye"
+ },
+ "gazi̇celal mahallesi, çanakkale, türkiye": {
+  "lat": 39.5738963,
+  "lon": 27.041744,
+  "tip": "fuel",
+  "display": "Türkiye Petrolleri, İzmir - Çanakkale Yolu, Gazicelal, Bostancı, Edremit, Balıkesir, Marmara Bölgesi, 10302, Türkiye"
+ },
+ "balkan mahallesi, çanakkale, türkiye": {},
+ "emek zekai̇ gümüşdi̇ş mahallesi, çanakkale, türkiye": {}
 }

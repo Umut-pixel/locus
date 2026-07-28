@@ -12,6 +12,13 @@ import {
   type UploadResult,
 } from "@/lib/import";
 import {
+  buildPortfolioForm,
+  computeRiskDurumu,
+  type SnapshotMetrics,
+  type YuklemeKarsilastirma,
+} from "@/lib/snapshot-compare";
+import {
+  MUSTERI_SNAPSHOTLARI_TABLE,
   MUSTERILER_TABLE,
   YUKLEME_LOGLARI_TABLE,
   createSupabaseAdmin,
@@ -21,6 +28,87 @@ export const runtime = "nodejs";
 export const maxDuration = 300;
 
 const BATCH = 250;
+
+type Admin = ReturnType<typeof createSupabaseAdmin>;
+
+type MetricRow = {
+  musteri_kodu: string;
+  toplam_teslimat_sayisi: number;
+  toplam_tutar: number;
+  toplam_agirlik: number;
+  son_teslimattan_gecen_gun: number | null;
+  son_teslimat_tarihi: string | null;
+};
+
+function toSnapshotMetrics(row: MetricRow): SnapshotMetrics {
+  return {
+    risk_durumu: computeRiskDurumu(
+      row.toplam_teslimat_sayisi ?? 0,
+      row.son_teslimattan_gecen_gun
+    ),
+    toplam_teslimat_sayisi: Number(row.toplam_teslimat_sayisi ?? 0),
+    toplam_tutar: Number(row.toplam_tutar ?? 0),
+    toplam_agirlik: Number(row.toplam_agirlik ?? 0),
+    son_teslimattan_gecen_gun: row.son_teslimattan_gecen_gun,
+    son_teslimat_tarihi: row.son_teslimat_tarihi,
+  };
+}
+
+async function fetchMetricMap(
+  admin: Admin,
+  codes: string[]
+): Promise<Map<string, SnapshotMetrics>> {
+  const map = new Map<string, SnapshotMetrics>();
+  for (let i = 0; i < codes.length; i += BATCH) {
+    const chunk = codes.slice(i, i + BATCH);
+    const { data, error } = await admin
+      .from(MUSTERILER_TABLE)
+      .select(
+        "musteri_kodu, toplam_teslimat_sayisi, toplam_tutar, toplam_agirlik, son_teslimattan_gecen_gun, son_teslimat_tarihi"
+      )
+      .in("musteri_kodu", chunk);
+    if (error) {
+      throw new Error(`Metrik sorgusu başarısız: ${error.message}`);
+    }
+    for (const row of (data ?? []) as MetricRow[]) {
+      map.set(row.musteri_kodu, toSnapshotMetrics(row));
+    }
+  }
+  return map;
+}
+
+async function insertSnapshots(
+  admin: Admin,
+  yuklemeId: string,
+  pairs: Array<{
+    musteri_kodu: string;
+    onceki: SnapshotMetrics | null;
+    yeni: SnapshotMetrics;
+  }>
+): Promise<void> {
+  for (let i = 0; i < pairs.length; i += BATCH) {
+    const chunk = pairs.slice(i, i + BATCH).map(({ musteri_kodu, onceki, yeni }) => ({
+      yukleme_id: yuklemeId,
+      musteri_kodu,
+      risk_durumu: yeni.risk_durumu,
+      toplam_teslimat_sayisi: yeni.toplam_teslimat_sayisi,
+      toplam_tutar: yeni.toplam_tutar,
+      toplam_agirlik: yeni.toplam_agirlik,
+      son_teslimattan_gecen_gun: yeni.son_teslimattan_gecen_gun,
+      son_teslimat_tarihi: yeni.son_teslimat_tarihi,
+      onceki_risk_durumu: onceki?.risk_durumu ?? null,
+      onceki_toplam_teslimat_sayisi: onceki?.toplam_teslimat_sayisi ?? null,
+      onceki_toplam_tutar: onceki?.toplam_tutar ?? null,
+      onceki_toplam_agirlik: onceki?.toplam_agirlik ?? null,
+      onceki_son_teslimattan_gecen_gun: onceki?.son_teslimattan_gecen_gun ?? null,
+      onceki_son_teslimat_tarihi: onceki?.son_teslimat_tarihi ?? null,
+    }));
+    const { error } = await admin.from(MUSTERI_SNAPSHOTLARI_TABLE).insert(chunk);
+    if (error) {
+      throw new Error(`Snapshot yazılamadı: ${error.message}`);
+    }
+  }
+}
 
 function jsonError(message: string, status = 400) {
   return NextResponse.json({ error: message }, { status });
@@ -91,12 +179,13 @@ async function updateByMusteriKodu(
 }
 
 async function kaydetYuklemeLogu(
-  admin: ReturnType<typeof createSupabaseAdmin>,
+  admin: Admin,
   input: {
     dosyaAdi: string;
     dosyaTipi: DosyaTipi;
     dosyaBoyutu: number;
     result: UploadResult;
+    karsilastirma?: YuklemeKarsilastirma | null;
   }
 ): Promise<{ id: string; yuklenmeZamani: string }> {
   const { data, error } = await admin
@@ -112,6 +201,7 @@ async function kaydetYuklemeLogu(
       eslesmeyen_kod_sayisi: input.result.eslesmeyenMusteriKodlari.length,
       uyarilar: input.result.uyarilar ?? null,
       durum: "ok",
+      karsilastirma: input.karsilastirma ?? null,
     })
     .select("id, yuklenme_zamani")
     .single();
@@ -170,7 +260,6 @@ export async function POST(request: Request) {
 
     const admin = createSupabaseAdmin();
     const uyarilar: string[] = [];
-    const ts = nowIso();
 
     let result: UploadResult;
 
@@ -206,7 +295,7 @@ export async function POST(request: Request) {
           durum: r.durum,
           posta_kodu: r.posta_kodu,
           musteri_grubu: r.musteri_grubu,
-          guncellendi: ts,
+          guncellendi: nowIso(),
         };
         if (r.lat != null && r.lon != null) {
           base.lat = r.lat;
@@ -231,6 +320,7 @@ export async function POST(request: Request) {
         guncellenenMusteri: guncellenen,
         geocodeBasarisiz: geocoded.basarisiz,
         eslesmeyenMusteriKodlari: [],
+        etkilenenMusteriKodlari: codes,
         dedupUyari: parsed.dedupUyari,
         uyarilar: uyarilar.length ? uyarilar : undefined,
       };
@@ -266,6 +356,7 @@ export async function POST(request: Request) {
         guncellenenMusteri: eslesen.length,
         geocodeBasarisiz: 0,
         eslesmeyenMusteriKodlari: eslesmeyen,
+        etkilenenMusteriKodlari: eslesen.map((r) => r.musteri_kodu),
         uyarilar: uyarilar.length ? uyarilar : undefined,
       };
     } else {
@@ -282,6 +373,9 @@ export async function POST(request: Request) {
         .filter((r) => !existing.has(r.musteri_kodu))
         .map((r) => r.musteri_kodu);
 
+      const eslesenKodlari = eslesen.map((r) => r.musteri_kodu);
+      const oncekiMap = await fetchMetricMap(admin, eslesenKodlari);
+
       await updateByMusteriKodu(
         admin,
         eslesen.map((r) => ({
@@ -294,6 +388,21 @@ export async function POST(request: Request) {
           son_teslimattan_gecen_gun: r.son_teslimattan_gecen_gun,
         }))
       );
+
+      const yeniMap = await fetchMetricMap(admin, eslesenKodlari);
+      const pairs = eslesenKodlari.map((kod) => ({
+        musteri_kodu: kod,
+        onceki: oncekiMap.get(kod) ?? null,
+        yeni: yeniMap.get(kod) ?? {
+          risk_durumu: computeRiskDurumu(0, null),
+          toplam_teslimat_sayisi: 0,
+          toplam_tutar: 0,
+          toplam_agirlik: 0,
+          son_teslimattan_gecen_gun: null,
+          son_teslimat_tarihi: null,
+        },
+      }));
+      const karsilastirma = buildPortfolioForm(pairs);
 
       if (eslesmeyen.length) {
         uyarilar.push(
@@ -308,8 +417,26 @@ export async function POST(request: Request) {
         guncellenenMusteri: eslesen.length,
         geocodeBasarisiz: 0,
         eslesmeyenMusteriKodlari: eslesmeyen,
+        etkilenenMusteriKodlari: eslesenKodlari,
         uyarilar: uyarilar.length ? uyarilar : undefined,
+        karsilastirma,
       };
+
+      const log = await kaydetYuklemeLogu(admin, {
+        dosyaAdi: file.name,
+        dosyaTipi: tip,
+        dosyaBoyutu: file.size,
+        result,
+        karsilastirma,
+      });
+
+      await insertSnapshots(admin, log.id, pairs);
+
+      result.yuklemeId = log.id;
+      result.yuklenmeZamani = log.yuklenmeZamani;
+      result.dosyaAdi = file.name;
+
+      return NextResponse.json(result);
     }
 
     const log = await kaydetYuklemeLogu(admin, {

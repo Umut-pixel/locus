@@ -38,6 +38,7 @@ export const MUSTERI_HARITA_SELECT = [
   "rut_aciklama",
   "ziyaret_sira",
   "son_teslimat_tarihi",
+  "ilk_teslimat_tarihi",
   "toplam_teslimat_sayisi",
   "toplam_agirlik",
   "toplam_tutar",
@@ -45,4 +46,5 @@ export const MUSTERI_HARITA_SELECT = [
   "durum",
   "geocode_hassasiyet",
   "risk_durumu",
+  "guncellendi",
 ].join(",");

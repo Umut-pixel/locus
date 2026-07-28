@@ -22,6 +22,11 @@ import { musterilerToGeoJSON } from "@/lib/geojson";
 import type { UploadResult } from "@/lib/import/types";
 import { filterRowsLocally } from "@/lib/map-filter";
 import type { MusteriHarita, RiskDurumu } from "@/lib/types";
+import {
+  buildHighlightSet,
+  getHighlightCodes,
+  setHighlightCodes,
+} from "@/lib/upload-highlight";
 
 /** Mapbox ~1.8MB — ilk paint'ten sonra yükle */
 const PetshopMap = dynamic(
@@ -66,6 +71,13 @@ export default function Home() {
   const [lastUploadResult, setLastUploadResult] = useState<UploadResult | null>(
     null
   );
+  const [highlightCodes, setHighlightCodesState] = useState<string[] | null>(
+    () => getHighlightCodes()
+  );
+  const highlightSet = useMemo(
+    () => buildHighlightSet(highlightCodes),
+    [highlightCodes]
+  );
 
   const mapAreaRef = useRef<HTMLDivElement | null>(null);
 
@@ -93,10 +105,31 @@ export default function Home() {
 
   // Clustering doğru kalsın diye filtreli GeoJSON; rows değişince / filtre
   // deferred search ile yeniden kurulur (yazarken her tuşta değil).
-  const geojson = useMemo(
-    () => musterilerToGeoJSON(filteredRows),
-    [filteredRows]
+  const geojson = useMemo(() => {
+    if (!highlightSet) return musterilerToGeoJSON(filteredRows);
+    return musterilerToGeoJSON(
+      filteredRows.map((row) => ({
+        ...row,
+        son_yuklemede_guncellendi: highlightSet.has(row.musteri_kodu)
+          ? (1 as const)
+          : (0 as const),
+      }))
+    );
+  }, [filteredRows, highlightSet]);
+
+  const hasUpdatedMarkers = useMemo(
+    () =>
+      Boolean(highlightSet) &&
+      filteredRows.some((row) => highlightSet!.has(row.musteri_kodu)),
+    [filteredRows, highlightSet]
   );
+
+  const handleUploadResult = useCallback((result: UploadResult) => {
+    setLastUploadResult(result);
+    const codes = result.etkilenenMusteriKodlari ?? [];
+    setHighlightCodes(codes.length ? codes : null);
+    setHighlightCodesState(codes.length ? codes : null);
+  }, []);
 
   const stats = useMemo(() => {
     const dagilim: Record<RiskDurumu, number> = {
@@ -223,14 +256,14 @@ export default function Home() {
                   }}
                   onComplete={refresh}
                   onStageChange={setImportActivity}
-                  onResult={setLastUploadResult}
+                  onResult={handleUploadResult}
                 />
               )}
             </AnimatePresence>
           </div>
 
           <div className="flex items-end justify-end">
-            {showLegend && <RiskLegend />}
+            {showLegend && <RiskLegend showUpdatedRing={hasUpdatedMarkers} />}
           </div>
         </div>
 

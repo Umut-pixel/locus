@@ -19,3 +19,4 @@ export const supabase = createClient(url, anonKey, {
 });
 
 export const MUSTERILER_HARITA_VIEW = "musteriler_harita";
+export const MUSTERI_SNAPSHOTLARI_TABLE = "musteri_snapshotlari";

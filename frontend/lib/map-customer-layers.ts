@@ -13,8 +13,13 @@ import type { MusteriFeatureCollection } from "@/lib/geojson";
 export const SOURCE_ID = "musteriler";
 export const CLUSTER_LAYER = "clusters";
 export const CLUSTER_COUNT_LAYER = "cluster-count";
+/** Güncellenen noktanın etrafındaki dış halka (point'in altında). */
+export const UPDATED_RING_LAYER = "updated-point-ring";
 export const POINT_LAYER = "unclustered-point";
 export const SELECTED_LAYER = "selected-point";
+
+/** Son yüklemede güncellenen müşteri — açık, net dış halka. */
+export const UPDATED_RING_COLOR = "#f4f4f5";
 
 export function applyClusterDimPaint(map: MapboxMap, dimmed: boolean) {
   if (map.getLayer(CLUSTER_LAYER)) {
@@ -79,6 +84,29 @@ export function addCustomerLayers(
       paint: {
         "text-color": "#1c1d20",
         "text-opacity": clusterCountOpacityExpr(dimmed),
+      },
+    },
+    before
+  );
+
+  // Dış halka — risk noktasının altında; sadece son yüklemede güncellenenler
+  map.addLayer(
+    {
+      id: UPDATED_RING_LAYER,
+      type: "circle",
+      source: SOURCE_ID,
+      filter: [
+        "all",
+        ["!", ["has", "point_count"]],
+        ["==", ["get", "son_yuklemede_guncellendi"], 1],
+      ],
+      paint: {
+        "circle-radius": 12,
+        "circle-color": "rgba(0,0,0,0)",
+        "circle-stroke-width": 2.5,
+        "circle-stroke-color": UPDATED_RING_COLOR,
+        "circle-stroke-opacity": 0.95,
+        "circle-opacity": 1,
       },
     },
     before
@@ -159,6 +187,7 @@ export function recreateCustomerSource(
   for (const id of [
     SELECTED_LAYER,
     POINT_LAYER,
+    UPDATED_RING_LAYER,
     CLUSTER_COUNT_LAYER,
     CLUSTER_LAYER,
   ]) {

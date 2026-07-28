@@ -34,12 +34,14 @@ create index if not exists musteriler_konum_idx        on public.musteriler (lat
     where lat is not null;
 
 -- Haritada sadece konumu olan aktif musteriler
-create or replace view public.musteriler_harita
+-- Not: kolon eklerken CREATE OR REPLACE yetmez; drop + create gerekir.
+drop view if exists public.musteriler_harita;
+create view public.musteriler_harita
 with (security_invoker = true) as
 select musteri_kodu, unvan, sehir, ilce, lat, lon, rut_kod, rut_aciklama,
-       ziyaret_sira, son_teslimat_tarihi, toplam_teslimat_sayisi,
+       ziyaret_sira, son_teslimat_tarihi, ilk_teslimat_tarihi, toplam_teslimat_sayisi,
        toplam_agirlik, toplam_tutar, son_teslimattan_gecen_gun,
-       durum, geocode_hassasiyet,
+       durum, geocode_hassasiyet, guncellendi,
        case
          when toplam_teslimat_sayisi = 0            then 'hic_teslimat_yok'
          when son_teslimattan_gecen_gun > 90        then 'riskli'
@@ -48,6 +50,8 @@ select musteri_kodu, unvan, sehir, ilce, lat, lon, rut_kod, rut_aciklama,
        end as risk_durumu
 from public.musteriler
 where lat is not null and lon is not null;
+
+grant select on public.musteriler_harita to anon, authenticated;
 
 alter table public.musteriler enable row level security;
 
@@ -90,7 +94,8 @@ create table if not exists public.yukleme_loglari (
     geocode_basarisiz     integer not null default 0,
     eslesmeyen_kod_sayisi integer not null default 0,
     uyarilar              jsonb,
-    durum                 text not null default 'ok'
+    durum                 text not null default 'ok',
+    karsilastirma         jsonb
 );
 
 create index if not exists yukleme_loglari_zaman_idx
@@ -101,6 +106,43 @@ alter table public.yukleme_loglari enable row level security;
 do $$ begin
   create policy "yukleme_loglari_select_public"
     on public.yukleme_loglari
+    for select
+    to anon, authenticated
+    using (true);
+exception when duplicate_object then null;
+end $$;
+
+-- Sevkiyat yüklemesi sonrası müşteri sağlık anlık görüntüsü (önceki + yeni)
+create table if not exists public.musteri_snapshotlari (
+    id                              uuid primary key default gen_random_uuid(),
+    yukleme_id                      uuid references public.yukleme_loglari (id) on delete set null,
+    musteri_kodu                    text not null references public.musteriler (musteri_kodu) on delete cascade,
+    risk_durumu                     text not null,
+    toplam_teslimat_sayisi          integer not null default 0,
+    toplam_tutar                    numeric(16,2) not null default 0,
+    toplam_agirlik                  numeric(14,2) not null default 0,
+    son_teslimattan_gecen_gun       integer,
+    son_teslimat_tarihi             date,
+    onceki_risk_durumu              text,
+    onceki_toplam_teslimat_sayisi   integer,
+    onceki_toplam_tutar             numeric(16,2),
+    onceki_toplam_agirlik           numeric(14,2),
+    onceki_son_teslimattan_gecen_gun integer,
+    onceki_son_teslimat_tarihi      date,
+    olusturuldu                     timestamptz not null default now()
+);
+
+create index if not exists musteri_snapshotlari_kod_zaman_idx
+  on public.musteri_snapshotlari (musteri_kodu, olusturuldu desc);
+
+create index if not exists musteri_snapshotlari_yukleme_idx
+  on public.musteri_snapshotlari (yukleme_id);
+
+alter table public.musteri_snapshotlari enable row level security;
+
+do $$ begin
+  create policy "musteri_snapshotlari_select_public"
+    on public.musteri_snapshotlari
     for select
     to anon, authenticated
     using (true);

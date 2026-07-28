@@ -14,7 +14,13 @@ const HASSASIYET_ORDER: GeocodeHassasiyet[] = [
   "ilce_merkezi",
 ];
 
-export function RiskLegend({ className }: { className?: string }) {
+export function RiskLegend({
+  className,
+  showUpdatedRing = false,
+}: {
+  className?: string;
+  showUpdatedRing?: boolean;
+}) {
   return (
     <div
       className={cn(
@@ -42,6 +48,27 @@ export function RiskLegend({ className }: { className?: string }) {
             ))}
           </ul>
         </div>
+        {showUpdatedRing && (
+          <div className="border-t border-border/50 pt-1.5">
+            <p className="mb-1 text-[9px] font-medium tracking-[0.14em] text-muted-foreground uppercase">
+              Son yükleme
+            </p>
+            <ul className="flex flex-col gap-0.5">
+              <li className="flex items-center gap-1.5">
+                <span
+                  className="relative flex h-3 w-3 shrink-0 items-center justify-center"
+                  aria-hidden
+                >
+                  <span className="absolute inset-0 rounded-full border-[1.5px] border-foreground/90" />
+                  <span className="h-1.5 w-1.5 rounded-full bg-foreground/70" />
+                </span>
+                <span className="truncate text-[10px] text-foreground/80">
+                  Etkilenen müşteri
+                </span>
+              </li>
+            </ul>
+          </div>
+        )}
         <div className="hidden border-t border-border/50 pt-1.5 min-[380px]:block">
           <p className="mb-1 text-[9px] font-medium tracking-[0.14em] text-muted-foreground uppercase">
             Konum hassasiyeti

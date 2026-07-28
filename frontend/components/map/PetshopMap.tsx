@@ -1,10 +1,15 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 
-import { DEFAULT_MAP_VIEW, MAPBOX_STYLE_URL, MAPBOX_TOKEN } from "@/lib/mapbox-style";
+import { useTheme } from "@/components/theme-provider";
+import {
+  DEFAULT_MAP_VIEW,
+  MAPBOX_TOKEN,
+  mapStyleForTheme,
+} from "@/lib/mapbox-style";
 import { clusterConfigForZoom, type ClusterConfig } from "@/lib/map-clusters";
 import {
   CLUSTER_COUNT_LAYER,
@@ -12,6 +17,7 @@ import {
   POINT_LAYER,
   SELECTED_LAYER,
   SOURCE_ID,
+  UPDATED_RING_LAYER,
   addCustomerLayers,
   applyClusterDimPaint,
   recreateCustomerSource,
@@ -66,6 +72,7 @@ export function PetshopMap({
   highlightedRutKod,
   onSelectMusteri,
 }: PetshopMapProps) {
+  const { theme } = useTheme();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const loadedRef = useRef(false);
@@ -77,6 +84,10 @@ export function PetshopMap({
   const clustersDimmedRef = useRef(false);
   const selectedKodRef = useRef<string | null>(null);
   const clusterZoomTimerRef = useRef(0);
+  const styleUrlRef = useRef(mapStyleForTheme(theme));
+  const popupRef = useRef<mapboxgl.Popup | null>(null);
+  /** Stil yenilenince data/rota effect'lerini tetikler; deps boyutu sabit kalmalı. */
+  const [overlayGen, setOverlayGen] = useState(0);
 
   useEffect(() => {
     dataRef.current = data;
@@ -94,9 +105,12 @@ export function PetshopMap({
     if (!containerRef.current || mapRef.current || !MAPBOX_TOKEN) return;
 
     mapboxgl.accessToken = MAPBOX_TOKEN;
+    const initialStyle = mapStyleForTheme(theme);
+    styleUrlRef.current = initialStyle;
+
     const map = new mapboxgl.Map({
       container: containerRef.current,
-      style: MAPBOX_STYLE_URL,
+      style: initialStyle,
       center: DEFAULT_MAP_VIEW.center,
       zoom: DEFAULT_MAP_VIEW.zoom,
       attributionControl: true,
@@ -105,210 +119,272 @@ export function PetshopMap({
 
     map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), "top-right");
 
-    map.on("load", () => {
+    const popup = new mapboxgl.Popup({
+      closeButton: false,
+      closeOnClick: false,
+      offset: 12,
+      className: "petshop-popup",
+    });
+    popupRef.current = popup;
+
+    const mountOverlays = () => {
       const initialCfg = clusterConfigForZoom(map.getZoom());
       clusterConfigRef.current = initialCfg;
 
-      map.addSource(SOURCE_ID, {
-        type: "geojson",
-        data: dataRef.current,
-        cluster: true,
-        clusterMaxZoom: initialCfg.maxZoom,
-        clusterRadius: initialCfg.radius,
-      });
+      if (!map.getSource(SOURCE_ID)) {
+        map.addSource(SOURCE_ID, {
+          type: "geojson",
+          data: dataRef.current,
+          cluster: true,
+          clusterMaxZoom: initialCfg.maxZoom,
+          clusterRadius: initialCfg.radius,
+        });
+      }
 
-      // Kümelenmeyen ayrı kaynak: rota noktaları + ziyaret sırası çizgisi.
-      map.addSource(ROUTE_SOURCE_ID, {
-        type: "geojson",
-        data: EMPTY_FEATURE_COLLECTION,
-      });
-      map.addSource(ROUTE_LINE_SOURCE_ID, {
-        type: "geojson",
-        data: EMPTY_LINE_COLLECTION,
-      });
+      if (!map.getSource(ROUTE_SOURCE_ID)) {
+        map.addSource(ROUTE_SOURCE_ID, {
+          type: "geojson",
+          data: EMPTY_FEATURE_COLLECTION,
+        });
+      }
+      if (!map.getSource(ROUTE_LINE_SOURCE_ID)) {
+        map.addSource(ROUTE_LINE_SOURCE_ID, {
+          type: "geojson",
+          data: EMPTY_LINE_COLLECTION,
+        });
+      }
 
-      addCustomerLayers(map, clustersDimmedRef.current);
+      if (!map.getLayer(CLUSTER_LAYER)) {
+        addCustomerLayers(map, clustersDimmedRef.current);
+      }
 
-      // Rota çizgisi (ziyaret_sira sırasıyla) — noktaların altında
-      map.addLayer({
-        id: ROUTE_LINE_CASING_LAYER,
-        type: "line",
-        source: ROUTE_LINE_SOURCE_ID,
-        layout: {
-          "line-join": "round",
-          "line-cap": "round",
-        },
-        paint: {
-          "line-color": "#0a0a0b",
-          "line-width": 2.25,
-          "line-opacity": 0.28,
-        },
-      });
-      map.addLayer({
-        id: ROUTE_LINE_LAYER,
-        type: "line",
-        source: ROUTE_LINE_SOURCE_ID,
-        layout: {
-          "line-join": "round",
-          "line-cap": "round",
-        },
-        paint: {
-          "line-color": ROUTE_LINE_COLOR,
-          "line-width": 1.25,
-          "line-opacity": 0.88,
-        },
-      });
+      if (!map.getLayer(ROUTE_LINE_CASING_LAYER)) {
+        map.addLayer({
+          id: ROUTE_LINE_CASING_LAYER,
+          type: "line",
+          source: ROUTE_LINE_SOURCE_ID,
+          layout: {
+            "line-join": "round",
+            "line-cap": "round",
+          },
+          paint: {
+            "line-color": "#0a0a0b",
+            "line-width": 2.25,
+            "line-opacity": 0.28,
+          },
+        });
+      }
+      if (!map.getLayer(ROUTE_LINE_LAYER)) {
+        map.addLayer({
+          id: ROUTE_LINE_LAYER,
+          type: "line",
+          source: ROUTE_LINE_SOURCE_ID,
+          layout: {
+            "line-join": "round",
+            "line-cap": "round",
+          },
+          paint: {
+            "line-color": ROUTE_LINE_COLOR,
+            "line-width": 1.25,
+            "line-opacity": 0.88,
+          },
+        });
+      }
 
-      map.addLayer({
-        id: ROUTE_GLOW_LAYER,
-        type: "circle",
-        source: ROUTE_SOURCE_ID,
-        paint: {
-          "circle-radius": 18,
-          "circle-color": ROUTE_HIGHLIGHT_COLOR,
-          "circle-opacity": 0.25,
-          "circle-blur": 0.9,
-        },
-      });
+      if (!map.getLayer(ROUTE_GLOW_LAYER)) {
+        map.addLayer({
+          id: ROUTE_GLOW_LAYER,
+          type: "circle",
+          source: ROUTE_SOURCE_ID,
+          paint: {
+            "circle-radius": 18,
+            "circle-color": ROUTE_HIGHLIGHT_COLOR,
+            "circle-opacity": 0.25,
+            "circle-blur": 0.9,
+          },
+        });
+      }
 
-      map.addLayer({
-        id: ROUTE_LAYER,
-        type: "circle",
-        source: ROUTE_SOURCE_ID,
-        paint: {
-          "circle-radius": 12,
-          "circle-color": "rgba(0,0,0,0)",
-          "circle-stroke-width": 3,
-          "circle-stroke-color": ROUTE_HIGHLIGHT_COLOR,
-          "circle-stroke-opacity": 1,
-        },
-      });
+      if (!map.getLayer(ROUTE_LAYER)) {
+        map.addLayer({
+          id: ROUTE_LAYER,
+          type: "circle",
+          source: ROUTE_SOURCE_ID,
+          paint: {
+            "circle-radius": 12,
+            "circle-color": "rgba(0,0,0,0)",
+            "circle-stroke-width": 3,
+            "circle-stroke-color": ROUTE_HIGHLIGHT_COLOR,
+            "circle-stroke-opacity": 1,
+          },
+        });
+      }
 
-      map.addLayer({
-        id: ROUTE_ORDER_LAYER,
-        type: "symbol",
-        source: ROUTE_SOURCE_ID,
-        filter: ["has", "ziyaret_sira"],
-        minzoom: 8,
-        layout: {
-          "text-field": ["to-string", ["get", "ziyaret_sira"]],
-          "text-size": 11,
-          "text-font": ["Arial Unicode MS Bold"],
-          "text-allow-overlap": true,
-          "text-ignore-placement": true,
-          "text-offset": [0, -1.6],
-        },
-        paint: {
-          "text-color": ROUTE_HIGHLIGHT_COLOR,
-          "text-halo-color": "#0a0a0b",
-          "text-halo-width": 1.5,
-        },
-      });
+      if (!map.getLayer(ROUTE_ORDER_LAYER)) {
+        map.addLayer({
+          id: ROUTE_ORDER_LAYER,
+          type: "symbol",
+          source: ROUTE_SOURCE_ID,
+          filter: ["has", "ziyaret_sira"],
+          minzoom: 8,
+          layout: {
+            "text-field": ["to-string", ["get", "ziyaret_sira"]],
+            "text-size": 11,
+            "text-font": ["Arial Unicode MS Bold"],
+            "text-allow-overlap": true,
+            "text-ignore-placement": true,
+            "text-offset": [0, -1.6],
+          },
+          paint: {
+            "text-color": ROUTE_HIGHLIGHT_COLOR,
+            "text-halo-color": "#0a0a0b",
+            "text-halo-width": 1.5,
+          },
+        });
+      }
 
-      const popup = new mapboxgl.Popup({
-        closeButton: false,
-        closeOnClick: false,
-        offset: 12,
-        className: "petshop-popup",
-      });
+      if (map.getLayer(SELECTED_LAYER)) {
+        map.setFilter(SELECTED_LAYER, [
+          "==",
+          ["get", "musteri_kodu"],
+          selectedKodRef.current ?? "__none__",
+        ]);
+      }
 
-      map.on("mouseenter", POINT_LAYER, (e) => {
-        map.getCanvas().style.cursor = "pointer";
-        const feature = e.features?.[0];
-        if (!feature || feature.geometry.type !== "Point") return;
-        const props = feature.properties as MusteriHarita;
-        const [lon, lat] = feature.geometry.coordinates as [number, number];
-        popup
-          .setLngLat([lon, lat])
-          .setHTML(
-            `<div style="line-height:1.45">
+      const musterilerSource = map.getSource(SOURCE_ID) as
+        | mapboxgl.GeoJSONSource
+        | undefined;
+      musterilerSource?.setData(dataRef.current);
+
+      loadedRef.current = true;
+      dataSignatureRef.current = "";
+      setOverlayGen((n) => n + 1);
+    };
+
+    map.on("load", mountOverlays);
+    map.on("style.load", mountOverlays);
+
+    map.on("mouseenter", POINT_LAYER, (e) => {
+      map.getCanvas().style.cursor = "pointer";
+      const feature = e.features?.[0];
+      if (!feature || feature.geometry.type !== "Point") return;
+      const props = feature.properties as MusteriHarita;
+      const [lon, lat] = feature.geometry.coordinates as [number, number];
+      popup
+        .setLngLat([lon, lat])
+        .setHTML(
+          `<div style="line-height:1.45">
               <div style="font-family:var(--font-geist-sans),system-ui,sans-serif;font-size:12px;font-weight:500">${escapeHtml(props.unvan)}</div>
               <div style="font-family:var(--font-geist-mono),ui-monospace,monospace;font-size:10px;letter-spacing:0.06em;text-transform:uppercase;opacity:0.6;margin-top:3px">${escapeHtml(props.sehir ?? "")}${props.ilce ? " / " + escapeHtml(props.ilce) : ""}</div>
             </div>`
-          )
-          .addTo(map);
-      });
+        )
+        .addTo(map);
+    });
 
-      map.on("mouseleave", POINT_LAYER, () => {
-        map.getCanvas().style.cursor = "";
-        popup.remove();
-      });
+    map.on("mouseleave", POINT_LAYER, () => {
+      map.getCanvas().style.cursor = "";
+      popup.remove();
+    });
 
-      // Zoom bandı değişince küme yarıçapı / maxZoom’u yenile
-      const syncClustersToZoom = () => {
-        const cfg = clusterConfigForZoom(map.getZoom());
-        const prev = clusterConfigRef.current;
-        if (prev && prev.band === cfg.band) return;
-        clusterConfigRef.current = cfg;
-        recreateCustomerSource(map, dataRef.current, cfg, {
-          dimmed: clustersDimmedRef.current,
-          selectedKod: selectedKodRef.current,
-          beforeLayerId: ROUTE_LINE_CASING_LAYER,
-        });
-      };
-      map.on("zoomend", () => {
-        window.clearTimeout(clusterZoomTimerRef.current);
-        clusterZoomTimerRef.current = window.setTimeout(syncClustersToZoom, 120);
+    const syncClustersToZoom = () => {
+      const cfg = clusterConfigForZoom(map.getZoom());
+      const prev = clusterConfigRef.current;
+      if (prev && prev.band === cfg.band) return;
+      clusterConfigRef.current = cfg;
+      recreateCustomerSource(map, dataRef.current, cfg, {
+        dimmed: clustersDimmedRef.current,
+        selectedKod: selectedKodRef.current,
+        beforeLayerId: ROUTE_LINE_CASING_LAYER,
       });
+    };
+    map.on("zoomend", () => {
+      window.clearTimeout(clusterZoomTimerRef.current);
+      clusterZoomTimerRef.current = window.setTimeout(syncClustersToZoom, 120);
+    });
 
-      map.on("click", POINT_LAYER, (e) => {
-        const feature = e.features?.[0];
-        if (!feature || feature.geometry.type !== "Point") return;
-        // Anchor'ı tıklama noktasından değil marker merkezinden projekte et
-        // ki panel her zaman noktanın kendisine hizalansın.
-        const [lon, lat] = feature.geometry.coordinates as [number, number];
-        const screen = map.project([lon, lat]);
-        onSelectRef.current(feature.properties as MusteriHarita, {
-          x: screen.x,
-          y: screen.y,
-        });
+    map.on("click", POINT_LAYER, (e) => {
+      const feature = e.features?.[0];
+      if (!feature || feature.geometry.type !== "Point") return;
+      const [lon, lat] = feature.geometry.coordinates as [number, number];
+      const screen = map.project([lon, lat]);
+      onSelectRef.current(feature.properties as MusteriHarita, {
+        x: screen.x,
+        y: screen.y,
       });
+    });
 
-      map.on("mouseenter", CLUSTER_LAYER, () => {
-        map.getCanvas().style.cursor = "pointer";
-      });
-      map.on("mouseleave", CLUSTER_LAYER, () => {
-        map.getCanvas().style.cursor = "";
-      });
+    map.on("mouseenter", CLUSTER_LAYER, () => {
+      map.getCanvas().style.cursor = "pointer";
+    });
+    map.on("mouseleave", CLUSTER_LAYER, () => {
+      map.getCanvas().style.cursor = "";
+    });
 
-      map.on("click", CLUSTER_LAYER, (e) => {
-        const feature = e.features?.[0];
-        if (!feature || feature.geometry.type !== "Point") return;
-        const clusterId = feature.properties?.cluster_id;
-        const coordinates = feature.geometry.coordinates as [number, number];
-        const source = map.getSource(SOURCE_ID) as mapboxgl.GeoJSONSource;
-        source.getClusterExpansionZoom(clusterId, (err, zoom) => {
-          if (err || zoom == null) return;
-          map.easeTo({
-            center: coordinates,
-            zoom,
-            duration: 400,
-          });
+    map.on("click", CLUSTER_LAYER, (e) => {
+      const feature = e.features?.[0];
+      if (!feature || feature.geometry.type !== "Point") return;
+      const clusterId = feature.properties?.cluster_id;
+      const coordinates = feature.geometry.coordinates as [number, number];
+      const source = map.getSource(SOURCE_ID) as mapboxgl.GeoJSONSource;
+      source.getClusterExpansionZoom(clusterId, (err, zoom) => {
+        if (err || zoom == null) return;
+        map.easeTo({
+          center: coordinates,
+          zoom,
+          duration: 400,
         });
       });
-
-      loadedRef.current = true;
     });
 
     return () => {
       window.clearTimeout(clusterZoomTimerRef.current);
       loadedRef.current = false;
+      popup.remove();
+      popupRef.current = null;
       map.remove();
       mapRef.current = null;
     };
+    // theme yalnızca ilk mount stilini belirler; sonraki geçişler ayrı effect'te.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    const next = mapStyleForTheme(theme);
+    if (styleUrlRef.current === next) return;
+    styleUrlRef.current = next;
+    loadedRef.current = false;
+    popupRef.current?.remove();
+    routeTweenRef.current?.kill();
+    routeTweenRef.current = null;
+    map.setStyle(next);
+  }, [theme]);
 
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !loadedRef.current) return;
     const source = map.getSource(SOURCE_ID) as mapboxgl.GeoJSONSource | undefined;
     if (!source) return;
-    // Aynı veri setini tekrar setData etme (gereksiz re-cluster)
-    const sig = `${data.features.length}:${data.features[0]?.properties.musteri_kodu ?? ""}:${data.features[data.features.length - 1]?.properties.musteri_kodu ?? ""}`;
+    // Aynı veri setini tekrar setData etme (gereksiz re-cluster).
+    // Kod + risk + güncelleme bayrağı değişince imza değişir.
+    let fingerprint = data.features.length;
+    let updatedCount = 0;
+    for (const f of data.features) {
+      const p = f.properties;
+      if (p.son_yuklemede_guncellendi) updatedCount += 1;
+      fingerprint =
+        (Math.imul(fingerprint, 31) +
+          (p.toplam_teslimat_sayisi | 0) +
+          (p.risk_durumu?.charCodeAt(0) ?? 0) * 17 +
+          (p.son_yuklemede_guncellendi ? 1 : 0) * 101) |
+        0;
+    }
+    const sig = `${data.features.length}:${updatedCount}:${fingerprint}:${data.features[0]?.properties.musteri_kodu ?? ""}:${data.features[data.features.length - 1]?.properties.musteri_kodu ?? ""}`;
     if (sig === dataSignatureRef.current) return;
     dataSignatureRef.current = sig;
     source.setData(data);
-  }, [data]);
+  }, [data, overlayGen]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -318,7 +394,7 @@ export function PetshopMap({
       ["get", "musteri_kodu"],
       selectedMusteriKodu ?? "__none__",
     ]);
-  }, [selectedMusteriKodu]);
+  }, [selectedMusteriKodu, overlayGen]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -337,22 +413,35 @@ export function PetshopMap({
     ) => {
       clustersDimmedRef.current = active;
       applyClusterDimPaint(map, active);
+
+      const baseUnclustered: mapboxgl.ExpressionSpecification = [
+        "!",
+        ["has", "point_count"],
+      ];
+      let pointFilter: mapboxgl.FilterSpecification = baseUnclustered;
+      if (active && visibleMusteriKodlari && visibleMusteriKodlari.length > 0) {
+        pointFilter = [
+          "all",
+          baseUnclustered,
+          ["in", ["get", "musteri_kodu"], ["literal", visibleMusteriKodlari]],
+        ];
+      } else if (active) {
+        pointFilter = [
+          "all",
+          baseUnclustered,
+          ["==", ["to-string", ["get", "rut_kod"]], String(highlightedRutKod)],
+        ];
+      }
+
       if (map.getLayer(POINT_LAYER)) {
-        if (!active) {
-          map.setFilter(POINT_LAYER, ["!", ["has", "point_count"]]);
-        } else if (visibleMusteriKodlari && visibleMusteriKodlari.length > 0) {
-          map.setFilter(POINT_LAYER, [
-            "all",
-            ["!", ["has", "point_count"]],
-            ["in", ["get", "musteri_kodu"], ["literal", visibleMusteriKodlari]],
-          ]);
-        } else {
-          map.setFilter(POINT_LAYER, [
-            "all",
-            ["!", ["has", "point_count"]],
-            ["==", ["to-string", ["get", "rut_kod"]], String(highlightedRutKod)],
-          ]);
-        }
+        map.setFilter(POINT_LAYER, pointFilter);
+      }
+      if (map.getLayer(UPDATED_RING_LAYER)) {
+        map.setFilter(UPDATED_RING_LAYER, [
+          "all",
+          pointFilter,
+          ["==", ["get", "son_yuklemede_guncellendi"], 1],
+        ]);
       }
     };
 
@@ -465,7 +554,7 @@ export function PetshopMap({
       killRouteTween();
       ac.abort();
     };
-  }, [highlightedRutKod, data, selectedMusteriKodu]);
+  }, [highlightedRutKod, data, selectedMusteriKodu, overlayGen]);
 
   if (!MAPBOX_TOKEN) {
     return (
