@@ -1,15 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 
-import { useTheme } from "@/components/theme-provider";
-import {
-  DEFAULT_MAP_VIEW,
-  MAPBOX_TOKEN,
-  mapStyleForTheme,
-} from "@/lib/mapbox-style";
+import { DEFAULT_MAP_VIEW, MAPBOX_STYLE_URL, MAPBOX_TOKEN } from "@/lib/mapbox-style";
 import { clusterConfigForZoom, type ClusterConfig } from "@/lib/map-clusters";
 import {
   CLUSTER_COUNT_LAYER,
@@ -72,7 +67,6 @@ export function PetshopMap({
   highlightedRutKod,
   onSelectMusteri,
 }: PetshopMapProps) {
-  const { theme } = useTheme();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const loadedRef = useRef(false);
@@ -84,10 +78,7 @@ export function PetshopMap({
   const clustersDimmedRef = useRef(false);
   const selectedKodRef = useRef<string | null>(null);
   const clusterZoomTimerRef = useRef(0);
-  const styleUrlRef = useRef(mapStyleForTheme(theme));
   const popupRef = useRef<mapboxgl.Popup | null>(null);
-  /** Stil yenilenince data/rota effect'lerini tetikler; deps boyutu sabit kalmalı. */
-  const [overlayGen, setOverlayGen] = useState(0);
 
   useEffect(() => {
     dataRef.current = data;
@@ -105,12 +96,9 @@ export function PetshopMap({
     if (!containerRef.current || mapRef.current || !MAPBOX_TOKEN) return;
 
     mapboxgl.accessToken = MAPBOX_TOKEN;
-    const initialStyle = mapStyleForTheme(theme);
-    styleUrlRef.current = initialStyle;
-
     const map = new mapboxgl.Map({
       container: containerRef.current,
-      style: initialStyle,
+      style: MAPBOX_STYLE_URL,
       center: DEFAULT_MAP_VIEW.center,
       zoom: DEFAULT_MAP_VIEW.zoom,
       attributionControl: true,
@@ -258,11 +246,9 @@ export function PetshopMap({
 
       loadedRef.current = true;
       dataSignatureRef.current = "";
-      setOverlayGen((n) => n + 1);
     };
 
     map.on("load", mountOverlays);
-    map.on("style.load", mountOverlays);
 
     map.on("mouseenter", POINT_LAYER, (e) => {
       map.getCanvas().style.cursor = "pointer";
@@ -344,22 +330,7 @@ export function PetshopMap({
       map.remove();
       mapRef.current = null;
     };
-    // theme yalnızca ilk mount stilini belirler; sonraki geçişler ayrı effect'te.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map) return;
-    const next = mapStyleForTheme(theme);
-    if (styleUrlRef.current === next) return;
-    styleUrlRef.current = next;
-    loadedRef.current = false;
-    popupRef.current?.remove();
-    routeTweenRef.current?.kill();
-    routeTweenRef.current = null;
-    map.setStyle(next);
-  }, [theme]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -384,7 +355,7 @@ export function PetshopMap({
     if (sig === dataSignatureRef.current) return;
     dataSignatureRef.current = sig;
     source.setData(data);
-  }, [data, overlayGen]);
+  }, [data]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -394,7 +365,7 @@ export function PetshopMap({
       ["get", "musteri_kodu"],
       selectedMusteriKodu ?? "__none__",
     ]);
-  }, [selectedMusteriKodu, overlayGen]);
+  }, [selectedMusteriKodu]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -554,7 +525,7 @@ export function PetshopMap({
       killRouteTween();
       ac.abort();
     };
-  }, [highlightedRutKod, data, selectedMusteriKodu, overlayGen]);
+  }, [highlightedRutKod, data, selectedMusteriKodu]);
 
   if (!MAPBOX_TOKEN) {
     return (

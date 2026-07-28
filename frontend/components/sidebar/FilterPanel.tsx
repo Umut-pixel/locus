@@ -5,7 +5,6 @@ import { SearchIcon, XIcon } from "lucide-react";
 import { motion } from "motion/react";
 
 import { AgentAssistant } from "@/components/agent/AgentAssistant";
-import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { ClearDissolveInput } from "@/components/ui/clear-dissolve-input";
 import { SegmentBar } from "@/components/ui/segment-bar";
@@ -60,16 +59,13 @@ export function FilterPanel({
     <div className="flex h-full flex-col overflow-hidden">
       {/* A — Başlık → şehir: kaydırılabilir, yükseklik sınırlı */}
       <div className="flex max-h-[48%] shrink-0 flex-col gap-4 overflow-y-auto overscroll-contain px-5 pt-5 pb-3">
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0">
-            <h1 className="text-[15px] font-medium tracking-tight">
-              Petshop Müşteri Haritası
-            </h1>
-            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-              Ege bölgesi müşteri dağılımı ve teslimat risk durumu
-            </p>
-          </div>
-          <ThemeToggle className="-mr-1 -mt-0.5" />
+        <div>
+          <h1 className="text-[15px] font-medium tracking-tight">
+            Petshop Müşteri Haritası
+          </h1>
+          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+            Ege bölgesi müşteri dağılımı ve teslimat risk durumu
+          </p>
         </div>
 
         <div className="grid grid-cols-3 gap-2">
