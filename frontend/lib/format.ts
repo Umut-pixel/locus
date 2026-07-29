@@ -4,6 +4,13 @@ const currencyFormatter = new Intl.NumberFormat("tr-TR", {
   maximumFractionDigits: 0,
 });
 
+const currencyPreciseFormatter = new Intl.NumberFormat("tr-TR", {
+  style: "currency",
+  currency: "TRY",
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+
 const numberFormatter = new Intl.NumberFormat("tr-TR");
 
 const dateFormatter = new Intl.DateTimeFormat("tr-TR", {
@@ -14,6 +21,11 @@ const dateFormatter = new Intl.DateTimeFormat("tr-TR", {
 
 export function formatCurrency(value: number): string {
   return currencyFormatter.format(value);
+}
+
+/** Borç / yaşlandırma tutarları — kuruş hassasiyeti. */
+export function formatCurrencyPrecise(value: number): string {
+  return currencyPreciseFormatter.format(value);
 }
 
 export function formatNumber(value: number): string {

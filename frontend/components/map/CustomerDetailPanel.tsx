@@ -24,7 +24,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { formatCurrency, formatDate, formatKg, formatNumber } from "@/lib/format";
+import { formatCurrency, formatCurrencyPrecise, formatDate, formatKg, formatNumber } from "@/lib/format";
 import {
   HASSASIYET_LABELS,
   RISK_COLORS,
@@ -71,21 +71,35 @@ const OLAY_COLORS: Record<FormOlay, string> = {
   sessiz: RISK_COLORS.hic_teslimat_yok,
 };
 
-type PanelPage = "ozet" | "ritim";
+type PanelPage = "ozet" | "ritim" | "borclar" | "satis";
 
-const PAGE_INDEX: Record<PanelPage, number> = { ozet: 0, ritim: 1 };
+const PAGE_ORDER: PanelPage[] = ["ozet", "ritim", "borclar", "satis"];
+
+const PAGE_INDEX: Record<PanelPage, number> = {
+  ozet: 0,
+  ritim: 1,
+  borclar: 2,
+  satis: 3,
+};
+
+const PAGE_LABELS: Record<PanelPage, string> = {
+  ozet: "Özet",
+  ritim: "Ritim",
+  borclar: "Borçlar",
+  satis: "Satış",
+};
 
 const pageSlideVariants = {
   enter: (direction: number) => ({
-    x: direction > 0 ? 24 : -24,
-    opacity: 0,
+    x: direction === 0 ? 0 : direction > 0 ? 24 : -24,
+    opacity: direction === 0 ? 1 : 0,
   }),
   center: {
     x: 0,
     opacity: 1,
   },
   exit: (direction: number) => ({
-    x: direction < 0 ? 24 : -24,
+    x: direction === 0 ? 0 : direction < 0 ? 24 : -24,
     opacity: 0,
   }),
 };
@@ -158,8 +172,24 @@ export function CustomerDetailPanel({
     setPage(next);
   };
 
+  const goPrevPage = () => {
+    const idx = PAGE_INDEX[page];
+    if (idx <= 0) return;
+    goToPage(PAGE_ORDER[idx - 1]);
+  };
+
+  const goNextPage = () => {
+    const idx = PAGE_INDEX[page];
+    if (idx >= PAGE_ORDER.length - 1) return;
+    goToPage(PAGE_ORDER[idx + 1]);
+  };
+
+  const isFirstPage = page === PAGE_ORDER[0];
+  const isLastPage = page === PAGE_ORDER[PAGE_ORDER.length - 1];
+
   useEffect(() => {
     reanchorRef.current = true;
+    draggedRef.current = false;
     setPage("ozet");
     setPageDirection(0);
     setSnapLoading(true);
@@ -203,7 +233,7 @@ export function CustomerDetailPanel({
     const observer = new ResizeObserver(update);
     observer.observe(el);
     return () => observer.disconnect();
-  }, [page, snapshot, snapLoading, musteri.musteri_kodu]);
+  }, [page, snapshot, snapLoading, musteri.musteri_kodu, musteri.yas_toplam, musteri.belge_net_ciro, musteri.belge_top_urun, musteri.belge_son_urun]);
 
   useLayoutEffect(() => {
     const el = panelRef.current;
@@ -250,8 +280,25 @@ export function CustomerDetailPanel({
         panelHeight,
         panelWidth: width || PANEL_WIDTH,
       });
-      x.set(pos.left);
-      y.set(pos.top);
+      // İlk açılışta anında yerleştir; müşteri değişiminde yumuşak kaydır.
+      const firstOpen = x.get() === 0 && y.get() === 0;
+      if (firstOpen) {
+        x.set(pos.left);
+        y.set(pos.top);
+      } else {
+        void animate(x, pos.left, {
+          type: "spring",
+          stiffness: 360,
+          damping: 38,
+          mass: 0.85,
+        });
+        void animate(y, pos.top, {
+          type: "spring",
+          stiffness: 360,
+          damping: 38,
+          mass: 0.85,
+        });
+      }
       reanchorRef.current = false;
       return;
     }
@@ -302,13 +349,12 @@ export function CustomerDetailPanel({
   return (
     <motion.div
       ref={panelRef}
-      layoutId="musteri-detail-panel"
-      initial={{ opacity: 0, scale: 0.97 }}
+      initial={{ opacity: 0, scale: 0.98 }}
       animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.97 }}
+      exit={{ opacity: 0, scale: 0.98 }}
       transition={{
-        opacity: { duration: 0.16 },
-        scale: { type: "spring", stiffness: 420, damping: 34 },
+        opacity: { duration: 0.14 },
+        scale: { duration: 0.18, ease: [0.22, 1, 0.36, 1] },
       }}
       drag
       dragListener={false}
@@ -369,9 +415,9 @@ export function CustomerDetailPanel({
             onClick={onClose}
             onPointerDown={(e) => e.stopPropagation()}
             aria-label="Paneli kapat"
-            className="-mt-1 -mr-1.5 flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground sm:size-auto sm:p-1.5"
+            className="flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-full text-white transition-colors hover:bg-white/10"
           >
-            <XIcon className="size-3.5" />
+            <XIcon className="size-4 stroke-[2.5]" />
           </button>
         </div>
 
@@ -431,7 +477,7 @@ export function CustomerDetailPanel({
                 transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
                 className="absolute inset-x-0 top-0 font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase"
               >
-                {page === "ozet" ? "Özet" : "Ritim"}
+                {PAGE_LABELS[page]}
               </motion.span>
             </AnimatePresence>
           </div>
@@ -440,13 +486,13 @@ export function CustomerDetailPanel({
               <Tooltip>
                 <TooltipTrigger
                   type="button"
-                  aria-disabled={page === "ozet"}
-                  onClick={() => goToPage("ozet")}
+                  aria-disabled={isFirstPage}
+                  onClick={goPrevPage}
                   onPointerDown={(e) => e.stopPropagation()}
-                  aria-label="Özet sayfası"
+                  aria-label="Önceki sayfa"
                   className={cn(
                     "flex size-7 cursor-pointer items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",
-                    page === "ozet" && "cursor-default opacity-30 hover:bg-transparent"
+                    isFirstPage && "cursor-default opacity-30 hover:bg-transparent"
                   )}
                 >
                   <ChevronLeftIcon className="size-3.5" />
@@ -456,19 +502,21 @@ export function CustomerDetailPanel({
                   sideOffset={6}
                   className="px-2 py-1 font-mono text-[10px] tracking-wide uppercase"
                 >
-                  Özet
+                  {isFirstPage
+                    ? PAGE_LABELS.ozet
+                    : PAGE_LABELS[PAGE_ORDER[PAGE_INDEX[page] - 1]]}
                 </TooltipContent>
               </Tooltip>
               <Tooltip>
                 <TooltipTrigger
                   type="button"
-                  aria-disabled={page === "ritim"}
-                  onClick={() => goToPage("ritim")}
+                  aria-disabled={isLastPage}
+                  onClick={goNextPage}
                   onPointerDown={(e) => e.stopPropagation()}
-                  aria-label="Ritim sayfası"
+                  aria-label="Sonraki sayfa"
                   className={cn(
                     "flex size-7 cursor-pointer items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",
-                    page === "ritim" &&
+                    isLastPage &&
                       "cursor-default opacity-30 hover:bg-transparent"
                   )}
                 >
@@ -479,7 +527,9 @@ export function CustomerDetailPanel({
                   sideOffset={6}
                   className="px-2 py-1 font-mono text-[10px] tracking-wide uppercase"
                 >
-                  Ritim
+                  {isLastPage
+                    ? PAGE_LABELS[PAGE_ORDER[PAGE_ORDER.length - 1]]
+                    : PAGE_LABELS[PAGE_ORDER[PAGE_INDEX[page] + 1]]}
                 </TooltipContent>
               </Tooltip>
             </div>
@@ -515,6 +565,18 @@ export function CustomerDetailPanel({
                     label="İlk teslimat"
                     value={formatDate(musteri.ilk_teslimat_tarihi)}
                   />
+                  {musteri.belge_top_urun && (
+                    <MetricRow
+                      label="En çok satılan"
+                      value={musteri.belge_top_urun}
+                    />
+                  )}
+                  {musteri.belge_son_urun && (
+                    <MetricRow
+                      label="Son satılan"
+                      value={musteri.belge_son_urun}
+                    />
+                  )}
                   {musteri.son_teslimattan_gecen_gun != null && (
                     <MetricRow
                       label="Geçen gün"
@@ -534,6 +596,13 @@ export function CustomerDetailPanel({
                     label="Toplam ağırlık"
                     value={formatKg(musteri.toplam_agirlik)}
                   />
+                  {musteri.yas_toplam != null && (
+                    <MetricRow
+                      label="Gecikmeli borç"
+                      value={formatCurrencyPrecise(Number(musteri.yas_toplam))}
+                      strong
+                    />
+                  )}
                   <MetricRow
                     label="Müşteri durumu"
                     value={musteri.durum ?? "—"}
@@ -547,7 +616,7 @@ export function CustomerDetailPanel({
                   )}
                 </dl>
               </motion.div>
-            ) : (
+            ) : page === "ritim" ? (
               <motion.div
                 key="ritim"
                 ref={pageMeasureRef}
@@ -564,6 +633,34 @@ export function CustomerDetailPanel({
                   snapshot={snapshot}
                   loading={snapLoading}
                 />
+              </motion.div>
+            ) : page === "borclar" ? (
+              <motion.div
+                key="borclar"
+                ref={pageMeasureRef}
+                custom={pageDirection}
+                variants={pageSlideVariants}
+                initial="enter"
+                animate="center"
+                exit="exit"
+                transition={pageSlideTransition}
+                className="absolute inset-x-0 top-0 w-full px-4 py-3.5"
+              >
+                <BorclarPage musteri={musteri} />
+              </motion.div>
+            ) : (
+              <motion.div
+                key="satis"
+                ref={pageMeasureRef}
+                custom={pageDirection}
+                variants={pageSlideVariants}
+                initial="enter"
+                animate="center"
+                exit="exit"
+                transition={pageSlideTransition}
+                className="absolute inset-x-0 top-0 w-full px-4 py-3.5"
+              >
+                <SatisPage musteri={musteri} />
               </motion.div>
             )}
           </AnimatePresence>
@@ -582,6 +679,191 @@ export function CustomerDetailPanel({
         </Button>
       </div>
     </motion.div>
+  );
+}
+
+function BorclarPage({ musteri }: { musteri: MusteriHarita }) {
+  if (musteri.yas_toplam == null) {
+    return (
+      <p className="text-xs leading-relaxed text-muted-foreground">
+        Henüz yaşlandırma verisi yok. Bir{" "}
+        <span className="text-foreground">ST Yaşlandırma</span> dosyası
+        yükledikten sonra gecikmeli borç kırılımı burada görünür.
+      </p>
+    );
+  }
+
+  const toplam = Number(musteri.yas_toplam);
+  const riskliTutar = Number(musteri.yas_riskli_tutar ?? 0);
+  const riskli = Boolean(musteri.borc_riskli);
+  const risksizTutar = Math.max(0, Math.round((toplam - riskliTutar) * 100) / 100);
+
+  return (
+    <div className="space-y-3.5">
+      {riskli && (
+        <div
+          className="rounded-lg px-3 py-2"
+          style={{
+            background: `color-mix(in oklab, ${RISK_COLORS.riskli} 14%, transparent)`,
+          }}
+        >
+          <p
+            className="font-mono text-[10px] tracking-[0.12em] uppercase"
+            style={{ color: RISK_COLORS.riskli }}
+          >
+            Riskli — 60+ hafta
+          </p>
+          <p className="mt-0.5 font-mono text-sm font-semibold tabular-nums">
+            {formatCurrencyPrecise(riskliTutar)}
+          </p>
+        </div>
+      )}
+
+      <dl className="flex flex-col gap-2 text-xs">
+        <MetricRow
+          label="Gecikmeli borç"
+          value={formatCurrencyPrecise(toplam)}
+          strong
+        />
+        <MetricRow
+          label="Risk durumu"
+          value={riskli ? "Riskli" : "Normal"}
+        />
+        <MetricRow
+          label="Riskli borç (60+ hafta)"
+          value={
+            riskliTutar > 0.005
+              ? formatCurrencyPrecise(riskliTutar)
+              : "—"
+          }
+        />
+        <MetricRow
+          label="Risksiz borç (60 hafta altı)"
+          value={
+            risksizTutar > 0.005
+              ? formatCurrencyPrecise(risksizTutar)
+              : "—"
+          }
+        />
+        {YAS_BUCKET_FIELDS.map(({ field, label }) => {
+          const amount = Number(musteri[field] ?? 0);
+          const isRiskBand =
+            field === "hf_56_62" ||
+            field === "hf_63_69" ||
+            field === "hf_70_ustu";
+          return (
+            <MetricRow
+              key={label}
+              label={`${label} hafta${isRiskBand ? " · risk" : ""}`}
+              value={
+                amount > 0.005 ? formatCurrencyPrecise(amount) : "—"
+              }
+            />
+          );
+        })}
+        <MetricRow label="ST" value={musteri.yas_st?.trim() || "—"} />
+      </dl>
+    </div>
+  );
+}
+
+function formatDonem(
+  bas: string | null | undefined,
+  bit: string | null | undefined
+): string {
+  if (!bas && !bit) return "—";
+  if (bas && bit && bas !== bit) {
+    return `${formatDate(bas)} – ${formatDate(bit)}`;
+  }
+  return formatDate(bas ?? bit ?? null);
+}
+
+function SatisPage({ musteri }: { musteri: MusteriHarita }) {
+  if (musteri.belge_net_ciro == null && musteri.belge_satir_sayisi == null) {
+    return (
+      <p className="text-xs leading-relaxed text-muted-foreground">
+        Henüz satış belgesi yok. Bir{" "}
+        <span className="text-foreground">BelgeDetayRaporu</span> dosyası
+        yükledikten sonra dönem satış özeti burada görünür.
+      </p>
+    );
+  }
+
+  return (
+    <dl className="flex flex-col gap-2 text-xs">
+      <MetricRow
+        label="Dönem"
+        value={formatDonem(musteri.belge_donem_bas, musteri.belge_donem_bit)}
+      />
+      <MetricRow
+        label="Net ciro"
+        value={formatCurrencyPrecise(Number(musteri.belge_net_ciro ?? 0))}
+        strong
+      />
+      <MetricRow
+        label="Brüt ciro"
+        value={formatCurrencyPrecise(Number(musteri.belge_brut_ciro ?? 0))}
+      />
+      <MetricRow
+        label="İskonto"
+        value={formatCurrencyPrecise(Number(musteri.belge_iskonto_toplam ?? 0))}
+      />
+      <MetricRow
+        label="Son işlem"
+        value={formatDate(musteri.belge_son_islem_tarihi ?? null)}
+        strong
+      />
+      {musteri.belge_vade_gunu != null && (
+        <MetricRow
+          label="Vade"
+          value={`${formatNumber(musteri.belge_vade_gunu)} gün`}
+        />
+      )}
+      <MetricRow
+        label="Sipariş"
+        value={formatNumber(musteri.belge_siparis_sayisi ?? 0)}
+      />
+      <MetricRow
+        label="Fatura"
+        value={formatNumber(musteri.belge_fatura_sayisi ?? 0)}
+      />
+      <MetricRow
+        label="Satır"
+        value={formatNumber(musteri.belge_satir_sayisi ?? 0)}
+      />
+      <MetricRow
+        label="Promosyon satır"
+        value={formatNumber(musteri.belge_promo_satir ?? 0)}
+      />
+      {(musteri.belge_iptal_satir ?? 0) > 0 && (
+        <MetricRow
+          label="İptal satır"
+          value={formatNumber(musteri.belge_iptal_satir ?? 0)}
+        />
+      )}
+      {musteri.belge_top_urun && (
+        <MetricRow label="En çok ürün" value={musteri.belge_top_urun} />
+      )}
+      {musteri.belge_son_urun && (
+        <MetricRow label="Son ürün" value={musteri.belge_son_urun} />
+      )}
+      {musteri.belge_top_urun_grup && (
+        <MetricRow label="En çok marka" value={musteri.belge_top_urun_grup} />
+      )}
+      {musteri.belge_son_urun_grup && (
+        <MetricRow label="Son marka" value={musteri.belge_son_urun_grup} />
+      )}
+      {musteri.belge_st_adi && (
+        <MetricRow
+          label="ST"
+          value={
+            musteri.belge_st_kodu
+              ? `${musteri.belge_st_adi} (${musteri.belge_st_kodu})`
+              : musteri.belge_st_adi
+          }
+        />
+      )}
+    </dl>
   );
 }
 
@@ -947,6 +1229,23 @@ function MetricRow({
     </div>
   );
 }
+
+const YAS_BUCKET_FIELDS: Array<{
+  field: keyof MusteriHarita;
+  label: string;
+}> = [
+  { field: "hf_01_06", label: "01-06" },
+  { field: "hf_07_13", label: "07-13" },
+  { field: "hf_14_20", label: "14-20" },
+  { field: "hf_21_27", label: "21-27" },
+  { field: "hf_28_34", label: "28-34" },
+  { field: "hf_35_41", label: "35-41" },
+  { field: "hf_42_48", label: "42-48" },
+  { field: "hf_49_55", label: "49-55" },
+  { field: "hf_56_62", label: "56-62" },
+  { field: "hf_63_69", label: "63-69" },
+  { field: "hf_70_ustu", label: "70+" },
+];
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);

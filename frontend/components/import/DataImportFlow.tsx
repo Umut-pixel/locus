@@ -49,6 +49,8 @@ const TIP_LABEL: Record<UploadResult["tip"], string> = {
   MusteriListesi: "MusteriListesi",
   RutTanimListesi: "RutTanimListesi",
   SevkiyatRaporuKup: "SevkiyatRaporuKup",
+  StYaslandirma: "ST Yaşlandırma",
+  BelgeDetayRaporu: "BelgeDetayRaporu",
 };
 
 interface DataImportFlowProps {

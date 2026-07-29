@@ -121,12 +121,13 @@ export type RouteRevealTween = { kill: () => void };
 export async function revealRouteLine(
   full: FeatureCollection,
   setData: (fc: FeatureCollection) => void,
-  options?: { duration?: number }
+  options?: { duration?: number; signal?: AbortSignal }
 ): Promise<RouteRevealTween | null> {
   const duration = options?.duration ?? 1.25;
+  const signal = options?.signal;
   const segments = extractSegments(full);
   if (segments.length === 0) {
-    setData(full);
+    if (!signal?.aborted) setData(full);
     return null;
   }
 
@@ -135,11 +136,12 @@ export async function revealRouteLine(
     window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   if (reduced) {
-    setData(full);
+    if (!signal?.aborted) setData(full);
     return null;
   }
 
   const { default: gsap } = await import("gsap");
+  if (signal?.aborted) return null;
 
   setData(sliceRouteCollection(full, 0.001));
 
@@ -148,12 +150,24 @@ export async function revealRouteLine(
     t: 1,
     duration,
     ease: "power2.inOut",
-    onUpdate: () => setData(sliceRouteCollection(full, state.t)),
-    onComplete: () => setData(full),
+    onUpdate: () => {
+      if (signal?.aborted) return;
+      setData(sliceRouteCollection(full, state.t));
+    },
+    onComplete: () => {
+      if (signal?.aborted) return;
+      setData(full);
+    },
   });
+
+  const onAbort = () => {
+    tween.kill();
+  };
+  signal?.addEventListener("abort", onAbort, { once: true });
 
   return {
     kill: () => {
+      signal?.removeEventListener("abort", onAbort);
       tween.kill();
     },
   };

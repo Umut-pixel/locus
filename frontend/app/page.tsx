@@ -173,7 +173,9 @@ export default function Home() {
         musteri && screenPoint ? { x: screenPoint.x, y: screenPoint.y } : null
       );
       setHighlightedRutKod(null);
-      if (musteri) setImportOpen(false);
+      // Pin seçimi veya boş harita tıklaması: import kartını da kapat.
+      setImportOpen(false);
+      if (!musteri) setImportActivity(null);
     },
     []
   );
@@ -271,7 +273,7 @@ export default function Home() {
           <AnimatePresence>
             {selectedMusteri && panelAnchor && (
               <CustomerDetailPanel
-                key={selectedMusteri.musteri_kodu}
+                key="musteri-detail"
                 musteri={selectedMusteri}
                 anchor={panelAnchor}
                 containerRef={mapAreaRef}

@@ -26,6 +26,19 @@ function haversineKm(a: LngLat, b: LngLat): number {
   return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
 }
 
+function isValidLngLat(c: unknown): c is LngLat {
+  if (!Array.isArray(c) || c.length < 2) return false;
+  const [lon, lat] = c;
+  return (
+    typeof lon === "number" &&
+    typeof lat === "number" &&
+    Number.isFinite(lon) &&
+    Number.isFinite(lat) &&
+    Math.abs(lat) <= 90 &&
+    Math.abs(lon) <= 180
+  );
+}
+
 function sortByZiyaretSira(features: MusteriPointFeature[]): MusteriPointFeature[] {
   return [...features].sort((a, b) => {
     const sa = a.properties.ziyaret_sira;
@@ -44,8 +57,16 @@ function sortByZiyaretSira(features: MusteriPointFeature[]): MusteriPointFeature
 function dedupeCoords(coords: LngLat[]): LngLat[] {
   const out: LngLat[] = [];
   for (const c of coords) {
+    if (!isValidLngLat(c)) continue;
     const prev = out[out.length - 1];
-    if (!prev || prev[0] !== c[0] || prev[1] !== c[1]) out.push(c);
+    // Yakın duplicate'leri de at (~1 m) — aynı GPS kopyası çizgiyi kırmaz
+    if (
+      !prev ||
+      Math.abs(prev[0] - c[0]) > 1e-6 ||
+      Math.abs(prev[1] - c[1]) > 1e-6
+    ) {
+      out.push(c);
+    }
   }
   return out;
 }
@@ -63,7 +84,9 @@ export function selectRouteComponent(
   }
 ): MusteriPointFeature[] {
   const maxHopKm = options?.maxHopKm ?? ROUTE_MAX_HOP_KM;
-  const sorted = sortByZiyaretSira(routeFeatures);
+  const sorted = sortByZiyaretSira(routeFeatures).filter((f) =>
+    isValidLngLat(f.geometry.coordinates)
+  );
   if (sorted.length === 0) return [];
 
   const components: MusteriPointFeature[][] = [];

@@ -27,3 +27,5 @@ export function createSupabaseAdmin(): SupabaseClient {
 export const MUSTERILER_TABLE = "musteriler";
 export const YUKLEME_LOGLARI_TABLE = "yukleme_loglari";
 export const MUSTERI_SNAPSHOTLARI_TABLE = "musteri_snapshotlari";
+export const MUSTERI_YASLANDIRMA_TABLE = "musteri_yaslandirma";
+export const MUSTERI_BELGE_OZET_TABLE = "musteri_belge_ozet";

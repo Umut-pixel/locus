@@ -29,4 +29,39 @@ export interface MusteriHarita {
    * metrik aynı kalsa bile. Haritada dış halka filtresi.
    */
   son_yuklemede_guncellendi?: 0 | 1;
+  /** ST Yaşlandırma (LEFT JOIN) — yoksa null */
+  yas_st?: string | null;
+  hf_01_06?: number | null;
+  hf_07_13?: number | null;
+  hf_14_20?: number | null;
+  hf_21_27?: number | null;
+  hf_28_34?: number | null;
+  hf_35_41?: number | null;
+  hf_42_48?: number | null;
+  hf_49_55?: number | null;
+  hf_56_62?: number | null;
+  hf_63_69?: number | null;
+  hf_70_ustu?: number | null;
+  yas_toplam?: number | null;
+  yas_riskli_tutar?: number | null;
+  borc_riskli?: boolean | null;
+  /** BelgeDetayRaporu (LEFT JOIN) — yoksa null */
+  belge_donem_bas?: string | null;
+  belge_donem_bit?: string | null;
+  belge_satir_sayisi?: number | null;
+  belge_siparis_sayisi?: number | null;
+  belge_fatura_sayisi?: number | null;
+  belge_net_ciro?: number | null;
+  belge_brut_ciro?: number | null;
+  belge_iskonto_toplam?: number | null;
+  belge_promo_satir?: number | null;
+  belge_iptal_satir?: number | null;
+  belge_son_islem_tarihi?: string | null;
+  belge_vade_gunu?: number | null;
+  belge_top_urun_grup?: string | null;
+  belge_son_urun_grup?: string | null;
+  belge_top_urun?: string | null;
+  belge_son_urun?: string | null;
+  belge_st_adi?: string | null;
+  belge_st_kodu?: string | null;
 }

@@ -3,7 +3,9 @@ import type { YuklemeKarsilastirma } from "@/lib/snapshot-compare";
 export type DosyaTipi =
   | "MusteriListesi"
   | "RutTanimListesi"
-  | "SevkiyatRaporuKup";
+  | "SevkiyatRaporuKup"
+  | "StYaslandirma"
+  | "BelgeDetayRaporu";
 
 export interface UploadResult {
   tip: DosyaTipi;
@@ -61,4 +63,53 @@ export interface SevkiyatUpdateRow {
   toplam_agirlik: number;
   toplam_tutar: number;
   son_teslimattan_gecen_gun: number | null;
+}
+
+/** ST Yaşlandırma — müşteri bazlı borç gecikme kovaları. */
+export interface YaslandirmaUpdateRow {
+  musteri_kodu: string;
+  /** Excel'deki müşteri adı — unvan çapraz kontrolü için */
+  unvan: string;
+  st: string | null;
+  hf_01_06: number;
+  hf_07_13: number;
+  hf_14_20: number;
+  hf_21_27: number;
+  hf_28_34: number;
+  hf_35_41: number;
+  hf_42_48: number;
+  hf_49_55: number;
+  hf_56_62: number;
+  hf_63_69: number;
+  hf_70_ustu: number;
+  toplam: number;
+  riskli_tutar: number;
+  borc_riskli: boolean;
+}
+
+/** BelgeDetayRaporu — müşteri bazlı ticari dönem özeti. */
+export interface BelgeOzetUpdateRow {
+  musteri_kodu: string;
+  donem_bas: string | null;
+  donem_bit: string | null;
+  satir_sayisi: number;
+  siparis_sayisi: number;
+  fatura_sayisi: number;
+  net_ciro: number;
+  brut_ciro: number;
+  iskonto_toplam: number;
+  promo_satir: number;
+  iptal_satir: number;
+  son_islem_tarihi: string | null;
+  vade_gunu: number | null;
+  /** Satır sayısına göre en sık UrunGrup */
+  top_urun_grup: string | null;
+  /** En son IslemTarihi satırındaki UrunGrup */
+  son_urun_grup: string | null;
+  /** Satır sayısına göre en sık Urun */
+  top_urun: string | null;
+  /** En son IslemTarihi satırındaki Urun */
+  son_urun: string | null;
+  st_adi: string | null;
+  st_kodu: string | null;
 }

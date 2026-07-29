@@ -38,10 +38,10 @@ const ROUTE_GLOW_LAYER = "route-highlight-glow";
 const ROUTE_LINE_LAYER = "route-line";
 const ROUTE_LINE_CASING_LAYER = "route-line-casing";
 const ROUTE_ORDER_LAYER = "route-order-labels";
-const ROUTE_HIGHLIGHT_COLOR = "#ffffff";
-const ROUTE_LINE_COLOR = "#ffffff";
-/** Directions gelene kadar çizgiyi gizle; bu süre dolunca düz çizgi yedeği. */
-const ROUTE_SNAP_TIMEOUT_MS = 4000;
+/** Google Maps directions mavi */
+const ROUTE_HIGHLIGHT_COLOR = "#4285F4";
+const ROUTE_LINE_COLOR = "#4285F4";
+const ROUTE_LINE_CASING_COLOR = "#1A73E8";
 const EMPTY_FEATURE_COLLECTION: MusteriFeatureCollection = {
   type: "FeatureCollection",
   features: [],
@@ -156,9 +156,9 @@ export function PetshopMap({
             "line-cap": "round",
           },
           paint: {
-            "line-color": "#0a0a0b",
-            "line-width": 2.25,
-            "line-opacity": 0.28,
+            "line-color": ROUTE_LINE_CASING_COLOR,
+            "line-width": 8,
+            "line-opacity": 0.85,
           },
         });
       }
@@ -173,8 +173,8 @@ export function PetshopMap({
           },
           paint: {
             "line-color": ROUTE_LINE_COLOR,
-            "line-width": 1.25,
-            "line-opacity": 0.88,
+            "line-width": 5,
+            "line-opacity": 1,
           },
         });
       }
@@ -185,10 +185,10 @@ export function PetshopMap({
           type: "circle",
           source: ROUTE_SOURCE_ID,
           paint: {
-            "circle-radius": 18,
+            "circle-radius": 16,
             "circle-color": ROUTE_HIGHLIGHT_COLOR,
-            "circle-opacity": 0.25,
-            "circle-blur": 0.9,
+            "circle-opacity": 0.22,
+            "circle-blur": 0.85,
           },
         });
       }
@@ -199,8 +199,8 @@ export function PetshopMap({
           type: "circle",
           source: ROUTE_SOURCE_ID,
           paint: {
-            "circle-radius": 12,
-            "circle-color": "rgba(0,0,0,0)",
+            "circle-radius": 11,
+            "circle-color": "#ffffff",
             "circle-stroke-width": 3,
             "circle-stroke-color": ROUTE_HIGHLIGHT_COLOR,
             "circle-stroke-opacity": 1,
@@ -225,10 +225,23 @@ export function PetshopMap({
           },
           paint: {
             "text-color": ROUTE_HIGHLIGHT_COLOR,
-            "text-halo-color": "#0a0a0b",
-            "text-halo-width": 1.5,
+            "text-halo-color": "#ffffff",
+            "text-halo-width": 1.25,
           },
         });
+      } else {
+        // HMR / yeniden mount: stil sabitleri güncellensin
+        map.setPaintProperty(ROUTE_LINE_CASING_LAYER, "line-color", ROUTE_LINE_CASING_COLOR);
+        map.setPaintProperty(ROUTE_LINE_CASING_LAYER, "line-width", 8);
+        map.setPaintProperty(ROUTE_LINE_CASING_LAYER, "line-opacity", 0.85);
+        map.setPaintProperty(ROUTE_LINE_LAYER, "line-color", ROUTE_LINE_COLOR);
+        map.setPaintProperty(ROUTE_LINE_LAYER, "line-width", 5);
+        map.setPaintProperty(ROUTE_LINE_LAYER, "line-opacity", 1);
+        map.setPaintProperty(ROUTE_GLOW_LAYER, "circle-color", ROUTE_HIGHLIGHT_COLOR);
+        map.setPaintProperty(ROUTE_LAYER, "circle-stroke-color", ROUTE_HIGHLIGHT_COLOR);
+        map.setPaintProperty(ROUTE_LAYER, "circle-color", "#ffffff");
+        map.setPaintProperty(ROUTE_ORDER_LAYER, "text-color", ROUTE_HIGHLIGHT_COLOR);
+        map.setPaintProperty(ROUTE_ORDER_LAYER, "text-halo-color", "#ffffff");
       }
 
       if (map.getLayer(SELECTED_LAYER)) {
@@ -320,6 +333,19 @@ export function PetshopMap({
           duration: 400,
         });
       });
+    });
+
+    // Pin/cluster dışı boş harita tıklanınca açık kartı kapat.
+    map.on("click", (e) => {
+      const layers = [POINT_LAYER, CLUSTER_LAYER].filter((id) =>
+        Boolean(map.getLayer(id))
+      );
+      if (layers.length === 0) {
+        onSelectRef.current(null);
+        return;
+      }
+      const hit = map.queryRenderedFeatures(e.point, { layers });
+      if (hit.length === 0) onSelectRef.current(null);
     });
 
     return () => {
@@ -444,9 +470,7 @@ export function PetshopMap({
     const straight = buildRouteLineCollection(sorted, routeOpts);
     const componentKodlari = component.map((f) => f.properties.musteri_kodu);
 
-    // Durakları (bileşen) hemen göster; çizgiyi Directions bitene kadar gizle.
     routeSource.setData({ type: "FeatureCollection", features: component });
-    lineSource.setData(EMPTY_LINE_COLLECTION);
     setBackgroundDim(true, componentKodlari);
 
     const zoomCoords = component.map(
@@ -467,24 +491,32 @@ export function PetshopMap({
       });
     }
 
-    if (segments.length === 0) return;
-
     const ac = new AbortController();
     let cancelled = false;
-    let shownRoads = false;
+    let paintGen = 0;
 
-    const paintRoute = (fc: GeoJSON.FeatureCollection) => {
+    const paintRoute = (
+      fc: GeoJSON.FeatureCollection,
+      opts?: { animate?: boolean }
+    ) => {
       if (cancelled || !mapRef.current) return;
+      const gen = ++paintGen;
       killRouteTween();
+
+      if (!opts?.animate || fc.features.length === 0) {
+        lineSource.setData(fc);
+        return;
+      }
+
       void revealRouteLine(
         fc,
         (partial) => {
-          if (cancelled || !mapRef.current) return;
+          if (cancelled || gen !== paintGen || !mapRef.current) return;
           lineSource.setData(partial);
         },
-        { duration: 1.25 }
+        { duration: 1.1, signal: ac.signal }
       ).then((tween) => {
-        if (cancelled) {
+        if (cancelled || gen !== paintGen) {
           tween?.kill();
           return;
         }
@@ -492,36 +524,36 @@ export function PetshopMap({
       });
     };
 
-    const snapPromise = snapSegmentsToRoads(segments, ac.signal);
+    // Anında kuş uçuşu çizgi — Directions beklerken boş ekran kalmasın.
+    if (straight.features.length > 0) {
+      paintRoute(straight, { animate: true });
+    } else {
+      lineSource.setData(EMPTY_LINE_COLLECTION);
+    }
 
-    const timeoutId = window.setTimeout(() => {
-      // Directions henüz gelmediyse kısa süre sonra düz çizgi yedeği
-      if (!cancelled && !shownRoads && mapRef.current) {
-        paintRoute(straight);
-      }
-    }, ROUTE_SNAP_TIMEOUT_MS);
+    if (segments.length === 0) {
+      return () => {
+        cancelled = true;
+        killRouteTween();
+        ac.abort();
+      };
+    }
 
-    snapPromise
+    snapSegmentsToRoads(segments, ac.signal)
       .then((roadLines) => {
         if (cancelled || !mapRef.current) return;
-        window.clearTimeout(timeoutId);
         if (roadLines.features.length > 0) {
-          shownRoads = true;
-          paintRoute(roadLines);
-        } else if (!shownRoads) {
-          paintRoute(straight);
+          // Yol oturtması geldiğinde animasyonsuz değiştir — çift çizim flash'ı yok.
+          paintRoute(roadLines, { animate: false });
         }
       })
       .catch((err) => {
-        window.clearTimeout(timeoutId);
         if (cancelled || (err as Error).name === "AbortError") return;
-        console.warn("[route] directions failed, using straight lines", err);
-        paintRoute(straight);
+        console.warn("[route] directions failed, keeping straight lines", err);
       });
 
     return () => {
       cancelled = true;
-      window.clearTimeout(timeoutId);
       killRouteTween();
       ac.abort();
     };
