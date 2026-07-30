@@ -284,16 +284,9 @@ export default function Home() {
           }}
         >
           <div className="flex min-h-0 w-full max-w-full flex-col items-stretch gap-1.5 sm:max-w-[22rem] sm:items-start">
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-2">
               <div className="pointer-events-auto lg:hidden">
                 <MobileFilterSheet {...filterProps} />
-              </div>
-              <div className="pointer-events-auto lg:hidden">
-                <RiskModeToggle
-                  value={riskMode}
-                  onChange={handleRiskModeChange}
-                  className="shadow-md"
-                />
               </div>
               <Button
                 variant="secondary"
@@ -311,6 +304,14 @@ export default function Home() {
                   Yenileniyor…
                 </span>
               )}
+            </div>
+            {/* Ayrı satır: dar ekranda menü/yükle arasına sıkışıp kaybolmasın */}
+            <div className="pointer-events-auto w-fit lg:hidden">
+              <RiskModeToggle
+                value={riskMode}
+                onChange={handleRiskModeChange}
+                className="shadow-md"
+              />
             </div>
             <AnimatePresence>
               {importOpen && (
