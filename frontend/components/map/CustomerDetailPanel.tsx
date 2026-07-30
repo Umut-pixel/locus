@@ -91,7 +91,7 @@ const PAGE_LABELS: Record<PanelPage, string> = {
 
 const pageSlideVariants = {
   enter: (direction: number) => ({
-    x: direction === 0 ? 0 : direction > 0 ? 18 : -18,
+    x: direction === 0 ? 0 : direction > 0 ? 28 : -28,
     opacity: direction === 0 ? 1 : 0,
   }),
   center: {
@@ -99,14 +99,14 @@ const pageSlideVariants = {
     opacity: 1,
   },
   exit: (direction: number) => ({
-    x: direction === 0 ? 0 : direction < 0 ? 18 : -18,
+    x: direction === 0 ? 0 : direction < 0 ? 28 : -28,
     opacity: 0,
   }),
 };
 
 const pageSlideTransition = {
-  x: { duration: 0.2, ease: [0.22, 1, 0.36, 1] as const },
-  opacity: { duration: 0.16, ease: [0.22, 1, 0.36, 1] as const },
+  x: { duration: 0.22, ease: [0.22, 1, 0.36, 1] as const },
+  opacity: { duration: 0.18, ease: [0.22, 1, 0.36, 1] as const },
 };
 
 const heightTween = {
@@ -178,21 +178,37 @@ export function CustomerDetailPanel({
   const sheetDraggingRef = useRef(false);
   const expandedHRef = useRef(380);
   const peekHRef = useRef(SHEET_PEEK_FALLBACK);
+  const sheetAnimRef = useRef<{ stop: () => void } | null>(null);
   const sheetDragRef = useRef<{
     pointerId: number;
+    startX: number;
     startY: number;
     startH: number;
     lastY: number;
     lastT: number;
     velocity: number;
-    /** pending: scroll alanında yön belli değil; sheet: kart sürükleniyor; scroll: içeriğe bırak */
-    mode: "pending" | "sheet" | "scroll";
+    /** pending → sheet | page | scroll */
+    mode: "pending" | "sheet" | "page" | "scroll";
     scrollEl: HTMLElement | null;
   } | null>(null);
 
-  const x = useMotionValue(0);
-  const y = useMotionValue(0);
+  /** Konum (left/top) — transform `y` exit animasyonuyla çakışmasın. */
+  const posX = useMotionValue(0);
+  const posY = useMotionValue(0);
   const sheetH = useMotionValue(380);
+
+  // Peek'teyken başka nokta seçilince ilk paint'te limited view'da kalmasın.
+  const [sheetForKod, setSheetForKod] = useState(musteri.musteri_kodu);
+  if (sheetForKod !== musteri.musteri_kodu) {
+    setSheetForKod(musteri.musteri_kodu);
+    setSheetExpanded(true);
+    setSheetDragging(false);
+    setSheetSnapLock(false);
+    sheetDraggingRef.current = false;
+    sheetDragRef.current = null;
+    sheetAnimRef.current?.stop();
+    sheetAnimRef.current = null;
+  }
 
   const goToPage = (next: PanelPage) => {
     if (next === page) return;
@@ -224,6 +240,9 @@ export function CustomerDetailPanel({
     setSheetDragging(false);
     setSheetSnapLock(false);
     sheetDraggingRef.current = false;
+    sheetDragRef.current = null;
+    sheetAnimRef.current?.stop();
+    sheetAnimRef.current = null;
     setSnapLoading(true);
     setSnapshot(null);
 
@@ -290,7 +309,10 @@ export function CustomerDetailPanel({
         const peek = peekChromeRef.current?.offsetHeight;
         if (peek && peek > 80) peekHRef.current = peek;
         if (sheetExpanded) {
-          expandedHRef.current = next;
+          // Peek yüksekliğini expanded sanma (müşteri değişiminde kilitli height kalıntısı).
+          if (next > peekHRef.current + 40) {
+            expandedHRef.current = next;
+          }
         } else {
           sheetH.set(peekHRef.current);
         }
@@ -346,8 +368,7 @@ export function CustomerDetailPanel({
 
     // Mobil bottom-sheet: alta yaslı; yükseklik sheetH ile (sürükleme).
     if (isCompact) {
-      x.set(EDGE_MARGIN);
-      y.set(0);
+      posX.set(EDGE_MARGIN);
       reanchorRef.current = false;
       return;
     }
@@ -364,22 +385,22 @@ export function CustomerDetailPanel({
         panelWidth: width || PANEL_WIDTH,
       });
       // İlk açılışta anında yerleştir; müşteri değişiminde yumuşak kaydır.
-      const firstOpen = x.get() === 0 && y.get() === 0;
+      const firstOpen = posX.get() === 0 && posY.get() === 0;
       if (firstOpen) {
-        x.set(pos.left);
-        y.set(pos.top);
+        posX.set(pos.left);
+        posY.set(pos.top);
       } else {
-        void animate(x, pos.left, heightTween);
-        void animate(y, pos.top, heightTween);
+        void animate(posX, pos.left, heightTween);
+        void animate(posY, pos.top, heightTween);
       }
       reanchorRef.current = false;
       return;
     }
 
     const maxTop = Math.max(EDGE_MARGIN, containerH - panelHeight - EDGE_MARGIN);
-    const current = y.get();
+    const current = posY.get();
     if (current > maxTop) {
-      void animate(y, maxTop, heightTween);
+      void animate(posY, maxTop, heightTween);
     }
   }, [
     musteri.musteri_kodu,
@@ -391,8 +412,8 @@ export function CustomerDetailPanel({
     width,
     isCompact,
     sheetExpanded,
-    x,
-    y,
+    posX,
+    posY,
   ]);
 
   const dragConstraints =
@@ -425,12 +446,18 @@ export function CustomerDetailPanel({
     const peek = peekHRef.current;
     const expanded = Math.max(maxSheetHeight(), peek + 80);
     const target = expand ? expanded : peek;
+    sheetAnimRef.current?.stop();
     setSheetSnapLock(true);
     setSheetExpanded(expand);
     sheetDraggingRef.current = false;
     setSheetDragging(false);
-    void animate(sheetH, target, sheetSnapTween).then(() => {
-      setSheetSnapLock(false);
+    const controls = animate(sheetH, target, sheetSnapTween);
+    sheetAnimRef.current = controls;
+    void controls.then(() => {
+      if (sheetAnimRef.current === controls) {
+        sheetAnimRef.current = null;
+        setSheetSnapLock(false);
+      }
     });
   };
 
@@ -473,6 +500,7 @@ export function CustomerDetailPanel({
     const prev = sheetDragRef.current;
     sheetDragRef.current = {
       pointerId: e.pointerId,
+      startX: prev?.startX ?? e.clientX,
       startY: prev?.startY ?? e.clientY,
       startH,
       lastY: e.clientY,
@@ -505,57 +533,58 @@ export function CustomerDetailPanel({
     const scrollEl = target?.closest(
       "[data-sheet-scroll]"
     ) as HTMLElement | null;
-    const scrollBlocked =
-      Boolean(scrollEl) &&
-      sheetExpanded &&
-      !sheetDragging &&
-      scrollEl!.scrollTop > 0;
 
-    // Scroll ortasındaysa önce içeriğe bırak; tepedeyken / peek'te kart sürüklenir.
-    if (scrollBlocked) {
-      sheetDragRef.current = {
-        pointerId: e.pointerId,
-        startY: e.clientY,
-        startH,
-        lastY: e.clientY,
-        lastT: performance.now(),
-        velocity: 0,
-        mode: "pending",
-        scrollEl,
-      };
-      return;
-    }
-
-    beginSheetDrag(e, startH);
-    if (sheetDragRef.current) {
-      sheetDragRef.current.startY = e.clientY;
-    }
+    // Yön belli olana kadar bekle: dikey = sheet/scroll, yatay = sayfa.
+    sheetDragRef.current = {
+      pointerId: e.pointerId,
+      startX: e.clientX,
+      startY: e.clientY,
+      startH,
+      lastY: e.clientY,
+      lastT: performance.now(),
+      velocity: 0,
+      mode: "pending",
+      scrollEl,
+    };
   };
 
   const onSheetPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
     const drag = sheetDragRef.current;
     if (!drag || e.pointerId !== drag.pointerId) return;
 
-    if (drag.mode === "scroll") return;
+    if (drag.mode === "scroll" || drag.mode === "page") return;
 
     if (drag.mode === "pending") {
+      const dx = e.clientX - drag.startX;
       const dy = e.clientY - drag.startY;
+      const adx = Math.abs(dx);
+      const ady = Math.abs(dy);
+      if (adx < 10 && ady < 10) return;
+
+      // Yatay baskın → sayfa değiştir (yalnızca mobilde, açık kartta).
+      if (sheetExpanded && adx > ady * 1.15) {
+        drag.mode = "page";
+        return;
+      }
+
       const scrollTop = drag.scrollEl?.scrollTop ?? 0;
-      if (scrollTop > 0) {
+      if (scrollTop > 0 && ady >= adx) {
         drag.mode = "scroll";
         return;
       }
-      // Tepede aşağı çek → kartı küçült
-      if (dy > 8) {
-        beginSheetDrag(e, drag.startH);
-        if (sheetDragRef.current) {
-          sheetDragRef.current.startY = drag.startY;
+
+      // Dikey → sheet yüksekliği
+      if (ady >= adx) {
+        if (dy > 6 || !sheetExpanded) {
+          beginSheetDrag(e, drag.startH);
+        } else if (dy < -6) {
+          drag.mode = "scroll";
         }
-      } else if (dy < -8) {
-        drag.mode = "scroll";
       }
       return;
     }
+
+    if (drag.mode !== "sheet") return;
 
     const now = performance.now();
     const dt = Math.max(now - drag.lastT, 1);
@@ -577,7 +606,25 @@ export function CustomerDetailPanel({
     const drag = sheetDragRef.current;
     if (!drag || e.pointerId !== drag.pointerId) return;
 
+    if (drag.mode === "page") {
+      const dx = e.clientX - drag.startX;
+      sheetDragRef.current = null;
+      if (dx <= -48) goNextPage();
+      else if (dx >= 48) goPrevPage();
+      return;
+    }
+
     if (drag.mode !== "sheet") {
+      // Peek'te kısa dokunuş → aç
+      if (
+        drag.mode === "pending" &&
+        !sheetExpanded &&
+        Math.hypot(e.clientX - drag.startX, e.clientY - drag.startY) < 10
+      ) {
+        sheetDragRef.current = null;
+        snapSheetTo(true);
+        return;
+      }
       sheetDragRef.current = null;
       return;
     }
@@ -608,14 +655,17 @@ export function CustomerDetailPanel({
 
   return (
     <motion.div
-      ref={panelRef}
-      initial={{ opacity: 0, scale: 0.98 }}
-      animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.98 }}
+      className="pointer-events-none absolute inset-0 z-20"
+      initial={{ opacity: 0, y: isCompact ? 64 : 28 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: isCompact ? "110%" : 120 }}
       transition={{
-        opacity: { duration: 0.14 },
-        scale: { duration: 0.18, ease: [0.22, 1, 0.36, 1] },
+        y: { duration: 0.34, ease: [0.22, 1, 0.36, 1] },
+        opacity: { duration: 0.24, ease: [0.22, 1, 0.36, 1] },
       }}
+    >
+    <motion.div
+      ref={panelRef}
       drag={!isCompact}
       dragListener={false}
       dragControls={dragControls}
@@ -641,18 +691,17 @@ export function CustomerDetailPanel({
       style={
         isCompact
           ? {
-              x,
+              x: posX,
               width,
               left: 0,
               top: "auto",
               bottom: EDGE_MARGIN,
-              y: 0,
               height: sheetHeightConstrained ? sheetH : undefined,
             }
-          : { x, y, width, left: 0, top: 0 }
+          : { x: posX, y: posY, width, left: 0, top: 0 }
       }
       className={cn(
-        "pointer-events-auto absolute z-20 flex max-h-[min(85dvh,calc(100%-1.5rem))] flex-col overflow-hidden rounded-2xl border bg-popover text-popover-foreground shadow-[0_16px_48px_-12px_rgba(0,0,0,0.6)]",
+        "pointer-events-auto absolute flex max-h-[min(85dvh,calc(100%-1.5rem))] flex-col overflow-hidden rounded-2xl border bg-popover text-popover-foreground shadow-[0_16px_48px_-12px_rgba(0,0,0,0.6)]",
         isCompact && "cursor-grab touch-pan-y",
         (dragging || sheetDragging) && "cursor-grabbing select-none touch-none"
       )}
@@ -978,6 +1027,7 @@ export function CustomerDetailPanel({
       </div>
         </>
       )}
+    </motion.div>
     </motion.div>
   );
 }
