@@ -34,7 +34,7 @@ export function SegmentBar({
           className="h-2 min-w-0 flex-1 rounded-[1.5px] transition-colors duration-300 ease-out"
           style={{
             backgroundColor: i < filled ? color : "var(--secondary)",
-            transitionDelay: `${i * 12}ms`,
+            transitionDelay: segments > 16 ? `${Math.min(i, 10) * 6}ms` : `${i * 10}ms`,
           }}
         />
       ))}

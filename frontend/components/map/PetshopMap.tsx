@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { memo, useEffect, useRef } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 
@@ -61,7 +61,7 @@ interface PetshopMapProps {
   ) => void;
 }
 
-export function PetshopMap({
+export const PetshopMap = memo(function PetshopMap({
   data,
   selectedMusteriKodu,
   highlightedRutKod,
@@ -264,6 +264,8 @@ export function PetshopMap({
     map.on("load", mountOverlays);
 
     map.on("mouseenter", POINT_LAYER, (e) => {
+      // Dokunmatikte hover popup gereksiz maliyeti önle.
+      if (window.matchMedia("(hover: none)").matches) return;
       map.getCanvas().style.cursor = "pointer";
       const feature = e.features?.[0];
       if (!feature || feature.geometry.type !== "Point") return;
@@ -455,7 +457,8 @@ export function PetshopMap({
       return;
     }
 
-    const matching = data.features.filter(
+    // dataRef: filtre/geojson değişince Directions+GSAP yeniden başlamasın.
+    const matching = dataRef.current.features.filter(
       (feature) => String(feature.properties.rut_kod) === String(highlightedRutKod)
     );
     const sorted = sortRouteFeatures(matching);
@@ -557,7 +560,7 @@ export function PetshopMap({
       killRouteTween();
       ac.abort();
     };
-  }, [highlightedRutKod, data, selectedMusteriKodu]);
+  }, [highlightedRutKod, selectedMusteriKodu]);
 
   if (!MAPBOX_TOKEN) {
     return (
@@ -572,7 +575,7 @@ export function PetshopMap({
   }
 
   return <div ref={containerRef} className="h-full w-full" />;
-}
+});
 
 function escapeHtml(value: string): string {
   return value

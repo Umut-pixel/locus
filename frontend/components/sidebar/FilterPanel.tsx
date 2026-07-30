@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, type ReactNode } from "react";
+import { memo, useId, type ReactNode } from "react";
 import { SearchIcon, XIcon } from "lucide-react";
 import { motion } from "motion/react";
 
@@ -46,7 +46,7 @@ interface FilterPanelProps {
   riskShortLabels?: Record<RiskDurumu, string>;
 }
 
-export function FilterPanel({
+export const FilterPanel = memo(function FilterPanel({
   cities,
   selectedCities,
   onToggleCity,
@@ -179,7 +179,7 @@ export function FilterPanel({
       </div>
     </div>
   );
-}
+});
 
 function RiskSegmentedControl({
   value,
@@ -226,7 +226,7 @@ function RiskSegmentedControl({
               <motion.span
                 layoutId={`risk-segment-${instanceId}`}
                 className="absolute inset-0 rounded-full bg-secondary shadow-sm ring-1 ring-border"
-                transition={{ type: "spring", stiffness: 480, damping: 38 }}
+                transition={{ type: "tween", duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
               />
             )}
             <span className="relative z-10">{option.label}</span>
@@ -279,7 +279,7 @@ function RiskDagilim({
           <span
             key={i}
             className="h-1.5 min-w-0 flex-1 rounded-[1px] transition-colors duration-300 ease-out"
-            style={{ backgroundColor: color, transitionDelay: `${i * 12}ms` }}
+            style={{ backgroundColor: color, transitionDelay: `${Math.min(i, 12) * 8}ms` }}
           />
         ))}
       </div>

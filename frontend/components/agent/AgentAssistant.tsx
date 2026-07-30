@@ -108,8 +108,15 @@ export function AgentAssistant({
   }, []);
 
   const orb = AGENT_ORB[phase];
-  const breathAmp = 1 + orb.energy * 0.05;
-  const breathMs = 3400 - orb.energy * 1500;
+  const [reduceMotion] = useState(
+    () =>
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  );
+  // Idle'da sürekli scale pulse GPU yakar; yalnızca aktif fazlarda nefes al.
+  const breathe = !reduceMotion && phase !== "idle" && orb.energy > 0.15;
+  const breathAmp = 1 + orb.energy * 0.04;
+  const breathMs = 3600 - orb.energy * 1200;
 
   const clearTimers = useCallback(() => {
     for (const t of timers.current) clearTimeout(t);
@@ -127,7 +134,13 @@ export function AgentAssistant({
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
-    el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+    const reduce =
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    el.scrollTo({
+      top: el.scrollHeight,
+      behavior: reduce ? "auto" : "smooth",
+    });
   }, [items, phase, thought]);
 
   const push = useCallback((item: ChatItem) => {
@@ -313,22 +326,25 @@ export function AgentAssistant({
     <div className={cn("flex h-full min-h-0 flex-col", className)}>
       <header className="flex shrink-0 flex-col items-center px-4 pt-4 pb-2">
         <div className="relative flex size-[3.75rem] items-center justify-center">
-          <motion.div
+          <div
             aria-hidden
             className="pointer-events-none absolute inset-0 rounded-full bg-white/[0.035] blur-xl"
-            animate={{
+            style={{
               opacity: 0.35 + orb.energy * 0.45,
-              scale: 0.9 + orb.energy * 0.25,
+              transform: `scale(${0.9 + orb.energy * 0.25})`,
             }}
-            transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
           />
           <motion.div
-            animate={{ scale: [1, breathAmp, 1] }}
-            transition={{
-              duration: Math.max(breathMs, 1200) / 1000,
-              repeat: Infinity,
-              ease: "easeInOut",
-            }}
+            animate={breathe ? { scale: [1, breathAmp, 1] } : { scale: 1 }}
+            transition={
+              breathe
+                ? {
+                    duration: Math.max(breathMs, 1400) / 1000,
+                    repeat: Infinity,
+                    ease: "easeInOut",
+                  }
+                : { duration: 0.2 }
+            }
             className="relative origin-center scale-[0.88]"
           >
             <ThinkingOrb
@@ -345,10 +361,10 @@ export function AgentAssistant({
           <AnimatePresence mode="wait">
             <motion.p
               key={phase + orb.label}
-              initial={{ opacity: 0, y: 3, filter: "blur(3px)" }}
-              animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-              exit={{ opacity: 0, y: -3, filter: "blur(3px)" }}
-              transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+              initial={{ opacity: 0, y: 3 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -3 }}
+              transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
               className="absolute inset-0 text-center text-[11px] tracking-wide text-white/60"
             >
               {orb.label}
@@ -464,6 +480,7 @@ function ChatRow({
       <motion.div
         initial={{ opacity: 0, y: 6 }}
         animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
         className="flex justify-end"
       >
         <p className="max-w-[90%] rounded-2xl rounded-br-md bg-white/[0.08] px-2.5 py-1.5 text-[11px] leading-snug text-white/88">
@@ -478,7 +495,7 @@ function ChatRow({
       <motion.div
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+        transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
         className="border-t border-white/[0.06] pt-3"
       >
         <p className="mb-1.5 font-mono text-[9px] tracking-[0.16em] text-emerald-400/70 uppercase">

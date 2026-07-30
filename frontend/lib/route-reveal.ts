@@ -27,20 +27,25 @@ function lerp(a: LngLat, b: LngLat, t: number): LngLat {
   return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
 }
 
-function sliceLineByFraction(coords: LngLat[], fraction: number): LngLat[] {
+/** Segment kenar uzunlukları önceden hesaplanır — her slice'ta haversine yok. */
+function sliceLineByFraction(
+  coords: LngLat[],
+  edgeLens: number[],
+  totalLen: number,
+  fraction: number
+): LngLat[] {
   if (coords.length < 2) return coords;
   if (fraction <= 0) return [coords[0], coords[0]];
   if (fraction >= 1) return coords;
 
-  const total = lineLengthKm(coords);
-  if (total <= 0) return coords.slice(0, 2);
+  if (totalLen <= 0) return coords.slice(0, 2);
 
-  const target = total * fraction;
+  const target = totalLen * fraction;
   let acc = 0;
   const out: LngLat[] = [coords[0]];
 
   for (let i = 1; i < coords.length; i++) {
-    const seg = haversineKm(coords[i - 1], coords[i]);
+    const seg = edgeLens[i - 1] ?? 0;
     if (acc + seg >= target) {
       const t = seg > 0 ? (target - acc) / seg : 0;
       out.push(lerp(coords[i - 1], coords[i], t));
@@ -52,33 +57,41 @@ function sliceLineByFraction(coords: LngLat[], fraction: number): LngLat[] {
   return out;
 }
 
-function extractSegments(
-  full: FeatureCollection
-): { coords: LngLat[]; length: number; props: Record<string, unknown> }[] {
-  const out: {
-    coords: LngLat[];
-    length: number;
-    props: Record<string, unknown>;
-  }[] = [];
+type PreparedSegment = {
+  coords: LngLat[];
+  edgeLens: number[];
+  length: number;
+  props: Record<string, unknown>;
+};
+
+function prepareSegments(full: FeatureCollection): PreparedSegment[] {
+  const out: PreparedSegment[] = [];
 
   for (const f of full.features) {
     if (f.geometry?.type !== "LineString") continue;
     const coords = f.geometry.coordinates as LngLat[];
     if (coords.length < 2) continue;
+    const edgeLens: number[] = [];
+    let length = 0;
+    for (let i = 1; i < coords.length; i++) {
+      const seg = haversineKm(coords[i - 1], coords[i]);
+      edgeLens.push(seg);
+      length += seg;
+    }
     out.push({
       coords,
-      length: lineLengthKm(coords),
+      edgeLens,
+      length,
       props: (f.properties ?? {}) as Record<string, unknown>,
     });
   }
   return out;
 }
 
-export function sliceRouteCollection(
-  full: FeatureCollection,
+function slicePrepared(
+  segments: PreparedSegment[],
   progress: number
 ): FeatureCollection<LineString> {
-  const segments = extractSegments(full);
   const t = Math.min(1, Math.max(0, progress));
   const totalLen =
     segments.reduce((sum, s) => sum + Math.max(s.length, 1e-6), 0) || 1;
@@ -98,7 +111,12 @@ export function sliceRouteCollection(
       });
       remaining -= len;
     } else {
-      const partial = sliceLineByFraction(seg.coords, remaining / len);
+      const partial = sliceLineByFraction(
+        seg.coords,
+        seg.edgeLens,
+        seg.length,
+        remaining / len
+      );
       if (partial.length >= 2) {
         features.push({
           type: "Feature",
@@ -113,10 +131,19 @@ export function sliceRouteCollection(
   return { type: "FeatureCollection", features };
 }
 
+/** Public API — test / fallback; hazırlık maliyeti her çağrıda. */
+export function sliceRouteCollection(
+  full: FeatureCollection,
+  progress: number
+): FeatureCollection<LineString> {
+  return slicePrepared(prepareSegments(full), progress);
+}
+
 export type RouteRevealTween = { kill: () => void };
 
 /**
  * GSAP lazy-load — sadece rota gösterilirken chunk'a girer.
+ * setData rAF ile tek frame'de bir kez; uzunluklar önceden hesaplanır.
  */
 export async function revealRouteLine(
   full: FeatureCollection,
@@ -125,7 +152,7 @@ export async function revealRouteLine(
 ): Promise<RouteRevealTween | null> {
   const duration = options?.duration ?? 1.25;
   const signal = options?.signal;
-  const segments = extractSegments(full);
+  const segments = prepareSegments(full);
   if (segments.length === 0) {
     if (!signal?.aborted) setData(full);
     return null;
@@ -143,7 +170,25 @@ export async function revealRouteLine(
   const { default: gsap } = await import("gsap");
   if (signal?.aborted) return null;
 
-  setData(sliceRouteCollection(full, 0.001));
+  let rafId = 0;
+  let pendingT: number | null = null;
+
+  const flush = () => {
+    rafId = 0;
+    if (pendingT == null || signal?.aborted) return;
+    const t = pendingT;
+    pendingT = null;
+    setData(t >= 1 ? full : slicePrepared(segments, t));
+  };
+
+  const schedule = (t: number) => {
+    pendingT = t;
+    if (rafId === 0) {
+      rafId = requestAnimationFrame(flush);
+    }
+  };
+
+  schedule(0.001);
 
   const state = { t: 0 };
   const tween = gsap.to(state, {
@@ -152,23 +197,33 @@ export async function revealRouteLine(
     ease: "power2.inOut",
     onUpdate: () => {
       if (signal?.aborted) return;
-      setData(sliceRouteCollection(full, state.t));
+      schedule(state.t);
     },
     onComplete: () => {
       if (signal?.aborted) return;
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = 0;
+      pendingT = null;
       setData(full);
     },
   });
 
-  const onAbort = () => {
+  const killAll = () => {
+    if (rafId) cancelAnimationFrame(rafId);
+    rafId = 0;
+    pendingT = null;
     tween.kill();
+  };
+
+  const onAbort = () => {
+    killAll();
   };
   signal?.addEventListener("abort", onAbort, { once: true });
 
   return {
     kill: () => {
       signal?.removeEventListener("abort", onAbort);
-      tween.kill();
+      killAll();
     },
   };
 }

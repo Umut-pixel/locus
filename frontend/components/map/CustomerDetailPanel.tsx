@@ -91,7 +91,7 @@ const PAGE_LABELS: Record<PanelPage, string> = {
 
 const pageSlideVariants = {
   enter: (direction: number) => ({
-    x: direction === 0 ? 0 : direction > 0 ? 24 : -24,
+    x: direction === 0 ? 0 : direction > 0 ? 18 : -18,
     opacity: direction === 0 ? 1 : 0,
   }),
   center: {
@@ -99,31 +99,29 @@ const pageSlideVariants = {
     opacity: 1,
   },
   exit: (direction: number) => ({
-    x: direction === 0 ? 0 : direction < 0 ? 24 : -24,
+    x: direction === 0 ? 0 : direction < 0 ? 18 : -18,
     opacity: 0,
   }),
 };
 
 const pageSlideTransition = {
-  x: { type: "spring" as const, stiffness: 380, damping: 34, mass: 0.85 },
-  opacity: { duration: 0.22, ease: [0.22, 1, 0.36, 1] as const },
+  x: { duration: 0.2, ease: [0.22, 1, 0.36, 1] as const },
+  opacity: { duration: 0.16, ease: [0.22, 1, 0.36, 1] as const },
 };
 
-const heightSpring = {
-  type: "spring" as const,
-  stiffness: 320,
-  damping: 34,
-  mass: 0.9,
+const heightTween = {
+  duration: 0.22,
+  ease: [0.22, 1, 0.36, 1] as const,
 };
 
 const titleSlideVariants = {
   enter: (direction: number) => ({
-    y: direction > 0 ? 6 : -6,
+    y: direction > 0 ? 4 : -4,
     opacity: 0,
   }),
   center: { y: 0, opacity: 1 },
   exit: (direction: number) => ({
-    y: direction < 0 ? 6 : -6,
+    y: direction < 0 ? 4 : -4,
     opacity: 0,
   }),
 };
@@ -230,38 +228,65 @@ export function CustomerDetailPanel({
   useLayoutEffect(() => {
     const el = pageMeasureRef.current;
     if (!el) return;
+    let raf = 0;
     const update = () => {
-      const next = el.offsetHeight;
-      if (next > 0) setPageContentHeight((h) => (h === next ? h : next));
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        const next = el.offsetHeight;
+        if (next > 0) setPageContentHeight((h) => (h === next ? h : next));
+      });
     };
     update();
     const observer = new ResizeObserver(update);
     observer.observe(el);
-    return () => observer.disconnect();
+    return () => {
+      cancelAnimationFrame(raf);
+      observer.disconnect();
+    };
   }, [page, snapshot, snapLoading, musteri.musteri_kodu, musteri.yas_toplam, musteri.belge_net_ciro, musteri.belge_top_urun, musteri.belge_son_urun]);
 
   useLayoutEffect(() => {
     const el = panelRef.current;
     if (!el) return;
+    let raf = 0;
     const update = () => {
-      const next = el.offsetHeight;
-      setPanelHeight((h) => (h === next ? h : next));
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        const next = el.offsetHeight;
+        setPanelHeight((h) => (h === next ? h : next));
+      });
     };
     update();
     const observer = new ResizeObserver(update);
     observer.observe(el);
-    return () => observer.disconnect();
+    return () => {
+      cancelAnimationFrame(raf);
+      observer.disconnect();
+    };
   }, [musteri.musteri_kodu, sheetExpanded]);
 
   useLayoutEffect(() => {
     const el = containerRef.current;
     if (!el) return;
-    const update = () =>
-      setContainerSize({ width: el.clientWidth, height: el.clientHeight });
+    let raf = 0;
+    const update = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        setContainerSize((prev) => {
+          const width = el.clientWidth;
+          const height = el.clientHeight;
+          if (prev.width === width && prev.height === height) return prev;
+          return { width, height };
+        });
+      });
+    };
     update();
     const observer = new ResizeObserver(update);
     observer.observe(el);
-    return () => observer.disconnect();
+    return () => {
+      cancelAnimationFrame(raf);
+      observer.disconnect();
+    };
   }, [containerRef]);
 
   const containerW = containerSize.width;
@@ -284,7 +309,7 @@ export function CustomerDetailPanel({
         y.set(top);
         reanchorRef.current = false;
       } else {
-        void animate(y, top, heightSpring);
+        void animate(y, top, heightTween);
       }
       return;
     }
@@ -306,18 +331,8 @@ export function CustomerDetailPanel({
         x.set(pos.left);
         y.set(pos.top);
       } else {
-        void animate(x, pos.left, {
-          type: "spring",
-          stiffness: 360,
-          damping: 38,
-          mass: 0.85,
-        });
-        void animate(y, pos.top, {
-          type: "spring",
-          stiffness: 360,
-          damping: 38,
-          mass: 0.85,
-        });
+        void animate(x, pos.left, heightTween);
+        void animate(y, pos.top, heightTween);
       }
       reanchorRef.current = false;
       return;
@@ -326,7 +341,7 @@ export function CustomerDetailPanel({
     const maxTop = Math.max(EDGE_MARGIN, containerH - panelHeight - EDGE_MARGIN);
     const current = y.get();
     if (current > maxTop) {
-      void animate(y, maxTop, heightSpring);
+      void animate(y, maxTop, heightTween);
     }
   }, [
     musteri.musteri_kodu,
@@ -621,7 +636,7 @@ export function CustomerDetailPanel({
         <motion.div
           initial={false}
           animate={{ height: pageContentHeight }}
-          transition={heightSpring}
+          transition={heightTween}
           className="relative overflow-hidden"
         >
           <AnimatePresence initial={false} custom={pageDirection} mode="sync">
@@ -1192,7 +1207,7 @@ function RiskMiniBar({
           <span
             key={i}
             className="h-1.5 min-w-0 flex-1 rounded-[1px] transition-colors duration-300 ease-out"
-            style={{ backgroundColor: color, transitionDelay: `${i * 12}ms` }}
+            style={{ backgroundColor: color, transitionDelay: `${Math.min(i, 10) * 6}ms` }}
           />
         ))}
       </div>

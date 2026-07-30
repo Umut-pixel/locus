@@ -124,17 +124,10 @@ export default function Home() {
 
   // Clustering doğru kalsın diye filtreli GeoJSON; rows değişince / filtre
   // deferred search ile yeniden kurulur (yazarken her tuşta değil).
-  const geojson = useMemo(() => {
-    if (!highlightSet) return musterilerToGeoJSON(filteredRows);
-    return musterilerToGeoJSON(
-      filteredRows.map((row) => ({
-        ...row,
-        son_yuklemede_guncellendi: highlightSet.has(row.musteri_kodu)
-          ? (1 as const)
-          : (0 as const),
-      }))
-    );
-  }, [filteredRows, highlightSet]);
+  const geojson = useMemo(
+    () => musterilerToGeoJSON(filteredRows, highlightSet),
+    [filteredRows, highlightSet]
+  );
 
   const hasUpdatedMarkers = useMemo(
     () =>
@@ -170,14 +163,13 @@ export default function Home() {
 
   // Mod değişince seçili müşterinin risk bandını güncelle.
   useEffect(() => {
-    if (!selectedMusteri) return;
-    const next = scoredRows.find(
-      (r) => r.musteri_kodu === selectedMusteri.musteri_kodu
-    );
-    if (next && next.risk_durumu !== selectedMusteri.risk_durumu) {
-      setSelectedMusteri(next);
-    }
-  }, [scoredRows, selectedMusteri]);
+    setSelectedMusteri((prev) => {
+      if (!prev) return prev;
+      const next = scoredRows.find((r) => r.musteri_kodu === prev.musteri_kodu);
+      if (!next || next.risk_durumu === prev.risk_durumu) return prev;
+      return next;
+    });
+  }, [scoredRows]);
 
   const hasActiveFilters =
     selectedCities.length > 0 ||
@@ -227,22 +219,38 @@ export default function Home() {
     setHighlightedRutKod(null);
   }, []);
 
-  const filterProps = {
-    cities,
-    selectedCities,
-    onToggleCity: toggleCity,
-    selectedRisk,
-    onSelectRisk: setSelectedRisk,
-    search,
-    onSearchChange: setSearch,
-    stats,
-    onReset: resetFilters,
-    hasActiveFilters,
-    importActivity,
-    lastUploadResult,
-    riskLabels,
-    riskShortLabels,
-  };
+  const filterProps = useMemo(
+    () => ({
+      cities,
+      selectedCities,
+      onToggleCity: toggleCity,
+      selectedRisk,
+      onSelectRisk: setSelectedRisk,
+      search,
+      onSearchChange: setSearch,
+      stats,
+      onReset: resetFilters,
+      hasActiveFilters,
+      importActivity,
+      lastUploadResult,
+      riskLabels,
+      riskShortLabels,
+    }),
+    [
+      cities,
+      selectedCities,
+      toggleCity,
+      selectedRisk,
+      search,
+      stats,
+      resetFilters,
+      hasActiveFilters,
+      importActivity,
+      lastUploadResult,
+      riskLabels,
+      riskShortLabels,
+    ]
+  );
 
   const showLegend = !(isMobileLayout && selectedMusteri);
   const showBlockingLoader = loading && rows.length === 0;
