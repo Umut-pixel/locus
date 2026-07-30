@@ -12,9 +12,9 @@ import { SegmentBar } from "@/components/ui/segment-bar";
 import { cn } from "@/lib/utils";
 import {
   RISK_COLORS,
-  RISK_LABELS,
+  RISK_LABELS as DEFAULT_RISK_LABELS,
   RISK_ORDER,
-  RISK_SHORT_LABELS,
+  RISK_SHORT_LABELS as DEFAULT_RISK_SHORT_LABELS,
 } from "@/lib/risk-style";
 import type { ImportActivity } from "@/lib/agent-states";
 import type { UploadResult } from "@/lib/import/types";
@@ -40,6 +40,10 @@ interface FilterPanelProps {
   hasActiveFilters: boolean;
   importActivity?: ImportActivity | null;
   lastUploadResult?: UploadResult | null;
+  /** Mobil sheet içinde farklı yükseklik/padding davranışı. */
+  variant?: "sidebar" | "sheet";
+  riskLabels?: Record<RiskDurumu, string>;
+  riskShortLabels?: Record<RiskDurumu, string>;
 }
 
 export function FilterPanel({
@@ -55,11 +59,23 @@ export function FilterPanel({
   hasActiveFilters,
   importActivity = null,
   lastUploadResult = null,
+  variant = "sidebar",
+  riskLabels = DEFAULT_RISK_LABELS,
+  riskShortLabels = DEFAULT_RISK_SHORT_LABELS,
 }: FilterPanelProps) {
+  const isSheet = variant === "sheet";
+
   return (
-    <div className="flex h-full flex-col overflow-hidden">
-      {/* A — Başlık → şehir: kaydırılabilir, yükseklik sınırlı */}
-      <div className="flex max-h-[48%] shrink-0 flex-col gap-4 overflow-y-auto overscroll-contain px-5 pt-5 pb-3">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden">
+      {/* A — Başlık → şehir */}
+      <div
+        className={cn(
+          "flex min-h-0 flex-col gap-4 overflow-y-auto overscroll-contain px-5 pb-3",
+          isSheet
+            ? "flex-1 pt-12 pr-12"
+            : "max-h-[48%] shrink-0 pt-5"
+        )}
+      >
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
             <h1 className="text-[15px] font-medium tracking-tight">
@@ -107,8 +123,16 @@ export function FilterPanel({
 
         <div>
           <SectionLabel>Risk durumu</SectionLabel>
-          <RiskSegmentedControl value={selectedRisk} onChange={onSelectRisk} />
-          <RiskDagilim dagilim={stats.dagilim} gorunen={stats.gorunen} />
+          <RiskSegmentedControl
+            value={selectedRisk}
+            onChange={onSelectRisk}
+            shortLabels={riskShortLabels}
+          />
+          <RiskDagilim
+            dagilim={stats.dagilim}
+            gorunen={stats.gorunen}
+            riskLabels={riskLabels}
+          />
         </div>
 
         <div>
@@ -141,8 +165,13 @@ export function FilterPanel({
         )}
       </div>
 
-      {/* B — AI: kalan dikey alanın tamamı (şehirin altına doğru büyür) */}
-      <div className="flex min-h-0 flex-1 flex-col border-t border-sidebar-border/80 bg-black/20">
+      {/* B — AI */}
+      <div
+        className={cn(
+          "flex min-h-0 flex-col border-t border-sidebar-border/80 bg-black/20",
+          isSheet ? "h-[min(42%,22rem)] shrink-0" : "flex-1"
+        )}
+      >
         <AgentAssistant
           importActivity={importActivity}
           lastUploadResult={lastUploadResult}
@@ -155,9 +184,11 @@ export function FilterPanel({
 function RiskSegmentedControl({
   value,
   onChange,
+  shortLabels = DEFAULT_RISK_SHORT_LABELS,
 }: {
   value: RiskDurumu | null;
   onChange: (risk: RiskDurumu | null) => void;
+  shortLabels?: Record<RiskDurumu, string>;
 }) {
   const instanceId = useId();
   const options: { key: string; risk: RiskDurumu | null; label: string }[] = [
@@ -165,7 +196,7 @@ function RiskSegmentedControl({
     ...RISK_ORDER.map((risk) => ({
       key: risk,
       risk: risk as RiskDurumu | null,
-      label: RISK_SHORT_LABELS[risk],
+      label: shortLabels[risk],
     })),
   ];
 
@@ -209,9 +240,11 @@ function RiskSegmentedControl({
 function RiskDagilim({
   dagilim,
   gorunen,
+  riskLabels = DEFAULT_RISK_LABELS,
 }: {
   dagilim: Record<RiskDurumu, number>;
   gorunen: number;
+  riskLabels?: Record<RiskDurumu, string>;
 }) {
   const TOTAL_BLOCKS = 24;
   const blocks: { risk: RiskDurumu; count: number }[] = [];
@@ -254,7 +287,7 @@ function RiskDagilim({
         {RISK_ORDER.map((risk) => (
           <span
             key={risk}
-            title={`${RISK_LABELS[risk]}: ${dagilim[risk]}`}
+            title={`${riskLabels[risk]}: ${dagilim[risk]}`}
             className="inline-flex items-center gap-1 font-mono text-[10px] tabular-nums text-muted-foreground"
           >
             <span

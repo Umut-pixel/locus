@@ -40,19 +40,19 @@ export function LoginForm({ nextPath = "/" }: { nextPath?: string }) {
   }
 
   return (
-    <div className="flex h-full flex-col justify-center px-8 py-10 sm:px-12 lg:px-14">
+    <div className="flex w-full flex-col px-5 py-6 sm:px-10 sm:py-10 md:px-12 lg:px-14">
       <div className="mx-auto w-full max-w-[22rem] text-center">
-        <h2 className="text-2xl font-medium tracking-tight text-zinc-900">
+        <h2 className="text-xl font-medium tracking-tight text-zinc-900 sm:text-2xl">
           Hoş geldiniz
         </h2>
-        <p className="mt-2 text-sm text-zinc-500">
+        <p className="mt-1.5 text-sm text-zinc-500">
           Devam etmek için giriş yapın
         </p>
       </div>
 
       <form
         onSubmit={onSubmit}
-        className="mx-auto mt-8 flex w-full max-w-[22rem] flex-col gap-5"
+        className="mx-auto mt-6 flex w-full max-w-[22rem] flex-col gap-4 sm:mt-8 sm:gap-5"
       >
         <div className="flex flex-col gap-1.5">
           <label
@@ -71,7 +71,7 @@ export function LoginForm({ nextPath = "/" }: { nextPath?: string }) {
             onChange={(e) => setUsername(e.target.value)}
             disabled={loading}
             required
-            className="h-10 rounded-lg border-zinc-200 bg-white text-zinc-900 placeholder:text-zinc-400 focus-visible:border-zinc-400 focus-visible:ring-zinc-400/30 dark:bg-white"
+            className="h-11 rounded-lg border-zinc-200 bg-white text-base text-zinc-900 placeholder:text-zinc-400 focus-visible:border-zinc-400 focus-visible:ring-zinc-400/30 sm:h-10 sm:text-sm dark:bg-white"
           />
         </div>
 
@@ -92,7 +92,7 @@ export function LoginForm({ nextPath = "/" }: { nextPath?: string }) {
             onChange={(e) => setPassword(e.target.value)}
             disabled={loading}
             required
-            className="h-10 rounded-lg border-zinc-200 bg-white text-zinc-900 placeholder:text-zinc-400 focus-visible:border-zinc-400 focus-visible:ring-zinc-400/30 dark:bg-white"
+            className="h-11 rounded-lg border-zinc-200 bg-white text-base text-zinc-900 placeholder:text-zinc-400 focus-visible:border-zinc-400 focus-visible:ring-zinc-400/30 sm:h-10 sm:text-sm dark:bg-white"
           />
         </div>
 
@@ -105,7 +105,7 @@ export function LoginForm({ nextPath = "/" }: { nextPath?: string }) {
         <Button
           type="submit"
           disabled={loading}
-          className="mt-1 h-10 w-full rounded-lg bg-zinc-950 text-white hover:bg-zinc-800"
+          className="mt-1 h-11 w-full rounded-lg bg-zinc-950 text-white hover:bg-zinc-800 sm:h-10"
         >
           {loading ? "Giriş yapılıyor…" : "Giriş yap"}
         </Button>

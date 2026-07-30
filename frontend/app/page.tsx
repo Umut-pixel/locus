@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useCallback, useDeferredValue, useMemo, useRef, useState } from "react";
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { UploadIcon } from "lucide-react";
 import { AnimatePresence } from "motion/react";
 
@@ -12,6 +12,7 @@ import {
 import { FilterPanel } from "@/components/sidebar/FilterPanel";
 import { MobileFilterSheet } from "@/components/sidebar/MobileFilterSheet";
 import { RiskLegend } from "@/components/map/RiskLegend";
+import { RiskModeToggle } from "@/components/map/RiskModeToggle";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -21,6 +22,12 @@ import { useMusteriHarita } from "@/hooks/useMusteriHarita";
 import { musterilerToGeoJSON } from "@/lib/geojson";
 import type { UploadResult } from "@/lib/import/types";
 import { filterRowsLocally } from "@/lib/map-filter";
+import {
+  riskLabelsForMode,
+  riskShortLabelsForMode,
+  withEffectiveRiskRows,
+  type RiskMetricMode,
+} from "@/lib/risk-mode";
 import type { MusteriHarita, RiskDurumu } from "@/lib/types";
 import {
   buildHighlightSet,
@@ -59,6 +66,7 @@ export default function Home() {
 
   const [selectedCities, setSelectedCities] = useState<string[]>([]);
   const [selectedRisk, setSelectedRisk] = useState<RiskDurumu | null>(null);
+  const [riskMode, setRiskMode] = useState<RiskMetricMode>("sevkiyat");
   const [search, setSearch] = useState("");
   const deferredSearch = useDeferredValue(search);
   const [selectedMusteri, setSelectedMusteri] = useState<MusteriHarita | null>(
@@ -81,6 +89,17 @@ export default function Home() {
 
   const mapAreaRef = useRef<HTMLDivElement | null>(null);
 
+  const riskLabels = useMemo(() => riskLabelsForMode(riskMode), [riskMode]);
+  const riskShortLabels = useMemo(
+    () => riskShortLabelsForMode(riskMode),
+    [riskMode]
+  );
+
+  const scoredRows = useMemo(
+    () => withEffectiveRiskRows(rows, riskMode),
+    [rows, riskMode]
+  );
+
   const filterState = useMemo(
     () => ({
       cities: selectedCities,
@@ -92,15 +111,15 @@ export default function Home() {
 
   const cities = useMemo(() => {
     const set = new Set<string>();
-    for (const row of rows) {
+    for (const row of scoredRows) {
       if (row.sehir) set.add(row.sehir);
     }
     return Array.from(set).sort((a, b) => a.localeCompare(b, "tr"));
-  }, [rows]);
+  }, [scoredRows]);
 
   const filteredRows = useMemo(
-    () => filterRowsLocally(rows, filterState),
-    [rows, filterState]
+    () => filterRowsLocally(scoredRows, filterState),
+    [scoredRows, filterState]
   );
 
   // Clustering doğru kalsın diye filtreli GeoJSON; rows değişince / filtre
@@ -142,12 +161,23 @@ export default function Home() {
       dagilim[row.risk_durumu] += 1;
     }
     return {
-      toplam: rows.length,
+      toplam: scoredRows.length,
       gorunen: filteredRows.length,
       riskli: dagilim.riskli,
       dagilim,
     };
-  }, [rows, filteredRows]);
+  }, [scoredRows, filteredRows]);
+
+  // Mod değişince seçili müşterinin risk bandını güncelle.
+  useEffect(() => {
+    if (!selectedMusteri) return;
+    const next = scoredRows.find(
+      (r) => r.musteri_kodu === selectedMusteri.musteri_kodu
+    );
+    if (next && next.risk_durumu !== selectedMusteri.risk_durumu) {
+      setSelectedMusteri(next);
+    }
+  }, [scoredRows, selectedMusteri]);
 
   const hasActiveFilters =
     selectedCities.length > 0 ||
@@ -166,18 +196,29 @@ export default function Home() {
     setSearch("");
   }, []);
 
+  const handleRiskModeChange = useCallback((mode: RiskMetricMode) => {
+    setRiskMode(mode);
+    setSelectedRisk(null);
+  }, []);
+
   const handleSelectMusteri = useCallback(
     (musteri: MusteriHarita | null, screenPoint?: { x: number; y: number }) => {
-      setSelectedMusteri(musteri);
+      // Harita feature'ı scored olabilir; kaynak satırı kod ile eşle.
+      const resolved =
+        musteri == null
+          ? null
+          : (scoredRows.find((r) => r.musteri_kodu === musteri.musteri_kodu) ??
+            musteri);
+      setSelectedMusteri(resolved);
       setPanelAnchor(
-        musteri && screenPoint ? { x: screenPoint.x, y: screenPoint.y } : null
+        resolved && screenPoint ? { x: screenPoint.x, y: screenPoint.y } : null
       );
       setHighlightedRutKod(null);
       // Pin seçimi veya boş harita tıklaması: import kartını da kapat.
       setImportOpen(false);
-      if (!musteri) setImportActivity(null);
+      if (!resolved) setImportActivity(null);
     },
-    []
+    [scoredRows]
   );
 
   const handleCloseDetail = useCallback(() => {
@@ -199,13 +240,15 @@ export default function Home() {
     hasActiveFilters,
     importActivity,
     lastUploadResult,
+    riskLabels,
+    riskShortLabels,
   };
 
   const showLegend = !(isMobileLayout && selectedMusteri);
   const showBlockingLoader = loading && rows.length === 0;
 
   return (
-    <div className="relative flex h-dvh w-dvw overflow-hidden">
+    <div className="relative flex h-dvh w-full max-w-[100vw] overflow-hidden">
       <aside className="hidden w-80 shrink-0 border-r border-sidebar-border bg-sidebar lg:block xl:w-[22.5rem]">
         <FilterPanel {...filterProps} />
       </aside>
@@ -217,6 +260,10 @@ export default function Home() {
           highlightedRutKod={highlightedRutKod}
           onSelectMusteri={handleSelectMusteri}
         />
+
+        <div className="risk-mode-toggle-anchor">
+          <RiskModeToggle value={riskMode} onChange={handleRiskModeChange} />
+        </div>
 
         <div
           className="pointer-events-none absolute inset-0 flex flex-col justify-between gap-2 p-2 sm:gap-3 sm:p-3 md:p-4"
@@ -265,7 +312,15 @@ export default function Home() {
           </div>
 
           <div className="flex items-end justify-end">
-            {showLegend && <RiskLegend showUpdatedRing={hasUpdatedMarkers} />}
+            {showLegend && (
+              <RiskLegend
+                showUpdatedRing={hasUpdatedMarkers}
+                riskLabels={riskLabels}
+                title={
+                  riskMode === "borc" ? "Borç durumu" : "Sevkiyat durumu"
+                }
+              />
+            )}
           </div>
         </div>
 
@@ -279,6 +334,7 @@ export default function Home() {
                 containerRef={mapAreaRef}
                 onClose={handleCloseDetail}
                 onShowRoute={setHighlightedRutKod}
+                riskLabels={riskLabels}
               />
             )}
           </AnimatePresence>

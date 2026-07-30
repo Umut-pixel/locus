@@ -140,6 +140,7 @@ interface CustomerDetailPanelProps {
   containerRef: RefObject<HTMLDivElement | null>;
   onClose: () => void;
   onShowRoute: (rutKod: string) => void;
+  riskLabels?: Record<RiskDurumu, string>;
 }
 
 export function CustomerDetailPanel({
@@ -148,6 +149,7 @@ export function CustomerDetailPanel({
   containerRef,
   onClose,
   onShowRoute,
+  riskLabels = RISK_LABELS,
 }: CustomerDetailPanelProps) {
   const panelRef = useRef<HTMLDivElement | null>(null);
   const pageMeasureRef = useRef<HTMLDivElement | null>(null);
@@ -162,6 +164,8 @@ export function CustomerDetailPanel({
   const [pageDirection, setPageDirection] = useState(0);
   const [snapshot, setSnapshot] = useState<MusteriSnapshotRow | null>(null);
   const [snapLoading, setSnapLoading] = useState(true);
+  const [sheetExpanded, setSheetExpanded] = useState(true);
+  const sheetSwipeStartY = useRef<number | null>(null);
 
   const x = useMotionValue(0);
   const y = useMotionValue(0);
@@ -192,6 +196,7 @@ export function CustomerDetailPanel({
     draggedRef.current = false;
     setPage("ozet");
     setPageDirection(0);
+    setSheetExpanded(true);
     setSnapLoading(true);
     setSnapshot(null);
 
@@ -246,7 +251,7 @@ export function CustomerDetailPanel({
     const observer = new ResizeObserver(update);
     observer.observe(el);
     return () => observer.disconnect();
-  }, [musteri.musteri_kodu]);
+  }, [musteri.musteri_kodu, sheetExpanded]);
 
   useLayoutEffect(() => {
     const el = containerRef.current;
@@ -265,11 +270,26 @@ export function CustomerDetailPanel({
   const width = isCompact
     ? Math.max(0, containerW - EDGE_MARGIN * 2)
     : PANEL_WIDTH;
+  const showSheetBody = !isCompact || sheetExpanded;
 
   // İlk açılış / müşteri değişimi: yerleşim. Sayfa geçişinde y'yi sıçratma.
   useLayoutEffect(() => {
-    if (draggedRef.current) return;
     if (containerW <= 0 || containerH <= 0) return;
+
+    // Mobil bottom-sheet: her zaman alta yasla (expand/minimize dahil).
+    if (isCompact) {
+      const top = Math.max(EDGE_MARGIN, containerH - panelHeight - EDGE_MARGIN);
+      x.set(EDGE_MARGIN);
+      if (reanchorRef.current) {
+        y.set(top);
+        reanchorRef.current = false;
+      } else {
+        void animate(y, top, heightSpring);
+      }
+      return;
+    }
+
+    if (draggedRef.current) return;
 
     if (reanchorRef.current) {
       const pos = computeAutoPosition({
@@ -317,6 +337,7 @@ export function CustomerDetailPanel({
     panelHeight,
     width,
     isCompact,
+    sheetExpanded,
     x,
     y,
   ]);
@@ -335,7 +356,29 @@ export function CustomerDetailPanel({
       : undefined;
 
   const startDrag = (e: ReactPointerEvent) => {
+    if (isCompact) return;
     dragControls.start(e);
+  };
+
+  const onSheetHandlePointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (!isCompact) {
+      startDrag(e);
+      return;
+    }
+    e.currentTarget.setPointerCapture(e.pointerId);
+    sheetSwipeStartY.current = e.clientY;
+  };
+
+  const onSheetHandlePointerUp = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (!isCompact || sheetSwipeStartY.current == null) return;
+    const dy = e.clientY - sheetSwipeStartY.current;
+    sheetSwipeStartY.current = null;
+    if (dy > 40) setSheetExpanded(false);
+    else if (dy < -40) setSheetExpanded(true);
+  };
+
+  const onSheetHandlePointerCancel = () => {
+    sheetSwipeStartY.current = null;
   };
 
   const accent = RISK_COLORS[musteri.risk_durumu];
@@ -356,12 +399,12 @@ export function CustomerDetailPanel({
         opacity: { duration: 0.14 },
         scale: { duration: 0.18, ease: [0.22, 1, 0.36, 1] },
       }}
-      drag
+      drag={!isCompact}
       dragListener={false}
       dragControls={dragControls}
-      dragConstraints={dragConstraints}
+      dragConstraints={isCompact ? undefined : dragConstraints}
       dragElastic={0.08}
-      dragMomentum
+      dragMomentum={!isCompact}
       dragTransition={{
         power: 0.22,
         timeConstant: 220,
@@ -369,6 +412,7 @@ export function CustomerDetailPanel({
         bounceDamping: 36,
       }}
       onDragStart={() => {
+        if (isCompact) return;
         draggedRef.current = true;
         setDragging(true);
       }}
@@ -380,11 +424,22 @@ export function CustomerDetailPanel({
       )}
     >
       <div
-        onPointerDown={startDrag}
+        onPointerDown={onSheetHandlePointerDown}
+        onPointerUp={onSheetHandlePointerUp}
+        onPointerCancel={onSheetHandlePointerCancel}
         className={cn(
-          "flex shrink-0 cursor-grab touch-none flex-col items-center active:cursor-grabbing",
-          isCompact ? "pt-2 pb-0.5" : "pt-2.5 pb-0"
+          "flex shrink-0 touch-none flex-col items-center",
+          isCompact
+            ? "cursor-grab pt-2.5 pb-1 active:cursor-grabbing"
+            : "cursor-grab pt-2.5 pb-0 active:cursor-grabbing"
         )}
+        aria-label={
+          isCompact
+            ? sheetExpanded
+              ? "Kartı küçültmek için aşağı çekin"
+              : "Kartı büyütmek için yukarı çekin"
+            : undefined
+        }
       >
         <span className="flex h-5 items-center justify-center text-muted-foreground/50">
           {isCompact ? (
@@ -395,32 +450,59 @@ export function CustomerDetailPanel({
         </span>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-        <div
-          onPointerDown={startDrag}
-          className="flex cursor-grab touch-none items-start justify-between gap-3 px-4 active:cursor-grabbing"
-        >
-          <div className="min-w-0">
+      <div
+        onPointerDown={(e) => {
+          if (isCompact && !sheetExpanded) {
+            onSheetHandlePointerDown(e);
+            return;
+          }
+          startDrag(e);
+        }}
+        onPointerUp={isCompact && !sheetExpanded ? onSheetHandlePointerUp : undefined}
+        onPointerCancel={
+          isCompact && !sheetExpanded ? onSheetHandlePointerCancel : undefined
+        }
+        onClick={() => {
+          if (isCompact && !sheetExpanded) setSheetExpanded(true);
+        }}
+        className={cn(
+          "flex shrink-0 touch-none items-start justify-between gap-3 px-4",
+          isCompact && !sheetExpanded
+            ? "cursor-grab pb-[max(0.75rem,env(safe-area-inset-bottom))] active:cursor-grabbing"
+            : "cursor-grab active:cursor-grabbing"
+        )}
+      >
+        <div className="min-w-0">
+          {showSheetBody && (
             <p className="font-mono text-[10px] tracking-[0.16em] text-muted-foreground uppercase">
               {musteri.musteri_kodu}
               {musteri.sehir ? ` · ${musteri.sehir}` : ""}
               {musteri.ilce ? ` / ${musteri.ilce}` : ""}
             </p>
-            <h2 className="mt-1 line-clamp-2 text-sm leading-snug font-medium">
-              {musteri.unvan}
-            </h2>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            onPointerDown={(e) => e.stopPropagation()}
-            aria-label="Paneli kapat"
-            className="flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-full text-white transition-colors hover:bg-white/10"
+          )}
+          <h2
+            className={cn(
+              "line-clamp-2 text-sm leading-snug font-medium",
+              showSheetBody ? "mt-1" : "mt-0"
+            )}
           >
-            <XIcon className="size-4 stroke-[2.5]" />
-          </button>
+            {musteri.unvan}
+          </h2>
         </div>
+        <button
+          type="button"
+          onClick={onClose}
+          onPointerDown={(e) => e.stopPropagation()}
+          aria-label="Paneli kapat"
+          className="flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-full text-white transition-colors hover:bg-white/10"
+        >
+          <XIcon className="size-4 stroke-[2.5]" />
+        </button>
+      </div>
 
+      {showSheetBody && (
+        <>
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
         <div className="px-4 pt-3.5">
           <div className="flex items-baseline justify-between gap-2">
             <span className="inline-flex items-center gap-1.5">
@@ -432,7 +514,7 @@ export function CustomerDetailPanel({
                 className="font-mono text-[11px] tracking-wide uppercase"
                 style={{ color: accent }}
               >
-                {RISK_LABELS[musteri.risk_durumu]}
+                {riskLabels[musteri.risk_durumu]}
               </span>
             </span>
             {gecikmeYuzde != null && (
@@ -678,6 +760,8 @@ export function CustomerDetailPanel({
           Rotada göster
         </Button>
       </div>
+        </>
+      )}
     </motion.div>
   );
 }

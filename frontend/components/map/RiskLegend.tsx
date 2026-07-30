@@ -2,10 +2,10 @@ import {
   HASSASIYET_LABELS,
   HASSASIYET_OPACITY,
   RISK_COLORS,
-  RISK_LABELS,
+  RISK_LABELS as DEFAULT_RISK_LABELS,
   RISK_ORDER,
 } from "@/lib/risk-style";
-import type { GeocodeHassasiyet } from "@/lib/types";
+import type { GeocodeHassasiyet, RiskDurumu } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const HASSASIYET_ORDER: GeocodeHassasiyet[] = [
@@ -17,9 +17,13 @@ const HASSASIYET_ORDER: GeocodeHassasiyet[] = [
 export function RiskLegend({
   className,
   showUpdatedRing = false,
+  riskLabels = DEFAULT_RISK_LABELS,
+  title = "Risk durumu",
 }: {
   className?: string;
   showUpdatedRing?: boolean;
+  riskLabels?: Record<RiskDurumu, string>;
+  title?: string;
 }) {
   return (
     <div
@@ -32,7 +36,7 @@ export function RiskLegend({
       <div className="flex flex-col gap-2">
         <div>
           <p className="mb-1 text-[9px] font-medium tracking-[0.14em] text-muted-foreground uppercase">
-            Risk durumu
+            {title}
           </p>
           <ul className="flex flex-col gap-0.5">
             {RISK_ORDER.map((risk) => (
@@ -42,7 +46,7 @@ export function RiskLegend({
                   style={{ backgroundColor: RISK_COLORS[risk] }}
                 />
                 <span className="truncate text-[10px] text-foreground/80">
-                  {RISK_LABELS[risk]}
+                  {riskLabels[risk]}
                 </span>
               </li>
             ))}

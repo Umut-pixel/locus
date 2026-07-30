@@ -143,6 +143,19 @@
   right: max(0.5rem, env(safe-area-inset-right, 0px));
 }
 
+/* Sevkiyat / Borç seçici — zoom (+/−) solunda */
+.risk-mode-toggle-anchor {
+  pointer-events: none;
+  position: absolute;
+  z-index: 5;
+  top: max(0.5rem, env(safe-area-inset-top, 0px));
+  right: max(calc(0.5rem + 42px), calc(env(safe-area-inset-right, 0px) + 42px));
+}
+
+.risk-mode-toggle-anchor > * {
+  pointer-events: auto;
+}
+
 .mapboxgl-ctrl-bottom-right,
 .mapboxgl-ctrl-bottom-left {
   bottom: max(0.25rem, env(safe-area-inset-bottom, 0px));
@@ -151,6 +164,10 @@
 @media (max-width: 639px) {
   .mapboxgl-ctrl-top-right {
     /* Sol üstte filtre + yükle butonları; zoom sağda kalsın */
+    top: max(3.25rem, calc(env(safe-area-inset-top, 0px) + 2.75rem));
+  }
+
+  .risk-mode-toggle-anchor {
     top: max(3.25rem, calc(env(safe-area-inset-top, 0px) + 2.75rem));
   }
 

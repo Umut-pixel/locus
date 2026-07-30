@@ -28,6 +28,8 @@ interface MobileFilterSheetProps {
   hasActiveFilters: boolean;
   importActivity?: ImportActivity | null;
   lastUploadResult?: UploadResult | null;
+  riskLabels?: Record<RiskDurumu, string>;
+  riskShortLabels?: Record<RiskDurumu, string>;
 }
 
 export function MobileFilterSheet(props: MobileFilterSheetProps) {
@@ -47,12 +49,14 @@ export function MobileFilterSheet(props: MobileFilterSheetProps) {
       </SheetTrigger>
       <SheetContent
         side="left"
-        className="w-[min(22.5rem,calc(100vw-2rem))] max-w-none p-0 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] sm:max-w-[22.5rem]"
+        className="h-dvh max-h-dvh w-[min(22.5rem,100%)] max-w-none gap-0 overflow-hidden p-0 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] data-[side=left]:w-[min(22.5rem,100%)] sm:max-w-[22.5rem]"
       >
         <SheetHeader className="sr-only">
           <SheetTitle>Filtreler</SheetTitle>
         </SheetHeader>
-        <FilterPanel {...props} />
+        <div className="flex h-full min-h-0 flex-1 flex-col">
+          <FilterPanel {...props} variant="sheet" />
+        </div>
       </SheetContent>
     </Sheet>
   );
