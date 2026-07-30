@@ -36,7 +36,7 @@ export function RiskModeToggle({
             aria-checked={active}
             onClick={() => onChange(mode)}
             className={cn(
-              "h-8 min-w-[4.5rem] px-2.5 text-[11px] font-medium tracking-tight transition-colors",
+              "h-8 min-w-[3.75rem] px-2 text-[11px] font-medium tracking-tight transition-colors sm:min-w-[4.5rem] sm:px-2.5",
               active
                 ? "bg-secondary text-foreground"
                 : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"

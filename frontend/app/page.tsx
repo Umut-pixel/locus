@@ -269,12 +269,13 @@ export default function Home() {
           onSelectMusteri={handleSelectMusteri}
         />
 
-        <div className="risk-mode-toggle-anchor">
+        {/* Masaüstü: zoom solunda. Mobilde üst toolbar'a taşındı. */}
+        <div className="risk-mode-toggle-anchor hidden lg:block">
           <RiskModeToggle value={riskMode} onChange={handleRiskModeChange} />
         </div>
 
         <div
-          className="pointer-events-none absolute inset-0 flex flex-col justify-between gap-2 p-2 sm:gap-3 sm:p-3 md:p-4"
+          className="pointer-events-none absolute inset-0 z-10 flex flex-col justify-between gap-2 p-2 sm:gap-3 sm:p-3 md:p-4"
           style={{
             paddingTop: "max(0.5rem, env(safe-area-inset-top))",
             paddingLeft: "max(0.5rem, env(safe-area-inset-left))",
@@ -282,10 +283,17 @@ export default function Home() {
             paddingBottom: "max(0.5rem, env(safe-area-inset-bottom))",
           }}
         >
-          <div className="flex min-h-0 w-full max-w-full flex-col items-stretch gap-1.5 sm:max-w-[18.5rem] sm:items-start">
-            <div className="flex items-center gap-2">
+          <div className="flex min-h-0 w-full max-w-full flex-col items-stretch gap-1.5 sm:max-w-[22rem] sm:items-start">
+            <div className="flex flex-wrap items-center gap-2">
               <div className="pointer-events-auto lg:hidden">
                 <MobileFilterSheet {...filterProps} />
+              </div>
+              <div className="pointer-events-auto lg:hidden">
+                <RiskModeToggle
+                  value={riskMode}
+                  onChange={handleRiskModeChange}
+                  className="shadow-md"
+                />
               </div>
               <Button
                 variant="secondary"
