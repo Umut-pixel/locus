@@ -85,7 +85,10 @@ export const FilterPanel = memo(function FilterPanel({
               Ege bölgesi müşteri dağılımı ve teslimat risk durumu
             </p>
           </div>
-          <LogoutButton className="shrink-0 text-muted-foreground" />
+          {/* Sheet'te sağ üstte X ile çakışır — yalnızca masaüstü sidebar. */}
+          {!isSheet ? (
+            <LogoutButton className="shrink-0 text-muted-foreground" />
+          ) : null}
         </div>
 
         <div className="grid grid-cols-3 gap-2">

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { MenuIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -33,8 +34,10 @@ interface MobileFilterSheetProps {
 }
 
 export function MobileFilterSheet(props: MobileFilterSheetProps) {
+  const [open, setOpen] = useState(false);
+
   return (
-    <Sheet>
+    <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger
         render={
           <Button
@@ -49,7 +52,8 @@ export function MobileFilterSheet(props: MobileFilterSheetProps) {
       </SheetTrigger>
       <SheetContent
         side="left"
-        className="h-dvh max-h-dvh w-[min(22.5rem,100%)] max-w-none gap-0 overflow-hidden p-0 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] data-[side=left]:w-[min(22.5rem,100%)] sm:max-w-[22.5rem]"
+        // Dar ekranda %100 olursa backdrop kalmaz; sağda boşluk bırak.
+        className="h-dvh max-h-dvh w-[min(22.5rem,calc(100vw-3.25rem))] max-w-none gap-0 overflow-hidden p-0 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] data-[side=left]:w-[min(22.5rem,calc(100vw-3.25rem))] sm:max-w-[22.5rem]"
       >
         <SheetHeader className="sr-only">
           <SheetTitle>Filtreler</SheetTitle>
