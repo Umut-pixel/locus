@@ -166,6 +166,14 @@ export const FilterPanel = memo(function FilterPanel({
             Filtreleri temizle
           </Button>
         )}
+
+        {/* Sheet: sağ üst X ile çakışmasın — filtre listesinin altında. */}
+        {isSheet ? (
+          <LogoutButton
+            showLabel
+            className="mt-1 h-8 gap-1.5 self-start rounded-full px-2.5 text-[11px] text-muted-foreground"
+          />
+        ) : null}
       </div>
 
       {/* B — AI */}

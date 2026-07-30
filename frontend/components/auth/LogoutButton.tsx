@@ -6,7 +6,14 @@ import { LogOutIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 
-export function LogoutButton({ className }: { className?: string }) {
+export function LogoutButton({
+  className,
+  showLabel = false,
+}: {
+  className?: string;
+  /** Mobil sheet için ikon + metin. */
+  showLabel?: boolean;
+}) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
@@ -25,7 +32,7 @@ export function LogoutButton({ className }: { className?: string }) {
     <Button
       type="button"
       variant="ghost"
-      size="icon-sm"
+      size={showLabel ? "sm" : "icon-sm"}
       onClick={logout}
       disabled={loading}
       className={className}
@@ -33,6 +40,7 @@ export function LogoutButton({ className }: { className?: string }) {
       title="Çıkış yap"
     >
       <LogOutIcon />
+      {showLabel ? <span>Çıkış yap</span> : null}
     </Button>
   );
 }
