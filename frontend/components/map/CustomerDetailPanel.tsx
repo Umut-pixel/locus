@@ -114,6 +114,14 @@ const heightTween = {
   ease: [0.22, 1, 0.36, 1] as const,
 };
 
+const sheetSnapTween = {
+  duration: 0.28,
+  ease: [0.22, 1, 0.36, 1] as const,
+};
+
+/** Mobil sheet peek (kimlik + sağlık) yaklaşık yükseklik — ölçü gelene kadar. */
+const SHEET_PEEK_FALLBACK = 148;
+
 const titleSlideVariants = {
   enter: (direction: number) => ({
     y: direction > 0 ? 4 : -4,
@@ -163,10 +171,28 @@ export function CustomerDetailPanel({
   const [snapshot, setSnapshot] = useState<MusteriSnapshotRow | null>(null);
   const [snapLoading, setSnapLoading] = useState(true);
   const [sheetExpanded, setSheetExpanded] = useState(true);
-  const sheetSwipeStartY = useRef<number | null>(null);
+  const [sheetDragging, setSheetDragging] = useState(false);
+  /** Snap animasyonu bitene kadar height kilitli kalsın. */
+  const [sheetSnapLock, setSheetSnapLock] = useState(false);
+  const peekChromeRef = useRef<HTMLDivElement | null>(null);
+  const sheetDraggingRef = useRef(false);
+  const expandedHRef = useRef(380);
+  const peekHRef = useRef(SHEET_PEEK_FALLBACK);
+  const sheetDragRef = useRef<{
+    pointerId: number;
+    startY: number;
+    startH: number;
+    lastY: number;
+    lastT: number;
+    velocity: number;
+    /** pending: scroll alanında yön belli değil; sheet: kart sürükleniyor; scroll: içeriğe bırak */
+    mode: "pending" | "sheet" | "scroll";
+    scrollEl: HTMLElement | null;
+  } | null>(null);
 
   const x = useMotionValue(0);
   const y = useMotionValue(0);
+  const sheetH = useMotionValue(380);
 
   const goToPage = (next: PanelPage) => {
     if (next === page) return;
@@ -195,6 +221,9 @@ export function CustomerDetailPanel({
     setPage("ozet");
     setPageDirection(0);
     setSheetExpanded(true);
+    setSheetDragging(false);
+    setSheetSnapLock(false);
+    sheetDraggingRef.current = false;
     setSnapLoading(true);
     setSnapshot(null);
 
@@ -252,8 +281,19 @@ export function CustomerDetailPanel({
     const update = () => {
       cancelAnimationFrame(raf);
       raf = requestAnimationFrame(() => {
+        if (sheetDraggingRef.current) return;
         const next = el.offsetHeight;
         setPanelHeight((h) => (h === next ? h : next));
+        const compact =
+          containerSize.width > 0 && containerSize.width < COMPACT_BREAKPOINT;
+        if (!compact) return;
+        const peek = peekChromeRef.current?.offsetHeight;
+        if (peek && peek > 80) peekHRef.current = peek;
+        if (sheetExpanded) {
+          expandedHRef.current = next;
+        } else {
+          sheetH.set(peekHRef.current);
+        }
       });
     };
     update();
@@ -263,7 +303,7 @@ export function CustomerDetailPanel({
       cancelAnimationFrame(raf);
       observer.disconnect();
     };
-  }, [musteri.musteri_kodu, sheetExpanded]);
+  }, [musteri.musteri_kodu, sheetExpanded, containerSize.width, sheetH]);
 
   useLayoutEffect(() => {
     const el = containerRef.current;
@@ -295,22 +335,20 @@ export function CustomerDetailPanel({
   const width = isCompact
     ? Math.max(0, containerW - EDGE_MARGIN * 2)
     : PANEL_WIDTH;
-  const showSheetBody = !isCompact || sheetExpanded;
+  /** Sürüklerken gövde mount kalsın — yükseklik clip ile küçülür. */
+  const showSheetBody = !isCompact || sheetExpanded || sheetDragging;
+  const sheetHeightConstrained =
+    isCompact && (sheetDragging || !sheetExpanded || sheetSnapLock);
 
   // İlk açılış / müşteri değişimi: yerleşim. Sayfa geçişinde y'yi sıçratma.
   useLayoutEffect(() => {
     if (containerW <= 0 || containerH <= 0) return;
 
-    // Mobil bottom-sheet: her zaman alta yasla (expand/minimize dahil).
+    // Mobil bottom-sheet: alta yaslı; yükseklik sheetH ile (sürükleme).
     if (isCompact) {
-      const top = Math.max(EDGE_MARGIN, containerH - panelHeight - EDGE_MARGIN);
       x.set(EDGE_MARGIN);
-      if (reanchorRef.current) {
-        y.set(top);
-        reanchorRef.current = false;
-      } else {
-        void animate(y, top, heightTween);
-      }
+      y.set(0);
+      reanchorRef.current = false;
       return;
     }
 
@@ -375,25 +413,189 @@ export function CustomerDetailPanel({
     dragControls.start(e);
   };
 
-  const onSheetHandlePointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
-    if (!isCompact) {
-      startDrag(e);
+  const maxSheetHeight = () => {
+    if (containerH <= 0) return expandedHRef.current;
+    return Math.min(
+      expandedHRef.current,
+      Math.round(containerH * 0.85) - EDGE_MARGIN
+    );
+  };
+
+  const snapSheetTo = (expand: boolean) => {
+    const peek = peekHRef.current;
+    const expanded = Math.max(maxSheetHeight(), peek + 80);
+    const target = expand ? expanded : peek;
+    setSheetSnapLock(true);
+    setSheetExpanded(expand);
+    sheetDraggingRef.current = false;
+    setSheetDragging(false);
+    void animate(sheetH, target, sheetSnapTween).then(() => {
+      setSheetSnapLock(false);
+    });
+  };
+
+  const endSheetDrag = () => {
+    const drag = sheetDragRef.current;
+    sheetDragRef.current = null;
+    if (!drag) {
+      sheetDraggingRef.current = false;
+      setSheetDragging(false);
       return;
     }
-    e.currentTarget.setPointerCapture(e.pointerId);
-    sheetSwipeStartY.current = e.clientY;
+
+    const peek = peekHRef.current;
+    const expanded = Math.max(maxSheetHeight(), peek + 80);
+    const h = sheetH.get();
+    const span = Math.max(expanded - peek, 1);
+    const progress = (h - peek) / span; // 0 peek → 1 expanded
+    const v = drag.velocity; // px/ms; + = parmak aşağı
+    const flickDown = v > 0.45;
+    const flickUp = v < -0.45;
+    const expand = flickUp ? true : flickDown ? false : progress >= 0.45;
+    snapSheetTo(expand);
   };
 
-  const onSheetHandlePointerUp = (e: ReactPointerEvent<HTMLDivElement>) => {
-    if (!isCompact || sheetSwipeStartY.current == null) return;
-    const dy = e.clientY - sheetSwipeStartY.current;
-    sheetSwipeStartY.current = null;
-    if (dy > 40) setSheetExpanded(false);
-    else if (dy < -40) setSheetExpanded(true);
+  const beginSheetDrag = (
+    e: ReactPointerEvent<HTMLDivElement>,
+    startH: number
+  ) => {
+    const panel = panelRef.current;
+    if (!panel) return;
+
+    e.preventDefault();
+    panel.setPointerCapture(e.pointerId);
+
+    sheetH.set(startH);
+    sheetDraggingRef.current = true;
+    setSheetDragging(true);
+    if (!sheetExpanded) setSheetExpanded(true);
+
+    const prev = sheetDragRef.current;
+    sheetDragRef.current = {
+      pointerId: e.pointerId,
+      startY: prev?.startY ?? e.clientY,
+      startH,
+      lastY: e.clientY,
+      lastT: performance.now(),
+      velocity: 0,
+      mode: "sheet",
+      scrollEl: null,
+    };
   };
 
-  const onSheetHandlePointerCancel = () => {
-    sheetSwipeStartY.current = null;
+  const onSheetPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (!isCompact) return;
+    if (e.button != null && e.button !== 0) return;
+
+    const target = e.target as HTMLElement | null;
+    if (target?.closest("button, a, input, textarea, select, [role='button']")) {
+      return;
+    }
+
+    const panel = panelRef.current;
+    if (!panel) return;
+
+    const peek = peekChromeRef.current?.offsetHeight ?? peekHRef.current;
+    if (peek > 80) peekHRef.current = peek;
+    if (sheetExpanded) {
+      expandedHRef.current = Math.max(panel.offsetHeight, peek + 80);
+    }
+
+    const startH = sheetExpanded ? panel.offsetHeight : peekHRef.current;
+    const scrollEl = target?.closest(
+      "[data-sheet-scroll]"
+    ) as HTMLElement | null;
+    const scrollBlocked =
+      Boolean(scrollEl) &&
+      sheetExpanded &&
+      !sheetDragging &&
+      scrollEl!.scrollTop > 0;
+
+    // Scroll ortasındaysa önce içeriğe bırak; tepedeyken / peek'te kart sürüklenir.
+    if (scrollBlocked) {
+      sheetDragRef.current = {
+        pointerId: e.pointerId,
+        startY: e.clientY,
+        startH,
+        lastY: e.clientY,
+        lastT: performance.now(),
+        velocity: 0,
+        mode: "pending",
+        scrollEl,
+      };
+      return;
+    }
+
+    beginSheetDrag(e, startH);
+    if (sheetDragRef.current) {
+      sheetDragRef.current.startY = e.clientY;
+    }
+  };
+
+  const onSheetPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
+    const drag = sheetDragRef.current;
+    if (!drag || e.pointerId !== drag.pointerId) return;
+
+    if (drag.mode === "scroll") return;
+
+    if (drag.mode === "pending") {
+      const dy = e.clientY - drag.startY;
+      const scrollTop = drag.scrollEl?.scrollTop ?? 0;
+      if (scrollTop > 0) {
+        drag.mode = "scroll";
+        return;
+      }
+      // Tepede aşağı çek → kartı küçült
+      if (dy > 8) {
+        beginSheetDrag(e, drag.startH);
+        if (sheetDragRef.current) {
+          sheetDragRef.current.startY = drag.startY;
+        }
+      } else if (dy < -8) {
+        drag.mode = "scroll";
+      }
+      return;
+    }
+
+    const now = performance.now();
+    const dt = Math.max(now - drag.lastT, 1);
+    const dyFinger = e.clientY - drag.lastY;
+    drag.velocity = dyFinger / dt;
+    drag.lastY = e.clientY;
+    drag.lastT = now;
+
+    const peek = peekHRef.current;
+    const expanded = Math.max(maxSheetHeight(), peek + 80);
+    const next = Math.min(
+      expanded,
+      Math.max(peek, drag.startH - (e.clientY - drag.startY))
+    );
+    sheetH.set(next);
+  };
+
+  const onSheetPointerUp = (e: ReactPointerEvent<HTMLDivElement>) => {
+    const drag = sheetDragRef.current;
+    if (!drag || e.pointerId !== drag.pointerId) return;
+
+    if (drag.mode !== "sheet") {
+      sheetDragRef.current = null;
+      return;
+    }
+
+    const travel = Math.abs(e.clientY - drag.startY);
+    if (travel < 10 && Math.abs(drag.velocity) < 0.2) {
+      sheetDragRef.current = null;
+      snapSheetTo(true);
+      return;
+    }
+    endSheetDrag();
+  };
+
+  const onSheetPointerCancel = (e: ReactPointerEvent<HTMLDivElement>) => {
+    const drag = sheetDragRef.current;
+    if (drag && e.pointerId !== drag.pointerId) return;
+    if (drag?.mode === "sheet") endSheetDrag();
+    else sheetDragRef.current = null;
   };
 
   const accent = RISK_COLORS[musteri.risk_durumu];
@@ -432,117 +634,123 @@ export function CustomerDetailPanel({
         setDragging(true);
       }}
       onDragEnd={() => setDragging(false)}
-      style={{ x, y, width, left: 0, top: 0 }}
+      onPointerDown={isCompact ? onSheetPointerDown : undefined}
+      onPointerMove={isCompact ? onSheetPointerMove : undefined}
+      onPointerUp={isCompact ? onSheetPointerUp : undefined}
+      onPointerCancel={isCompact ? onSheetPointerCancel : undefined}
+      style={
+        isCompact
+          ? {
+              x,
+              width,
+              left: 0,
+              top: "auto",
+              bottom: EDGE_MARGIN,
+              y: 0,
+              height: sheetHeightConstrained ? sheetH : undefined,
+            }
+          : { x, y, width, left: 0, top: 0 }
+      }
       className={cn(
         "pointer-events-auto absolute z-20 flex max-h-[min(85dvh,calc(100%-1.5rem))] flex-col overflow-hidden rounded-2xl border bg-popover text-popover-foreground shadow-[0_16px_48px_-12px_rgba(0,0,0,0.6)]",
-        dragging && "cursor-grabbing select-none"
+        isCompact && "cursor-grab touch-pan-y",
+        (dragging || sheetDragging) && "cursor-grabbing select-none touch-none"
       )}
+      aria-label={
+        isCompact
+          ? sheetExpanded
+            ? "Kartı küçültmek için aşağı kaydırın"
+            : "Kartı büyütmek için yukarı kaydırın"
+          : undefined
+      }
     >
-      <div
-        onPointerDown={onSheetHandlePointerDown}
-        onPointerUp={onSheetHandlePointerUp}
-        onPointerCancel={onSheetHandlePointerCancel}
-        className={cn(
-          "flex shrink-0 touch-none flex-col items-center",
-          isCompact
-            ? "cursor-grab pt-2.5 pb-1 active:cursor-grabbing"
-            : "cursor-grab pt-2.5 pb-0 active:cursor-grabbing"
-        )}
-        aria-label={
-          isCompact
-            ? sheetExpanded
-              ? "Kartı küçültmek için aşağı çekin"
-              : "Kartı büyütmek için yukarı çekin"
-            : undefined
-        }
-      >
-        <span className="flex h-5 items-center justify-center text-muted-foreground/50">
-          {isCompact ? (
-            <span className="h-1 w-9 rounded-full bg-muted-foreground/35" />
-          ) : (
-            <GripHorizontalIcon className="size-4" />
+      <div ref={peekChromeRef} className="shrink-0">
+        <div
+          onPointerDown={(e) => {
+            if (!isCompact) startDrag(e);
+          }}
+          className={cn(
+            "flex flex-col items-center",
+            isCompact
+              ? "pt-2.5 pb-1"
+              : "cursor-grab touch-none pt-2.5 pb-0 active:cursor-grabbing"
           )}
-        </span>
-      </div>
+        >
+          <span className="flex h-5 items-center justify-center text-muted-foreground/50">
+            {isCompact ? (
+              <span className="h-1 w-9 rounded-full bg-muted-foreground/35" />
+            ) : (
+              <GripHorizontalIcon className="size-4" />
+            )}
+          </span>
+        </div>
 
-      <div
-        onPointerDown={(e) => {
-          if (isCompact && !sheetExpanded) {
-            onSheetHandlePointerDown(e);
-            return;
-          }
-          startDrag(e);
-        }}
-        onPointerUp={isCompact && !sheetExpanded ? onSheetHandlePointerUp : undefined}
-        onPointerCancel={
-          isCompact && !sheetExpanded ? onSheetHandlePointerCancel : undefined
-        }
-        onClick={() => {
-          if (isCompact && !sheetExpanded) setSheetExpanded(true);
-        }}
-        className={cn(
-          "flex shrink-0 touch-none items-start justify-between gap-3 px-4",
-          isCompact && !sheetExpanded
-            ? "cursor-grab pb-[max(0.75rem,env(safe-area-inset-bottom))] active:cursor-grabbing"
-            : "cursor-grab active:cursor-grabbing"
-        )}
-      >
-        <div className="min-w-0">
-          {showSheetBody && (
+        <div
+          onPointerDown={(e) => {
+            if (!isCompact) startDrag(e);
+          }}
+          className={cn(
+            "flex items-start justify-between gap-3 px-4",
+            !isCompact && "cursor-grab touch-none active:cursor-grabbing"
+          )}
+        >
+          <div className="min-w-0">
             <p className="font-mono text-[10px] tracking-[0.16em] text-muted-foreground uppercase">
               {musteri.musteri_kodu}
               {musteri.sehir ? ` · ${musteri.sehir}` : ""}
               {musteri.ilce ? ` / ${musteri.ilce}` : ""}
             </p>
-          )}
-          <h2
-            className={cn(
-              "line-clamp-2 text-sm leading-snug font-medium",
-              showSheetBody ? "mt-1" : "mt-0"
-            )}
+            <h2
+              className={cn(
+                "mt-1 text-sm leading-snug font-medium",
+                !sheetExpanded && !sheetDragging
+                  ? "line-clamp-1"
+                  : "line-clamp-2"
+              )}
+            >
+              {musteri.unvan}
+            </h2>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            onPointerDown={(e) => e.stopPropagation()}
+            aria-label="Paneli kapat"
+            className="flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-full text-white transition-colors hover:bg-white/10"
           >
-            {musteri.unvan}
-          </h2>
+            <XIcon className="size-4 stroke-[2.5]" />
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={onClose}
-          onPointerDown={(e) => e.stopPropagation()}
-          aria-label="Paneli kapat"
-          className="flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-full text-white transition-colors hover:bg-white/10"
+
+        <div
+          className={cn(
+            "px-4 pt-2.5",
+            !sheetExpanded && !sheetDragging
+              ? "pb-[max(0.75rem,env(safe-area-inset-bottom))]"
+              : "pb-1"
+          )}
         >
-          <XIcon className="size-4 stroke-[2.5]" />
-        </button>
+          <RiskPeekSummary
+            accent={accent}
+            riskLabel={riskLabels[musteri.risk_durumu]}
+            gecikmeYuzde={gecikmeYuzde}
+            hicTeslimat={hicTeslimat}
+            gecikmeGun={gecikmeGun}
+            sonTeslimatTarihi={musteri.son_teslimat_tarihi}
+            compact
+          />
+        </div>
       </div>
 
       {showSheetBody && (
         <>
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-        <div className="px-4 pt-3.5">
-          <div className="flex items-baseline justify-between gap-2">
-            <span className="inline-flex items-center gap-1.5">
-              <span
-                className="size-1.5 shrink-0 rounded-full"
-                style={{ backgroundColor: accent }}
-              />
-              <span
-                className="font-mono text-[11px] tracking-wide uppercase"
-                style={{ color: accent }}
-              >
-                {riskLabels[musteri.risk_durumu]}
-              </span>
-            </span>
-            {gecikmeYuzde != null && (
-              <span
-                className="font-mono text-lg font-semibold tabular-nums"
-                style={{ color: accent }}
-              >
-                %{gecikmeYuzde}
-              </span>
-            )}
-          </div>
+      <div
+        data-sheet-scroll
+        className="min-h-0 flex-1 overflow-y-auto overscroll-contain"
+      >
+        <div className="px-4 pt-2">
           <SegmentBar
-            className="mt-2"
+            className="mt-0.5"
             segments={24}
             value={gecikmeYuzde != null ? gecikmeYuzde / 100 : 0}
             color={accent}
@@ -552,13 +760,6 @@ export function CustomerDetailPanel({
                 : "Teslimat kaydı yok"
             }
           />
-          <p className="mt-1.5 font-mono text-[10px] tracking-wide text-muted-foreground uppercase">
-            {hicTeslimat || gecikmeGun == null
-              ? "Kayıtlı teslimat yok"
-              : musteri.son_teslimat_tarihi
-                ? `Son teslimat ${formatDate(musteri.son_teslimat_tarihi)} · ${formatNumber(gecikmeGun)} gün önce · eşik ${AKSIYON_GUN}`
-                : `Son teslimat ${formatNumber(gecikmeGun)} gün önce · eşik ${AKSIYON_GUN} gün`}
-          </p>
         </div>
 
         <div className="mx-4 mt-3.5 flex items-center gap-2 border-t pt-1">
@@ -778,6 +979,82 @@ export function CustomerDetailPanel({
         </>
       )}
     </motion.div>
+  );
+}
+
+function RiskPeekSummary({
+  accent,
+  riskLabel,
+  gecikmeYuzde,
+  hicTeslimat,
+  gecikmeGun,
+  sonTeslimatTarihi,
+  compact = false,
+}: {
+  accent: string;
+  riskLabel: string;
+  gecikmeYuzde: number | null;
+  hicTeslimat: boolean;
+  gecikmeGun: number | null | undefined;
+  sonTeslimatTarihi: string | null | undefined;
+  compact?: boolean;
+}) {
+  const teslimatLine =
+    hicTeslimat || gecikmeGun == null
+      ? "Kayıtlı teslimat yok"
+      : sonTeslimatTarihi
+        ? `Son teslimat ${formatDate(sonTeslimatTarihi)} · ${formatNumber(gecikmeGun)} gün önce · eşik ${AKSIYON_GUN}`
+        : `Son teslimat ${formatNumber(gecikmeGun)} gün önce · eşik ${AKSIYON_GUN} gün`;
+
+  return (
+    <>
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="inline-flex items-center gap-1.5">
+          <span
+            className="size-1.5 shrink-0 rounded-full"
+            style={{ backgroundColor: accent }}
+          />
+          <span
+            className="font-mono text-[11px] tracking-wide uppercase"
+            style={{ color: accent }}
+          >
+            {riskLabel}
+          </span>
+        </span>
+        {gecikmeYuzde != null && (
+          <span
+            className={cn(
+              "font-mono font-semibold tabular-nums",
+              compact ? "text-base" : "text-lg"
+            )}
+            style={{ color: accent }}
+          >
+            %{gecikmeYuzde}
+          </span>
+        )}
+      </div>
+      {!compact && (
+        <SegmentBar
+          className="mt-2"
+          segments={24}
+          value={gecikmeYuzde != null ? gecikmeYuzde / 100 : 0}
+          color={accent}
+          label={
+            gecikmeYuzde != null
+              ? `Gecikme eşiğinin %${gecikmeYuzde}'i`
+              : "Teslimat kaydı yok"
+          }
+        />
+      )}
+      <p
+        className={cn(
+          "font-mono text-[10px] tracking-wide text-muted-foreground uppercase",
+          compact ? "mt-1 line-clamp-2" : "mt-1.5"
+        )}
+      >
+        {teslimatLine}
+      </p>
+    </>
   );
 }
 
