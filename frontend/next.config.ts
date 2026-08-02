@@ -15,7 +15,7 @@ const nextConfig: NextConfig = {
   // SheetJS yalnızca API route'ta — client graph'a sızmasın
   serverExternalPackages: ["xlsx"],
   experimental: {
-    optimizePackageImports: ["lucide-react", "motion"],
+    optimizePackageImports: ["lucide-react", "motion", "thinking-orbs"],
   },
 };
 

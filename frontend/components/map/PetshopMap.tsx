@@ -263,9 +263,11 @@ export const PetshopMap = memo(function PetshopMap({
 
     map.on("load", mountOverlays);
 
+    const coarsePointer = window.matchMedia("(hover: none)").matches;
+
     map.on("mouseenter", POINT_LAYER, (e) => {
       // Dokunmatikte hover popup gereksiz maliyeti önle.
-      if (window.matchMedia("(hover: none)").matches) return;
+      if (coarsePointer) return;
       map.getCanvas().style.cursor = "pointer";
       const feature = e.features?.[0];
       if (!feature || feature.geometry.type !== "Point") return;

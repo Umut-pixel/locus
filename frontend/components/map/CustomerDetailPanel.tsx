@@ -5,6 +5,7 @@ import {
   useLayoutEffect,
   useRef,
   useState,
+  memo,
   type PointerEvent as ReactPointerEvent,
   type RefObject,
 } from "react";
@@ -149,7 +150,7 @@ interface CustomerDetailPanelProps {
   riskLabels?: Record<RiskDurumu, string>;
 }
 
-export function CustomerDetailPanel({
+export const CustomerDetailPanel = memo(function CustomerDetailPanel({
   musteri,
   anchor,
   containerRef,
@@ -1030,7 +1031,7 @@ export function CustomerDetailPanel({
     </motion.div>
     </motion.div>
   );
-}
+});
 
 function RiskPeekSummary({
   accent,

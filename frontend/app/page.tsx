@@ -60,6 +60,13 @@ const DataImportFlow = dynamic(
   { ssr: false }
 );
 
+const MAP_OVERLAY_SAFE_PAD = {
+  paddingTop: "max(0.5rem, env(safe-area-inset-top))",
+  paddingLeft: "max(0.5rem, env(safe-area-inset-left))",
+  paddingRight: "max(0.5rem, env(safe-area-inset-right))",
+  paddingBottom: "max(0.5rem, env(safe-area-inset-bottom))",
+} as const;
+
 export default function Home() {
   const { data: rows, loading, refreshing, error, refresh } = useMusteriHarita();
   const isMobileLayout = useIsMobileLayout();
@@ -100,6 +107,17 @@ export default function Home() {
     [rows, riskMode]
   );
 
+  const searchHaystacks = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const row of scoredRows) {
+      map.set(
+        row.musteri_kodu,
+        `${row.unvan} ${row.musteri_kodu}`.toLocaleLowerCase("tr")
+      );
+    }
+    return map;
+  }, [scoredRows]);
+
   const filterState = useMemo(
     () => ({
       cities: selectedCities,
@@ -118,21 +136,14 @@ export default function Home() {
   }, [scoredRows]);
 
   const filteredRows = useMemo(
-    () => filterRowsLocally(scoredRows, filterState),
-    [scoredRows, filterState]
+    () => filterRowsLocally(scoredRows, filterState, searchHaystacks),
+    [scoredRows, filterState, searchHaystacks]
   );
 
   // Clustering doğru kalsın diye filtreli GeoJSON; rows değişince / filtre
   // deferred search ile yeniden kurulur (yazarken her tuşta değil).
   const geojson = useMemo(
     () => musterilerToGeoJSON(filteredRows, highlightSet),
-    [filteredRows, highlightSet]
-  );
-
-  const hasUpdatedMarkers = useMemo(
-    () =>
-      Boolean(highlightSet) &&
-      filteredRows.some((row) => highlightSet!.has(row.musteri_kodu)),
     [filteredRows, highlightSet]
   );
 
@@ -143,23 +154,35 @@ export default function Home() {
     setHighlightCodesState(codes.length ? codes : null);
   }, []);
 
-  const stats = useMemo(() => {
+  const { stats, hasUpdatedMarkers } = useMemo(() => {
     const dagilim: Record<RiskDurumu, number> = {
       saglikli: 0,
       izlenmeli: 0,
       riskli: 0,
       hic_teslimat_yok: 0,
     };
+    let hasUpdated = false;
     for (const row of filteredRows) {
       dagilim[row.risk_durumu] += 1;
+      if (!hasUpdated && highlightSet?.has(row.musteri_kodu)) {
+        hasUpdated = true;
+      }
     }
     return {
-      toplam: scoredRows.length,
-      gorunen: filteredRows.length,
-      riskli: dagilim.riskli,
-      dagilim,
+      stats: {
+        toplam: scoredRows.length,
+        gorunen: filteredRows.length,
+        riskli: dagilim.riskli,
+        dagilim,
+      },
+      hasUpdatedMarkers: Boolean(highlightSet) && hasUpdated,
     };
-  }, [scoredRows, filteredRows]);
+  }, [scoredRows, filteredRows, highlightSet]);
+
+  const legendTitle = useMemo(
+    () => (riskMode === "borc" ? "Borç durumu" : "Sevkiyat durumu"),
+    [riskMode]
+  );
 
   // Mod değişince seçili müşterinin risk bandını güncelle.
   useEffect(() => {
@@ -219,6 +242,23 @@ export default function Home() {
     setHighlightedRutKod(null);
   }, []);
 
+  const handleToggleImport = useCallback(() => {
+    setImportOpen((open) => {
+      const next = !open;
+      if (next && isMobileLayout) {
+        setSelectedMusteri(null);
+        setPanelAnchor(null);
+        setHighlightedRutKod(null);
+      }
+      return next;
+    });
+  }, [isMobileLayout]);
+
+  const handleCloseImport = useCallback(() => {
+    setImportOpen(false);
+    setImportActivity(null);
+  }, []);
+
   const filterProps = useMemo(
     () => ({
       cities,
@@ -257,9 +297,11 @@ export default function Home() {
 
   return (
     <div className="relative flex h-dvh w-full max-w-[100vw] overflow-hidden">
-      <aside className="hidden w-80 shrink-0 border-r border-sidebar-border bg-sidebar lg:block xl:w-[22.5rem]">
-        <FilterPanel {...filterProps} />
-      </aside>
+      {!isMobileLayout ? (
+        <aside className="hidden w-80 shrink-0 border-r border-sidebar-border bg-sidebar lg:block xl:w-[22.5rem]">
+          <FilterPanel {...filterProps} />
+        </aside>
+      ) : null}
 
       <div ref={mapAreaRef} className="relative min-w-0 flex-1">
         <PetshopMap
@@ -276,24 +318,18 @@ export default function Home() {
 
         <div
           className="pointer-events-none absolute inset-0 z-10 flex flex-col justify-between gap-2 p-2 sm:gap-3 sm:p-3 md:p-4"
-          style={{
-            paddingTop: "max(0.5rem, env(safe-area-inset-top))",
-            paddingLeft: "max(0.5rem, env(safe-area-inset-left))",
-            paddingRight: "max(0.5rem, env(safe-area-inset-right))",
-            paddingBottom: "max(0.5rem, env(safe-area-inset-bottom))",
-          }}
+          style={MAP_OVERLAY_SAFE_PAD}
         >
           <div className="flex min-h-0 w-full max-w-full flex-col items-stretch gap-1.5 sm:max-w-[22rem] sm:items-start">
             <div className="flex items-center gap-2">
-              <div className="pointer-events-auto lg:hidden">
-                <MobileFilterSheet {...filterProps} />
-              </div>
+              {isMobileLayout ? (
+                <div className="pointer-events-auto">
+                  <MobileFilterSheet {...filterProps} />
+                </div>
+              ) : null}
               <Button
                 variant="secondary"
-                onClick={() => {
-                  setImportOpen((open) => !open);
-                  if (!importOpen && isMobileLayout) handleCloseDetail();
-                }}
+                onClick={handleToggleImport}
                 className="pointer-events-auto h-8 gap-1.5 rounded-full border px-2.5 shadow-md"
               >
                 <UploadIcon className="size-3.5" />
@@ -306,20 +342,19 @@ export default function Home() {
               )}
             </div>
             {/* Ayrı satır: dar ekranda menü/yükle arasına sıkışıp kaybolmasın */}
-            <div className="pointer-events-auto w-fit lg:hidden">
-              <RiskModeToggle
-                value={riskMode}
-                onChange={handleRiskModeChange}
-                className="shadow-md"
-              />
-            </div>
+            {isMobileLayout ? (
+              <div className="pointer-events-auto w-fit">
+                <RiskModeToggle
+                  value={riskMode}
+                  onChange={handleRiskModeChange}
+                  className="shadow-md"
+                />
+              </div>
+            ) : null}
             <AnimatePresence>
               {importOpen && (
                 <DataImportFlow
-                  onClose={() => {
-                    setImportOpen(false);
-                    setImportActivity(null);
-                  }}
+                  onClose={handleCloseImport}
                   onComplete={refresh}
                   onStageChange={setImportActivity}
                   onResult={handleUploadResult}
@@ -333,9 +368,7 @@ export default function Home() {
               <RiskLegend
                 showUpdatedRing={hasUpdatedMarkers}
                 riskLabels={riskLabels}
-                title={
-                  riskMode === "borc" ? "Borç durumu" : "Sevkiyat durumu"
-                }
+                title={legendTitle}
               />
             )}
           </div>

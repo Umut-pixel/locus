@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useId, type ReactNode } from "react";
+import { memo, useId, useMemo, type ReactNode } from "react";
 import { SearchIcon, XIcon } from "lucide-react";
 import { motion } from "motion/react";
 
@@ -64,6 +64,10 @@ export const FilterPanel = memo(function FilterPanel({
   riskShortLabels = DEFAULT_RISK_SHORT_LABELS,
 }: FilterPanelProps) {
   const isSheet = variant === "sheet";
+  const selectedCitySet = useMemo(
+    () => new Set(selectedCities),
+    [selectedCities]
+  );
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden">
@@ -145,7 +149,7 @@ export const FilterPanel = memo(function FilterPanel({
               <Button
                 key={city}
                 size="sm"
-                variant={selectedCities.includes(city) ? "default" : "outline"}
+                variant={selectedCitySet.has(city) ? "default" : "outline"}
                 onClick={() => onToggleCity(city)}
                 className="h-7 rounded-full px-2.5 text-[11px]"
               >

@@ -6,6 +6,7 @@ import {
   useId,
   useRef,
   useState,
+  memo,
   type FormEvent,
 } from "react";
 import { AnimatePresence, motion } from "motion/react";
@@ -61,7 +62,7 @@ interface AgentAssistantProps {
  * Sidebar AI asistanı.
  * Orb = kimlik; status = durum; mesajlar = analitik akış; input = etkileşim.
  */
-export function AgentAssistant({
+export const AgentAssistant = memo(function AgentAssistant({
   className,
   importActivity = null,
   lastUploadResult = null,
@@ -448,7 +449,7 @@ export function AgentAssistant({
       </form>
     </div>
   );
-}
+});
 
 function ChatRow({
   item,
