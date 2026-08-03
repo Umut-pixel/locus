@@ -25,7 +25,14 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { formatCurrency, formatCurrencyPrecise, formatDate, formatKg, formatNumber } from "@/lib/format";
+import {
+  formatCurrency,
+  formatCurrencyPrecise,
+  formatDate,
+  formatDateTime,
+  formatKg,
+  formatNumber,
+} from "@/lib/format";
 import {
   HASSASIYET_LABELS,
   RISK_COLORS,
@@ -956,6 +963,10 @@ export const CustomerDetailPanel = memo(function CustomerDetailPanel({
                     value={musteri.durum ?? "—"}
                   />
                   <MetricRow label="Rut" value={musteri.rut_kod ?? "—"} />
+                  <MetricRow
+                    label="Son veri güncelleme"
+                    value={formatDateTime(musteri.guncellendi)}
+                  />
                   {musteri.geocode_hassasiyet && (
                     <MetricRow
                       label="Konum"

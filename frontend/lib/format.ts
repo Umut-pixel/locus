@@ -19,6 +19,15 @@ const dateFormatter = new Intl.DateTimeFormat("tr-TR", {
   year: "numeric",
 });
 
+const dateTimeFormatter = new Intl.DateTimeFormat("tr-TR", {
+  timeZone: "Europe/Istanbul",
+  day: "2-digit",
+  month: "long",
+  year: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+});
+
 export function formatCurrency(value: number): string {
   return currencyFormatter.format(value);
 }
@@ -41,4 +50,12 @@ export function formatDate(value: string | null): string {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "—";
   return dateFormatter.format(date);
+}
+
+/** timestamptz — tabloya son yazılma (guncellendi). */
+export function formatDateTime(value: string | null | undefined): string {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+  return dateTimeFormatter.format(date);
 }
