@@ -19,6 +19,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import type { ImportStage } from "@/components/import/DataImportFlow";
 import { useIsMobileLayout } from "@/hooks/useMediaQuery";
 import { useMusteriHarita } from "@/hooks/useMusteriHarita";
+import { usePanoramaSyncStatus } from "@/hooks/usePanoramaSyncStatus";
 import { musterilerToGeoJSON } from "@/lib/geojson";
 import type { UploadResult } from "@/lib/import/types";
 import { filterRowsLocally } from "@/lib/map-filter";
@@ -69,6 +70,9 @@ const MAP_OVERLAY_SAFE_PAD = {
 
 export default function Home() {
   const { data: rows, loading, refreshing, error, refresh } = useMusteriHarita();
+  const { label: syncLabel, status: syncStatus } = usePanoramaSyncStatus({
+    onTransformApplied: refresh,
+  });
   const isMobileLayout = useIsMobileLayout();
 
   const [selectedCities, setSelectedCities] = useState<string[]>([]);
@@ -340,6 +344,20 @@ export default function Home() {
                   Yenileniyor…
                 </span>
               )}
+              {!refreshing && syncLabel ? (
+                <span
+                  className={`pointer-events-none max-w-[14rem] truncate rounded-full border px-2 py-0.5 font-mono text-[10px] tracking-wide shadow-md sm:max-w-none ${
+                    syncStatus.syncError
+                      ? "border-destructive/40 bg-destructive/10 text-destructive"
+                      : syncStatus.transformPending
+                        ? "border-amber-500/40 bg-amber-500/10 text-amber-800 dark:text-amber-200"
+                        : "bg-popover/90 text-muted-foreground"
+                  }`}
+                  title={syncLabel}
+                >
+                  {syncLabel}
+                </span>
+              ) : null}
             </div>
             {/* Ayrı satır: dar ekranda menü/yükle arasına sıkışıp kaybolmasın */}
             {isMobileLayout ? (

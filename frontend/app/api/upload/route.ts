@@ -143,17 +143,27 @@ async function fetchExistingCodes(
   return existing;
 }
 
+/**
+ * PostgREST upsert dizisinde eksik anahtarlar null sayılır — lat olan ve
+ * olmayan satırları aynı chunk’ta gönderme (mevcut koordinat silinir).
+ */
 async function upsertBatch(
   admin: ReturnType<typeof createSupabaseAdmin>,
   rows: Record<string, unknown>[]
 ): Promise<void> {
-  for (let i = 0; i < rows.length; i += BATCH) {
-    const chunk = rows.slice(i, i + BATCH);
-    const { error } = await admin.from(MUSTERILER_TABLE).upsert(chunk, {
-      onConflict: "musteri_kodu",
-      ignoreDuplicates: false,
-    });
-    if (error) throw new Error(`Upsert başarısız: ${error.message}`);
+  const withLat = rows.filter((r) => "lat" in r);
+  const withoutLat = rows.filter((r) => !("lat" in r));
+
+  for (const group of [withLat, withoutLat]) {
+    for (let i = 0; i < group.length; i += BATCH) {
+      const chunk = group.slice(i, i + BATCH);
+      if (chunk.length === 0) continue;
+      const { error } = await admin.from(MUSTERILER_TABLE).upsert(chunk, {
+        onConflict: "musteri_kodu",
+        ignoreDuplicates: false,
+      });
+      if (error) throw new Error(`Upsert başarısız: ${error.message}`);
+    }
   }
 }
 

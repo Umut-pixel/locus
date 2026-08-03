@@ -19,11 +19,15 @@ npm run sync-env             # veya doğrudan: npm run dev
 | `SUPABASE_SERVICE_KEY` | Sunucu only | `/api/upload` yazma — **asla** `NEXT_PUBLIC_` olmasın |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Tarayıcı | Harita okuma (RLS) |
 | `NEXT_PUBLIC_MAPBOX_TOKEN` | Tarayıcı | Mapbox `pk.…` |
+| `CRON_SECRET` | Sunucu only | `/api/sync/panorama` — Vercel Cron + n8n webhook |
 
 ### Vercel
 
 Vercel dosya okumaz — aynı anahtarları **Project → Settings → Environment Variables** olarak ekleyin (Production + Preview).  
 Root Directory: `frontend`. Build: `npm run build`, Output: Next varsayılan.
+
+Cron (Europe/Istanbul ≈ UTC+3): `04:15` ve `16:15` UTC → n8n 07:00 / 19:00 sonrası transform.  
+`CRON_SECRET` tanımlı olmalı; aksi halde production’da endpoint 401 döner.
 
 ## Kurulum
 
@@ -48,7 +52,16 @@ npm run dev
 5. Değişen satırlarda `guncellendi` güncellenir  
 6. Harita `refresh()` ile yeniden yüklenir  
 
+## Panorama otomasyon sync
+
+n8n `panorama_*` landing’e yazar → `GET/POST /api/sync/panorama` view’ları
+`musteriler`e aktarır (`dosya_tipi=PanoramaSync` log) → harita `musteriler_harita`
+okur. Dashboard `panorama_sync_runs` + son PanoramaSync log’unu poll eder.
+
+Manuel: `Authorization: Bearer $CRON_SECRET` ile  
+`POST /api/sync/panorama?force=1` (aynı sync’i yeniden uygula).
+
 ## Veri modeli
 
-- Okuma: `musteriler_harita` (anon)  
+- Okuma: `musteriler_harita` (anon); sync durumu: `panorama_sync_runs`  
 - Yazma: `musteriler` + `yukleme_loglari` (service_role)

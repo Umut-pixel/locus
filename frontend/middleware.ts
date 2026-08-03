@@ -4,6 +4,9 @@ import { SESSION_COOKIE, verifySessionToken } from "@/lib/auth";
 
 const PUBLIC_PATHS = new Set(["/login", "/api/auth/login"]);
 
+/** Cron / n8n — oturum yok; route CRON_SECRET ile korur. */
+const CRON_PATHS = new Set(["/api/sync/panorama"]);
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
@@ -12,6 +15,10 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith("/favicon") ||
     pathname.includes(".")
   ) {
+    return NextResponse.next();
+  }
+
+  if (CRON_PATHS.has(pathname)) {
     return NextResponse.next();
   }
 

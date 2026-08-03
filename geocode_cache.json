@@ -2717,5 +2717,18 @@
   "display": "Türkiye Petrolleri, İzmir - Çanakkale Yolu, Gazicelal, Bostancı, Edremit, Balıkesir, Marmara Bölgesi, 10302, Türkiye"
  },
  "balkan mahallesi, çanakkale, türkiye": {},
- "emek zekai̇ gümüşdi̇ş mahallesi, çanakkale, türkiye": {}
+ "emek zekai̇ gümüşdi̇ş mahallesi, çanakkale, türkiye": {},
+ "yukari kizilca mahallesi, kemalpaşa, i̇zmi̇r, türkiye": {
+  "lat": 38.414677,
+  "lon": 27.4791814,
+  "tip": "bus_stop",
+  "display": "Yukarı Kızılca, Kemalpaşa Yolu Caddesi, Yukarıkızılca Merkez Mahallesi, Kemalpaşa, İzmir, Ege Bölgesi, 35730, Türkiye"
+ },
+ "susurluk, balikesi̇r, türkiye": {
+  "lat": 39.9183805,
+  "lon": 28.1531894,
+  "tip": "administrative",
+  "display": "Susurluk, Balıkesir, Marmara Bölgesi, Türkiye"
+ },
+ "ayi̇tli̇ ozmevki̇ kosten küme evleri̇ gökbel mahallesi, ortaca, muğla, türkiye": {}
 }
