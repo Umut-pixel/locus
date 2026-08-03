@@ -22,7 +22,7 @@ const dateFormatter = new Intl.DateTimeFormat("tr-TR", {
 const dateTimeFormatter = new Intl.DateTimeFormat("tr-TR", {
   timeZone: "Europe/Istanbul",
   day: "2-digit",
-  month: "long",
+  month: "short",
   year: "numeric",
   hour: "2-digit",
   minute: "2-digit",
