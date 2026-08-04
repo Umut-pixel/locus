@@ -1,6 +1,14 @@
 "use client";
 
-import { memo, useId, useMemo, type ReactNode } from "react";
+import {
+  memo,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { SearchIcon, XIcon } from "lucide-react";
 import { motion } from "motion/react";
 
@@ -9,6 +17,10 @@ import { LogoutButton } from "@/components/auth/LogoutButton";
 import { Button } from "@/components/ui/button";
 import { ClearDissolveInput } from "@/components/ui/clear-dissolve-input";
 import { SegmentBar } from "@/components/ui/segment-bar";
+import {
+  useMusteriSearch,
+  type MusteriSearchHit,
+} from "@/hooks/useMusteriSearch";
 import { cn } from "@/lib/utils";
 import {
   RISK_COLORS,
@@ -35,6 +47,7 @@ interface FilterPanelProps {
   onSelectRisk: (risk: RiskDurumu | null) => void;
   search: string;
   onSearchChange: (value: string) => void;
+  onSearchSelect: (hit: MusteriSearchHit) => void;
   stats: FilterStats;
   onReset: () => void;
   hasActiveFilters: boolean;
@@ -54,6 +67,7 @@ export const FilterPanel = memo(function FilterPanel({
   onSelectRisk,
   search,
   onSearchChange,
+  onSearchSelect,
   stats,
   onReset,
   hasActiveFilters,
@@ -68,16 +82,39 @@ export const FilterPanel = memo(function FilterPanel({
     () => new Set(selectedCities),
     [selectedCities]
   );
+  const { results, loading } = useMusteriSearch(search);
+  const [listOpen, setListOpen] = useState(false);
+  const searchWrapRef = useRef<HTMLDivElement | null>(null);
+
+  const showList = listOpen && search.trim().length >= 2;
+
+  useEffect(() => {
+    if (search.trim().length < 2) setListOpen(false);
+    else setListOpen(true);
+  }, [search]);
+
+  useEffect(() => {
+    const onDoc = (e: MouseEvent) => {
+      if (!searchWrapRef.current?.contains(e.target as Node)) {
+        setListOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, []);
+
+  const handleSelect = (hit: MusteriSearchHit) => {
+    onSearchSelect(hit);
+    onSearchChange(hit.unvan);
+    setListOpen(false);
+  };
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden">
-      {/* A — Başlık → şehir */}
       <div
         className={cn(
           "flex min-h-0 flex-col gap-4 overflow-y-auto overscroll-contain px-5 pb-3",
-          isSheet
-            ? "flex-1 pt-12 pr-12"
-            : "max-h-[48%] shrink-0 pt-5"
+          isSheet ? "flex-1 pt-12 pr-12" : "max-h-[48%] shrink-0 pt-5"
         )}
       >
         <div className="flex items-start justify-between gap-2">
@@ -89,7 +126,6 @@ export const FilterPanel = memo(function FilterPanel({
               Ege bölgesi müşteri dağılımı ve teslimat risk durumu
             </p>
           </div>
-          {/* Sheet'te sağ üstte X ile çakışır — yalnızca masaüstü sidebar. */}
           {!isSheet ? (
             <LogoutButton className="shrink-0 text-muted-foreground" />
           ) : null}
@@ -116,17 +152,72 @@ export const FilterPanel = memo(function FilterPanel({
           />
         </div>
 
-        <ClearDissolveInput
-          value={search}
-          onChange={onSearchChange}
-          placeholder="Müşteri adı veya kodu ara..."
-          className="h-9 rounded-full border border-input bg-muted/35 text-xs"
-          contentClassName="px-9 text-xs"
-          startAdornment={
-            <SearchIcon className="pointer-events-none absolute top-1/2 left-3.5 z-[4] size-3.5 -translate-y-1/2 text-muted-foreground" />
-          }
-          aria-label="Müşteri ara"
-        />
+        <div ref={searchWrapRef} className="relative z-20">
+          <ClearDissolveInput
+            value={search}
+            onChange={onSearchChange}
+            onFocus={() => {
+              if (search.trim().length >= 2) setListOpen(true);
+            }}
+            placeholder="Dükkan, adres veya kod ara…"
+            className="h-9 rounded-full border border-input bg-muted/35 text-xs"
+            contentClassName="px-9 text-xs"
+            startAdornment={
+              <SearchIcon className="pointer-events-none absolute top-1/2 left-3.5 z-[4] size-3.5 -translate-y-1/2 text-muted-foreground" />
+            }
+            aria-label="Müşteri ara"
+            aria-autocomplete="list"
+            aria-expanded={showList}
+            role="combobox"
+          />
+          {showList ? (
+            <ul
+              role="listbox"
+              className="absolute top-[calc(100%+0.35rem)] right-0 left-0 max-h-56 overflow-y-auto rounded-xl border border-border/80 bg-popover py-1 shadow-lg"
+            >
+              {loading && results.length === 0 ? (
+                <li className="px-3 py-2 text-[11px] text-muted-foreground">
+                  Aranıyor…
+                </li>
+              ) : results.length === 0 ? (
+                <li className="px-3 py-2 text-[11px] text-muted-foreground">
+                  Sonuç yok
+                </li>
+              ) : (
+                results.map((hit) => {
+                  const place = [hit.ilce, hit.sehir].filter(Boolean).join(", ");
+                  const adres =
+                    hit.adres && hit.adres.length > 48
+                      ? `${hit.adres.slice(0, 48)}…`
+                      : hit.adres;
+                  return (
+                    <li key={hit.musteri_kodu} role="option">
+                      <button
+                        type="button"
+                        className="flex w-full flex-col gap-0.5 px-3 py-2 text-left hover:bg-muted/60"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => handleSelect(hit)}
+                      >
+                        <span className="line-clamp-1 text-[12px] font-medium leading-snug">
+                          {hit.unvan}
+                        </span>
+                        <span className="line-clamp-1 font-mono text-[10px] text-muted-foreground">
+                          {hit.musteri_kodu}
+                          {place ? ` · ${place}` : ""}
+                        </span>
+                        {adres ? (
+                          <span className="line-clamp-1 text-[10px] text-muted-foreground/80">
+                            {adres}
+                          </span>
+                        ) : null}
+                      </button>
+                    </li>
+                  );
+                })
+              )}
+            </ul>
+          ) : null}
+        </div>
 
         <div>
           <SectionLabel>Risk durumu</SectionLabel>
@@ -171,7 +262,6 @@ export const FilterPanel = memo(function FilterPanel({
           </Button>
         )}
 
-        {/* Sheet: sağ üst X ile çakışmasın — filtre listesinin altında. */}
         {isSheet ? (
           <LogoutButton
             showLabel
@@ -180,7 +270,6 @@ export const FilterPanel = memo(function FilterPanel({
         ) : null}
       </div>
 
-      {/* B — AI */}
       <div
         className={cn(
           "flex min-h-0 flex-col border-t border-sidebar-border/80 bg-black/20",
@@ -241,7 +330,11 @@ function RiskSegmentedControl({
               <motion.span
                 layoutId={`risk-segment-${instanceId}`}
                 className="absolute inset-0 rounded-full bg-secondary shadow-sm ring-1 ring-border"
-                transition={{ type: "tween", duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                transition={{
+                  type: "tween",
+                  duration: 0.2,
+                  ease: [0.22, 1, 0.36, 1],
+                }}
               />
             )}
             <span className="relative z-10">{option.label}</span>
@@ -294,7 +387,10 @@ function RiskDagilim({
           <span
             key={i}
             className="h-1.5 min-w-0 flex-1 rounded-[1px] transition-colors duration-300 ease-out"
-            style={{ backgroundColor: color, transitionDelay: `${Math.min(i, 12) * 8}ms` }}
+            style={{
+              backgroundColor: color,
+              transitionDelay: `${Math.min(i, 12) * 8}ms`,
+            }}
           />
         ))}
       </div>

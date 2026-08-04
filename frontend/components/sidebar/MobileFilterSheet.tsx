@@ -12,6 +12,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { FilterPanel, type FilterStats } from "@/components/sidebar/FilterPanel";
+import type { MusteriSearchHit } from "@/hooks/useMusteriSearch";
 import type { ImportActivity } from "@/lib/agent-states";
 import type { UploadResult } from "@/lib/import/types";
 import type { RiskDurumu } from "@/lib/types";
@@ -24,6 +25,7 @@ interface MobileFilterSheetProps {
   onSelectRisk: (risk: RiskDurumu | null) => void;
   search: string;
   onSearchChange: (value: string) => void;
+  onSearchSelect: (hit: MusteriSearchHit) => void;
   stats: FilterStats;
   onReset: () => void;
   hasActiveFilters: boolean;

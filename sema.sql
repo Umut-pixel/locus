@@ -109,7 +109,7 @@ end $$;
 drop view if exists public.musteriler_harita;
 create view public.musteriler_harita
 with (security_invoker = true) as
-select m.musteri_kodu, m.unvan, m.sehir, m.ilce, m.lat, m.lon, m.rut_kod, m.rut_aciklama,
+select m.musteri_kodu, m.unvan, m.adres, m.sehir, m.ilce, m.lat, m.lon, m.rut_kod, m.rut_aciklama,
        m.ziyaret_sira, m.son_teslimat_tarihi, m.ilk_teslimat_tarihi, m.toplam_teslimat_sayisi,
        m.toplam_agirlik, m.toplam_tutar, m.son_teslimattan_gecen_gun,
        m.durum, m.geocode_hassasiyet, m.guncellendi,

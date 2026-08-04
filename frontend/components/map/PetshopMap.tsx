@@ -55,6 +55,13 @@ interface PetshopMapProps {
   data: MusteriFeatureCollection;
   selectedMusteriKodu: string | null;
   highlightedRutKod: string | null;
+  /** Sidebar aramadan seçim — easeTo + kart açılışı */
+  focusTarget?: {
+    musteri_kodu: string;
+    lat: number;
+    lon: number;
+    nonce: number;
+  } | null;
   onSelectMusteri: (
     musteri: MusteriHarita | null,
     screenPoint?: { x: number; y: number }
@@ -65,6 +72,7 @@ export const PetshopMap = memo(function PetshopMap({
   data,
   selectedMusteriKodu,
   highlightedRutKod,
+  focusTarget = null,
   onSelectMusteri,
 }: PetshopMapProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -91,6 +99,43 @@ export const PetshopMap = memo(function PetshopMap({
   useEffect(() => {
     selectedKodRef.current = selectedMusteriKodu;
   }, [selectedMusteriKodu]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !loadedRef.current || !focusTarget) return;
+
+    const { lat, lon, musteri_kodu } = focusTarget;
+    const targetZoom = Math.max(map.getZoom(), 14);
+    let done = false;
+
+    const finish = () => {
+      if (done) return;
+      done = true;
+      const screen = map.project([lon, lat]);
+      const feat = dataRef.current.features.find(
+        (f) => f.properties.musteri_kodu === musteri_kodu
+      );
+      const props = (feat?.properties ?? {
+        musteri_kodu,
+        lat,
+        lon,
+      }) as MusteriHarita;
+      onSelectRef.current(props, { x: screen.x, y: screen.y });
+    };
+
+    map.easeTo({
+      center: [lon, lat],
+      zoom: targetZoom,
+      duration: 700,
+      essential: true,
+    });
+    const timer = window.setTimeout(finish, 720);
+
+    return () => {
+      done = true;
+      window.clearTimeout(timer);
+    };
+  }, [focusTarget]);
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current || !MAPBOX_TOKEN) return;

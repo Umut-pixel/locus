@@ -6,6 +6,7 @@ export type GeocodeHassasiyet = "saha_gps" | "mahalle_merkezi" | "ilce_merkezi";
 export interface MusteriHarita {
   musteri_kodu: string;
   unvan: string;
+  adres?: string | null;
   sehir: string | null;
   ilce: string | null;
   lat: number;

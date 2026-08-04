@@ -30,6 +30,7 @@ export function clearMusteriCache(): void {
 export const MUSTERI_HARITA_SELECT = [
   "musteri_kodu",
   "unvan",
+  "adres",
   "sehir",
   "ilce",
   "lat",

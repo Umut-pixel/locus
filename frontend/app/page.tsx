@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { UploadIcon } from "lucide-react";
 import { AnimatePresence } from "motion/react";
 
@@ -19,6 +19,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import type { ImportStage } from "@/components/import/DataImportFlow";
 import { useIsMobileLayout } from "@/hooks/useMediaQuery";
 import { useMusteriHarita } from "@/hooks/useMusteriHarita";
+import type { MusteriSearchHit } from "@/hooks/useMusteriSearch";
 import { usePanoramaSyncStatus } from "@/hooks/usePanoramaSyncStatus";
 import { musterilerToGeoJSON } from "@/lib/geojson";
 import type { UploadResult } from "@/lib/import/types";
@@ -79,7 +80,12 @@ export default function Home() {
   const [selectedRisk, setSelectedRisk] = useState<RiskDurumu | null>(null);
   const [riskMode, setRiskMode] = useState<RiskMetricMode>("sevkiyat");
   const [search, setSearch] = useState("");
-  const deferredSearch = useDeferredValue(search);
+  const [focusTarget, setFocusTarget] = useState<{
+    musteri_kodu: string;
+    lat: number;
+    lon: number;
+    nonce: number;
+  } | null>(null);
   const [selectedMusteri, setSelectedMusteri] = useState<MusteriHarita | null>(
     null
   );
@@ -111,24 +117,12 @@ export default function Home() {
     [rows, riskMode]
   );
 
-  const searchHaystacks = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const row of scoredRows) {
-      map.set(
-        row.musteri_kodu,
-        `${row.unvan} ${row.musteri_kodu}`.toLocaleLowerCase("tr")
-      );
-    }
-    return map;
-  }, [scoredRows]);
-
   const filterState = useMemo(
     () => ({
       cities: selectedCities,
       risk: selectedRisk,
-      search: deferredSearch,
     }),
-    [selectedCities, selectedRisk, deferredSearch]
+    [selectedCities, selectedRisk]
   );
 
   const cities = useMemo(() => {
@@ -140,12 +134,11 @@ export default function Home() {
   }, [scoredRows]);
 
   const filteredRows = useMemo(
-    () => filterRowsLocally(scoredRows, filterState, searchHaystacks),
-    [scoredRows, filterState, searchHaystacks]
+    () => filterRowsLocally(scoredRows, filterState),
+    [scoredRows, filterState]
   );
 
-  // Clustering doğru kalsın diye filtreli GeoJSON; rows değişince / filtre
-  // deferred search ile yeniden kurulur (yazarken her tuşta değil).
+  // Clustering doğru kalsın diye filtreli GeoJSON.
   const geojson = useMemo(
     () => musterilerToGeoJSON(filteredRows, highlightSet),
     [filteredRows, highlightSet]
@@ -199,9 +192,7 @@ export default function Home() {
   }, [scoredRows]);
 
   const hasActiveFilters =
-    selectedCities.length > 0 ||
-    selectedRisk !== null ||
-    search.trim().length > 0;
+    selectedCities.length > 0 || selectedRisk !== null;
 
   const toggleCity = useCallback((city: string) => {
     setSelectedCities((prev) =>
@@ -240,6 +231,38 @@ export default function Home() {
     [scoredRows]
   );
 
+  const handleSearchSelect = useCallback(
+    (hit: MusteriSearchHit) => {
+      const resolved =
+        scoredRows.find((r) => r.musteri_kodu === hit.musteri_kodu) ??
+        ({
+          ...hit,
+          rut_kod: null,
+          rut_aciklama: null,
+          ziyaret_sira: null,
+          son_teslimat_tarihi: null,
+          ilk_teslimat_tarihi: null,
+          toplam_teslimat_sayisi: 0,
+          toplam_agirlik: 0,
+          toplam_tutar: 0,
+          son_teslimattan_gecen_gun: null,
+          durum: null,
+          geocode_hassasiyet: null,
+        } satisfies MusteriHarita);
+
+      setImportOpen(false);
+      setImportActivity(null);
+      setHighlightedRutKod(null);
+      setFocusTarget({
+        musteri_kodu: resolved.musteri_kodu,
+        lat: resolved.lat,
+        lon: resolved.lon,
+        nonce: Date.now(),
+      });
+    },
+    [scoredRows]
+  );
+
   const handleCloseDetail = useCallback(() => {
     setSelectedMusteri(null);
     setPanelAnchor(null);
@@ -272,6 +295,7 @@ export default function Home() {
       onSelectRisk: setSelectedRisk,
       search,
       onSearchChange: setSearch,
+      onSearchSelect: handleSearchSelect,
       stats,
       onReset: resetFilters,
       hasActiveFilters,
@@ -286,6 +310,7 @@ export default function Home() {
       toggleCity,
       selectedRisk,
       search,
+      handleSearchSelect,
       stats,
       resetFilters,
       hasActiveFilters,
@@ -312,6 +337,7 @@ export default function Home() {
           data={geojson}
           selectedMusteriKodu={selectedMusteri?.musteri_kodu ?? null}
           highlightedRutKod={highlightedRutKod}
+          focusTarget={focusTarget}
           onSelectMusteri={handleSelectMusteri}
         />
 
