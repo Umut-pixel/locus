@@ -66,3 +66,20 @@ export interface MusteriHarita {
   belge_st_adi?: string | null;
   belge_st_kodu?: string | null;
 }
+
+/** `public.potansiyel_musteriler_harita` — henüz Panorama müşterisi olmayan Places adayları. */
+export interface PotansiyelHarita {
+  id: string;
+  /** Google Places place_id (ChIJ…) — Maps derin linki için. */
+  kaynak_id: string | null;
+  isim: string | null;
+  adres: string | null;
+  ilce: string | null;
+  il: string | null;
+  lat: number;
+  lon: number;
+  primary_type: string | null;
+  google_types: string[] | null;
+  kalite_bayragi: string | null;
+  tarandigi_tarih: string | null;
+}

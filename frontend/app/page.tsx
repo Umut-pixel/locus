@@ -13,6 +13,8 @@ import { FilterPanel } from "@/components/sidebar/FilterPanel";
 import { MobileFilterSheet } from "@/components/sidebar/MobileFilterSheet";
 import { RiskLegend } from "@/components/map/RiskLegend";
 import { RiskModeToggle } from "@/components/map/RiskModeToggle";
+import { PotansiyelDetailCard } from "@/components/map/PotansiyelDetailCard";
+import { PotansiyelLayerToggle } from "@/components/map/PotansiyelLayerToggle";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -21,21 +23,25 @@ import { useIsMobileLayout } from "@/hooks/useMediaQuery";
 import { useMusteriHarita } from "@/hooks/useMusteriHarita";
 import type { MusteriSearchHit } from "@/hooks/useMusteriSearch";
 import { usePanoramaSyncStatus } from "@/hooks/usePanoramaSyncStatus";
+import { usePotansiyelHarita } from "@/hooks/usePotansiyelHarita";
 import { musterilerToGeoJSON } from "@/lib/geojson";
 import type { UploadResult } from "@/lib/import/types";
 import { filterRowsLocally } from "@/lib/map-filter";
+import { potansiyellerToGeoJSON } from "@/lib/potansiyel-geojson";
 import {
   riskLabelsForMode,
   riskShortLabelsForMode,
   withEffectiveRiskRows,
   type RiskMetricMode,
 } from "@/lib/risk-mode";
-import type { MusteriHarita, RiskDurumu } from "@/lib/types";
+import type { MusteriHarita, PotansiyelHarita, RiskDurumu } from "@/lib/types";
 import {
   buildHighlightSet,
   getHighlightCodes,
   setHighlightCodes,
 } from "@/lib/upload-highlight";
+
+const POTANSIYEL_LS_KEY = "locus:show-potansiyel";
 
 /** Mapbox ~1.8MB — ilk paint'ten sonra yükle */
 const PetshopMap = dynamic(
@@ -75,6 +81,38 @@ export default function Home() {
     onTransformApplied: refresh,
   });
   const isMobileLayout = useIsMobileLayout();
+
+  const [selectedPotansiyel, setSelectedPotansiyel] =
+    useState<PotansiyelHarita | null>(null);
+  const [potansiyelAnchor, setPotansiyelAnchor] = useState<PanelAnchor | null>(
+    null
+  );
+  const [showPotansiyel, setShowPotansiyel] = useState(false);
+  useEffect(() => {
+    try {
+      setShowPotansiyel(localStorage.getItem(POTANSIYEL_LS_KEY) === "1");
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const handleShowPotansiyelChange = useCallback((active: boolean) => {
+    setShowPotansiyel(active);
+    try {
+      localStorage.setItem(POTANSIYEL_LS_KEY, active ? "1" : "0");
+    } catch {
+      /* ignore */
+    }
+    if (!active) {
+      setSelectedPotansiyel(null);
+      setPotansiyelAnchor(null);
+    }
+  }, []);
+
+  const {
+    data: potansiyelRows,
+    loading: potansiyelLoading,
+  } = usePotansiyelHarita({ enabled: showPotansiyel });
 
   const [selectedCities, setSelectedCities] = useState<string[]>([]);
   const [selectedRisk, setSelectedRisk] = useState<RiskDurumu | null>(null);
@@ -142,6 +180,11 @@ export default function Home() {
   const geojson = useMemo(
     () => musterilerToGeoJSON(filteredRows, highlightSet),
     [filteredRows, highlightSet]
+  );
+
+  const potansiyelGeojson = useMemo(
+    () => potansiyellerToGeoJSON(potansiyelRows),
+    [potansiyelRows]
   );
 
   const handleUploadResult = useCallback((result: UploadResult) => {
@@ -224,11 +267,42 @@ export default function Home() {
         resolved && screenPoint ? { x: screenPoint.x, y: screenPoint.y } : null
       );
       setHighlightedRutKod(null);
+      if (resolved) {
+        setSelectedPotansiyel(null);
+        setPotansiyelAnchor(null);
+      }
       // Pin seçimi veya boş harita tıklaması: import kartını da kapat.
       setImportOpen(false);
       if (!resolved) setImportActivity(null);
     },
     [scoredRows]
+  );
+
+  const handleSelectPotansiyel = useCallback(
+    (
+      potansiyel: PotansiyelHarita | null,
+      screenPoint?: { x: number; y: number }
+    ) => {
+      const resolved =
+        potansiyel == null
+          ? null
+          : (potansiyelRows.find((r) => r.id === String(potansiyel.id)) ??
+            potansiyel);
+      setSelectedPotansiyel(resolved);
+      setPotansiyelAnchor(
+        resolved && screenPoint
+          ? { x: screenPoint.x, y: screenPoint.y }
+          : null
+      );
+      if (resolved) {
+        setSelectedMusteri(null);
+        setPanelAnchor(null);
+        setHighlightedRutKod(null);
+        setImportOpen(false);
+        setImportActivity(null);
+      }
+    },
+    [potansiyelRows]
   );
 
   const handleSearchSelect = useCallback(
@@ -253,6 +327,8 @@ export default function Home() {
       setImportOpen(false);
       setImportActivity(null);
       setHighlightedRutKod(null);
+      setSelectedPotansiyel(null);
+      setPotansiyelAnchor(null);
       setFocusTarget({
         musteri_kodu: resolved.musteri_kodu,
         lat: resolved.lat,
@@ -269,6 +345,11 @@ export default function Home() {
     setHighlightedRutKod(null);
   }, []);
 
+  const handleClosePotansiyel = useCallback(() => {
+    setSelectedPotansiyel(null);
+    setPotansiyelAnchor(null);
+  }, []);
+
   const handleToggleImport = useCallback(() => {
     setImportOpen((open) => {
       const next = !open;
@@ -276,6 +357,7 @@ export default function Home() {
         setSelectedMusteri(null);
         setPanelAnchor(null);
         setHighlightedRutKod(null);
+        setSelectedPotansiyel(null);
       }
       return next;
     });
@@ -321,7 +403,10 @@ export default function Home() {
     ]
   );
 
-  const showLegend = !(isMobileLayout && selectedMusteri);
+  const showLegend = !(
+    isMobileLayout &&
+    (selectedMusteri || selectedPotansiyel)
+  );
   const showBlockingLoader = loading && rows.length === 0;
 
   return (
@@ -338,12 +423,22 @@ export default function Home() {
           selectedMusteriKodu={selectedMusteri?.musteri_kodu ?? null}
           highlightedRutKod={highlightedRutKod}
           focusTarget={focusTarget}
+          potansiyelData={potansiyelGeojson}
+          potansiyelVisible={showPotansiyel}
+          selectedPotansiyelId={selectedPotansiyel?.id ?? null}
           onSelectMusteri={handleSelectMusteri}
+          onSelectPotansiyel={handleSelectPotansiyel}
         />
 
         {/* Masaüstü: zoom solunda. Mobilde üst toolbar'a taşındı. */}
-        <div className="risk-mode-toggle-anchor hidden lg:block">
+        <div className="risk-mode-toggle-anchor hidden lg:flex lg:flex-col lg:items-end lg:gap-1.5">
           <RiskModeToggle value={riskMode} onChange={handleRiskModeChange} />
+          <PotansiyelLayerToggle
+            active={showPotansiyel}
+            onChange={handleShowPotansiyelChange}
+            count={showPotansiyel ? potansiyelRows.length : null}
+            loading={showPotansiyel && potansiyelLoading}
+          />
         </div>
 
         <div
@@ -387,11 +482,17 @@ export default function Home() {
             </div>
             {/* Ayrı satır: dar ekranda menü/yükle arasına sıkışıp kaybolmasın */}
             {isMobileLayout ? (
-              <div className="pointer-events-auto w-fit">
+              <div className="pointer-events-auto flex w-fit flex-wrap items-center gap-1.5">
                 <RiskModeToggle
                   value={riskMode}
                   onChange={handleRiskModeChange}
                   className="shadow-md"
+                />
+                <PotansiyelLayerToggle
+                  active={showPotansiyel}
+                  onChange={handleShowPotansiyelChange}
+                  count={showPotansiyel ? potansiyelRows.length : null}
+                  loading={showPotansiyel && potansiyelLoading}
                 />
               </div>
             ) : null}
@@ -407,7 +508,7 @@ export default function Home() {
             </AnimatePresence>
           </div>
 
-          <div className="flex items-end justify-end">
+          <div className="flex items-end justify-end gap-2">
             {showLegend && (
               <RiskLegend
                 showUpdatedRing={hasUpdatedMarkers}
@@ -429,6 +530,15 @@ export default function Home() {
                 onClose={handleCloseDetail}
                 onShowRoute={setHighlightedRutKod}
                 riskLabels={riskLabels}
+              />
+            )}
+            {selectedPotansiyel && potansiyelAnchor && (
+              <PotansiyelDetailCard
+                key="potansiyel-detail"
+                potansiyel={selectedPotansiyel}
+                anchor={potansiyelAnchor}
+                containerRef={mapAreaRef}
+                onClose={handleClosePotansiyel}
               />
             )}
           </AnimatePresence>

@@ -19,6 +19,7 @@ export const supabase = createClient(url, anonKey, {
 });
 
 export const MUSTERILER_HARITA_VIEW = "musteriler_harita";
+export const POTANSIYEL_MUSTERILER_HARITA_VIEW = "potansiyel_musteriler_harita";
 export const MUSTERI_SNAPSHOTLARI_TABLE = "musteri_snapshotlari";
 export const PANORAMA_SYNC_RUNS_TABLE = "panorama_sync_runs";
 export const YUKLEME_LOGLARI_TABLE = "yukleme_loglari";

@@ -1,0 +1,1936 @@
+{
+  "name": "google-places-prospecting",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Google Places Prospecting\n\nConfig: supabaseServiceRoleKey + skipDays.\nNearby/Text/Deep*: Header Auth credential.\n\n**Pacing (600 Nearby/dk limiti):**\n- Split batchSize=1\n- HTTP batchInterval=250ms (~4 req/sn, limitin altinda)\n- Retry On Fail KAPALI (429'u hemen tekrar deneme)\n\nDeepen: kirpilan hucre radius/2 x4 (max depth 2).\nMark: 429 ilcelere son_tarama yazmaz; kirpilanlari yogun_bolge=true yapar.\n\nSplitInBatches v3: [0]=done, [1]=loop.\n",
+        "height": 460,
+        "width": 420,
+        "color": 4
+      },
+      "id": "note-setup-places-001",
+      "name": "Kurulum Notu",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -700,
+        -120
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "trigger-manual-places-001",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -400,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 6 * * 3"
+            }
+          ]
+        }
+      },
+      "id": "trigger-cron-places-001",
+      "name": "Cron Weekly",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -400,
+        360
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "c1",
+              "name": "supabaseUrl",
+              "value": "https://pzepnmzxrwnlhixdrgzm.supabase.co",
+              "type": "string"
+            },
+            {
+              "id": "c2",
+              "name": "supabaseServiceRoleKey",
+              "value": "REPLACE_ME_SERVICE_ROLE_JWT",
+              "type": "string"
+            },
+            {
+              "id": "c_skip",
+              "name": "skipDays",
+              "value": "25",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set-config-places-001",
+      "name": "Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -160,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst staticData = $getWorkflowStaticData('global');\nstaticData.placesById = {};\nstaticData.nearbyLogs = [];\nconst cfg = $input.first().json;\nreturn [{ json: { ...cfg } }];\n"
+      },
+      "id": "code-reset-static-001",
+      "name": "Reset Static Accumulator",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        60,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $json.supabaseUrl }}/rest/v1/ilce_merkezleri?select=*&limit=500",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $json.supabaseServiceRoleKey }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.supabaseServiceRoleKey }}"
+            },
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "http-fetch-ilce-001",
+      "name": "Fetch Ilce Merkezleri",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        280,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst cfg = $('Config').first().json;\n\n// n8n HTTP Request JSON dizi donerse cogunlukla her satiri ayri item yapar.\n// Bazen de tek item icinde dizi / fullResponse.body gelir.\nfunction asRows(inputItems) {\n  if (!inputItems.length) return [];\n\n  // Cok item: her biri bir ilce satiri\n  if (inputItems.length > 1) {\n    return inputItems.map((i) => i.json).filter((r) => r && r.il && r.ilce);\n  }\n\n  let body = inputItems[0].json;\n  if (Array.isArray(body)) return body;\n  if (body && Array.isArray(body.body)) return body.body;\n  if (body && typeof body.body === 'string') {\n    try {\n      const parsed = JSON.parse(body.body);\n      if (Array.isArray(parsed)) return parsed;\n    } catch (_) {}\n  }\n  if (typeof body === 'string') {\n    try {\n      const parsed = JSON.parse(body);\n      if (Array.isArray(parsed)) return parsed;\n      body = parsed;\n    } catch (_) {}\n  }\n  // Tek item, tek satir (limit=1 gibi)\n  if (body && body.il && body.ilce) return [body];\n  // PostgREST hata objesi\n  if (body && (body.message || body.code || body.error)) {\n    throw new Error('ilce_merkezleri fetch hata: ' + JSON.stringify(body).slice(0, 400));\n  }\n  throw new Error(\n    'ilce_merkezleri dizi degil; keys=' +\n      Object.keys(body || {}).slice(0, 20).join(',') +\n      ' typeof=' + typeof body\n  );\n}\n\nconst rows = asRows($input.all());\nif (rows.length < 100) {\n  throw new Error('Beklenen ~134 ilce, gelen=' + rows.length);\n}\nif (!String(cfg.supabaseServiceRoleKey || '').trim() || String(cfg.supabaseServiceRoleKey).startsWith('REPLACE_ME')) {\n  throw new Error(\"Config.supabaseServiceRoleKey doldur (Panorama Config'ten kopyala).\");\n}\nreturn rows.map((r) => ({ json: r }));\n"
+      },
+      "id": "code-expand-ilce-001",
+      "name": "Expand Ilce Rows",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        500,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const cfg = $('Config').first().json;\nconst rows = $input.all().map(i => i.json).filter(r => r.lat != null && r.lon != null);\nconst OFFSET = 0.018;\nconst skipDays = Number(cfg.skipDays);\nconst SKIP_MS = (Number.isFinite(skipDays) ? skipDays : 25) * 24 * 60 * 60 * 1000;\nconst now = Date.now();\nconst YOGUN_KEY = 'yo\\u011fun_bolge';\nfunction isFresh(sonTarama) {\n  if (!sonTarama) return false;\n  const t = new Date(sonTarama).getTime();\n  if (!Number.isFinite(t)) return false;\n  return (now - t) < SKIP_MS;\n}\nconst staticData = $getWorkflowStaticData('global');\nstaticData.scannedDistricts = [];\nstaticData.clippedDistricts = [];\nconst seen = new Set();\nconst cells = [];\nlet skipped = 0;\nfor (const r of rows) {\n  const lat = Number(r.lat);\n  const lon = Number(r.lon);\n  const yogun = !!(r[YOGUN_KEY] ?? r.yogun_bolge ?? r.yogunBolge);\n  const son = r.son_tarama ?? r.sonTarama ?? null;\n  if (isFresh(son)) { skipped += 1; continue; }\n  const key = `${r.il}|${r.ilce}`;\n  if (!seen.has(key)) {\n    seen.add(key);\n    staticData.scannedDistricts.push({ il: r.il, ilce: r.ilce });\n  }\n  if (yogun) {\n    const offsets = [[-OFFSET,-OFFSET],[-OFFSET,OFFSET],[OFFSET,-OFFSET],[OFFSET,OFFSET]];\n    offsets.forEach((o, idx) => {\n      cells.push({\n        supabaseUrl: cfg.supabaseUrl, supabaseServiceRoleKey: cfg.supabaseServiceRoleKey,\n        il: r.il, ilce: r.ilce, yogun: true, cellKind: 'nearby_sub', cellIndex: idx,\n        latitude: lat + o[0], longitude: lon + o[1], radius: 3000, depth: 0,\n      });\n    });\n  } else {\n    cells.push({\n      supabaseUrl: cfg.supabaseUrl, supabaseServiceRoleKey: cfg.supabaseServiceRoleKey,\n      il: r.il, ilce: r.ilce, yogun: false, cellKind: 'nearby', cellIndex: 0,\n      latitude: lat, longitude: lon, radius: 5000, depth: 0,\n    });\n  }\n}\nstaticData.skipAll = cells.length === 0;\nstaticData.skippedDistrictCount = skipped;\nstaticData.queuedDistrictCount = seen.size;\nstaticData.initialCellCount = cells.length;\nstaticData.yogunDistrictCount = [...seen].filter(k => {\n  // counted via cells with yogun flag\n  return false;\n}).length;\nstaticData.yogunCellCount = cells.filter(c => c.yogun).length;\nstaticData.sparseCellCount = cells.filter(c => !c.yogun).length;\n\nif (!cells.length) {\n  return [{ json: { skipAll: true, supabaseUrl: cfg.supabaseUrl, supabaseServiceRoleKey: cfg.supabaseServiceRoleKey,\n    skippedDistrictCount: skipped, queuedDistrictCount: 0, message: 'Tum ilceler skip' } }];\n}\nreturn cells.map(c => ({ json: c }));\n"
+      },
+      "id": "code-build-cells-001",
+      "name": "Build Nearby Cells",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "split-nearby-001",
+      "name": "Split Nearby Batches",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        1160,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://places.googleapis.com/v1/places:searchNearby",
+        "authentication": "genericCredentialType",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "X-Goog-FieldMask",
+              "value": "places.id,places.displayName,places.formattedAddress,places.location,places.primaryType,places.types"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ includedTypes: ['pet_store','veterinary_care'], maxResultCount: 20, rankPreference: 'DISTANCE', locationRestriction: { circle: { center: { latitude: $json.latitude, longitude: $json.longitude }, radius: $json.radius } } }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          },
+          "timeout": 60000,
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 250
+            }
+          }
+        },
+        "genericAuthType": "httpHeaderAuth"
+      },
+      "id": "http-nearby-001",
+      "name": "Nearby Search",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1380,
+        120
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": null,
+          "name": "Google Places API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const cells = $('Split Nearby Batches').all().map(i => i.json);\nconst responses = $input.all();\nconst staticData = $getWorkflowStaticData('global');\nif (!staticData.placesById) staticData.placesById = {};\nif (!staticData.nearbyLogs) staticData.nearbyLogs = [];\nif (!staticData.placesApiErrors) staticData.placesApiErrors = [];\nif (!staticData.clippedDistricts) staticData.clippedDistricts = [];\nconst clippedSet = new Set(staticData.clippedDistricts.map(d => d.il + '|' + d.ilce));\nfunction parseIlceIl(formattedAddress) {\n  if (!formattedAddress) return { ilce: null, il: null };\n  const match = String(formattedAddress).match(/\\b\\d{5}\\s+(.+?),\\s*T\\u00fcrkiye\\s*$/);\n  if (!match) return { ilce: null, il: null };\n  const parts = match[1].split('/').map(s => s.trim());\n  if (parts.length < 2) return { ilce: null, il: null };\n  return { il: parts[parts.length - 1], ilce: parts[parts.length - 2] };\n}\nfunction kaliteBayragi(isim) {\n  if (!isim) return null;\n  const kelimeSayisi = isim.trim().split(/\\s+/).length;\n  if (kelimeSayisi <= 2 && /^[a-zA-Z\\s]+$/.test(isim)) return 'suspicious_name';\n  return null;\n}\nconst out = [];\nfor (let i = 0; i < responses.length; i++) {\n  const cell = cells[i] || cells[0] || {};\n  const raw = responses[i].json || {};\n  const statusCode = raw.statusCode || null;\n  let body = raw.body !== undefined ? raw.body : raw;\n  if (typeof body === 'string') {\n    try { body = JSON.parse(body); } catch (_) { body = {}; }\n  }\n  const places = (body && Array.isArray(body.places)) ? body.places : [];\n  const count = places.length;\n  const clipped = count >= 20;\n  const depth = Number(cell.depth) || 0;\n  const apiError = (statusCode && statusCode >= 400) || (body && (body.error || body.message) && !places.length);\n  if (apiError) staticData.placesApiErrors.push({ where: 'nearby', statusCode, il: cell.il, ilce: cell.ilce, error: body.error || body.message || body });\n  if (clipped && cell.il && cell.ilce) {\n    const ck = cell.il + '|' + cell.ilce;\n    if (!clippedSet.has(ck)) { clippedSet.add(ck); staticData.clippedDistricts.push({ il: cell.il, ilce: cell.ilce }); }\n  }\n  staticData.nearbyLogs.push({\n    il: cell.il, ilce: cell.ilce, cellKind: cell.cellKind, cellIndex: cell.cellIndex,\n    count, clipped, statusCode, depth,\n    lat: cell.latitude, lon: cell.longitude, radius: cell.radius,\n    logId: `${cell.il}|${cell.ilce}|${cell.latitude}|${cell.longitude}|${depth}|${cell.cellIndex}`,\n  });\n  for (const p of places) {\n    const id = p.id || (p.name && String(p.name).replace(/^places\\//, ''));\n    if (!id || staticData.placesById[id]) continue;\n    const isim = (p.displayName && p.displayName.text) || null;\n    const adres = p.formattedAddress || null;\n    const parsed = parseIlceIl(adres);\n    staticData.placesById[id] = {\n      kaynak: 'google_places', kaynak_id: id, isim, adres,\n      ilce: parsed.ilce || cell.ilce || null, il: parsed.il || cell.il || null,\n      lat: p.location ? p.location.latitude : null, lon: p.location ? p.location.longitude : null,\n      google_types: Array.isArray(p.types) ? p.types : null, primary_type: p.primaryType || null,\n      kalite_bayragi: kaliteBayragi(isim), _source: 'nearby',\n    };\n  }\n  out.push({ json: {\n    supabaseUrl: cell.supabaseUrl, supabaseServiceRoleKey: cell.supabaseServiceRoleKey,\n    cellResultCount: count, clipped, statusCode, depth,\n    accumulated: Object.keys(staticData.placesById).length,\n  }});\n}\nreturn out.length ? out : [{ json: { accumulated: Object.keys(staticData.placesById).length } }];\n"
+      },
+      "id": "code-flatten-nearby-001",
+      "name": "Flatten Nearby",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1600,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst cfg = $('Config').first().json;\nconst staticData = $getWorkflowStaticData('global');\nconst queued = new Set((staticData.scannedDistricts || []).map(d => `${d.il}|${d.ilce}`));\nconst rows = $('Fetch Ilce Merkezleri').all().map(i => {\n  let r = i.json;\n  if (Array.isArray(r)) return null;\n  return r;\n}).filter(Boolean);\n\n// Fetch returns one item that is array sometimes — normalize\nlet districts = [];\nconst first = $('Expand Ilce Rows').all().map(i => i.json);\ndistricts = first.filter(r => r && r.il && r.ilce);\n\nconst variations = ['evcil hayvan maması', 'kuş yemi', 'pet shop'];\nconst out = [];\nfor (const r of districts) {\n  const yogun = !!(r['yoğun_bolge'] ?? r.yogun_bolge);\n  if (!yogun) continue;\n  if (!queued.has(`${r.il}|${r.ilce}`)) continue; // bu koşuda taranmayan yoğun ilçe\n  for (const v of variations) {\n    out.push({\n      json: {\n        supabaseUrl: cfg.supabaseUrl,\n        supabaseServiceRoleKey: cfg.supabaseServiceRoleKey,\n        il: r.il,\n        ilce: r.ilce,\n        latitude: Number(r.lat),\n        longitude: Number(r.lon),\n        radius: 5000,\n        textQuery: `${v} ${r.ilce}`,\n        cellKind: 'text',\n      }\n    });\n  }\n}\nif (!out.length) {\n  return [{\n    json: {\n      supabaseUrl: cfg.supabaseUrl,\n      supabaseServiceRoleKey: cfg.supabaseServiceRoleKey,\n      skipText: true,\n      message: 'Text Search kuyrugu bos',\n    }\n  }];\n}\nreturn out;\n"
+      },
+      "id": "code-build-text-001",
+      "name": "Build Text Queries",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1160,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "split-text-001",
+      "name": "Split Text Batches",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        1380,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://places.googleapis.com/v1/places:searchText",
+        "authentication": "genericCredentialType",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "X-Goog-FieldMask",
+              "value": "places.id,places.displayName,places.formattedAddress,places.location,places.primaryType,places.types"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ textQuery: $json.textQuery, maxResultCount: 20, locationBias: { circle: { center: { latitude: $json.latitude, longitude: $json.longitude }, radius: $json.radius } } }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          },
+          "timeout": 60000,
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 250
+            }
+          }
+        },
+        "genericAuthType": "httpHeaderAuth"
+      },
+      "id": "http-text-001",
+      "name": "Text Search",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1820,
+        280
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": null,
+          "name": "Google Places API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst cells = $('Split Text Batches').all().map(i => i.json);\nconst responses = $input.all();\nconst staticData = $getWorkflowStaticData('global');\nif (!staticData.placesById) staticData.placesById = {};\n\nfunction parseIlceIl(formattedAddress) {\n  if (!formattedAddress) return { ilce: null, il: null };\n  const match = String(formattedAddress).match(/\\b\\d{5}\\s+(.+?),\\s*Türkiye\\s*$/);\n  if (!match) return { ilce: null, il: null };\n  const parts = match[1].split('/').map(s => s.trim());\n  if (parts.length < 2) return { ilce: null, il: null };\n  return { il: parts[parts.length - 1], ilce: parts[parts.length - 2] };\n}\nfunction kaliteBayragi(isim) {\n  if (!isim) return null;\n  const kelimeSayisi = isim.trim().split(/\\s+/).length;\n  if (kelimeSayisi <= 2 && /^[a-zA-Z\\s]+$/.test(isim)) return 'suspicious_name';\n  return null;\n}\n\nconst out = [];\nfor (let i = 0; i < responses.length; i++) {\n  const cell = cells[i] || cells[0] || {};\n  let body = responses[i].json;\n  if (body && body.body !== undefined) body = body.body;\n  if (typeof body === 'string') {\n    try { body = JSON.parse(body); } catch (_) { body = {}; }\n  }\n  const places = (body && Array.isArray(body.places)) ? body.places : [];\n  let added = 0;\n  for (const p of places) {\n    const id = p.id || (p.name && String(p.name).replace(/^places\\//, ''));\n    if (!id || staticData.placesById[id]) continue;\n    const isim = (p.displayName && p.displayName.text) || null;\n    const adres = p.formattedAddress || null;\n    const parsed = parseIlceIl(adres);\n    staticData.placesById[id] = {\n      kaynak: 'google_places',\n      kaynak_id: id,\n      isim,\n      adres,\n      ilce: parsed.ilce || cell.ilce || null,\n      il: parsed.il || cell.il || null,\n      lat: p.location ? p.location.latitude : null,\n      lon: p.location ? p.location.longitude : null,\n      google_types: Array.isArray(p.types) ? p.types : null,\n      primary_type: p.primaryType || null,\n      kalite_bayragi: kaliteBayragi(isim),\n      _source: 'text',\n    };\n    added += 1;\n  }\n  out.push({\n    json: {\n      supabaseUrl: cell.supabaseUrl,\n      supabaseServiceRoleKey: cell.supabaseServiceRoleKey,\n      textQuery: cell.textQuery,\n      textResultCount: places.length,\n      newlyAdded: added,\n      accumulated: Object.keys(staticData.placesById).length,\n    }\n  });\n}\nreturn out.length ? out : [{ json: { accumulated: Object.keys(staticData.placesById).length } }];"
+      },
+      "id": "code-flatten-text-001",
+      "name": "Flatten Text",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2040,
+        280
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst cfg = $('Config').first().json;\nconst staticData = $getWorkflowStaticData('global');\nconst places = Object.values(staticData.placesById || {});\nreturn [{\n  json: {\n    supabaseUrl: cfg.supabaseUrl,\n    supabaseServiceRoleKey: cfg.supabaseServiceRoleKey,\n    placeCount: places.length,\n    nearbyLogCount: (staticData.nearbyLogs || []).length,\n    clippedCells: (staticData.nearbyLogs || []).filter(l => l.clipped).length,\n  }\n}];\n"
+      },
+      "id": "code-match-prep-001",
+      "name": "Prep Match",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1820,
+        520
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $json.supabaseUrl }}/rest/v1/musteriler?select=musteri_kodu,unvan,ilce&limit=5000",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $json.supabaseServiceRoleKey }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.supabaseServiceRoleKey }}"
+            },
+            {
+              "name": "Accept",
+              "value": "application/json"
+            },
+            {
+              "name": "Range",
+              "value": "0-4999"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "http-fetch-musteriler-001",
+      "name": "Fetch Musteriler",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2260,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst cfg = $('Config').first().json;\nconst staticData = $getWorkflowStaticData('global');\n// Sadece bu koşuda YENİ kaynak_id'ler — mevcut satırlarda eşleştirme yeniden hesaplanmaz\nconst places = Array.isArray(staticData.yeniPlaces) ? staticData.yeniPlaces : [];\n\nlet musteriler = $input.first().json;\nif (musteriler.body !== undefined) musteriler = musteriler.body;\nif (typeof musteriler === 'string') {\n  try { musteriler = JSON.parse(musteriler); } catch (_) { musteriler = []; }\n}\nif (!Array.isArray(musteriler)) musteriler = [];\n\n// TODO: fuzzy eşik — kalibrasyon gerekiyor\nconst HIGH = 85;\nconst LOW = 60;\n\nfunction normalize(name) {\n  if (!name) return '';\n  return String(name)\n    .toLocaleUpperCase('tr-TR')\n    .replace(/\\b(LTD\\.?\\s?ŞTİ\\.?|A\\.?Ş\\.?|TİC\\.?|SAN\\.?|PAZ\\.?|VE\\b)/g, '')\n    .replace(/[^\\p{L}\\p{N}\\s]/gu, '')\n    .replace(/\\s+/g, ' ')\n    .trim();\n}\n\nfunction tokenSimilarity(a, b) {\n  // Token-based Jaccard * 100 — sıra toleranslı (düz Levenshtein değil)\n  const ta = new Set(normalize(a).split(' ').filter(Boolean));\n  const tb = new Set(normalize(b).split(' ').filter(Boolean));\n  if (!ta.size || !tb.size) return 0;\n  let inter = 0;\n  for (const t of ta) if (tb.has(t)) inter += 1;\n  const union = ta.size + tb.size - inter;\n  return Math.round((inter / union) * 100);\n}\n\nfunction foldIlce(s) {\n  if (!s) return '';\n  return String(s).replace(/İ/g, 'i').replace(/I/g, 'ı').toLocaleLowerCase('tr-TR').trim();\n}\n\nconst cust = musteriler.map(m => ({\n  kod: m.musteri_kodu,\n  unvan: m.unvan,\n  norm: normalize(m.unvan),\n  ilce: foldIlce(m.ilce),\n}));\n\nconst upserts = [];\nfor (const p of places) {\n  const norm = normalize(p.isim);\n  let best = { score: 0, kod: null, ilceOk: false };\n  for (const c of cust) {\n    const score = tokenSimilarity(norm, c.norm);\n    if (score > best.score) {\n      best = { score, kod: c.kod, ilceOk: foldIlce(p.ilce) === c.ilce && !!c.ilce };\n    }\n  }\n  let eslesme_durumu = 'yeni';\n  let eslesen = null;\n  if (best.score >= HIGH && best.ilceOk) {\n    eslesme_durumu = 'mevcut_musteri';\n    eslesen = best.kod;\n  } else if (best.score >= HIGH && !best.ilceOk) {\n    eslesme_durumu = 'manuel_kontrol';\n    eslesen = best.kod;\n  } else if (best.score >= LOW) {\n    eslesme_durumu = 'manuel_kontrol';\n    eslesen = best.kod;\n  }\n  upserts.push({\n    kaynak: 'google_places',\n    kaynak_id: p.kaynak_id,\n    isim: p.isim,\n    isim_normalized: norm,\n    adres: p.adres,\n    ilce: p.ilce,\n    il: p.il,\n    lat: p.lat,\n    lon: p.lon,\n    google_types: p.google_types,\n    primary_type: p.primary_type,\n    kalite_bayragi: p.kalite_bayragi,\n    eslesme_durumu,\n    eslesen_musteri_kodu: eslesen,\n  });\n}\n\nconst BATCH = 100;\nconst batches = [];\nfor (let i = 0; i < upserts.length; i += BATCH) {\n  batches.push({\n    json: {\n      supabaseUrl: cfg.supabaseUrl,\n      supabaseServiceRoleKey: cfg.supabaseServiceRoleKey,\n      batchIndex: Math.floor(i / BATCH),\n      total: upserts.length,\n      rows: upserts.slice(i, i + BATCH),\n    }\n  });\n}\nif (!batches.length) {\n  return [{ json: { supabaseUrl: cfg.supabaseUrl, supabaseServiceRoleKey: cfg.supabaseServiceRoleKey, total: 0, rows: [], empty: true } }];\n}\nreturn batches;\n"
+      },
+      "id": "code-fuzzy-001",
+      "name": "Fuzzy Match + Batch",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2480,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const staticData = $getWorkflowStaticData('global');\nconst clipped = (staticData.nearbyLogs || []).filter(l => l.clipped);\nconst placeTotal = Object.keys(staticData.placesById || {}).length;\nconst apiErrors = staticData.placesApiErrors || [];\nconst nearbyOk = (staticData.nearbyLogs || []).filter(l => l.statusCode === 200).length;\nconst nearby429 = apiErrors.filter(e => e.statusCode === 429).length;\nlet markStatus = null;\nfor (const it of $input.all()) markStatus = it.json.statusCode || markStatus;\nconst initial = staticData.initialCellCount || 0;\nconst d1 = staticData.deepenPass1Count || 0;\nconst d2 = staticData.deepenPass2Count || 0;\nreturn [{ json: {\n  skipAll: !!staticData.skipAll,\n  skippedDistrictCount: staticData.skippedDistrictCount || 0,\n  queuedDistrictCount: staticData.queuedDistrictCount || 0,\n  // Grid muhasebesi — HTTP oncesi uretilen hucre sayilari\n  initialCellCount: initial,\n  sparseCellCount: staticData.sparseCellCount || 0,\n  yogunCellCount: staticData.yogunCellCount || 0,\n  deepenPass1Cells: d1,\n  deepenPass2Cells: d2,\n  plannedNearbyCellsTotal: initial + d1 + d2,\n  nearbyLogCount: (staticData.nearbyLogs || []).length,\n  nearbyHttp200: nearbyOk,\n  nearbyHttp429: nearby429,\n  placeTotal,\n  newPlaceCount: (staticData.yeniPlaces || []).length,\n  existingPlaceCount: (staticData.mevcutPlaces || []).length,\n  placesApiErrorCount: apiErrors.length,\n  placesApiErrorSample: apiErrors.slice(0, 3),\n  clippedCellCount: clipped.length,\n  clippedDistrictCount: (staticData.clippedDistricts || []).length,\n  clippedDistricts: staticData.clippedDistricts || [],\n  remainingClippedAtMaxDepth: clipped.filter(l => (Number(l.depth)||0) >= 2 && l.clipped).length,\n  markedScanned: (staticData.scannedDistricts || []).length,\n  markHttpStatus: markStatus,\n  pacing: { batchSize: 1, batchIntervalMs: 250, retryOnFail: false },\n  message: `cells init=${initial} deep=${d1}+${d2} places=${placeTotal} 429=${nearby429}`,\n}}];\n"
+      },
+      "id": "code-summary-001",
+      "name": "Summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3200,
+        520
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "cond-skip",
+              "leftValue": "={{ $json.skipAll }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-has-cells-001",
+      "name": "Has Cells?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        940,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const cfg = $('Config').first().json;\nconst staticData = $getWorkflowStaticData('global');\nconst districts = staticData.scannedDistricts || [];\nconst clipped = staticData.clippedDistricts || [];\nconst apiErrors = staticData.placesApiErrors || [];\nconst placeTotal = Object.keys(staticData.placesById || {}).length;\nconst now = new Date().toISOString();\nif (!staticData.skipAll && placeTotal === 0) {\n  throw new Error('Mark engellendi: placeTotal=0');\n}\n// 429 alan ilceleri son_tarama yazma — tekrar kuyruga kalsin\nconst failed = new Set();\nfor (const e of apiErrors) {\n  if (e && e.statusCode === 429 && e.il && e.ilce) failed.add(e.il + '|' + e.ilce);\n}\nconst sonRows = [];\nfor (const d of districts) {\n  const k = d.il + '|' + d.ilce;\n  if (failed.has(k)) continue;\n  sonRows.push({ il: d.il, ilce: d.ilce, son_tarama: now });\n}\nconst yogunRows = clipped.map(d => ({ il: d.il, ilce: d.ilce, 'yo\\u011fun_bolge': true }));\nreturn [{ json: {\n  supabaseUrl: cfg.supabaseUrl,\n  supabaseServiceRoleKey: cfg.supabaseServiceRoleKey,\n  sonRows,\n  yogunRows,\n  rows: sonRows, // Has Mark Rows? uyumu\n  placeTotal,\n  failedDistrictCount: failed.size,\n  clippedDistrictCount: clipped.length,\n}}];\n"
+      },
+      "id": "code-mark-scanned-001",
+      "name": "Mark Scanned Prep",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2900,
+        520
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.supabaseUrl }}/rest/v1/ilce_merkezleri?on_conflict=il,ilce&columns=il,ilce,son_tarama",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $json.supabaseServiceRoleKey }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.supabaseServiceRoleKey }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates,return=minimal"
+            },
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.sonRows }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "http-mark-son-tarama-001",
+      "name": "Mark Son Tarama",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3050,
+        520
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "cond-text",
+              "leftValue": "={{ $json.skipText }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-has-text-001",
+      "name": "Has Text?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1280,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "if-has-mark-001-c",
+              "leftValue": "={{ ($json.rows || []).length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-has-mark-001",
+      "name": "Has Mark Rows?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2975,
+        520
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $json.supabaseUrl }}/rest/v1/potansiyel_musteriler?select=kaynak_id&kaynak=eq.google_places&limit=10000",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $json.supabaseServiceRoleKey }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.supabaseServiceRoleKey }}"
+            },
+            {
+              "name": "Accept",
+              "value": "application/json"
+            },
+            {
+              "name": "Range",
+              "value": "0-9999"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "http-fetch-existing-ids-001",
+      "name": "Fetch Existing Place Ids",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1980,
+        520
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst cfg = $('Config').first().json;\nconst staticData = $getWorkflowStaticData('global');\nconst places = Object.values(staticData.placesById || {});\n\nfunction asIdRows(inputItems) {\n  if (!inputItems.length) return [];\n  if (inputItems.length > 1) {\n    return inputItems.map((i) => i.json).filter((r) => r && (r.kaynak_id || r.kaynakId));\n  }\n  let body = inputItems[0].json;\n  if (Array.isArray(body)) return body;\n  if (body && Array.isArray(body.body)) return body.body;\n  if (body && typeof body.body === 'string') {\n    try {\n      const parsed = JSON.parse(body.body);\n      if (Array.isArray(parsed)) return parsed;\n    } catch (_) {}\n  }\n  if (typeof body === 'string') {\n    try {\n      const parsed = JSON.parse(body);\n      if (Array.isArray(parsed)) return parsed;\n      body = parsed;\n    } catch (_) {}\n  }\n  if (body && (body.kaynak_id || body.kaynakId)) return [body];\n  if (body && (body.message || body.code || body.error)) {\n    throw new Error('existing ids fetch hata: ' + JSON.stringify(body).slice(0, 400));\n  }\n  return [];\n}\n\nconst existingRaw = asIdRows($input.all());\nconst existingIds = new Set(\n  existingRaw.map((r) => r.kaynak_id || r.kaynakId).filter(Boolean).map(String)\n);\n\nconst yeniPlaces = [];\nconst mevcutPlaces = [];\nfor (const p of places) {\n  const id = String(p.kaynak_id || '');\n  if (!id) continue;\n  if (existingIds.has(id)) mevcutPlaces.push(p);\n  else yeniPlaces.push(p);\n}\n\nstaticData.yeniPlaces = yeniPlaces;\nstaticData.mevcutPlaces = mevcutPlaces;\n\nreturn [{\n  json: {\n    supabaseUrl: cfg.supabaseUrl,\n    supabaseServiceRoleKey: cfg.supabaseServiceRoleKey,\n    hasNew: yeniPlaces.length > 0,\n    hasExisting: mevcutPlaces.length > 0,\n    newCount: yeniPlaces.length,\n    existingCount: mevcutPlaces.length,\n    placeCountTotal: places.length,\n    existingIdCount: existingIds.size,\n  }\n}];\n"
+      },
+      "id": "code-classify-001",
+      "name": "Classify New vs Existing",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2120,
+        520
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "if-has-new-001-c",
+              "leftValue": "={{ $json.hasNew }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-has-new-001",
+      "name": "Has New Places?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2260,
+        520
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "if-has-existing-001-c",
+              "leftValue": "={{ $('Classify New vs Existing').first().json.hasExisting }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-has-existing-001",
+      "name": "Has Existing Places?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2700,
+        520
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "if-has-upsert-001-c",
+              "leftValue": "={{ ($json.rows || []).length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-has-upsert-001",
+      "name": "Has Upsert Rows?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2600,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.supabaseUrl }}/rest/v1/potansiyel_musteriler?on_conflict=kaynak,kaynak_id",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $json.supabaseServiceRoleKey }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.supabaseServiceRoleKey }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates,return=minimal"
+            },
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.rows }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "http-insert-new-001",
+      "name": "Insert New",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2750,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst cfg = $('Config').first().json;\nconst staticData = $getWorkflowStaticData('global');\nconst places = Array.isArray(staticData.mevcutPlaces) ? staticData.mevcutPlaces : [];\nconst now = new Date().toISOString();\n\n// Brief §4 / plan Adım 5: yalnızca taze alanlar — eslesme_durumu dokunulmaz\nconst rows = places.map((p) => ({\n  kaynak: 'google_places',\n  kaynak_id: p.kaynak_id,\n  adres: p.adres,\n  lat: p.lat,\n  lon: p.lon,\n  tarandigi_tarih: now,\n  google_types: p.google_types,\n}));\n\nconst BATCH = 100;\nconst batches = [];\nfor (let i = 0; i < rows.length; i += BATCH) {\n  batches.push({\n    json: {\n      supabaseUrl: cfg.supabaseUrl,\n      supabaseServiceRoleKey: cfg.supabaseServiceRoleKey,\n      batchIndex: Math.floor(i / BATCH),\n      total: rows.length,\n      rows: rows.slice(i, i + BATCH),\n    }\n  });\n}\nif (!batches.length) {\n  return [{\n    json: {\n      supabaseUrl: cfg.supabaseUrl,\n      supabaseServiceRoleKey: cfg.supabaseServiceRoleKey,\n      total: 0,\n      rows: [],\n      empty: true,\n    }\n  }];\n}\nreturn batches;\n"
+      },
+      "id": "code-build-fresh-001",
+      "name": "Build Fresh Batches",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2820,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "if-has-fresh-001-c",
+              "leftValue": "={{ ($json.rows || []).length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-has-fresh-001",
+      "name": "Has Fresh Rows?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2940,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.supabaseUrl }}/rest/v1/potansiyel_musteriler?on_conflict=kaynak,kaynak_id&columns=kaynak,kaynak_id,adres,lat,lon,tarandigi_tarih,google_types",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $json.supabaseServiceRoleKey }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.supabaseServiceRoleKey }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates,missing=default,return=minimal"
+            },
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.rows }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "http-update-fresh-001",
+      "name": "Update Fresh Fields",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3060,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const cfg = $('Config').first().json;\nconst cls = $('Classify New vs Existing').first().json;\nreturn [{\n  json: {\n    supabaseUrl: cfg.supabaseUrl,\n    supabaseServiceRoleKey: cfg.supabaseServiceRoleKey,\n    hasNew: cls.hasNew,\n    hasExisting: cls.hasExisting,\n    skippedNewBranch: true,\n  }\n}];\n"
+      },
+      "id": "code-skip-new-001",
+      "name": "Skip New Branch",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2480,
+        620
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const cfg = $('Config').first().json;\nconst cls = $('Classify New vs Existing').first().json;\n// Insert New birden fazla batch item uretebilir; Existing dalina tek item gec\nreturn [{\n  json: {\n    supabaseUrl: cfg.supabaseUrl,\n    supabaseServiceRoleKey: cfg.supabaseServiceRoleKey,\n    hasNew: cls.hasNew,\n    hasExisting: cls.hasExisting,\n    newCount: cls.newCount,\n    existingCount: cls.existingCount,\n  }\n}];\n"
+      },
+      "id": "code-continue-existing-001",
+      "name": "Continue To Existing",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2680,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const cfg = $('Config').first().json;\nconst cls = $('Classify New vs Existing').first().json;\nreturn [{\n  json: {\n    supabaseUrl: cfg.supabaseUrl,\n    supabaseServiceRoleKey: cfg.supabaseServiceRoleKey,\n    hasNew: cls.hasNew,\n    hasExisting: cls.hasExisting,\n    newCount: cls.newCount,\n    existingCount: cls.existingCount,\n    wroteFresh: true,\n  }\n}];\n"
+      },
+      "id": "code-continue-mark-001",
+      "name": "Continue To Mark",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3120,
+        520
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const cfg = $('Config').first().json;\nconst staticData = $getWorkflowStaticData('global');\nreturn [{ json: { supabaseUrl: cfg.supabaseUrl, supabaseServiceRoleKey: cfg.supabaseServiceRoleKey, nextDepth: 1 } }];\n"
+      },
+      "id": "code-seed-deepen1-001",
+      "name": "Seed Deepen Pass1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1160,
+        520
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const cfg = $('Config').first().json;\nconst staticData = $getWorkflowStaticData('global');\nconst MAX_DEPTH = 2; // initial=0, deepen to 1 then 2\nconst passDepth = Number(($json && $json.nextDepth) != null ? $json.nextDepth : 1);\nconst logs = (staticData.nearbyLogs || []).filter(l => l.clipped && (Number(l.depth)||0) === passDepth - 1);\nconst seen = new Set();\nconst cells = [];\nfor (const l of logs) {\n  const id = l.logId || `${l.il}|${l.ilce}|${l.lat}|${l.lon}|${l.depth}`;\n  if (seen.has(id)) continue;\n  seen.add(id);\n  const lat = Number(l.lat); const lon = Number(l.lon); const radius = Number(l.radius) || 5000;\n  if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;\n  const childR = Math.max(800, Math.round(radius / 2));\n  const off = (childR / 111320) * 0.55; // ~half-radius in degrees\n  const offsets = [[-off,-off],[-off,off],[off,-off],[off,off]];\n  offsets.forEach((o, idx) => {\n    cells.push({\n      supabaseUrl: cfg.supabaseUrl, supabaseServiceRoleKey: cfg.supabaseServiceRoleKey,\n      il: l.il, ilce: l.ilce, yogun: true, cellKind: 'nearby_deep', cellIndex: idx,\n      latitude: lat + o[0], longitude: lon + o[1], radius: childR, depth: passDepth,\n    });\n  });\n}\nstaticData.lastDeepenPass = passDepth;\nstaticData.lastDeepenCount = cells.length;\nstaticData.deepenPass1Count = cells.length;\nif (!cells.length) {\n  return [{ json: {\n    supabaseUrl: cfg.supabaseUrl, supabaseServiceRoleKey: cfg.supabaseServiceRoleKey,\n    skipDeeper: true, nextDepth: passDepth, deepenCount: 0,\n  }}];\n}\nreturn cells.map(c => ({ json: c }));\n"
+      },
+      "id": "code-build-deeper1-001",
+      "name": "Build Deeper Pass1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1280,
+        520
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "if-has-deeper1-001-c",
+              "leftValue": "={{ $json.skipDeeper }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-has-deeper1-001",
+      "name": "Has Deeper Pass1?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1400,
+        520
+      ]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "split-deeper1-001",
+      "name": "Split Deeper Pass1",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        1520,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://places.googleapis.com/v1/places:searchNearby",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "X-Goog-FieldMask",
+              "value": "places.id,places.displayName,places.formattedAddress,places.location,places.primaryType,places.types"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ includedTypes: ['pet_store','veterinary_care'], maxResultCount: 20, rankPreference: 'DISTANCE', locationRestriction: { circle: { center: { latitude: $json.latitude, longitude: $json.longitude }, radius: $json.radius } } }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          },
+          "timeout": 60000,
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 250
+            }
+          }
+        }
+      },
+      "id": "http-nearby-deep1-001",
+      "name": "Nearby Search Deep1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1680,
+        280
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": null,
+          "name": "Google Places API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const cells = $('Split Deeper Pass1').all().map(i => i.json);\nconst responses = $input.all();\nconst staticData = $getWorkflowStaticData('global');\nif (!staticData.placesById) staticData.placesById = {};\nif (!staticData.nearbyLogs) staticData.nearbyLogs = [];\nif (!staticData.placesApiErrors) staticData.placesApiErrors = [];\nif (!staticData.clippedDistricts) staticData.clippedDistricts = [];\nconst clippedSet = new Set(staticData.clippedDistricts.map(d => d.il + '|' + d.ilce));\nfunction parseIlceIl(formattedAddress) {\n  if (!formattedAddress) return { ilce: null, il: null };\n  const match = String(formattedAddress).match(/\\b\\d{5}\\s+(.+?),\\s*T\\u00fcrkiye\\s*$/);\n  if (!match) return { ilce: null, il: null };\n  const parts = match[1].split('/').map(s => s.trim());\n  if (parts.length < 2) return { ilce: null, il: null };\n  return { il: parts[parts.length - 1], ilce: parts[parts.length - 2] };\n}\nfunction kaliteBayragi(isim) {\n  if (!isim) return null;\n  const kelimeSayisi = isim.trim().split(/\\s+/).length;\n  if (kelimeSayisi <= 2 && /^[a-zA-Z\\s]+$/.test(isim)) return 'suspicious_name';\n  return null;\n}\nconst out = [];\nfor (let i = 0; i < responses.length; i++) {\n  const cell = cells[i] || cells[0] || {};\n  const raw = responses[i].json || {};\n  const statusCode = raw.statusCode || null;\n  let body = raw.body !== undefined ? raw.body : raw;\n  if (typeof body === 'string') {\n    try { body = JSON.parse(body); } catch (_) { body = {}; }\n  }\n  const places = (body && Array.isArray(body.places)) ? body.places : [];\n  const count = places.length;\n  const clipped = count >= 20;\n  const depth = Number(cell.depth) || 0;\n  const apiError = (statusCode && statusCode >= 400) || (body && (body.error || body.message) && !places.length);\n  if (apiError) staticData.placesApiErrors.push({ where: 'nearby', statusCode, il: cell.il, ilce: cell.ilce, error: body.error || body.message || body });\n  if (clipped && cell.il && cell.ilce) {\n    const ck = cell.il + '|' + cell.ilce;\n    if (!clippedSet.has(ck)) { clippedSet.add(ck); staticData.clippedDistricts.push({ il: cell.il, ilce: cell.ilce }); }\n  }\n  staticData.nearbyLogs.push({\n    il: cell.il, ilce: cell.ilce, cellKind: cell.cellKind, cellIndex: cell.cellIndex,\n    count, clipped, statusCode, depth,\n    lat: cell.latitude, lon: cell.longitude, radius: cell.radius,\n    logId: `${cell.il}|${cell.ilce}|${cell.latitude}|${cell.longitude}|${depth}|${cell.cellIndex}`,\n  });\n  for (const p of places) {\n    const id = p.id || (p.name && String(p.name).replace(/^places\\//, ''));\n    if (!id || staticData.placesById[id]) continue;\n    const isim = (p.displayName && p.displayName.text) || null;\n    const adres = p.formattedAddress || null;\n    const parsed = parseIlceIl(adres);\n    staticData.placesById[id] = {\n      kaynak: 'google_places', kaynak_id: id, isim, adres,\n      ilce: parsed.ilce || cell.ilce || null, il: parsed.il || cell.il || null,\n      lat: p.location ? p.location.latitude : null, lon: p.location ? p.location.longitude : null,\n      google_types: Array.isArray(p.types) ? p.types : null, primary_type: p.primaryType || null,\n      kalite_bayragi: kaliteBayragi(isim), _source: 'nearby',\n    };\n  }\n  out.push({ json: {\n    supabaseUrl: cell.supabaseUrl, supabaseServiceRoleKey: cell.supabaseServiceRoleKey,\n    cellResultCount: count, clipped, statusCode, depth,\n    accumulated: Object.keys(staticData.placesById).length,\n  }});\n}\nreturn out.length ? out : [{ json: { accumulated: Object.keys(staticData.placesById).length } }];\n"
+      },
+      "id": "code-flatten-deep1-001",
+      "name": "Flatten Nearby Deep1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1840,
+        280
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const cfg = $('Config').first().json;\nreturn [{ json: { supabaseUrl: cfg.supabaseUrl, supabaseServiceRoleKey: cfg.supabaseServiceRoleKey, nextDepth: 2 } }];\n"
+      },
+      "id": "code-seed-deepen2-001",
+      "name": "Seed Deepen Pass2",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1520,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const cfg = $('Config').first().json;\nconst staticData = $getWorkflowStaticData('global');\nconst MAX_DEPTH = 2; // initial=0, deepen to 1 then 2\nconst passDepth = 2;\nconst logs = (staticData.nearbyLogs || []).filter(l => l.clipped && (Number(l.depth)||0) === passDepth - 1);\nconst seen = new Set();\nconst cells = [];\nfor (const l of logs) {\n  const id = l.logId || `${l.il}|${l.ilce}|${l.lat}|${l.lon}|${l.depth}`;\n  if (seen.has(id)) continue;\n  seen.add(id);\n  const lat = Number(l.lat); const lon = Number(l.lon); const radius = Number(l.radius) || 5000;\n  if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;\n  const childR = Math.max(800, Math.round(radius / 2));\n  const off = (childR / 111320) * 0.55; // ~half-radius in degrees\n  const offsets = [[-off,-off],[-off,off],[off,-off],[off,off]];\n  offsets.forEach((o, idx) => {\n    cells.push({\n      supabaseUrl: cfg.supabaseUrl, supabaseServiceRoleKey: cfg.supabaseServiceRoleKey,\n      il: l.il, ilce: l.ilce, yogun: true, cellKind: 'nearby_deep', cellIndex: idx,\n      latitude: lat + o[0], longitude: lon + o[1], radius: childR, depth: passDepth,\n    });\n  });\n}\nstaticData.lastDeepenPass = passDepth;\nstaticData.lastDeepenCount = cells.length;\nstaticData.deepenPass2Count = cells.length;\nif (!cells.length) {\n  return [{ json: {\n    supabaseUrl: cfg.supabaseUrl, supabaseServiceRoleKey: cfg.supabaseServiceRoleKey,\n    skipDeeper: true, nextDepth: passDepth, deepenCount: 0,\n  }}];\n}\nreturn cells.map(c => ({ json: c }));\n"
+      },
+      "id": "code-build-deeper2-001",
+      "name": "Build Deeper Pass2",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1640,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "if-has-deeper2-001-c",
+              "leftValue": "={{ $json.skipDeeper }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-has-deeper2-001",
+      "name": "Has Deeper Pass2?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1760,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "split-deeper2-001",
+      "name": "Split Deeper Pass2",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        1880,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://places.googleapis.com/v1/places:searchNearby",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "X-Goog-FieldMask",
+              "value": "places.id,places.displayName,places.formattedAddress,places.location,places.primaryType,places.types"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ includedTypes: ['pet_store','veterinary_care'], maxResultCount: 20, rankPreference: 'DISTANCE', locationRestriction: { circle: { center: { latitude: $json.latitude, longitude: $json.longitude }, radius: $json.radius } } }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          },
+          "timeout": 60000,
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 250
+            }
+          }
+        }
+      },
+      "id": "http-nearby-deep2-001",
+      "name": "Nearby Search Deep2",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2040,
+        360
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": null,
+          "name": "Google Places API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const cells = $('Split Deeper Pass2').all().map(i => i.json);\nconst responses = $input.all();\nconst staticData = $getWorkflowStaticData('global');\nif (!staticData.placesById) staticData.placesById = {};\nif (!staticData.nearbyLogs) staticData.nearbyLogs = [];\nif (!staticData.placesApiErrors) staticData.placesApiErrors = [];\nif (!staticData.clippedDistricts) staticData.clippedDistricts = [];\nconst clippedSet = new Set(staticData.clippedDistricts.map(d => d.il + '|' + d.ilce));\nfunction parseIlceIl(formattedAddress) {\n  if (!formattedAddress) return { ilce: null, il: null };\n  const match = String(formattedAddress).match(/\\b\\d{5}\\s+(.+?),\\s*T\\u00fcrkiye\\s*$/);\n  if (!match) return { ilce: null, il: null };\n  const parts = match[1].split('/').map(s => s.trim());\n  if (parts.length < 2) return { ilce: null, il: null };\n  return { il: parts[parts.length - 1], ilce: parts[parts.length - 2] };\n}\nfunction kaliteBayragi(isim) {\n  if (!isim) return null;\n  const kelimeSayisi = isim.trim().split(/\\s+/).length;\n  if (kelimeSayisi <= 2 && /^[a-zA-Z\\s]+$/.test(isim)) return 'suspicious_name';\n  return null;\n}\nconst out = [];\nfor (let i = 0; i < responses.length; i++) {\n  const cell = cells[i] || cells[0] || {};\n  const raw = responses[i].json || {};\n  const statusCode = raw.statusCode || null;\n  let body = raw.body !== undefined ? raw.body : raw;\n  if (typeof body === 'string') {\n    try { body = JSON.parse(body); } catch (_) { body = {}; }\n  }\n  const places = (body && Array.isArray(body.places)) ? body.places : [];\n  const count = places.length;\n  const clipped = count >= 20;\n  const depth = Number(cell.depth) || 0;\n  const apiError = (statusCode && statusCode >= 400) || (body && (body.error || body.message) && !places.length);\n  if (apiError) staticData.placesApiErrors.push({ where: 'nearby', statusCode, il: cell.il, ilce: cell.ilce, error: body.error || body.message || body });\n  if (clipped && cell.il && cell.ilce) {\n    const ck = cell.il + '|' + cell.ilce;\n    if (!clippedSet.has(ck)) { clippedSet.add(ck); staticData.clippedDistricts.push({ il: cell.il, ilce: cell.ilce }); }\n  }\n  staticData.nearbyLogs.push({\n    il: cell.il, ilce: cell.ilce, cellKind: cell.cellKind, cellIndex: cell.cellIndex,\n    count, clipped, statusCode, depth,\n    lat: cell.latitude, lon: cell.longitude, radius: cell.radius,\n    logId: `${cell.il}|${cell.ilce}|${cell.latitude}|${cell.longitude}|${depth}|${cell.cellIndex}`,\n  });\n  for (const p of places) {\n    const id = p.id || (p.name && String(p.name).replace(/^places\\//, ''));\n    if (!id || staticData.placesById[id]) continue;\n    const isim = (p.displayName && p.displayName.text) || null;\n    const adres = p.formattedAddress || null;\n    const parsed = parseIlceIl(adres);\n    staticData.placesById[id] = {\n      kaynak: 'google_places', kaynak_id: id, isim, adres,\n      ilce: parsed.ilce || cell.ilce || null, il: parsed.il || cell.il || null,\n      lat: p.location ? p.location.latitude : null, lon: p.location ? p.location.longitude : null,\n      google_types: Array.isArray(p.types) ? p.types : null, primary_type: p.primaryType || null,\n      kalite_bayragi: kaliteBayragi(isim), _source: 'nearby',\n    };\n  }\n  out.push({ json: {\n    supabaseUrl: cell.supabaseUrl, supabaseServiceRoleKey: cell.supabaseServiceRoleKey,\n    cellResultCount: count, clipped, statusCode, depth,\n    accumulated: Object.keys(staticData.placesById).length,\n  }});\n}\nreturn out.length ? out : [{ json: { accumulated: Object.keys(staticData.placesById).length } }];\n"
+      },
+      "id": "code-flatten-deep2-001",
+      "name": "Flatten Nearby Deep2",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2200,
+        360
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Mark Scanned Prep').first().json.supabaseUrl }}/rest/v1/ilce_merkezleri?on_conflict=il,ilce&columns=il,ilce,yoğun_bolge",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $('Mark Scanned Prep').first().json.supabaseServiceRoleKey }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Mark Scanned Prep').first().json.supabaseServiceRoleKey }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates,return=minimal"
+            },
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $('Mark Scanned Prep').first().json.yogunRows }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "http-mark-yogun-001",
+      "name": "Mark Yogun Bolge",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3120,
+        520
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "hy",
+              "leftValue": "={{ ($('Mark Scanned Prep').first().json.yogunRows || []).length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-has-yogun-001",
+      "name": "Has Yogun Rows?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3050,
+        520
+      ]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cron Weekly": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "node": "Reset Static Accumulator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reset Static Accumulator": {
+      "main": [
+        [
+          {
+            "node": "Fetch Ilce Merkezleri",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Ilce Merkezleri": {
+      "main": [
+        [
+          {
+            "node": "Expand Ilce Rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Expand Ilce Rows": {
+      "main": [
+        [
+          {
+            "node": "Build Nearby Cells",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Nearby Cells": {
+      "main": [
+        [
+          {
+            "node": "Has Cells?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Cells?": {
+      "main": [
+        [
+          {
+            "node": "Split Nearby Batches",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Nearby Batches": {
+      "main": [
+        [
+          {
+            "node": "Seed Deepen Pass1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Nearby Search",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Nearby Search": {
+      "main": [
+        [
+          {
+            "node": "Flatten Nearby",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Flatten Nearby": {
+      "main": [
+        [
+          {
+            "node": "Split Nearby Batches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Text Queries": {
+      "main": [
+        [
+          {
+            "node": "Has Text?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Text?": {
+      "main": [
+        [
+          {
+            "node": "Split Text Batches",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prep Match",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Text Batches": {
+      "main": [
+        [
+          {
+            "node": "Prep Match",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Text Search",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Text Search": {
+      "main": [
+        [
+          {
+            "node": "Flatten Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Flatten Text": {
+      "main": [
+        [
+          {
+            "node": "Split Text Batches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prep Match": {
+      "main": [
+        [
+          {
+            "node": "Fetch Existing Place Ids",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Existing Place Ids": {
+      "main": [
+        [
+          {
+            "node": "Classify New vs Existing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Classify New vs Existing": {
+      "main": [
+        [
+          {
+            "node": "Has New Places?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has New Places?": {
+      "main": [
+        [
+          {
+            "node": "Fetch Musteriler",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Skip New Branch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Musteriler": {
+      "main": [
+        [
+          {
+            "node": "Fuzzy Match + Batch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fuzzy Match + Batch": {
+      "main": [
+        [
+          {
+            "node": "Has Upsert Rows?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Upsert Rows?": {
+      "main": [
+        [
+          {
+            "node": "Insert New",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Continue To Existing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert New": {
+      "main": [
+        [
+          {
+            "node": "Continue To Existing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Skip New Branch": {
+      "main": [
+        [
+          {
+            "node": "Continue To Existing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Existing Places?": {
+      "main": [
+        [
+          {
+            "node": "Build Fresh Batches",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark Scanned Prep",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Fresh Batches": {
+      "main": [
+        [
+          {
+            "node": "Has Fresh Rows?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Fresh Rows?": {
+      "main": [
+        [
+          {
+            "node": "Update Fresh Fields",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Continue To Mark",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Fresh Fields": {
+      "main": [
+        [
+          {
+            "node": "Continue To Mark",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Scanned Prep": {
+      "main": [
+        [
+          {
+            "node": "Has Mark Rows?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Mark Rows?": {
+      "main": [
+        [
+          {
+            "node": "Mark Son Tarama",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Has Yogun Rows?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Son Tarama": {
+      "main": [
+        [
+          {
+            "node": "Has Yogun Rows?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Continue To Existing": {
+      "main": [
+        [
+          {
+            "node": "Has Existing Places?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Continue To Mark": {
+      "main": [
+        [
+          {
+            "node": "Mark Scanned Prep",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Seed Deepen Pass1": {
+      "main": [
+        [
+          {
+            "node": "Build Deeper Pass1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Deeper Pass1": {
+      "main": [
+        [
+          {
+            "node": "Has Deeper Pass1?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Deeper Pass1?": {
+      "main": [
+        [
+          {
+            "node": "Split Deeper Pass1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Seed Deepen Pass2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Deeper Pass1": {
+      "main": [
+        [
+          {
+            "node": "Seed Deepen Pass2",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Nearby Search Deep1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Nearby Search Deep1": {
+      "main": [
+        [
+          {
+            "node": "Flatten Nearby Deep1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Flatten Nearby Deep1": {
+      "main": [
+        [
+          {
+            "node": "Split Deeper Pass1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Seed Deepen Pass2": {
+      "main": [
+        [
+          {
+            "node": "Build Deeper Pass2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Deeper Pass2": {
+      "main": [
+        [
+          {
+            "node": "Has Deeper Pass2?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Deeper Pass2?": {
+      "main": [
+        [
+          {
+            "node": "Split Deeper Pass2",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build Text Queries",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Deeper Pass2": {
+      "main": [
+        [
+          {
+            "node": "Build Text Queries",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Nearby Search Deep2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Nearby Search Deep2": {
+      "main": [
+        [
+          {
+            "node": "Flatten Nearby Deep2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Flatten Nearby Deep2": {
+      "main": [
+        [
+          {
+            "node": "Split Deeper Pass2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Yogun Rows?": {
+      "main": [
+        [
+          {
+            "node": "Mark Yogun Bolge",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Yogun Bolge": {
+      "main": [
+        [
+          {
+            "node": "Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "timezone": "Europe/Istanbul"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "locus"
+    },
+    {
+      "name": "places"
+    }
+  ],
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}

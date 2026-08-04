@@ -29,7 +29,19 @@ import {
   type RouteRevealTween,
 } from "@/lib/route-reveal";
 import type { MusteriFeatureCollection } from "@/lib/geojson";
-import type { MusteriHarita } from "@/lib/types";
+import {
+  POTANSIYEL_CLUSTER_LAYER,
+  POTANSIYEL_POINT_LAYER,
+  POTANSIYEL_SELECTED_LAYER,
+  POTANSIYEL_SOURCE_ID,
+  addPotansiyelLayers,
+  recreatePotansiyelSource,
+  setPotansiyelData,
+  setPotansiyelSelectedId,
+  setPotansiyelVisibility,
+} from "@/lib/map-potansiyel-layers";
+import type { PotansiyelFeatureCollection } from "@/lib/potansiyel-geojson";
+import type { MusteriHarita, PotansiyelHarita } from "@/lib/types";
 
 const ROUTE_SOURCE_ID = "route-points";
 const ROUTE_LINE_SOURCE_ID = "route-line";
@@ -51,6 +63,11 @@ const EMPTY_LINE_COLLECTION: GeoJSON.FeatureCollection = {
   features: [],
 };
 
+const EMPTY_POTANSIYEL_COLLECTION: PotansiyelFeatureCollection = {
+  type: "FeatureCollection",
+  features: [],
+};
+
 interface PetshopMapProps {
   data: MusteriFeatureCollection;
   selectedMusteriKodu: string | null;
@@ -62,8 +79,15 @@ interface PetshopMapProps {
     lon: number;
     nonce: number;
   } | null;
+  potansiyelData?: PotansiyelFeatureCollection;
+  potansiyelVisible?: boolean;
+  selectedPotansiyelId?: string | null;
   onSelectMusteri: (
     musteri: MusteriHarita | null,
+    screenPoint?: { x: number; y: number }
+  ) => void;
+  onSelectPotansiyel?: (
+    potansiyel: PotansiyelHarita | null,
     screenPoint?: { x: number; y: number }
   ) => void;
 }
@@ -73,18 +97,26 @@ export const PetshopMap = memo(function PetshopMap({
   selectedMusteriKodu,
   highlightedRutKod,
   focusTarget = null,
+  potansiyelData = EMPTY_POTANSIYEL_COLLECTION,
+  potansiyelVisible = false,
+  selectedPotansiyelId = null,
   onSelectMusteri,
+  onSelectPotansiyel,
 }: PetshopMapProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const loadedRef = useRef(false);
   const dataRef = useRef(data);
+  const potansiyelDataRef = useRef(potansiyelData);
+  const potansiyelVisibleRef = useRef(potansiyelVisible);
   const onSelectRef = useRef(onSelectMusteri);
+  const onSelectPotansiyelRef = useRef(onSelectPotansiyel);
   const routeTweenRef = useRef<RouteRevealTween | null>(null);
   const dataSignatureRef = useRef<string>("");
   const clusterConfigRef = useRef<ClusterConfig | null>(null);
   const clustersDimmedRef = useRef(false);
   const selectedKodRef = useRef<string | null>(null);
+  const selectedPotansiyelIdRef = useRef<string | null>(null);
   const clusterZoomTimerRef = useRef(0);
   const popupRef = useRef<mapboxgl.Popup | null>(null);
 
@@ -93,12 +125,28 @@ export const PetshopMap = memo(function PetshopMap({
   }, [data]);
 
   useEffect(() => {
+    potansiyelDataRef.current = potansiyelData;
+  }, [potansiyelData]);
+
+  useEffect(() => {
+    potansiyelVisibleRef.current = potansiyelVisible;
+  }, [potansiyelVisible]);
+
+  useEffect(() => {
     onSelectRef.current = onSelectMusteri;
   }, [onSelectMusteri]);
 
   useEffect(() => {
+    onSelectPotansiyelRef.current = onSelectPotansiyel;
+  }, [onSelectPotansiyel]);
+
+  useEffect(() => {
     selectedKodRef.current = selectedMusteriKodu;
   }, [selectedMusteriKodu]);
+
+  useEffect(() => {
+    selectedPotansiyelIdRef.current = selectedPotansiyelId;
+  }, [selectedPotansiyelId]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -190,6 +238,13 @@ export const PetshopMap = memo(function PetshopMap({
       if (!map.getLayer(CLUSTER_LAYER)) {
         addCustomerLayers(map, clustersDimmedRef.current);
       }
+
+      // Prospect katmanı — müşterilerden sonra, rota katmanlarından önce
+      addPotansiyelLayers(map, initialCfg, {
+        visible: potansiyelVisibleRef.current,
+      });
+      setPotansiyelData(map, potansiyelDataRef.current);
+      setPotansiyelSelectedId(map, selectedPotansiyelIdRef.current);
 
       if (!map.getLayer(ROUTE_LINE_CASING_LAYER)) {
         map.addLayer({
@@ -339,11 +394,21 @@ export const PetshopMap = memo(function PetshopMap({
       const prev = clusterConfigRef.current;
       if (prev && prev.band === cfg.band) return;
       clusterConfigRef.current = cfg;
+      const potansiyelBefore = map.getLayer(POTANSIYEL_POINT_LAYER)
+        ? POTANSIYEL_POINT_LAYER
+        : ROUTE_LINE_CASING_LAYER;
       recreateCustomerSource(map, dataRef.current, cfg, {
         dimmed: clustersDimmedRef.current,
         selectedKod: selectedKodRef.current,
-        beforeLayerId: ROUTE_LINE_CASING_LAYER,
+        beforeLayerId: potansiyelBefore,
       });
+      if (map.getSource(POTANSIYEL_SOURCE_ID)) {
+        recreatePotansiyelSource(map, potansiyelDataRef.current, cfg, {
+          visible: potansiyelVisibleRef.current,
+          selectedId: selectedPotansiyelIdRef.current,
+          beforeLayerId: ROUTE_LINE_CASING_LAYER,
+        });
+      }
     };
     map.on("zoomend", () => {
       window.clearTimeout(clusterZoomTimerRef.current);
@@ -353,11 +418,69 @@ export const PetshopMap = memo(function PetshopMap({
     map.on("click", POINT_LAYER, (e) => {
       const feature = e.features?.[0];
       if (!feature || feature.geometry.type !== "Point") return;
+      e.originalEvent.stopPropagation();
       const [lon, lat] = feature.geometry.coordinates as [number, number];
       const screen = map.project([lon, lat]);
+      onSelectPotansiyelRef.current?.(null);
       onSelectRef.current(feature.properties as MusteriHarita, {
         x: screen.x,
         y: screen.y,
+      });
+    });
+
+    map.on("mouseenter", POTANSIYEL_POINT_LAYER, () => {
+      if (potansiyelVisibleRef.current) {
+        map.getCanvas().style.cursor = "pointer";
+      }
+    });
+    map.on("mouseleave", POTANSIYEL_POINT_LAYER, () => {
+      map.getCanvas().style.cursor = "";
+    });
+
+    map.on("click", POTANSIYEL_POINT_LAYER, (e) => {
+      if (!potansiyelVisibleRef.current) return;
+      const feature = e.features?.[0];
+      if (!feature || feature.geometry.type !== "Point") return;
+      e.originalEvent.stopPropagation();
+      const [lon, lat] = feature.geometry.coordinates as [number, number];
+      const screen = map.project([lon, lat]);
+      const props = feature.properties as PotansiyelHarita;
+      onSelectRef.current(null);
+      onSelectPotansiyelRef.current?.(
+        {
+          ...props,
+          id: String(props.id),
+          lat: Number(props.lat ?? lat),
+          lon: Number(props.lon ?? lon),
+        },
+        { x: screen.x, y: screen.y }
+      );
+    });
+
+    map.on("mouseenter", POTANSIYEL_CLUSTER_LAYER, () => {
+      if (potansiyelVisibleRef.current) {
+        map.getCanvas().style.cursor = "pointer";
+      }
+    });
+    map.on("mouseleave", POTANSIYEL_CLUSTER_LAYER, () => {
+      map.getCanvas().style.cursor = "";
+    });
+
+    map.on("click", POTANSIYEL_CLUSTER_LAYER, (e) => {
+      if (!potansiyelVisibleRef.current) return;
+      const feature = e.features?.[0];
+      if (!feature || feature.geometry.type !== "Point") return;
+      e.originalEvent.stopPropagation();
+      const clusterId = feature.properties?.cluster_id;
+      const coordinates = feature.geometry.coordinates as [number, number];
+      const source = map.getSource(POTANSIYEL_SOURCE_ID) as mapboxgl.GeoJSONSource;
+      source.getClusterExpansionZoom(clusterId, (err, zoom) => {
+        if (err || zoom == null) return;
+        map.easeTo({
+          center: coordinates,
+          zoom,
+          duration: 400,
+        });
       });
     });
 
@@ -386,15 +509,22 @@ export const PetshopMap = memo(function PetshopMap({
 
     // Pin/cluster dışı boş harita tıklanınca açık kartı kapat.
     map.on("click", (e) => {
-      const layers = [POINT_LAYER, CLUSTER_LAYER].filter((id) =>
-        Boolean(map.getLayer(id))
-      );
+      const layers = [
+        POINT_LAYER,
+        CLUSTER_LAYER,
+        POTANSIYEL_POINT_LAYER,
+        POTANSIYEL_CLUSTER_LAYER,
+      ].filter((id) => Boolean(map.getLayer(id)));
       if (layers.length === 0) {
         onSelectRef.current(null);
+        onSelectPotansiyelRef.current?.(null);
         return;
       }
       const hit = map.queryRenderedFeatures(e.point, { layers });
-      if (hit.length === 0) onSelectRef.current(null);
+      if (hit.length === 0) {
+        onSelectRef.current(null);
+        onSelectPotansiyelRef.current?.(null);
+      }
     });
 
     return () => {
@@ -441,6 +571,24 @@ export const PetshopMap = memo(function PetshopMap({
       selectedMusteriKodu ?? "__none__",
     ]);
   }, [selectedMusteriKodu]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !loadedRef.current) return;
+    setPotansiyelData(map, potansiyelData);
+  }, [potansiyelData]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !loadedRef.current) return;
+    setPotansiyelVisibility(map, potansiyelVisible);
+  }, [potansiyelVisible]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !loadedRef.current) return;
+    setPotansiyelSelectedId(map, selectedPotansiyelId);
+  }, [selectedPotansiyelId]);
 
   useEffect(() => {
     const map = mapRef.current;
