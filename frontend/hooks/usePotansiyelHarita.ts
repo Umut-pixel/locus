@@ -144,6 +144,15 @@ export function usePotansiyelHarita({ enabled }: UsePotansiyelHaritaOptions) {
     setRefreshKey((k) => k + 1);
   }, []);
 
+  const removeLocal = useCallback((id: string) => {
+    setData((prev) => {
+      const next = prev.filter((r) => r.id !== id);
+      cachedRows = next;
+      cachedVersion = CACHE_VERSION;
+      return next;
+    });
+  }, []);
+
   useEffect(() => {
     if (!enabled) return;
     const hit = getCached();
@@ -183,5 +192,5 @@ export function usePotansiyelHarita({ enabled }: UsePotansiyelHaritaOptions) {
     };
   }, [enabled, refreshKey]);
 
-  return { data, loading, error, refresh };
+  return { data, loading, error, refresh, removeLocal };
 }

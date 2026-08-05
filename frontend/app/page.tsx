@@ -112,6 +112,7 @@ export default function Home() {
   const {
     data: potansiyelRows,
     loading: potansiyelLoading,
+    removeLocal: removePotansiyelLocal,
   } = usePotansiyelHarita({ enabled: showPotansiyel });
 
   const [selectedCities, setSelectedCities] = useState<string[]>([]);
@@ -350,6 +351,26 @@ export default function Home() {
     setPotansiyelAnchor(null);
   }, []);
 
+  const handleHidePotansiyel = useCallback(
+    async (p: PotansiyelHarita) => {
+      const res = await fetch("/api/potansiyel/hide", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: p.id }),
+      });
+      const payload = (await res.json().catch(() => ({}))) as {
+        error?: string;
+      };
+      if (!res.ok) {
+        throw new Error(payload.error ?? `Gizleme başarısız (${res.status})`);
+      }
+      removePotansiyelLocal(p.id);
+      setSelectedPotansiyel(null);
+      setPotansiyelAnchor(null);
+    },
+    [removePotansiyelLocal]
+  );
+
   const handleToggleImport = useCallback(() => {
     setImportOpen((open) => {
       const next = !open;
@@ -539,6 +560,7 @@ export default function Home() {
                 anchor={potansiyelAnchor}
                 containerRef={mapAreaRef}
                 onClose={handleClosePotansiyel}
+                onHide={handleHidePotansiyel}
               />
             )}
           </AnimatePresence>

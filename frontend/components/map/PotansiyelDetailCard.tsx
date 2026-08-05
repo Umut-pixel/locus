@@ -7,10 +7,17 @@ import {
   useMemo,
   useRef,
   useState,
+  type PointerEvent as ReactPointerEvent,
   type RefObject,
 } from "react";
-import { ExternalLinkIcon, MapPinnedIcon, XIcon } from "lucide-react";
-import { animate, motion, useMotionValue } from "motion/react";
+import {
+  ExternalLinkIcon,
+  EyeOffIcon,
+  GripHorizontalIcon,
+  MapPinnedIcon,
+  XIcon,
+} from "lucide-react";
+import { animate, motion, useDragControls, useMotionValue } from "motion/react";
 
 import type { PanelAnchor } from "@/components/map/CustomerDetailPanel";
 import { Button } from "@/components/ui/button";
@@ -18,7 +25,7 @@ import { formatDate } from "@/lib/format";
 import type { PotansiyelHarita } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-const PANEL_WIDTH = 280;
+const PANEL_WIDTH = 304;
 const ANCHOR_GAP = 18;
 const EDGE_MARGIN = 12;
 const COMPACT_BREAKPOINT = 640;
@@ -128,6 +135,8 @@ interface PotansiyelDetailCardProps {
   anchor: PanelAnchor;
   containerRef: RefObject<HTMLDivElement | null>;
   onClose: () => void;
+  /** Yanlış kayıt — haritadan gizle. */
+  onHide?: (potansiyel: PotansiyelHarita) => void | Promise<void>;
 }
 
 export const PotansiyelDetailCard = memo(function PotansiyelDetailCard({
@@ -135,16 +144,25 @@ export const PotansiyelDetailCard = memo(function PotansiyelDetailCard({
   anchor,
   containerRef,
   onClose,
+  onHide,
 }: PotansiyelDetailCardProps) {
   const panelRef = useRef<HTMLDivElement | null>(null);
   const reanchorRef = useRef(true);
+  const draggedRef = useRef(false);
+  const dragControls = useDragControls();
   const [panelHeight, setPanelHeight] = useState(260);
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
+  const [dragging, setDragging] = useState(false);
+  const [hiding, setHiding] = useState(false);
+  const [hideError, setHideError] = useState<string | null>(null);
   const posX = useMotionValue(0);
   const posY = useMotionValue(0);
 
   useEffect(() => {
     reanchorRef.current = true;
+    draggedRef.current = false;
+    setHiding(false);
+    setHideError(null);
   }, [potansiyel.id, anchor.x, anchor.y]);
 
   useEffect(() => {
@@ -192,6 +210,8 @@ export const PotansiyelDetailCard = memo(function PotansiyelDetailCard({
       return;
     }
 
+    if (draggedRef.current) return;
+
     if (reanchorRef.current) {
       const pos = computeAutoPosition({
         isCompact,
@@ -210,6 +230,13 @@ export const PotansiyelDetailCard = memo(function PotansiyelDetailCard({
         void animate(posY, pos.top, heightTween);
       }
       reanchorRef.current = false;
+      return;
+    }
+
+    const maxTop = Math.max(EDGE_MARGIN, containerH - panelHeight - EDGE_MARGIN);
+    const current = posY.get();
+    if (current > maxTop) {
+      void animate(posY, maxTop, heightTween);
     }
   }, [
     potansiyel.id,
@@ -224,6 +251,24 @@ export const PotansiyelDetailCard = memo(function PotansiyelDetailCard({
     posY,
   ]);
 
+  const dragConstraints =
+    containerW > 0 && containerH > 0
+      ? {
+          left: EDGE_MARGIN,
+          top: EDGE_MARGIN,
+          right: Math.max(EDGE_MARGIN, containerW - width - EDGE_MARGIN),
+          bottom: Math.max(
+            EDGE_MARGIN,
+            containerH - panelHeight - EDGE_MARGIN
+          ),
+        }
+      : undefined;
+
+  const startDrag = (e: ReactPointerEvent) => {
+    if (isCompact) return;
+    dragControls.start(e);
+  };
+
   const place = [potansiyel.ilce, potansiyel.il].filter(Boolean).join(", ");
   const extras = useMemo(
     () => secondaryTypes(potansiyel.primary_type, potansiyel.google_types),
@@ -231,94 +276,190 @@ export const PotansiyelDetailCard = memo(function PotansiyelDetailCard({
   );
   const mapsHref = useMemo(() => googleMapsUrl(potansiyel), [potansiyel]);
 
+  const handleHide = async () => {
+    if (!onHide || hiding) return;
+    setHiding(true);
+    setHideError(null);
+    try {
+      await onHide(potansiyel);
+    } catch (err) {
+      setHiding(false);
+      setHideError(
+        err instanceof Error ? err.message : "Gizleme başarısız"
+      );
+    }
+  };
+
   return (
     <motion.div
-      ref={panelRef}
-      initial={{ opacity: 0, scale: 0.98 }}
-      animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.98 }}
-      transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
-      className={cn(
-        "pointer-events-auto absolute z-20 rounded-2xl border border-border/80 bg-card/95 shadow-lg backdrop-blur-md",
-        isCompact && "max-h-[min(50dvh,22rem)] overflow-y-auto"
-      )}
-      style={{
-        width,
-        left: 0,
-        top: 0,
-        x: posX,
-        y: posY,
+      className="pointer-events-none absolute inset-0 z-20"
+      initial={{ opacity: 0, y: isCompact ? 64 : 28 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: isCompact ? "110%" : 120 }}
+      transition={{
+        y: { duration: 0.34, ease: [0.22, 1, 0.36, 1] },
+        opacity: { duration: 0.24, ease: [0.22, 1, 0.36, 1] },
       }}
     >
-      <div className="flex items-start justify-between gap-2 border-b border-border/60 px-3.5 py-2.5">
-        <div className="min-w-0">
-          <p className="text-[10px] font-medium tracking-[0.12em] text-teal-700/90 uppercase dark:text-teal-300/90">
-            Potansiyel
-          </p>
-          <h2 className="mt-0.5 line-clamp-2 text-[13px] font-medium leading-snug">
-            {potansiyel.isim ?? "İsimsiz"}
-          </h2>
-        </div>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          aria-label="Kapat"
-          onClick={onClose}
-          className="size-7 shrink-0 rounded-full"
-        >
-          <XIcon className="size-3.5" />
-        </Button>
-      </div>
-
-      <dl className="flex flex-col gap-2 px-3.5 py-3 text-xs">
-        <Row label="Tür" value={typeLabel(potansiyel.primary_type)} />
-        {extras.length > 0 ? (
-          <div className="flex items-start justify-between gap-3">
-            <dt className="shrink-0 pt-0.5 text-muted-foreground">Etiket</dt>
-            <dd className="flex min-w-0 flex-wrap justify-end gap-1">
-              {extras.map((label) => (
-                <span
-                  key={label}
-                  className="rounded-md border border-border/70 bg-muted/40 px-1.5 py-0.5 text-[10px] text-muted-foreground"
-                >
-                  {label}
-                </span>
-              ))}
-            </dd>
-          </div>
-        ) : null}
-        <Row label="Konum" value={place || "—"} />
-        <Row label="Adres" value={potansiyel.adres ?? "—"} />
-        <Row label="Tarama" value={formatDate(potansiyel.tarandigi_tarih)} />
-        {potansiyel.kalite_bayragi === "suspicious_name" ? (
-          <Row label="Not" value="Şüpheli isim — düşük güven" />
-        ) : null}
-      </dl>
-
-      <div className="border-t border-border/60 px-3.5 py-2.5">
-        <a
-          href={mapsHref}
-          target="_blank"
-          rel="noopener noreferrer"
+      <motion.div
+        ref={panelRef}
+        drag={!isCompact}
+        dragListener={false}
+        dragControls={dragControls}
+        dragConstraints={isCompact ? undefined : dragConstraints}
+        dragElastic={0.08}
+        dragMomentum={!isCompact}
+        dragTransition={{
+          power: 0.22,
+          timeConstant: 220,
+          bounceStiffness: 420,
+          bounceDamping: 36,
+        }}
+        onDragStart={() => {
+          if (isCompact) return;
+          draggedRef.current = true;
+          setDragging(true);
+        }}
+        onDragEnd={() => setDragging(false)}
+        style={{ x: posX, y: posY, width, left: 0, top: 0 }}
+        className={cn(
+          "pointer-events-auto absolute flex max-h-[min(85dvh,calc(100%-1.5rem))] flex-col overflow-hidden rounded-2xl border bg-popover text-popover-foreground shadow-[0_16px_48px_-12px_rgba(0,0,0,0.6)]",
+          isCompact && "overflow-y-auto",
+          dragging && "cursor-grabbing select-none touch-none"
+        )}
+      >
+        <div
+          onPointerDown={(e) => {
+            if (!isCompact) startDrag(e);
+          }}
           className={cn(
-            "inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-full border border-border/80 bg-secondary px-3 text-xs font-medium text-secondary-foreground shadow-sm transition-colors hover:bg-secondary/80"
+            "flex flex-col items-center",
+            isCompact
+              ? "pt-2.5 pb-1"
+              : "cursor-grab touch-none pt-2.5 pb-0 active:cursor-grabbing"
           )}
         >
-          <MapPinnedIcon className="size-3.5" />
-          Google Maps’te aç
-          <ExternalLinkIcon className="size-3 opacity-60" />
-        </a>
-      </div>
+          <span className="flex h-5 items-center justify-center text-muted-foreground/50">
+            {isCompact ? (
+              <span className="h-1 w-9 rounded-full bg-muted-foreground/35" />
+            ) : (
+              <GripHorizontalIcon className="size-4" />
+            )}
+          </span>
+        </div>
+
+        <div
+          onPointerDown={(e) => {
+            if (!isCompact) startDrag(e);
+          }}
+          className={cn(
+            "flex items-start justify-between gap-3 px-4",
+            !isCompact && "cursor-grab touch-none active:cursor-grabbing"
+          )}
+        >
+          <div className="min-w-0">
+            <p className="font-mono text-[10px] tracking-[0.16em] text-muted-foreground uppercase">
+              Potansiyel
+              {place ? ` · ${place}` : ""}
+            </p>
+            <h2 className="mt-1 line-clamp-2 text-sm leading-snug font-medium">
+              {potansiyel.isim ?? "İsimsiz"}
+            </h2>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            onPointerDown={(e) => e.stopPropagation()}
+            aria-label="Paneli kapat"
+            className="flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-full text-white transition-colors hover:bg-white/10"
+          >
+            <XIcon className="size-4 stroke-[2.5]" />
+          </button>
+        </div>
+
+        <dl className="flex flex-col gap-2 px-4 pt-3 pb-1 text-xs">
+          <MetricRow label="Tür" value={typeLabel(potansiyel.primary_type)} />
+          {extras.length > 0 ? (
+            <div className="flex items-start justify-between gap-3">
+              <dt className="shrink-0 pt-0.5 text-muted-foreground">Etiket</dt>
+              <dd className="flex min-w-0 flex-wrap justify-end gap-1">
+                {extras.map((label) => (
+                  <span
+                    key={label}
+                    className="rounded-md border border-border/70 bg-muted/40 px-1.5 py-0.5 text-[10px] text-muted-foreground"
+                  >
+                    {label}
+                  </span>
+                ))}
+              </dd>
+            </div>
+          ) : null}
+          <MetricRow label="Adres" value={potansiyel.adres ?? "—"} wrap />
+          <MetricRow
+            label="Tarama"
+            value={formatDate(potansiyel.tarandigi_tarih)}
+          />
+          {potansiyel.kalite_bayragi === "suspicious_name" ? (
+            <MetricRow label="Not" value="Şüpheli isim — düşük güven" wrap />
+          ) : null}
+        </dl>
+
+        <div className="mt-auto shrink-0 space-y-2 border-t bg-muted/30 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+          <Button
+            variant="secondary"
+            size="sm"
+            nativeButton={false}
+            className="w-full rounded-md"
+            render={
+              <a href={mapsHref} target="_blank" rel="noopener noreferrer" />
+            }
+          >
+            <MapPinnedIcon className="size-3.5" />
+            Google Maps’te aç
+            <ExternalLinkIcon className="size-3 opacity-60" />
+          </Button>
+          {onHide ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="w-full rounded-md"
+              disabled={hiding}
+              onClick={() => void handleHide()}
+              onPointerDown={(e) => e.stopPropagation()}
+            >
+              <EyeOffIcon className="size-3.5" />
+              {hiding ? "Gizleniyor…" : "Haritadan gizle"}
+            </Button>
+          ) : null}
+          {hideError ? (
+            <p className="text-[10px] leading-snug text-destructive">{hideError}</p>
+          ) : null}
+        </div>
+      </motion.div>
     </motion.div>
   );
 });
 
-function Row({ label, value }: { label: string; value: string }) {
+function MetricRow({
+  label,
+  value,
+  wrap,
+}: {
+  label: string;
+  value: string;
+  wrap?: boolean;
+}) {
   return (
     <div className="flex items-baseline justify-between gap-3">
       <dt className="shrink-0 text-muted-foreground">{label}</dt>
-      <dd className="min-w-0 text-right font-mono text-[12px] leading-snug break-words">
+      <dd
+        className={
+          wrap
+            ? "min-w-0 text-right font-mono text-[12px] leading-snug break-words"
+            : "truncate text-right font-mono tabular-nums"
+        }
+      >
         {value}
       </dd>
     </div>
