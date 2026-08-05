@@ -79,7 +79,7 @@ export function LoginShell({ nextPath = "/" }: { nextPath?: string }) {
                   transition={{ delay: 1.08, duration: 0.4, ease: EASE }}
                   className="mt-1.5 text-[13px] leading-relaxed text-zinc-500"
                 >
-                  Peritas müşteri haritasına devam etmek için oturum açın.
+                  Patigo müşteri haritasına devam etmek için oturum açın.
                 </motion.p>
               </div>
 
