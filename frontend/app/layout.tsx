@@ -13,8 +13,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Petshop Müşteri Haritası",
-  description: "Ege bölgesi petshop/veteriner müşterileri — konum ve risk durumu haritası",
+  title: "Locus · Petshop Müşteri Haritası",
+  description:
+    "Ege bölgesi petshop/veteriner müşterileri — konum ve risk durumu haritası",
 };
 
 export const viewport: Viewport = {

@@ -1,15 +1,20 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { useRouter } from "next/navigation";
+import { EyeIcon, EyeOffIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 
-export function LoginForm({ nextPath = "/" }: { nextPath?: string }) {
-  const router = useRouter();
+type LoginFormProps = {
+  onSuccess?: () => void | Promise<void>;
+};
+
+export function LoginForm({ onSuccess }: LoginFormProps) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -30,8 +35,7 @@ export function LoginForm({ nextPath = "/" }: { nextPath?: string }) {
         setError(data.error ?? "Giriş başarısız");
         return;
       }
-      router.replace(nextPath.startsWith("/") ? nextPath : "/");
-      router.refresh();
+      await onSuccess?.();
     } catch {
       setError("Bağlantı hatası");
     } finally {
@@ -40,76 +44,77 @@ export function LoginForm({ nextPath = "/" }: { nextPath?: string }) {
   }
 
   return (
-    <div className="flex w-full flex-col px-5 py-5 sm:px-6 sm:py-6">
-      <div className="mx-auto w-full max-w-[22rem] text-center">
-        <h2 className="text-xl font-medium tracking-tight text-zinc-900">
-          Hoş geldiniz
-        </h2>
-        <p className="mt-1.5 text-sm text-zinc-500">
-          Devam etmek için giriş yapın
-        </p>
+    <form onSubmit={onSubmit} className="flex w-full flex-col gap-4">
+      <div className="flex flex-col gap-1.5">
+        <label
+          htmlFor="username"
+          className="text-[13px] font-medium text-zinc-800"
+        >
+          Kullanıcı adı
+        </label>
+        <Input
+          id="username"
+          name="username"
+          autoComplete="username"
+          autoFocus
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+          disabled={loading}
+          required
+          className="h-11 rounded-lg border-zinc-200 bg-zinc-50/80 text-[15px] text-zinc-900 placeholder:text-zinc-400 focus-visible:border-zinc-400 focus-visible:bg-white focus-visible:ring-zinc-900/10 sm:h-10 sm:text-sm"
+        />
       </div>
 
-      <form
-        onSubmit={onSubmit}
-        className="mx-auto mt-5 flex w-full max-w-[22rem] flex-col gap-4 sm:mt-6"
-      >
-        <div className="flex flex-col gap-1.5">
-          <label
-            htmlFor="username"
-            className="text-sm font-medium text-zinc-900"
-          >
-            Kullanıcı adı
-          </label>
-          <Input
-            id="username"
-            name="username"
-            autoComplete="username"
-            autoFocus
-            placeholder="kullanıcı adınız"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            disabled={loading}
-            required
-            className="h-11 rounded-lg border-zinc-200 bg-white text-base text-zinc-900 placeholder:text-zinc-400 focus-visible:border-zinc-400 focus-visible:ring-zinc-400/30 sm:h-10 sm:text-sm dark:bg-white"
-          />
-        </div>
-
-        <div className="flex flex-col gap-1.5">
-          <label
-            htmlFor="password"
-            className="text-sm font-medium text-zinc-900"
-          >
-            Şifre
-          </label>
+      <div className="flex flex-col gap-1.5">
+        <label
+          htmlFor="password"
+          className="text-[13px] font-medium text-zinc-800"
+        >
+          Şifre
+        </label>
+        <div className="relative">
           <Input
             id="password"
             name="password"
-            type="password"
+            type={showPassword ? "text" : "password"}
             autoComplete="current-password"
-            placeholder="••••••••"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             disabled={loading}
             required
-            className="h-11 rounded-lg border-zinc-200 bg-white text-base text-zinc-900 placeholder:text-zinc-400 focus-visible:border-zinc-400 focus-visible:ring-zinc-400/30 sm:h-10 sm:text-sm dark:bg-white"
+            className="h-11 rounded-lg border-zinc-200 bg-zinc-50/80 pr-10 text-[15px] text-zinc-900 placeholder:text-zinc-400 focus-visible:border-zinc-400 focus-visible:bg-white focus-visible:ring-zinc-900/10 sm:h-10 sm:text-sm"
           />
+          <button
+            type="button"
+            tabIndex={-1}
+            aria-label={showPassword ? "Şifreyi gizle" : "Şifreyi göster"}
+            onClick={() => setShowPassword((v) => !v)}
+            className="absolute top-1/2 right-2.5 -translate-y-1/2 rounded-md p-1 text-zinc-400 transition-colors hover:text-zinc-700"
+          >
+            {showPassword ? (
+              <EyeOffIcon className="size-4" />
+            ) : (
+              <EyeIcon className="size-4" />
+            )}
+          </button>
         </div>
+      </div>
 
-        {error && (
-          <p className="text-sm text-red-600" role="alert">
-            {error}
-          </p>
+      {error ? (
+        <p className="text-sm text-red-600" role="alert">
+          {error}
+        </p>
+      ) : null}
+
+      <Button
+        type="submit"
+        disabled={loading}
+        className={cn(
+          "mt-2 h-11 w-full rounded-lg bg-zinc-900 text-[15px] font-medium text-white hover:bg-zinc-800 sm:h-10 sm:text-sm"
         )}
-
-        <Button
-          type="submit"
-          disabled={loading}
-          className="mt-1 h-11 w-full rounded-lg bg-zinc-950 text-white hover:bg-zinc-800 sm:h-10"
-        >
-          {loading ? "Giriş yapılıyor…" : "Giriş yap"}
-        </Button>
-      </form>
-    </div>
+      >
+        {loading ? "Giriş yapılıyor…" : "Giriş yap"}
+      </Button>
+    </form>
   );
 }

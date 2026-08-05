@@ -15,6 +15,7 @@ import { RiskLegend } from "@/components/map/RiskLegend";
 import { RiskModeToggle } from "@/components/map/RiskModeToggle";
 import { PotansiyelDetailCard } from "@/components/map/PotansiyelDetailCard";
 import { PotansiyelLayerToggle } from "@/components/map/PotansiyelLayerToggle";
+import { LoginEnterTransition } from "@/components/auth/LoginEnterTransition";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -432,6 +433,7 @@ export default function Home() {
 
   return (
     <div className="relative flex h-dvh w-full max-w-[100vw] overflow-hidden">
+      <LoginEnterTransition />
       {!isMobileLayout ? (
         <aside className="hidden w-80 shrink-0 border-r border-sidebar-border bg-sidebar lg:block xl:w-[22.5rem]">
           <FilterPanel {...filterProps} />
