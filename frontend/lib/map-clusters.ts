@@ -110,8 +110,8 @@ export function clusterRadiusExpr(): ExpressionSpecification {
     9,
     ["step", ["get", "point_count"], 16, 10, 22, 30, 28],
     11,
-    ["step", ["get", "point_count"], 12, 10, 16, 30, 20],
+    ["step", ["get", "point_count"], 14, 10, 18, 30, 22],
     CLUSTER_DISSOLVE_ZOOM,
-    ["step", ["get", "point_count"], 6, 10, 8, 30, 10],
+    ["step", ["get", "point_count"], 14, 10, 16, 30, 18],
   ];
 }

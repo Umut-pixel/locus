@@ -324,7 +324,7 @@ export const PotansiyelDetailCard = memo(function PotansiyelDetailCard({
         style={{ x: posX, y: posY, width, left: 0, top: 0 }}
         className={cn(
           "pointer-events-auto absolute flex max-h-[min(85dvh,calc(100%-1.5rem))] flex-col overflow-hidden rounded-2xl border bg-popover text-popover-foreground shadow-[0_16px_48px_-12px_rgba(0,0,0,0.6)]",
-          isCompact && "overflow-y-auto",
+          isCompact && "max-h-[min(55dvh,24rem)] overflow-y-auto",
           dragging && "cursor-grabbing select-none touch-none"
         )}
       >
@@ -371,7 +371,7 @@ export const PotansiyelDetailCard = memo(function PotansiyelDetailCard({
             onClick={onClose}
             onPointerDown={(e) => e.stopPropagation()}
             aria-label="Paneli kapat"
-            className="flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-full text-white transition-colors hover:bg-white/10"
+            className="flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-full text-white transition-colors hover:bg-white/10 sm:size-8"
           >
             <XIcon className="size-4 stroke-[2.5]" />
           </button>

@@ -9,6 +9,7 @@ import { clusterConfigForZoom, type ClusterConfig } from "@/lib/map-clusters";
 import {
   CLUSTER_COUNT_LAYER,
   CLUSTER_LAYER,
+  POINT_HIT_LAYER,
   POINT_LAYER,
   SELECTED_LAYER,
   SOURCE_ID,
@@ -31,6 +32,7 @@ import {
 import type { MusteriFeatureCollection } from "@/lib/geojson";
 import {
   POTANSIYEL_CLUSTER_LAYER,
+  POTANSIYEL_POINT_HIT_LAYER,
   POTANSIYEL_POINT_LAYER,
   POTANSIYEL_SELECTED_LAYER,
   POTANSIYEL_SOURCE_ID,
@@ -195,6 +197,8 @@ export const PetshopMap = memo(function PetshopMap({
       center: DEFAULT_MAP_VIEW.center,
       zoom: DEFAULT_MAP_VIEW.zoom,
       attributionControl: true,
+      // Dokunmatikte nokta seçimini kolaylaştır
+      clickTolerance: 10,
     });
     mapRef.current = map;
 
@@ -365,7 +369,7 @@ export const PetshopMap = memo(function PetshopMap({
 
     const coarsePointer = window.matchMedia("(hover: none)").matches;
 
-    map.on("mouseenter", POINT_LAYER, (e) => {
+    map.on("mouseenter", POINT_HIT_LAYER, (e) => {
       // Dokunmatikte hover popup gereksiz maliyeti önle.
       if (coarsePointer) return;
       map.getCanvas().style.cursor = "pointer";
@@ -384,7 +388,7 @@ export const PetshopMap = memo(function PetshopMap({
         .addTo(map);
     });
 
-    map.on("mouseleave", POINT_LAYER, () => {
+    map.on("mouseleave", POINT_HIT_LAYER, () => {
       map.getCanvas().style.cursor = "";
       popup.remove();
     });
@@ -415,7 +419,7 @@ export const PetshopMap = memo(function PetshopMap({
       clusterZoomTimerRef.current = window.setTimeout(syncClustersToZoom, 120);
     });
 
-    map.on("click", POINT_LAYER, (e) => {
+    map.on("click", POINT_HIT_LAYER, (e) => {
       const feature = e.features?.[0];
       if (!feature || feature.geometry.type !== "Point") return;
       e.originalEvent.stopPropagation();
@@ -428,16 +432,16 @@ export const PetshopMap = memo(function PetshopMap({
       });
     });
 
-    map.on("mouseenter", POTANSIYEL_POINT_LAYER, () => {
+    map.on("mouseenter", POTANSIYEL_POINT_HIT_LAYER, () => {
       if (potansiyelVisibleRef.current) {
         map.getCanvas().style.cursor = "pointer";
       }
     });
-    map.on("mouseleave", POTANSIYEL_POINT_LAYER, () => {
+    map.on("mouseleave", POTANSIYEL_POINT_HIT_LAYER, () => {
       map.getCanvas().style.cursor = "";
     });
 
-    map.on("click", POTANSIYEL_POINT_LAYER, (e) => {
+    map.on("click", POTANSIYEL_POINT_HIT_LAYER, (e) => {
       if (!potansiyelVisibleRef.current) return;
       const feature = e.features?.[0];
       if (!feature || feature.geometry.type !== "Point") return;
@@ -510,8 +514,10 @@ export const PetshopMap = memo(function PetshopMap({
     // Pin/cluster dışı boş harita tıklanınca açık kartı kapat.
     map.on("click", (e) => {
       const layers = [
+        POINT_HIT_LAYER,
         POINT_LAYER,
         CLUSTER_LAYER,
+        POTANSIYEL_POINT_HIT_LAYER,
         POTANSIYEL_POINT_LAYER,
         POTANSIYEL_CLUSTER_LAYER,
       ].filter((id) => Boolean(map.getLayer(id)));
@@ -629,6 +635,9 @@ export const PetshopMap = memo(function PetshopMap({
 
       if (map.getLayer(POINT_LAYER)) {
         map.setFilter(POINT_LAYER, pointFilter);
+      }
+      if (map.getLayer(POINT_HIT_LAYER)) {
+        map.setFilter(POINT_HIT_LAYER, pointFilter);
       }
       if (map.getLayer(UPDATED_RING_LAYER)) {
         map.setFilter(UPDATED_RING_LAYER, [

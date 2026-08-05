@@ -42,8 +42,6 @@ import {
   setHighlightCodes,
 } from "@/lib/upload-highlight";
 
-const POTANSIYEL_LS_KEY = "locus:show-potansiyel";
-
 /** Mapbox ~1.8MB — ilk paint'ten sonra yükle */
 const PetshopMap = dynamic(
   () =>
@@ -89,21 +87,9 @@ export default function Home() {
     null
   );
   const [showPotansiyel, setShowPotansiyel] = useState(false);
-  useEffect(() => {
-    try {
-      setShowPotansiyel(localStorage.getItem(POTANSIYEL_LS_KEY) === "1");
-    } catch {
-      /* ignore */
-    }
-  }, []);
 
   const handleShowPotansiyelChange = useCallback((active: boolean) => {
     setShowPotansiyel(active);
-    try {
-      localStorage.setItem(POTANSIYEL_LS_KEY, active ? "1" : "0");
-    } catch {
-      /* ignore */
-    }
     if (!active) {
       setSelectedPotansiyel(null);
       setPotansiyelAnchor(null);
@@ -478,10 +464,10 @@ export default function Home() {
               <Button
                 variant="secondary"
                 onClick={handleToggleImport}
-                className="pointer-events-auto h-8 gap-1.5 rounded-full border px-2.5 shadow-md"
+                className="pointer-events-auto h-10 gap-1.5 rounded-full border px-3 shadow-md lg:h-8 lg:px-2.5"
               >
-                <UploadIcon className="size-3.5" />
-                <span className="text-xs">Veri yükle</span>
+                <UploadIcon className="size-4 lg:size-3.5" />
+                <span className="text-[13px] lg:text-xs">Veri yükle</span>
               </Button>
               {refreshing && (
                 <span className="pointer-events-none rounded-full border bg-popover/90 px-2 py-0.5 font-mono text-[10px] tracking-wide text-muted-foreground uppercase shadow-md">
@@ -531,7 +517,7 @@ export default function Home() {
             </AnimatePresence>
           </div>
 
-          <div className="flex items-end justify-end gap-2">
+          <div className="mb-[max(0.5rem,env(safe-area-inset-bottom))] flex items-end justify-end gap-2 sm:mb-0">
             {showLegend && (
               <RiskLegend
                 showUpdatedRing={hasUpdatedMarkers}

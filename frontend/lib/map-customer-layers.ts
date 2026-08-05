@@ -16,10 +16,16 @@ export const CLUSTER_COUNT_LAYER = "cluster-count";
 /** Güncellenen noktanın etrafındaki dış halka (point'in altında). */
 export const UPDATED_RING_LAYER = "updated-point-ring";
 export const POINT_LAYER = "unclustered-point";
+/** Görünmez dokunma alanı — görsel noktadan büyük. */
+export const POINT_HIT_LAYER = "unclustered-point-hit";
 export const SELECTED_LAYER = "selected-point";
 
 /** Son yüklemede güncellenen müşteri — açık, net dış halka. */
 export const UPDATED_RING_COLOR = "#f4f4f5";
+
+/** Dokunma hedefi (~36–44px); görsel yarıçap ayrı kalır. */
+export const POINT_HIT_RADIUS = 18;
+export const POINT_VISUAL_RADIUS = 7;
 
 export function applyClusterDimPaint(map: MapboxMap, dimmed: boolean) {
   if (map.getLayer(CLUSTER_LAYER)) {
@@ -143,9 +149,36 @@ export function addCustomerLayers(
           0.45,
           0.6,
         ],
-        "circle-radius": 7,
+        "circle-radius": POINT_VISUAL_RADIUS,
         "circle-stroke-width": 1.25,
         "circle-stroke-color": "rgba(255,255,255,0.85)",
+      },
+    },
+    before
+  );
+
+  // Geniş görünmez hit — dokunmatikte kolay seçim
+  map.addLayer(
+    {
+      id: POINT_HIT_LAYER,
+      type: "circle",
+      source: SOURCE_ID,
+      filter: ["!", ["has", "point_count"]],
+      paint: {
+        "circle-radius": [
+          "interpolate",
+          ["linear"],
+          ["zoom"],
+          6,
+          22,
+          10,
+          POINT_HIT_RADIUS,
+          14,
+          16,
+        ],
+        "circle-color": "#000000",
+        "circle-opacity": 0,
+        "circle-stroke-width": 0,
       },
     },
     before
@@ -186,6 +219,7 @@ export function recreateCustomerSource(
 
   for (const id of [
     SELECTED_LAYER,
+    POINT_HIT_LAYER,
     POINT_LAYER,
     UPDATED_RING_LAYER,
     CLUSTER_COUNT_LAYER,

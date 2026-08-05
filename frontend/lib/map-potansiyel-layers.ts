@@ -13,6 +13,7 @@ export const POTANSIYEL_SOURCE_ID = "potansiyeller";
 export const POTANSIYEL_CLUSTER_LAYER = "potansiyel-clusters";
 export const POTANSIYEL_CLUSTER_COUNT_LAYER = "potansiyel-cluster-count";
 export const POTANSIYEL_POINT_LAYER = "potansiyel-point";
+export const POTANSIYEL_POINT_HIT_LAYER = "potansiyel-point-hit";
 export const POTANSIYEL_SELECTED_LAYER = "potansiyel-selected";
 
 /** Müşteri risk paletine karışmayan nötr teal. */
@@ -29,6 +30,7 @@ const EMPTY: PotansiyelFeatureCollection = {
 
 const LAYER_IDS = [
   POTANSIYEL_SELECTED_LAYER,
+  POTANSIYEL_POINT_HIT_LAYER,
   POTANSIYEL_POINT_LAYER,
   POTANSIYEL_CLUSTER_COUNT_LAYER,
   POTANSIYEL_CLUSTER_LAYER,
@@ -106,7 +108,6 @@ export function addPotansiyelLayers(
         layout: { visibility },
         paint: {
           "circle-color": POTANSIYEL_COLOR,
-          // Müşteri unclustered-point ile aynı yarıçap
           "circle-radius": 7,
           "circle-stroke-width": 1.25,
           "circle-stroke-color": "rgba(255,255,255,0.85)",
@@ -122,6 +123,35 @@ export function addPotansiyelLayers(
             0.4,
             0.95,
           ],
+        },
+      },
+      before
+    );
+  }
+
+  if (!map.getLayer(POTANSIYEL_POINT_HIT_LAYER)) {
+    map.addLayer(
+      {
+        id: POTANSIYEL_POINT_HIT_LAYER,
+        type: "circle",
+        source: POTANSIYEL_SOURCE_ID,
+        filter: ["!", ["has", "point_count"]],
+        layout: { visibility },
+        paint: {
+          "circle-radius": [
+            "interpolate",
+            ["linear"],
+            ["zoom"],
+            6,
+            22,
+            10,
+            18,
+            14,
+            16,
+          ],
+          "circle-color": "#000000",
+          "circle-opacity": 0,
+          "circle-stroke-width": 0,
         },
       },
       before

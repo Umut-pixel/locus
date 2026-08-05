@@ -25,7 +25,7 @@ export function PotansiyelLayerToggle({
       aria-label="Potansiyel müşteri katmanı"
       onClick={() => onChange(!active)}
       className={cn(
-        "pointer-events-auto flex h-8 items-center gap-1.5 rounded-lg border border-border/80 px-2.5 text-[11px] font-medium tracking-tight shadow-md backdrop-blur-sm transition-colors",
+        "pointer-events-auto flex h-10 items-center gap-1.5 rounded-lg border border-border/80 px-3 text-[12px] font-medium tracking-tight shadow-md backdrop-blur-sm transition-colors lg:h-8 lg:px-2.5 lg:text-[11px]",
         active
           ? "border-teal-500/50 bg-teal-500/15 text-teal-800 dark:text-teal-200"
           : "bg-card/92 text-muted-foreground hover:text-foreground",

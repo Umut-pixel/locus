@@ -320,7 +320,7 @@ function RiskSegmentedControl({
             aria-checked={active}
             onClick={() => onChange(option.risk)}
             className={cn(
-              "relative min-w-0 flex-auto rounded-full px-0.5 py-1.5 text-[9px] font-medium whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/50 sm:px-1 sm:text-[10px]",
+              "relative min-h-10 min-w-0 flex-auto rounded-full px-1 py-2 text-[10px] font-medium whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/50 sm:min-h-0 sm:px-1 sm:py-1.5 sm:text-[10px]",
               active
                 ? "text-foreground"
                 : "text-muted-foreground hover:text-foreground"

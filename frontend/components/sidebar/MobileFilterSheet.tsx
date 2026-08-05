@@ -45,7 +45,7 @@ export function MobileFilterSheet(props: MobileFilterSheetProps) {
           <Button
             variant="secondary"
             size="icon"
-            className="pointer-events-auto size-9 rounded-full border shadow-md sm:size-8"
+            className="pointer-events-auto size-10 rounded-full border shadow-md lg:size-8"
           />
         }
       >

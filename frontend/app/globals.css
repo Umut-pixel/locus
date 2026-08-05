@@ -163,8 +163,8 @@
 
 @media (max-width: 1023px) {
   .mapboxgl-ctrl-top-right {
-    /* Sol üstte filtre + Sevkiyat/Borç + yükle; zoom sağda kalsın */
-    top: max(3.25rem, calc(env(safe-area-inset-top, 0px) + 2.75rem));
+    /* İki satır mobil toolbar (menü+yükle, sonra sevkiyat/potansiyel) */
+    top: max(5.75rem, calc(env(safe-area-inset-top, 0px) + 5.25rem));
   }
 
   .mapboxgl-ctrl-attrib {

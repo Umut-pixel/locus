@@ -703,7 +703,7 @@ export const CustomerDetailPanel = memo(function CustomerDetailPanel({
               width,
               left: 0,
               top: "auto",
-              bottom: EDGE_MARGIN,
+              bottom: `max(${EDGE_MARGIN}px, env(safe-area-inset-bottom))`,
               height: sheetHeightConstrained ? sheetH : undefined,
             }
           : { x: posX, y: posY, width, left: 0, top: 0 }
@@ -773,7 +773,7 @@ export const CustomerDetailPanel = memo(function CustomerDetailPanel({
             onClick={onClose}
             onPointerDown={(e) => e.stopPropagation()}
             aria-label="Paneli kapat"
-            className="flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-full text-white transition-colors hover:bg-white/10"
+            className="flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-full text-white transition-colors hover:bg-white/10 sm:size-8"
           >
             <XIcon className="size-4 stroke-[2.5]" />
           </button>
@@ -846,7 +846,7 @@ export const CustomerDetailPanel = memo(function CustomerDetailPanel({
                   onPointerDown={(e) => e.stopPropagation()}
                   aria-label="Önceki sayfa"
                   className={cn(
-                    "flex size-7 cursor-pointer items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",
+                    "flex size-9 cursor-pointer items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground sm:size-7",
                     isFirstPage && "cursor-default opacity-30 hover:bg-transparent"
                   )}
                 >
@@ -870,7 +870,7 @@ export const CustomerDetailPanel = memo(function CustomerDetailPanel({
                   onPointerDown={(e) => e.stopPropagation()}
                   aria-label="Sonraki sayfa"
                   className={cn(
-                    "flex size-7 cursor-pointer items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",
+                    "flex size-9 cursor-pointer items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground sm:size-7",
                     isLastPage &&
                       "cursor-default opacity-30 hover:bg-transparent"
                   )}
