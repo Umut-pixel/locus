@@ -89,3 +89,29 @@ export function tipPassesFilter(
   if (tip === "diger") return includeDiger;
   return filter[tip];
 }
+
+/** İkisi de açıkken haritada petshop/veteriner renk halkası. */
+export function tipRingVisible(filter: TipKanalFilter): boolean {
+  return filter.petshop && filter.veteriner;
+}
+
+export const TIP_STROKE_COLORS: Record<TipKanal, string> = {
+  petshop: "#22d3ee",
+  veteriner: "#e879f9",
+  diger: "rgba(255,255,255,0.85)",
+};
+
+/** Mapbox paint — tip_kanal property’sine göre stroke. */
+export function tipStrokeColorExpr(
+  fallback: string = TIP_STROKE_COLORS.diger
+): import("mapbox-gl").ExpressionSpecification {
+  return [
+    "match",
+    ["get", "tip_kanal"],
+    "petshop",
+    TIP_STROKE_COLORS.petshop,
+    "veteriner",
+    TIP_STROKE_COLORS.veteriner,
+    fallback,
+  ];
+}

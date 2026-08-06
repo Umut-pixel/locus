@@ -36,13 +36,26 @@ import {
 } from "@/lib/risk-style";
 import type { ImportActivity } from "@/lib/agent-states";
 import type { UploadResult } from "@/lib/import/types";
-import type { RiskDurumu } from "@/lib/types";
+import type { PotansiyelHarita, RiskDurumu } from "@/lib/types";
 
 export interface FilterStats {
   toplam: number;
   gorunen: number;
   riskli: number;
   dagilim: Record<RiskDurumu, number>;
+}
+
+type SearchListItem =
+  | { kind: "musteri"; hit: MusteriSearchHit }
+  | { kind: "potansiyel"; hit: PotansiyelHarita };
+
+const POTANSIYEL_SEARCH_LIMIT = 10;
+
+function matchPotansiyel(p: PotansiyelHarita, q: string): boolean {
+  const hay = [p.isim ?? "", p.adres ?? "", p.ilce ?? "", p.il ?? "", p.kaynak_id ?? ""]
+    .join(" ")
+    .toLocaleLowerCase("tr-TR");
+  return hay.includes(q);
 }
 
 interface FilterPanelProps {
@@ -54,6 +67,12 @@ interface FilterPanelProps {
   search: string;
   onSearchChange: (value: string) => void;
   onSearchSelect: (hit: MusteriSearchHit) => void;
+  /** Potansiyel katmanı açıkken arama sonuçlarına adaylar eklenir. */
+  showPotansiyel?: boolean;
+  potansiyelRows?: PotansiyelHarita[];
+  potansiyelLoading?: boolean;
+  potansiyelGizlenenIds?: ReadonlySet<string>;
+  onPotansiyelSearchSelect?: (hit: PotansiyelHarita) => void;
   stats: FilterStats;
   onReset: () => void;
   hasActiveFilters: boolean;
@@ -88,6 +107,11 @@ export const FilterPanel = memo(function FilterPanel({
   search,
   onSearchChange,
   onSearchSelect,
+  showPotansiyel = false,
+  potansiyelRows = [],
+  potansiyelLoading = false,
+  potansiyelGizlenenIds,
+  onPotansiyelSearchSelect,
   stats,
   onReset,
   hasActiveFilters,
@@ -115,24 +139,22 @@ export const FilterPanel = memo(function FilterPanel({
     () => new Set(selectedCities),
     [selectedCities]
   );
-  const { results, loading } = useMusteriSearch(search);
+  const { results, loading: musteriSearchLoading } = useMusteriSearch(search);
   const [listOpen, setListOpen] = useState(false);
   const searchWrapRef = useRef<HTMLDivElement | null>(null);
 
   const showList = listOpen && search.trim().length >= 2;
 
-  const searchResults = useMemo(() => {
+  const searchResults = useMemo((): SearchListItem[] => {
     const q = search.trim().toLocaleLowerCase("tr-TR");
-    const fromApi = results;
-    const seen = new Set(fromApi.map((r) => r.musteri_kodu));
+    const items: SearchListItem[] = [];
+    const seenMusteri = new Set<string>();
 
-    // Gizlenenler API sonucunda olmasa bile aramada görünsün.
-    const fromGizlenen: MusteriSearchHit[] = [];
     if (q.length >= 2) {
       for (const entry of gizlenen) {
         if (entry.kind !== "musteri") continue;
         const item = entry.item;
-        if (seen.has(item.musteri_kodu)) continue;
+        if (seenMusteri.has(item.musteri_kodu)) continue;
         const hay = [
           item.unvan,
           item.musteri_kodu,
@@ -143,22 +165,76 @@ export const FilterPanel = memo(function FilterPanel({
           .join(" ")
           .toLocaleLowerCase("tr-TR");
         if (!hay.includes(q)) continue;
-        fromGizlenen.push({
-          musteri_kodu: item.musteri_kodu,
-          unvan: item.unvan,
-          adres: item.adres,
-          sehir: item.sehir,
-          ilce: item.ilce,
-          lat: item.lat,
-          lon: item.lon,
-          risk_durumu: item.risk_durumu ?? "hic_teslimat_yok",
+        items.push({
+          kind: "musteri",
+          hit: {
+            musteri_kodu: item.musteri_kodu,
+            unvan: item.unvan,
+            adres: item.adres,
+            sehir: item.sehir,
+            ilce: item.ilce,
+            lat: item.lat,
+            lon: item.lon,
+            risk_durumu: item.risk_durumu ?? "hic_teslimat_yok",
+          },
         });
-        seen.add(item.musteri_kodu);
+        seenMusteri.add(item.musteri_kodu);
       }
     }
 
-    return [...fromGizlenen, ...fromApi];
-  }, [results, gizlenen, search]);
+    for (const hit of results) {
+      if (seenMusteri.has(hit.musteri_kodu)) continue;
+      items.push({ kind: "musteri", hit });
+      seenMusteri.add(hit.musteri_kodu);
+    }
+
+    if (showPotansiyel && q.length >= 2) {
+      const seenPotansiyel = new Set<string>();
+      let added = 0;
+
+      // Gizlenen potansiyeller haritada yoksa bile aramada çıksın.
+      for (const entry of gizlenen) {
+        if (entry.kind !== "potansiyel") continue;
+        const item = entry.item;
+        const asHit: PotansiyelHarita = {
+          id: item.id,
+          kaynak_id: item.kaynak_id,
+          isim: item.isim,
+          adres: item.adres,
+          ilce: item.ilce,
+          il: item.il,
+          lat: item.lat,
+          lon: item.lon,
+          primary_type: item.primary_type,
+          google_types: item.google_types,
+          kalite_bayragi: item.kalite_bayragi,
+          tarandigi_tarih: item.tarandigi_tarih,
+        };
+        if (!matchPotansiyel(asHit, q)) continue;
+        seenPotansiyel.add(item.id);
+        items.push({ kind: "potansiyel", hit: asHit });
+        added += 1;
+        if (added >= POTANSIYEL_SEARCH_LIMIT) break;
+      }
+
+      if (added < POTANSIYEL_SEARCH_LIMIT) {
+        for (const p of potansiyelRows) {
+          if (seenPotansiyel.has(p.id)) continue;
+          if (!matchPotansiyel(p, q)) continue;
+          items.push({ kind: "potansiyel", hit: p });
+          seenPotansiyel.add(p.id);
+          added += 1;
+          if (added >= POTANSIYEL_SEARCH_LIMIT) break;
+        }
+      }
+    }
+
+    return items;
+  }, [results, gizlenen, search, showPotansiyel, potansiyelRows]);
+
+  const loading =
+    musteriSearchLoading ||
+    (showPotansiyel && potansiyelLoading && searchResults.length === 0);
 
   useEffect(() => {
     if (search.trim().length < 2) setListOpen(false);
@@ -175,9 +251,15 @@ export const FilterPanel = memo(function FilterPanel({
     return () => document.removeEventListener("mousedown", onDoc);
   }, []);
 
-  const handleSelect = (hit: MusteriSearchHit) => {
+  const handleSelectMusteri = (hit: MusteriSearchHit) => {
     onSearchSelect(hit);
     onSearchChange(hit.unvan);
+    setListOpen(false);
+  };
+
+  const handleSelectPotansiyel = (hit: PotansiyelHarita) => {
+    onPotansiyelSearchSelect?.(hit);
+    onSearchChange(hit.isim ?? "Potansiyel");
     setListOpen(false);
   };
 
@@ -231,13 +313,17 @@ export const FilterPanel = memo(function FilterPanel({
             onFocus={() => {
               if (search.trim().length >= 2) setListOpen(true);
             }}
-            placeholder="Dükkan, adres veya kod ara…"
+            placeholder={
+              showPotansiyel
+                ? "Müşteri veya potansiyel ara…"
+                : "Dükkan, adres veya kod ara…"
+            }
             className="h-9 rounded-full border border-input bg-muted/35 text-xs"
             contentClassName="px-9 text-xs"
             startAdornment={
               <SearchIcon className="pointer-events-none absolute top-1/2 left-3.5 z-[4] size-3.5 -translate-y-1/2 text-muted-foreground" />
             }
-            aria-label="Müşteri ara"
+            aria-label={showPotansiyel ? "Müşteri veya potansiyel ara" : "Müşteri ara"}
             aria-autocomplete="list"
             aria-expanded={showList}
             role="combobox"
@@ -256,7 +342,52 @@ export const FilterPanel = memo(function FilterPanel({
                   Sonuç yok
                 </li>
               ) : (
-                searchResults.map((hit) => {
+                searchResults.map((item) => {
+                  if (item.kind === "potansiyel") {
+                    const hit = item.hit;
+                    const title = hit.isim?.trim() || "İsimsiz potansiyel";
+                    const place = [hit.ilce, hit.il].filter(Boolean).join(", ");
+                    const adres =
+                      hit.adres && hit.adres.length > 48
+                        ? `${hit.adres.slice(0, 48)}…`
+                        : hit.adres;
+                    const gizlenenHit =
+                      potansiyelGizlenenIds?.has(hit.id) ?? false;
+                    return (
+                      <li key={`p:${hit.id}`} role="option">
+                        <button
+                          type="button"
+                          className="flex w-full flex-col gap-0.5 px-3 py-2 text-left hover:bg-muted/60"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => handleSelectPotansiyel(hit)}
+                        >
+                          <span className="flex items-center gap-1.5">
+                            <span className="line-clamp-1 min-w-0 flex-1 text-[12px] font-medium leading-snug">
+                              {title}
+                            </span>
+                            {gizlenenHit ? (
+                              <EyeOffIcon
+                                className="size-3 shrink-0 text-muted-foreground"
+                                aria-label="Gizlenen"
+                              />
+                            ) : null}
+                          </span>
+                          <span className="line-clamp-1 font-mono text-[10px] text-muted-foreground">
+                            Potansiyel
+                            {place ? ` · ${place}` : ""}
+                            {gizlenenHit ? " · gizli" : ""}
+                          </span>
+                          {adres ? (
+                            <span className="line-clamp-1 text-[10px] text-muted-foreground/80">
+                              {adres}
+                            </span>
+                          ) : null}
+                        </button>
+                      </li>
+                    );
+                  }
+
+                  const hit = item.hit;
                   const place = [hit.ilce, hit.sehir].filter(Boolean).join(", ");
                   const adres =
                     hit.adres && hit.adres.length > 48
@@ -265,12 +396,12 @@ export const FilterPanel = memo(function FilterPanel({
                   const gizlenenHit =
                     gizlenenKodlari?.has(hit.musteri_kodu) ?? false;
                   return (
-                    <li key={hit.musteri_kodu} role="option">
+                    <li key={`m:${hit.musteri_kodu}`} role="option">
                       <button
                         type="button"
                         className="flex w-full flex-col gap-0.5 px-3 py-2 text-left hover:bg-muted/60"
                         onMouseDown={(e) => e.preventDefault()}
-                        onClick={() => handleSelect(hit)}
+                        onClick={() => handleSelectMusteri(hit)}
                       >
                         <span className="flex items-center gap-1.5">
                           <span className="line-clamp-1 min-w-0 flex-1 text-[12px] font-medium leading-snug">

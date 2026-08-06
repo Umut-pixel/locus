@@ -33,6 +33,7 @@ import { usePotansiyelHarita } from "@/hooks/usePotansiyelHarita";
 import type { GizlenenItem } from "@/components/sidebar/GizlenenList";
 import type { SonraBakItem } from "@/components/sidebar/PotansiyelFavoriList";
 import { musterilerToGeoJSON } from "@/lib/geojson";
+import { boundsForSehir } from "@/lib/import/cities";
 import type { UploadResult } from "@/lib/import/types";
 import { filterRowsLocally } from "@/lib/map-filter";
 import { potansiyellerToGeoJSON } from "@/lib/potansiyel-geojson";
@@ -47,6 +48,7 @@ import {
   isTipFilterActive,
   tipKanalFromPrimaryType,
   tipPassesFilter,
+  tipRingVisible,
   type TipKanalFilter,
 } from "@/lib/tip-style";
 import type {
@@ -226,6 +228,10 @@ export default function Home() {
     lon: number;
     nonce: number;
   } | null>(null);
+  const [regionFocus, setRegionFocus] = useState<{
+    bounds: [[number, number], [number, number]];
+    nonce: number;
+  } | null>(null);
   const [selectedMusteri, setSelectedMusteri] = useState<MusteriHarita | null>(
     null
   );
@@ -400,11 +406,23 @@ export default function Home() {
     includeDigerKanallar ||
     isTipFilterActive(tipFilter);
 
-  const toggleCity = useCallback((city: string) => {
-    setSelectedCities((prev) =>
-      prev.includes(city) ? prev.filter((c) => c !== city) : [...prev, city]
-    );
-  }, []);
+  const toggleCity = useCallback(
+    (city: string) => {
+      const removing = selectedCities.includes(city);
+      if (removing) {
+        setSelectedCities((prev) => prev.filter((c) => c !== city));
+        return;
+      }
+      setSelectedCities((prev) =>
+        prev.includes(city) ? prev : [...prev, city]
+      );
+      const bounds = boundsForSehir(scoredRows, city);
+      if (bounds) {
+        setRegionFocus({ bounds, nonce: Date.now() });
+      }
+    },
+    [selectedCities, scoredRows]
+  );
 
   const resetFilters = useCallback(() => {
     setSelectedCities([]);
@@ -425,6 +443,8 @@ export default function Home() {
   const handleTipFilterChange = useCallback((next: TipKanalFilter) => {
     setTipFilter(next);
   }, []);
+
+  const showTipRing = tipRingVisible(tipFilter);
 
   const handleSelectMusteri = useCallback(
     (musteri: MusteriHarita | null, screenPoint?: { x: number; y: number }) => {
@@ -513,6 +533,27 @@ export default function Home() {
       });
     },
     [scoredRows, musteriGizlenenKodlari]
+  );
+
+  const handlePotansiyelSearchSelect = useCallback(
+    (hit: PotansiyelHarita) => {
+      setImportOpen(false);
+      setImportActivity(null);
+      setHighlightedRutKod(null);
+      setSelectedMusteri(null);
+      setPanelAnchor(null);
+      setShowPotansiyel(true);
+      if (potansiyelGizlenenIds.has(hit.id)) {
+        setRevealPotansiyelId(hit.id);
+      }
+      setPotansiyelFocusTarget({
+        id: hit.id,
+        lat: hit.lat,
+        lon: hit.lon,
+        nonce: Date.now(),
+      });
+    },
+    [potansiyelGizlenenIds]
   );
 
   const handleCloseDetail = useCallback(() => {
@@ -757,6 +798,11 @@ export default function Home() {
       search,
       onSearchChange: setSearch,
       onSearchSelect: handleSearchSelect,
+      showPotansiyel,
+      potansiyelRows,
+      potansiyelLoading,
+      potansiyelGizlenenIds,
+      onPotansiyelSearchSelect: handlePotansiyelSearchSelect,
       stats,
       onReset: resetFilters,
       hasActiveFilters,
@@ -785,6 +831,11 @@ export default function Home() {
       selectedRisk,
       search,
       handleSearchSelect,
+      showPotansiyel,
+      potansiyelRows,
+      potansiyelLoading,
+      potansiyelGizlenenIds,
+      handlePotansiyelSearchSelect,
       stats,
       resetFilters,
       hasActiveFilters,
@@ -828,10 +879,12 @@ export default function Home() {
           selectedMusteriKodu={selectedMusteri?.musteri_kodu ?? null}
           highlightedRutKod={highlightedRutKod}
           focusTarget={focusTarget}
+          regionFocus={regionFocus}
           potansiyelFocusTarget={potansiyelFocusTarget}
           potansiyelData={potansiyelGeojson}
           potansiyelVisible={showPotansiyel}
           selectedPotansiyelId={selectedPotansiyel?.id ?? null}
+          showTipRing={showTipRing}
           onSelectMusteri={handleSelectMusteri}
           onSelectPotansiyel={handleSelectPotansiyel}
         />
@@ -927,6 +980,7 @@ export default function Home() {
             {showLegend && (
               <RiskLegend
                 showUpdatedRing={hasUpdatedMarkers}
+                showTipRing={showTipRing}
                 riskLabels={riskLabels}
                 title={legendTitle}
               />

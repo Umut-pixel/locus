@@ -8,10 +8,13 @@ import {
   type ClusterConfig,
 } from "@/lib/map-clusters";
 import type { PotansiyelFeatureCollection } from "@/lib/potansiyel-geojson";
+import { tipStrokeColorExpr } from "@/lib/tip-style";
 
 export const POTANSIYEL_SOURCE_ID = "potansiyeller";
 export const POTANSIYEL_CLUSTER_LAYER = "potansiyel-clusters";
 export const POTANSIYEL_CLUSTER_COUNT_LAYER = "potansiyel-cluster-count";
+/** Petshop / veteriner halkası — teal noktanın çevresi. */
+export const POTANSIYEL_TIP_RING_LAYER = "potansiyel-tip-ring";
 export const POTANSIYEL_POINT_LAYER = "potansiyel-point";
 export const POTANSIYEL_POINT_HIT_LAYER = "potansiyel-point-hit";
 export const POTANSIYEL_SELECTED_LAYER = "potansiyel-selected";
@@ -24,6 +27,7 @@ export const POTANSIYEL_FAVORI_STROKE = "#f59e0b";
 /** Küme balonu — müşteri gri’sinden ayrılan teal-gri */
 export const POTANSIYEL_CLUSTER_FILL = "#99f6e4";
 export const POTANSIYEL_CLUSTER_TEXT = "#134e4a";
+export const POTANSIYEL_TIP_RING_RADIUS = 10;
 
 const EMPTY: PotansiyelFeatureCollection = {
   type: "FeatureCollection",
@@ -34,6 +38,7 @@ const LAYER_IDS = [
   POTANSIYEL_SELECTED_LAYER,
   POTANSIYEL_POINT_HIT_LAYER,
   POTANSIYEL_POINT_LAYER,
+  POTANSIYEL_TIP_RING_LAYER,
   POTANSIYEL_CLUSTER_COUNT_LAYER,
   POTANSIYEL_CLUSTER_LAYER,
 ] as const;
@@ -41,11 +46,19 @@ const LAYER_IDS = [
 export function addPotansiyelLayers(
   map: MapboxMap,
   cfg: ClusterConfig,
-  opts?: { visible?: boolean; beforeId?: string }
+  opts?: { visible?: boolean; beforeId?: string; tipRingVisible?: boolean }
 ) {
   const before =
     opts?.beforeId && map.getLayer(opts.beforeId) ? opts.beforeId : undefined;
   const visibility = opts?.visible ? "visible" : "none";
+  const tipVisibility =
+    opts?.visible === false
+      ? "none"
+      : opts?.tipRingVisible === false
+        ? "none"
+        : visibility === "none"
+          ? "none"
+          : "visible";
 
   if (!map.getSource(POTANSIYEL_SOURCE_ID)) {
     map.addSource(POTANSIYEL_SOURCE_ID, {
@@ -94,6 +107,40 @@ export function addPotansiyelLayers(
         paint: {
           "text-color": POTANSIYEL_CLUSTER_TEXT,
           "text-opacity": clusterCountOpacityExpr(false),
+        },
+      },
+      before
+    );
+  }
+
+  if (!map.getLayer(POTANSIYEL_TIP_RING_LAYER)) {
+    map.addLayer(
+      {
+        id: POTANSIYEL_TIP_RING_LAYER,
+        type: "circle",
+        source: POTANSIYEL_SOURCE_ID,
+        filter: [
+          "all",
+          ["!", ["has", "point_count"]],
+          [
+            "any",
+            ["==", ["get", "tip_kanal"], "petshop"],
+            ["==", ["get", "tip_kanal"], "veteriner"],
+          ],
+        ],
+        layout: { visibility: tipVisibility },
+        paint: {
+          "circle-radius": POTANSIYEL_TIP_RING_RADIUS,
+          "circle-color": "rgba(0,0,0,0)",
+          "circle-stroke-width": 2.5,
+          "circle-stroke-color": tipStrokeColorExpr(),
+          "circle-stroke-opacity": [
+            "case",
+            ["==", ["get", "kalite_bayragi"], "suspicious_name"],
+            0.4,
+            0.95,
+          ],
+          "circle-opacity": 1,
         },
       },
       before
@@ -204,6 +251,7 @@ export function recreatePotansiyelSource(
     visible: boolean;
     selectedId: string | null;
     beforeLayerId?: string;
+    tipRingVisible?: boolean;
   }
 ) {
   if (!map.getSource(POTANSIYEL_SOURCE_ID)) return;
@@ -224,6 +272,7 @@ export function recreatePotansiyelSource(
   addPotansiyelLayers(map, cfg, {
     visible: opts.visible,
     beforeId: opts.beforeLayerId,
+    tipRingVisible: opts.tipRingVisible,
   });
   setPotansiyelSelectedId(map, opts.selectedId);
 }
@@ -231,10 +280,26 @@ export function recreatePotansiyelSource(
 export function setPotansiyelVisibility(map: MapboxMap, visible: boolean) {
   const v = visible ? "visible" : "none";
   for (const id of LAYER_IDS) {
-    if (map.getLayer(id)) {
-      map.setLayoutProperty(id, "visibility", v);
+    if (!map.getLayer(id)) continue;
+    // Tip halkası showTipRing ile ayrı yönetilir
+    if (id === POTANSIYEL_TIP_RING_LAYER) {
+      if (!visible) map.setLayoutProperty(id, "visibility", "none");
+      continue;
     }
+    map.setLayoutProperty(id, "visibility", v);
   }
+}
+
+export function setPotansiyelTipRingVisibility(
+  map: MapboxMap,
+  visible: boolean
+) {
+  if (!map.getLayer(POTANSIYEL_TIP_RING_LAYER)) return;
+  map.setLayoutProperty(
+    POTANSIYEL_TIP_RING_LAYER,
+    "visibility",
+    visible ? "visible" : "none"
+  );
 }
 
 export function setPotansiyelSelectedId(map: MapboxMap, id: string | null) {

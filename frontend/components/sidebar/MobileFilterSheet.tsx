@@ -15,7 +15,7 @@ import { FilterPanel, type FilterStats } from "@/components/sidebar/FilterPanel"
 import type { MusteriSearchHit } from "@/hooks/useMusteriSearch";
 import type { ImportActivity } from "@/lib/agent-states";
 import type { UploadResult } from "@/lib/import/types";
-import type { RiskDurumu } from "@/lib/types";
+import type { PotansiyelHarita, RiskDurumu } from "@/lib/types";
 import type { SonraBakItem } from "@/components/sidebar/PotansiyelFavoriList";
 
 interface MobileFilterSheetProps {
@@ -27,6 +27,11 @@ interface MobileFilterSheetProps {
   search: string;
   onSearchChange: (value: string) => void;
   onSearchSelect: (hit: MusteriSearchHit) => void;
+  showPotansiyel?: boolean;
+  potansiyelRows?: PotansiyelHarita[];
+  potansiyelLoading?: boolean;
+  potansiyelGizlenenIds?: ReadonlySet<string>;
+  onPotansiyelSearchSelect?: (hit: PotansiyelHarita) => void;
   stats: FilterStats;
   onReset: () => void;
   hasActiveFilters: boolean;

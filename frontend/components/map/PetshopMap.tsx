@@ -18,6 +18,7 @@ import {
   addCustomerLayers,
   applyClusterDimPaint,
   recreateCustomerSource,
+  setCustomerTipRingVisibility,
 } from "@/lib/map-customer-layers";
 import { snapSegmentsToRoads } from "@/lib/mapbox-directions";
 import {
@@ -41,6 +42,7 @@ import {
   recreatePotansiyelSource,
   setPotansiyelData,
   setPotansiyelSelectedId,
+  setPotansiyelTipRingVisibility,
   setPotansiyelVisibility,
 } from "@/lib/map-potansiyel-layers";
 import type { PotansiyelFeatureCollection } from "@/lib/potansiyel-geojson";
@@ -87,6 +89,11 @@ interface PetshopMapProps {
     lon: number;
     nonce: number;
   } | null;
+  /** Şehir filtresi — fitBounds ile bölgeye git (kart açılmaz). */
+  regionFocus?: {
+    bounds: [[number, number], [number, number]];
+    nonce: number;
+  } | null;
   /** Favori listesinden seçim — potansiyel katmanını açıp focus */
   potansiyelFocusTarget?: {
     id: string;
@@ -97,6 +104,11 @@ interface PetshopMapProps {
   potansiyelData?: PotansiyelFeatureCollection;
   potansiyelVisible?: boolean;
   selectedPotansiyelId?: string | null;
+  /**
+   * Petshop + veteriner ikisi de açıkken renkli tip halkası.
+   * Tek kanal filtresinde halka gizlenir.
+   */
+  showTipRing?: boolean;
   onSelectMusteri: (
     musteri: MusteriHarita | null,
     screenPoint?: { x: number; y: number }
@@ -112,10 +124,12 @@ export const PetshopMap = memo(function PetshopMap({
   selectedMusteriKodu,
   highlightedRutKod,
   focusTarget = null,
+  regionFocus = null,
   potansiyelFocusTarget = null,
   potansiyelData = EMPTY_POTANSIYEL_COLLECTION,
   potansiyelVisible = false,
   selectedPotansiyelId = null,
+  showTipRing = true,
   onSelectMusteri,
   onSelectPotansiyel,
 }: PetshopMapProps) {
@@ -125,6 +139,7 @@ export const PetshopMap = memo(function PetshopMap({
   const dataRef = useRef(data);
   const potansiyelDataRef = useRef(potansiyelData);
   const potansiyelVisibleRef = useRef(potansiyelVisible);
+  const tipRingVisibleRef = useRef(showTipRing);
   const onSelectRef = useRef(onSelectMusteri);
   const onSelectPotansiyelRef = useRef(onSelectPotansiyel);
   const routeTweenRef = useRef<RouteRevealTween | null>(null);
@@ -148,6 +163,10 @@ export const PetshopMap = memo(function PetshopMap({
   useEffect(() => {
     potansiyelVisibleRef.current = potansiyelVisible;
   }, [potansiyelVisible]);
+
+  useEffect(() => {
+    tipRingVisibleRef.current = showTipRing;
+  }, [showTipRing]);
 
   useEffect(() => {
     onSelectRef.current = onSelectMusteri;
@@ -201,6 +220,18 @@ export const PetshopMap = memo(function PetshopMap({
       window.clearTimeout(timer);
     };
   }, [focusTarget]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !loadedRef.current || !regionFocus) return;
+
+    map.fitBounds(regionFocus.bounds, {
+      padding: { top: 72, bottom: 72, left: 56, right: 56 },
+      maxZoom: 11.5,
+      duration: 900,
+      essential: true,
+    });
+  }, [regionFocus]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -317,12 +348,15 @@ export const PetshopMap = memo(function PetshopMap({
       }
 
       if (!map.getLayer(CLUSTER_LAYER)) {
-        addCustomerLayers(map, clustersDimmedRef.current);
+        addCustomerLayers(map, clustersDimmedRef.current, undefined, {
+          tipRingVisible: tipRingVisibleRef.current,
+        });
       }
 
       // Prospect katmanı — müşterilerden sonra, rota katmanlarından önce
       addPotansiyelLayers(map, initialCfg, {
         visible: potansiyelVisibleRef.current,
+        tipRingVisible: tipRingVisibleRef.current,
       });
       setPotansiyelData(map, potansiyelDataRef.current);
       setPotansiyelSelectedId(map, selectedPotansiyelIdRef.current);
@@ -491,12 +525,14 @@ export const PetshopMap = memo(function PetshopMap({
         dimmed: clustersDimmedRef.current,
         selectedKod: selectedKodRef.current,
         beforeLayerId: potansiyelBefore,
+        tipRingVisible: tipRingVisibleRef.current,
       });
       if (map.getSource(POTANSIYEL_SOURCE_ID)) {
         recreatePotansiyelSource(map, potansiyelDataRef.current, cfg, {
           visible: potansiyelVisibleRef.current,
           selectedId: selectedPotansiyelIdRef.current,
           beforeLayerId: ROUTE_LINE_CASING_LAYER,
+          tipRingVisible: tipRingVisibleRef.current,
         });
       }
     };
@@ -676,7 +712,21 @@ export const PetshopMap = memo(function PetshopMap({
     const map = mapRef.current;
     if (!map || !loadedRef.current) return;
     setPotansiyelVisibility(map, potansiyelVisible);
+    setPotansiyelTipRingVisibility(
+      map,
+      potansiyelVisible && tipRingVisibleRef.current
+    );
   }, [potansiyelVisible]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !loadedRef.current) return;
+    setCustomerTipRingVisibility(map, showTipRing);
+    setPotansiyelTipRingVisibility(
+      map,
+      potansiyelVisibleRef.current && showTipRing
+    );
+  }, [showTipRing]);
 
   useEffect(() => {
     const map = mapRef.current;

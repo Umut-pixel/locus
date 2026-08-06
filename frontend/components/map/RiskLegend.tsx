@@ -5,6 +5,11 @@ import {
   RISK_LABELS as DEFAULT_RISK_LABELS,
   RISK_ORDER,
 } from "@/lib/risk-style";
+import {
+  TIP_LABELS,
+  TIP_ORDER,
+  TIP_STROKE_COLORS,
+} from "@/lib/tip-style";
 import type { GeocodeHassasiyet, RiskDurumu } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -17,11 +22,14 @@ const HASSASIYET_ORDER: GeocodeHassasiyet[] = [
 export function RiskLegend({
   className,
   showUpdatedRing = false,
+  showTipRing = true,
   riskLabels = DEFAULT_RISK_LABELS,
   title = "Risk durumu",
 }: {
   className?: string;
   showUpdatedRing?: boolean;
+  /** Petshop / veteriner çevresel halka anahtarı. */
+  showTipRing?: boolean;
   riskLabels?: Record<RiskDurumu, string>;
   title?: string;
 }) {
@@ -52,6 +60,32 @@ export function RiskLegend({
             ))}
           </ul>
         </div>
+        {showTipRing && (
+          <div className="border-t border-border/50 pt-1.5">
+            <p className="mb-1 text-[9px] font-medium tracking-[0.14em] text-muted-foreground uppercase">
+              Kanal
+            </p>
+            <ul className="flex flex-col gap-0.5">
+              {TIP_ORDER.map((tip) => (
+                <li key={tip} className="flex items-center gap-1.5">
+                  <span
+                    className="relative flex h-3 w-3 shrink-0 items-center justify-center"
+                    aria-hidden
+                  >
+                    <span
+                      className="absolute inset-0 rounded-full border-[1.5px]"
+                      style={{ borderColor: TIP_STROKE_COLORS[tip] }}
+                    />
+                    <span className="h-1.5 w-1.5 rounded-full bg-foreground/55" />
+                  </span>
+                  <span className="truncate text-[10px] text-foreground/80">
+                    {TIP_LABELS[tip]}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
         {showUpdatedRing && (
           <div className="border-t border-border/50 pt-1.5">
             <p className="mb-1 text-[9px] font-medium tracking-[0.14em] text-muted-foreground uppercase">
