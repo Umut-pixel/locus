@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { geocodeEksikler } from "@/lib/import/geocode";
+import { parseBelgeDetayRaporu } from "@/lib/import/parse-belge-detay";
 import { parseMusteriListesi } from "@/lib/import/parse-musteri";
 import { parseRutTanimListesi } from "@/lib/import/parse-rut";
 import { parseSevkiyatRaporuKup } from "@/lib/import/parse-sevkiyat";
@@ -11,20 +12,26 @@ import {
 } from "@/lib/supabase-admin";
 
 import {
+  PANORAMA_BELGE_DETAY_VIEW,
   PANORAMA_MUSTERI_VIEW,
   PANORAMA_RUT_VIEW,
   PANORAMA_SEVKIYAT_VIEW,
+  PANORAMA_YASLANDIRMA_VIEW,
   PANORAMA_SYNC_DOSYA_TIPI,
   fetchAllFromView,
   fetchLastPanoramaTransformMeta,
   fetchLatestCompletedSyncs,
 } from "./fetch-panorama";
 import {
+  panoramaBelgeDetayToExcelRows,
   panoramaMusteriToExcelRows,
   panoramaRutToExcelRows,
   panoramaSevkiyatToExcelRows,
 } from "./panorama-to-rows";
+import { parseYaslandirma5530 } from "./parse-yaslandirma-5530";
 import type { PanoramaSyncIds, PanoramaTransformResult } from "./types";
+import { replaceBelgeOzet } from "./write-belge-ozet";
+import { replaceYaslandirma } from "./write-yaslandirma";
 
 const BATCH = 250;
 /** Nominatim rate limit — cron 300s içinde kalsın */
@@ -102,12 +109,34 @@ async function updateByMusteriKodu(
 }
 
 function syncIdsEqual(
-  a: Record<string, string> | null,
+  a: Record<string, string | null> | null,
   b: PanoramaSyncIds
 ): boolean {
   if (!a) return false;
-  return a["5020"] === b["5020"] && a["5500"] === b["5500"] && a["5130"] === b["5130"];
+  return (
+    a["5020"] === b["5020"] &&
+    a["5500"] === b["5500"] &&
+    a["5130"] === b["5130"] &&
+    (a["5450"] ?? null) === b["5450"] &&
+    (a["5530"] ?? null) === b["5530"]
+  );
 }
+
+const EMPTY_YASLANDIRMA: PanoramaTransformResult["yaslandirma"] = {
+  skipped: true,
+  islenenSatir: 0,
+  yazilan: 0,
+  eslesmeyen: 0,
+  bilinmeyenHafta: 0,
+  toplamAtlanan: 0,
+};
+
+const EMPTY_BELGE_OZET: PanoramaTransformResult["belgeOzet"] = {
+  skipped: true,
+  islenenSatir: 0,
+  yazilan: 0,
+  eslesmeyen: 0,
+};
 
 export interface RunTransformOptions {
   force?: boolean;
@@ -136,6 +165,8 @@ export async function runPanoramaTransform(
     "5020": syncs.get(5020)!.id,
     "5500": syncs.get(5500)!.id,
     "5130": syncs.get(5130)!.id,
+    "5450": syncs.get(5450)?.id ?? null,
+    "5530": syncs.get(5530)?.id ?? null,
   };
 
   const last = await fetchLastPanoramaTransformMeta(admin);
@@ -161,6 +192,8 @@ export async function runPanoramaTransform(
         eslesmeyen: 0,
         tarihBozuk: 0,
       },
+      belgeOzet: { ...EMPTY_BELGE_OZET },
+      yaslandirma: { ...EMPTY_YASLANDIRMA },
       uyarilar: [],
     };
   }
@@ -337,6 +370,89 @@ export async function runPanoramaTransform(
     );
   }
 
+  // --- 5450 Belge detay özeti (opsiyonel) ---
+  let belgeOzetResult: PanoramaTransformResult["belgeOzet"] = {
+    ...EMPTY_BELGE_OZET,
+  };
+  let rawBelgeLength = 0;
+
+  if (!syncIds["5450"]) {
+    uyarilar.push(
+      "Rapor 5450 için tamamlanmış sync yok — belge özeti atlandı."
+    );
+  } else {
+    const rawBelge = await fetchAllFromView(admin, PANORAMA_BELGE_DETAY_VIEW);
+    rawBelgeLength = rawBelge.length;
+    const parsedBelge = parseBelgeDetayRaporu(
+      panoramaBelgeDetayToExcelRows(rawBelge)
+    );
+    const belgeCodes = parsedBelge.rows.map((r) => r.musteri_kodu);
+    const belgeExisting = await fetchExistingCodes(admin, belgeCodes);
+    const belgeEslesen = parsedBelge.rows.filter((r) =>
+      belgeExisting.has(r.musteri_kodu)
+    );
+    const belgeEslesmeyen = parsedBelge.rows.length - belgeEslesen.length;
+
+    await replaceBelgeOzet(admin, belgeEslesen);
+
+    if (belgeEslesmeyen > 0) {
+      uyarilar.push(
+        `${belgeEslesmeyen} belge özeti müşterisi tabloda yok — atlandı.`
+      );
+    }
+
+    belgeOzetResult = {
+      skipped: false,
+      islenenSatir: parsedBelge.islenenSatir,
+      yazilan: belgeEslesen.length,
+      eslesmeyen: belgeEslesmeyen,
+    };
+  }
+
+  // --- 5530 Yaşlandırma (opsiyonel — cron yoksa atla) ---
+  let yaslandirmaResult: PanoramaTransformResult["yaslandirma"] = {
+    ...EMPTY_YASLANDIRMA,
+  };
+  let rawYasLength = 0;
+
+  if (!syncIds["5530"]) {
+    uyarilar.push(
+      "Rapor 5530 için tamamlanmış sync yok — yaşlandırma atlandı."
+    );
+  } else {
+    const rawYas = await fetchAllFromView(admin, PANORAMA_YASLANDIRMA_VIEW);
+    rawYasLength = rawYas.length;
+    const parsedYas = parseYaslandirma5530(rawYas);
+    const yasCodes = parsedYas.rows.map((r) => r.musteri_kodu);
+    const yasExisting = await fetchExistingCodes(admin, yasCodes);
+    const yasEslesen = parsedYas.rows.filter((r) =>
+      yasExisting.has(r.musteri_kodu)
+    );
+    const yasEslesmeyen = parsedYas.rows.length - yasEslesen.length;
+
+    await replaceYaslandirma(admin, yasEslesen);
+
+    if (yasEslesmeyen > 0) {
+      uyarilar.push(
+        `${yasEslesmeyen} yaşlandırma müşterisi tabloda yok — atlandı.`
+      );
+    }
+    if (parsedYas.bilinmeyenHafta > 0) {
+      uyarilar.push(
+        `${parsedYas.bilinmeyenHafta} yaşlandırma satırında bilinmeyen gün bandı — atlandı.`
+      );
+    }
+
+    yaslandirmaResult = {
+      skipped: false,
+      islenenSatir: parsedYas.islenenSatir,
+      yazilan: yasEslesen.length,
+      eslesmeyen: yasEslesmeyen,
+      bilinmeyenHafta: parsedYas.bilinmeyenHafta,
+      toplamAtlanan: parsedYas.toplamAtlanan,
+    };
+  }
+
   const dosyaAdi = `panorama-sync-${syncIds["5020"].slice(0, 8)}`;
   const { data: log, error: logError } = await admin
     .from(YUKLEME_LOGLARI_TABLE)
@@ -347,11 +463,22 @@ export async function runPanoramaTransform(
       islenen_satir:
         parsedMusteri.islenenSatir +
         parsedRut.islenenSatir +
-        parsedSevk.islenenSatir,
+        parsedSevk.islenenSatir +
+        belgeOzetResult.islenenSatir +
+        yaslandirmaResult.islenenSatir,
       yeni_musteri: yeni,
-      guncellenen_musteri: guncellenen + rutEslesen.length + sevkEslesen.length,
+      guncellenen_musteri:
+        guncellenen +
+        rutEslesen.length +
+        sevkEslesen.length +
+        belgeOzetResult.yazilan +
+        yaslandirmaResult.yazilan,
       geocode_basarisiz: geocodeBasarisiz,
-      eslesmeyen_kod_sayisi: rutEslesmeyen + sevkEslesmeyen,
+      eslesmeyen_kod_sayisi:
+        rutEslesmeyen +
+        sevkEslesmeyen +
+        belgeOzetResult.eslesmeyen +
+        yaslandirmaResult.eslesmeyen,
       uyarilar: {
         messages: uyarilar,
         sync_ids: syncIds,
@@ -359,6 +486,8 @@ export async function runPanoramaTransform(
           musteri: rawMusteri.length,
           rut: rawRut.length,
           sevkiyat: rawSevk.length,
+          belge: rawBelgeLength,
+          yaslandirma: rawYasLength,
         },
       },
       durum: "ok",
@@ -397,6 +526,8 @@ export async function runPanoramaTransform(
       eslesmeyen: sevkEslesmeyen,
       tarihBozuk: parsedSevk.tarihBozuk,
     },
+    belgeOzet: belgeOzetResult,
+    yaslandirma: yaslandirmaResult,
     yuklemeId: log.id as string,
     yuklenmeZamani: log.yuklenme_zamani as string,
     uyarilar,

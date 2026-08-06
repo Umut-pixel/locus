@@ -14,6 +14,8 @@ import { motion } from "motion/react";
 
 import { AgentAssistant } from "@/components/agent/AgentAssistant";
 import { LogoutButton } from "@/components/auth/LogoutButton";
+import { PotansiyelFavoriList } from "@/components/sidebar/PotansiyelFavoriList";
+import type { SonraBakItem } from "@/components/sidebar/PotansiyelFavoriList";
 import { Button } from "@/components/ui/button";
 import { ClearDissolveInput } from "@/components/ui/clear-dissolve-input";
 import { SegmentBar } from "@/components/ui/segment-bar";
@@ -57,6 +59,14 @@ interface FilterPanelProps {
   variant?: "sidebar" | "sheet";
   riskLabels?: Record<RiskDurumu, string>;
   riskShortLabels?: Record<RiskDurumu, string>;
+  /** YEM TOPTAN vb. diğer kanalları haritada göster (varsayılan kapalı). */
+  includeDigerKanallar?: boolean;
+  onIncludeDigerKanallarChange?: (value: boolean) => void;
+  favoriler?: SonraBakItem[];
+  favorilerLoading?: boolean;
+  onlyFavoriler?: boolean;
+  onOnlyFavorilerChange?: (value: boolean) => void;
+  onFavoriSelect?: (entry: SonraBakItem) => void;
 }
 
 export const FilterPanel = memo(function FilterPanel({
@@ -76,6 +86,13 @@ export const FilterPanel = memo(function FilterPanel({
   variant = "sidebar",
   riskLabels = DEFAULT_RISK_LABELS,
   riskShortLabels = DEFAULT_RISK_SHORT_LABELS,
+  includeDigerKanallar = false,
+  onIncludeDigerKanallarChange,
+  favoriler = [],
+  favorilerLoading = false,
+  onlyFavoriler = false,
+  onOnlyFavorilerChange,
+  onFavoriSelect,
 }: FilterPanelProps) {
   const isSheet = variant === "sheet";
   const selectedCitySet = useMemo(
@@ -234,6 +251,37 @@ export const FilterPanel = memo(function FilterPanel({
         </div>
 
         <div>
+          <SectionLabel>Kanal</SectionLabel>
+          <div className="flex flex-wrap gap-1.5">
+            <Button
+              size="sm"
+              variant="default"
+              disabled
+              className="h-7 rounded-full px-2.5 text-[11px] opacity-100"
+            >
+              Petshop + Veteriner
+            </Button>
+            {onIncludeDigerKanallarChange ? (
+              <Button
+                size="sm"
+                variant={includeDigerKanallar ? "default" : "outline"}
+                onClick={() =>
+                  onIncludeDigerKanallarChange(!includeDigerKanallar)
+                }
+                className="h-7 rounded-full px-2.5 text-[11px]"
+              >
+                Diğer kanallar
+              </Button>
+            ) : null}
+          </div>
+          {!includeDigerKanallar ? (
+            <p className="mt-1.5 text-[10px] leading-snug text-muted-foreground">
+              Yem toptan, geleneksel vb. gizli — açmak için Diğer kanallar.
+            </p>
+          ) : null}
+        </div>
+
+        <div>
           <SectionLabel>Şehir</SectionLabel>
           <div className="flex flex-wrap gap-1.5">
             {cities.map((city) => (
@@ -261,6 +309,16 @@ export const FilterPanel = memo(function FilterPanel({
             Filtreleri temizle
           </Button>
         )}
+
+        {onFavoriSelect ? (
+          <PotansiyelFavoriList
+            items={favoriler}
+            loading={favorilerLoading}
+            onlyFavoriler={onlyFavoriler}
+            onOnlyFavorilerChange={onOnlyFavorilerChange}
+            onSelect={onFavoriSelect}
+          />
+        ) : null}
 
         {isSheet ? (
           <LogoutButton

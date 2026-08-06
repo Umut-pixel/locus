@@ -16,6 +16,7 @@ import type { MusteriSearchHit } from "@/hooks/useMusteriSearch";
 import type { ImportActivity } from "@/lib/agent-states";
 import type { UploadResult } from "@/lib/import/types";
 import type { RiskDurumu } from "@/lib/types";
+import type { SonraBakItem } from "@/components/sidebar/PotansiyelFavoriList";
 
 interface MobileFilterSheetProps {
   cities: string[];
@@ -33,6 +34,13 @@ interface MobileFilterSheetProps {
   lastUploadResult?: UploadResult | null;
   riskLabels?: Record<RiskDurumu, string>;
   riskShortLabels?: Record<RiskDurumu, string>;
+  includeDigerKanallar?: boolean;
+  onIncludeDigerKanallarChange?: (value: boolean) => void;
+  favoriler?: SonraBakItem[];
+  favorilerLoading?: boolean;
+  onlyFavoriler?: boolean;
+  onOnlyFavorilerChange?: (value: boolean) => void;
+  onFavoriSelect?: (entry: SonraBakItem) => void;
 }
 
 export function MobileFilterSheet(props: MobileFilterSheetProps) {

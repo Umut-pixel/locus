@@ -10,10 +10,8 @@ import {
   parseSevkiyatRaporuKup,
   parseStYaslandirma,
   readWorkbook,
-  type BelgeOzetUpdateRow,
   type DosyaTipi,
   type UploadResult,
-  type YaslandirmaUpdateRow,
 } from "@/lib/import";
 import {
   buildPortfolioForm,
@@ -21,10 +19,10 @@ import {
   type SnapshotMetrics,
   type YuklemeKarsilastirma,
 } from "@/lib/snapshot-compare";
+import { replaceBelgeOzet } from "@/lib/sync/write-belge-ozet";
+import { replaceYaslandirma } from "@/lib/sync/write-yaslandirma";
 import {
-  MUSTERI_BELGE_OZET_TABLE,
   MUSTERI_SNAPSHOTLARI_TABLE,
-  MUSTERI_YASLANDIRMA_TABLE,
   MUSTERILER_TABLE,
   YUKLEME_LOGLARI_TABLE,
   createSupabaseAdmin,
@@ -217,89 +215,6 @@ async function fetchUnvanMap(
 
 function normalizeUnvan(s: string): string {
   return s.replace(/\s+/g, " ").trim().toLocaleUpperCase("tr-TR");
-}
-
-async function replaceYaslandirma(
-  admin: Admin,
-  rows: YaslandirmaUpdateRow[]
-): Promise<void> {
-  const { error: delError } = await admin
-    .from(MUSTERI_YASLANDIRMA_TABLE)
-    .delete()
-    .not("musteri_kodu", "is", null);
-  if (delError) {
-    throw new Error(`Yaşlandırma temizliği başarısız: ${delError.message}`);
-  }
-
-  const ts = nowIso();
-  for (let i = 0; i < rows.length; i += BATCH) {
-    const chunk = rows.slice(i, i + BATCH).map((r) => ({
-      musteri_kodu: r.musteri_kodu,
-      st: r.st,
-      hf_01_06: r.hf_01_06,
-      hf_07_13: r.hf_07_13,
-      hf_14_20: r.hf_14_20,
-      hf_21_27: r.hf_21_27,
-      hf_28_34: r.hf_28_34,
-      hf_35_41: r.hf_35_41,
-      hf_42_48: r.hf_42_48,
-      hf_49_55: r.hf_49_55,
-      hf_56_62: r.hf_56_62,
-      hf_63_69: r.hf_63_69,
-      hf_70_ustu: r.hf_70_ustu,
-      toplam: r.toplam,
-      riskli_tutar: r.riskli_tutar,
-      borc_riskli: r.borc_riskli,
-      guncellendi: ts,
-    }));
-    const { error } = await admin.from(MUSTERI_YASLANDIRMA_TABLE).insert(chunk);
-    if (error) {
-      throw new Error(`Yaşlandırma yazılamadı: ${error.message}`);
-    }
-  }
-}
-
-async function replaceBelgeOzet(
-  admin: Admin,
-  rows: BelgeOzetUpdateRow[]
-): Promise<void> {
-  const { error: delError } = await admin
-    .from(MUSTERI_BELGE_OZET_TABLE)
-    .delete()
-    .not("musteri_kodu", "is", null);
-  if (delError) {
-    throw new Error(`Belge özeti temizliği başarısız: ${delError.message}`);
-  }
-
-  const ts = nowIso();
-  for (let i = 0; i < rows.length; i += BATCH) {
-    const chunk = rows.slice(i, i + BATCH).map((r) => ({
-      musteri_kodu: r.musteri_kodu,
-      donem_bas: r.donem_bas,
-      donem_bit: r.donem_bit,
-      satir_sayisi: r.satir_sayisi,
-      siparis_sayisi: r.siparis_sayisi,
-      fatura_sayisi: r.fatura_sayisi,
-      net_ciro: r.net_ciro,
-      brut_ciro: r.brut_ciro,
-      iskonto_toplam: r.iskonto_toplam,
-      promo_satir: r.promo_satir,
-      iptal_satir: r.iptal_satir,
-      son_islem_tarihi: r.son_islem_tarihi,
-      vade_gunu: r.vade_gunu,
-      top_urun_grup: r.top_urun_grup,
-      son_urun_grup: r.son_urun_grup,
-      top_urun: r.top_urun,
-      son_urun: r.son_urun,
-      st_adi: r.st_adi,
-      st_kodu: r.st_kodu,
-      guncellendi: ts,
-    }));
-    const { error } = await admin.from(MUSTERI_BELGE_OZET_TABLE).insert(chunk);
-    if (error) {
-      throw new Error(`Belge özeti yazılamadı: ${error.message}`);
-    }
-  }
 }
 
 async function kaydetYuklemeLogu(
@@ -520,7 +435,7 @@ export async function POST(request: Request) {
       const riskliSayisi = eslesen.filter((r) => r.borc_riskli).length;
       if (eslesen.length > 0) {
         uyarilar.push(
-          `Yaşlandırma snapshot: ${eslesen.length} müşteri, ${riskliSayisi} riskli (56+ hafta).`
+          `Yaşlandırma snapshot: ${eslesen.length} müşteri, ${riskliSayisi} riskli (56+ gün).`
         );
       } else {
         uyarilar.push(

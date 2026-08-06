@@ -26,7 +26,7 @@ function hasYaslandirmaHeaders(cols: Set<string>): boolean {
  * KoordinatX → MusteriListesi
  * RutKod → RutTanimListesi
  * BelgeTarihi + Plaka → SevkiyatRaporuKup
- * Müşteri Kodu + 70 Üstü / hafta bantları → StYaslandirma
+ * Müşteri Kodu + 70 Üstü / gün bantları → StYaslandirma
  * BelgeTip + Nettutar + (UrunKodu | SiparisNo) → BelgeDetayRaporu
  */
 export function detectDosyaTipi(headers: string[]): DosyaTipi {
@@ -45,6 +45,6 @@ export function detectDosyaTipi(headers: string[]): DosyaTipi {
   }
 
   throw new DosyaTipiHatasi(
-    "Dosya tipi tanınamadı. MusteriListesi (KoordinatX), RutTanimListesi (RutKod), SevkiyatRaporuKup (BelgeTarihi + Plaka), ST Yaşlandırma (Müşteri Kodu + hafta bantları) veya BelgeDetayRaporu (BelgeTip + Nettutar) bekleniyor."
+    "Dosya tipi tanınamadı. MusteriListesi (KoordinatX), RutTanimListesi (RutKod), SevkiyatRaporuKup (BelgeTarihi + Plaka), ST Yaşlandırma (Müşteri Kodu + gün bantları) veya BelgeDetayRaporu (BelgeTip + Nettutar) bekleniyor."
   );
 }

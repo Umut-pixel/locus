@@ -13,6 +13,7 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   GripHorizontalIcon,
+  StarIcon,
   XIcon,
 } from "lucide-react";
 import { AnimatePresence, animate, motion, useDragControls, useMotionValue } from "motion/react";
@@ -30,6 +31,7 @@ import {
   formatCurrencyPrecise,
   formatDate,
   formatDateTime,
+  formatDateTimeShort,
   formatKg,
   formatNumber,
 } from "@/lib/format";
@@ -54,9 +56,11 @@ import {
 } from "@/lib/snapshot-compare";
 import {
   MUSTERI_SNAPSHOTLARI_TABLE,
+  PANORAMA_ACIK_FATURA_VADE_KUP_VIEW,
   supabase,
 } from "@/lib/supabase";
 import type { MusteriHarita, RiskDurumu } from "@/lib/types";
+import { yasTutarCevir } from "@/lib/import/parse-yaslandirma";
 import { cn } from "@/lib/utils";
 
 const PANEL_WIDTH = 304;
@@ -155,6 +159,14 @@ interface CustomerDetailPanelProps {
   onClose: () => void;
   onShowRoute: (rutKod: string) => void;
   riskLabels?: Record<RiskDurumu, string>;
+  /** Ortak "sonra bak" listesinde mi. */
+  isFavori?: boolean;
+  favoriNot?: string | null;
+  onToggleFavori?: (musteri: MusteriHarita) => void | Promise<void>;
+  onUpdateFavoriNot?: (
+    musteri: MusteriHarita,
+    notMetni: string | null
+  ) => void | Promise<void>;
 }
 
 export const CustomerDetailPanel = memo(function CustomerDetailPanel({
@@ -164,6 +176,10 @@ export const CustomerDetailPanel = memo(function CustomerDetailPanel({
   onClose,
   onShowRoute,
   riskLabels = RISK_LABELS,
+  isFavori = false,
+  favoriNot = null,
+  onToggleFavori,
+  onUpdateFavoriNot,
 }: CustomerDetailPanelProps) {
   const panelRef = useRef<HTMLDivElement | null>(null);
   const pageMeasureRef = useRef<HTMLDivElement | null>(null);
@@ -179,6 +195,11 @@ export const CustomerDetailPanel = memo(function CustomerDetailPanel({
   const [snapshot, setSnapshot] = useState<MusteriSnapshotRow | null>(null);
   const [snapLoading, setSnapLoading] = useState(true);
   const [sheetExpanded, setSheetExpanded] = useState(true);
+  const [favoriBusy, setFavoriBusy] = useState(false);
+  const [favoriError, setFavoriError] = useState<string | null>(null);
+  const [noteDraft, setNoteDraft] = useState(favoriNot ?? "");
+  const [noteSaving, setNoteSaving] = useState(false);
+  const noteTimerRef = useRef(0);
   const [sheetDragging, setSheetDragging] = useState(false);
   /** Snap animasyonu bitene kadar height kilitli kalsın. */
   const [sheetSnapLock, setSheetSnapLock] = useState(false);
@@ -253,6 +274,8 @@ export const CustomerDetailPanel = memo(function CustomerDetailPanel({
     sheetAnimRef.current = null;
     setSnapLoading(true);
     setSnapshot(null);
+    setFavoriBusy(false);
+    setFavoriError(null);
 
     let cancelled = false;
     (async () => {
@@ -280,6 +303,48 @@ export const CustomerDetailPanel = memo(function CustomerDetailPanel({
       cancelled = true;
     };
   }, [musteri.musteri_kodu]);
+
+  useEffect(() => {
+    setNoteDraft(favoriNot ?? "");
+  }, [favoriNot, musteri.musteri_kodu]);
+
+  useEffect(() => {
+    return () => window.clearTimeout(noteTimerRef.current);
+  }, []);
+
+  const handleToggleFavori = async () => {
+    if (!onToggleFavori || favoriBusy) return;
+    setFavoriBusy(true);
+    setFavoriError(null);
+    try {
+      await onToggleFavori(musteri);
+    } catch (err) {
+      setFavoriError(
+        err instanceof Error ? err.message : "Favori güncellenemedi"
+      );
+    } finally {
+      setFavoriBusy(false);
+    }
+  };
+
+  const handleNoteChange = (value: string) => {
+    setNoteDraft(value);
+    if (!onUpdateFavoriNot || !isFavori) return;
+    window.clearTimeout(noteTimerRef.current);
+    noteTimerRef.current = window.setTimeout(() => {
+      const trimmed = value.trim().slice(0, 280);
+      const next = trimmed || null;
+      if (next === (favoriNot ?? null)) return;
+      setNoteSaving(true);
+      void Promise.resolve(onUpdateFavoriNot(musteri, next))
+        .catch((err) => {
+          setFavoriError(
+            err instanceof Error ? err.message : "Not kaydedilemedi"
+          );
+        })
+        .finally(() => setNoteSaving(false));
+    }, 450);
+  };
 
   useLayoutEffect(() => {
     const el = pageMeasureRef.current;
@@ -768,15 +833,40 @@ export const CustomerDetailPanel = memo(function CustomerDetailPanel({
               {musteri.unvan}
             </h2>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            onPointerDown={(e) => e.stopPropagation()}
-            aria-label="Paneli kapat"
-            className="flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-full text-white transition-colors hover:bg-white/10 sm:size-8"
-          >
-            <XIcon className="size-4 stroke-[2.5]" />
-          </button>
+          <div className="flex shrink-0 items-center gap-0.5">
+            {onToggleFavori ? (
+              <button
+                type="button"
+                onClick={() => void handleToggleFavori()}
+                onPointerDown={(e) => e.stopPropagation()}
+                disabled={favoriBusy}
+                aria-pressed={isFavori}
+                aria-label={
+                  isFavori ? "Sonra bak listesinden çıkar" : "Sonra bak"
+                }
+                className={cn(
+                  "flex size-10 cursor-pointer items-center justify-center rounded-full transition-colors sm:size-8",
+                  isFavori
+                    ? "text-amber-400 hover:bg-amber-400/10"
+                    : "text-muted-foreground hover:bg-white/10 hover:text-amber-300",
+                  favoriBusy && "opacity-60"
+                )}
+              >
+                <StarIcon
+                  className={cn("size-4", isFavori && "fill-current")}
+                />
+              </button>
+            ) : null}
+            <button
+              type="button"
+              onClick={onClose}
+              onPointerDown={(e) => e.stopPropagation()}
+              aria-label="Paneli kapat"
+              className="flex size-10 cursor-pointer items-center justify-center rounded-full text-white transition-colors hover:bg-white/10 sm:size-8"
+            >
+              <XIcon className="size-4 stroke-[2.5]" />
+            </button>
+          </div>
         </div>
 
         <div
@@ -794,6 +884,7 @@ export const CustomerDetailPanel = memo(function CustomerDetailPanel({
             hicTeslimat={hicTeslimat}
             gecikmeGun={gecikmeGun}
             sonTeslimatTarihi={musteri.son_teslimat_tarihi}
+            sonGuncelleme={musteri.yas_inserted_at ?? musteri.guncellendi}
             compact
           />
         </div>
@@ -1026,7 +1117,27 @@ export const CustomerDetailPanel = memo(function CustomerDetailPanel({
         </motion.div>
       </div>
 
-      <div className="shrink-0 border-t bg-muted/30 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+      <div className="shrink-0 space-y-2 border-t bg-muted/30 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+        {isFavori && onUpdateFavoriNot ? (
+          <div className="space-y-1">
+            <label
+              htmlFor={`musteri-favori-not-${musteri.musteri_kodu}`}
+              className="font-mono text-[10px] tracking-wide text-muted-foreground uppercase"
+            >
+              Not{noteSaving ? " · kaydediliyor…" : ""}
+            </label>
+            <textarea
+              id={`musteri-favori-not-${musteri.musteri_kodu}`}
+              value={noteDraft}
+              onChange={(e) => handleNoteChange(e.target.value)}
+              onPointerDown={(e) => e.stopPropagation()}
+              rows={2}
+              maxLength={280}
+              placeholder="Pazartesi ara, rute ekle…"
+              className="w-full resize-none rounded-md border border-border/70 bg-background/80 px-2.5 py-1.5 text-[11px] leading-snug outline-none placeholder:text-muted-foreground/60 focus:border-amber-500/50"
+            />
+          </div>
+        ) : null}
         <Button
           variant="secondary"
           size="sm"
@@ -1036,6 +1147,11 @@ export const CustomerDetailPanel = memo(function CustomerDetailPanel({
         >
           Rotada göster
         </Button>
+        {favoriError ? (
+          <p className="text-[10px] leading-snug text-destructive">
+            {favoriError}
+          </p>
+        ) : null}
       </div>
         </>
       )}
@@ -1051,6 +1167,7 @@ function RiskPeekSummary({
   hicTeslimat,
   gecikmeGun,
   sonTeslimatTarihi,
+  sonGuncelleme,
   compact = false,
 }: {
   accent: string;
@@ -1059,14 +1176,24 @@ function RiskPeekSummary({
   hicTeslimat: boolean;
   gecikmeGun: number | null | undefined;
   sonTeslimatTarihi: string | null | undefined;
+  sonGuncelleme?: string | null;
   compact?: boolean;
 }) {
+  const guncellemeShort = sonGuncelleme
+    ? formatDateTimeShort(sonGuncelleme)
+    : null;
   const teslimatLine =
     hicTeslimat || gecikmeGun == null
-      ? "Kayıtlı teslimat yok"
+      ? guncellemeShort
+        ? `Kayıtlı teslimat yok · günc. ${guncellemeShort}`
+        : "Kayıtlı teslimat yok"
       : sonTeslimatTarihi
-        ? `Son teslimat ${formatDate(sonTeslimatTarihi)} · ${formatNumber(gecikmeGun)} gün önce · eşik ${AKSIYON_GUN}`
-        : `Son teslimat ${formatNumber(gecikmeGun)} gün önce · eşik ${AKSIYON_GUN} gün`;
+        ? `Son teslimat ${formatDate(sonTeslimatTarihi)} · ${formatNumber(gecikmeGun)} gün önce · eşik ${AKSIYON_GUN}${
+            guncellemeShort ? ` · günc. ${guncellemeShort}` : ""
+          }`
+        : `Son teslimat ${formatNumber(gecikmeGun)} gün önce · eşik ${AKSIYON_GUN} gün${
+            guncellemeShort ? ` · günc. ${guncellemeShort}` : ""
+          }`;
 
   return (
     <>
@@ -1121,12 +1248,56 @@ function RiskPeekSummary({
 }
 
 function BorclarPage({ musteri }: { musteri: MusteriHarita }) {
+  const [faturalar, setFaturalar] = useState<AcikFaturaRow[] | null>(null);
+  const [faturaDurum, setFaturaDurum] = useState<"idle" | "loading" | "ok" | "empty" | "error">(
+    "idle"
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    setFaturaDurum("loading");
+    setFaturalar(null);
+
+    void (async () => {
+      const { data, error } = await supabase
+        .from(PANORAMA_ACIK_FATURA_VADE_KUP_VIEW)
+        .select("belge_kod,gun,hafta,kalan_tutar")
+        .eq("musteri_kod", musteri.musteri_kodu)
+        .neq("hafta", "Toplam")
+        .order("gun", { ascending: false })
+        .limit(40);
+
+      if (cancelled) return;
+      if (error) {
+        setFaturaDurum("error");
+        setFaturalar(null);
+        return;
+      }
+      const rows = (data ?? []) as AcikFaturaRow[];
+      // PostgREST neq may still leave whitespace "Toplam" — client filter
+      const filtered = rows.filter(
+        (r) => String(r.hafta ?? "").trim().toLocaleLowerCase("tr-TR") !== "toplam"
+      );
+      if (filtered.length === 0) {
+        setFaturaDurum("empty");
+        setFaturalar([]);
+        return;
+      }
+      setFaturalar(filtered);
+      setFaturaDurum("ok");
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [musteri.musteri_kodu]);
+
   if (musteri.yas_toplam == null) {
     return (
       <p className="text-xs leading-relaxed text-muted-foreground">
-        Henüz yaşlandırma verisi yok. Bir{" "}
-        <span className="text-foreground">ST Yaşlandırma</span> dosyası
-        yükledikten sonra gecikmeli borç kırılımı burada görünür.
+        Henüz yaşlandırma verisi yok. Panorama 5530 sync veya manuel{" "}
+        <span className="text-foreground">ST Yaşlandırma</span> yüklemesinden
+        sonra gecikmeli borç kırılımı burada görünür.
       </p>
     );
   }
@@ -1149,7 +1320,7 @@ function BorclarPage({ musteri }: { musteri: MusteriHarita }) {
             className="font-mono text-[10px] tracking-[0.12em] uppercase"
             style={{ color: RISK_COLORS.riskli }}
           >
-            Riskli — 60+ hafta
+            Riskli — 56+ gün
           </p>
           <p className="mt-0.5 font-mono text-sm font-semibold tabular-nums">
             {formatCurrencyPrecise(riskliTutar)}
@@ -1168,7 +1339,7 @@ function BorclarPage({ musteri }: { musteri: MusteriHarita }) {
           value={riskli ? "Riskli" : "Normal"}
         />
         <MetricRow
-          label="Riskli borç (60+ hafta)"
+          label="Riskli borç (56+ gün)"
           value={
             riskliTutar > 0.005
               ? formatCurrencyPrecise(riskliTutar)
@@ -1176,7 +1347,7 @@ function BorclarPage({ musteri }: { musteri: MusteriHarita }) {
           }
         />
         <MetricRow
-          label="Risksiz borç (60 hafta altı)"
+          label="Risksiz borç (56 gün altı)"
           value={
             risksizTutar > 0.005
               ? formatCurrencyPrecise(risksizTutar)
@@ -1192,7 +1363,7 @@ function BorclarPage({ musteri }: { musteri: MusteriHarita }) {
           return (
             <MetricRow
               key={label}
-              label={`${label} hafta${isRiskBand ? " · risk" : ""}`}
+              label={`${label} gün${isRiskBand ? " · risk" : ""}`}
               value={
                 amount > 0.005 ? formatCurrencyPrecise(amount) : "—"
               }
@@ -1201,8 +1372,64 @@ function BorclarPage({ musteri }: { musteri: MusteriHarita }) {
         })}
         <MetricRow label="ST" value={musteri.yas_st?.trim() || "—"} />
       </dl>
+
+      <div className="border-t border-border/60 pt-3">
+        <p className="font-mono text-[10px] tracking-[0.12em] text-muted-foreground uppercase">
+          Açık faturalar
+        </p>
+        {faturaDurum === "loading" && (
+          <p className="mt-2 text-xs text-muted-foreground">Yükleniyor…</p>
+        )}
+        {faturaDurum === "error" && (
+          <p className="mt-2 text-xs text-muted-foreground">
+            Fatura detayı şu an okunamadı.
+          </p>
+        )}
+        {faturaDurum === "empty" && (
+          <p className="mt-2 text-xs text-muted-foreground">
+            Açık fatura satırı yok.
+          </p>
+        )}
+        {faturaDurum === "ok" && faturalar && faturalar.length > 0 && (
+          <ul className="mt-2 flex flex-col gap-1.5">
+            {faturalar.map((f, i) => {
+              const tutar = yasTutarCevir(f.kalan_tutar);
+              const gun = parseGun(f.gun);
+              return (
+                <li
+                  key={`${f.belge_kod ?? "x"}-${i}`}
+                  className="flex items-baseline justify-between gap-2 text-xs"
+                >
+                  <span className="min-w-0 truncate font-mono text-[11px] text-muted-foreground">
+                    {f.belge_kod?.trim() || "—"}
+                    {gun != null ? (
+                      <span className="ml-1.5 text-foreground/80">{gun}g</span>
+                    ) : null}
+                  </span>
+                  <span className="shrink-0 font-mono tabular-nums">
+                    {tutar > 0.005 ? formatCurrencyPrecise(tutar) : "—"}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
     </div>
   );
+}
+
+type AcikFaturaRow = {
+  belge_kod: string | null;
+  gun: string | null;
+  hafta: string | null;
+  kalan_tutar: string | null;
+};
+
+function parseGun(raw: string | null | undefined): number | null {
+  if (raw == null) return null;
+  const n = Number(String(raw).trim().replace(/^0+(?=\d)/, "") || "0");
+  return Number.isFinite(n) ? n : null;
 }
 
 function formatDonem(

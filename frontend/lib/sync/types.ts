@@ -1,4 +1,4 @@
-export type PanoramaReportId = 5020 | 5500 | 5130;
+export type PanoramaReportId = 5020 | 5500 | 5130 | 5450 | 5530;
 
 export interface SyncRunSummary {
   id: string;
@@ -14,6 +14,9 @@ export interface PanoramaSyncIds {
   "5020": string;
   "5500": string;
   "5130": string;
+  /** 5450 / 5530 opsiyonel — yoksa null */
+  "5450": string | null;
+  "5530": string | null;
 }
 
 export interface PanoramaTransformResult {
@@ -40,6 +43,20 @@ export interface PanoramaTransformResult {
     guncellenen: number;
     eslesmeyen: number;
     tarihBozuk: number;
+  };
+  belgeOzet: {
+    skipped: boolean;
+    islenenSatir: number;
+    yazilan: number;
+    eslesmeyen: number;
+  };
+  yaslandirma: {
+    skipped: boolean;
+    islenenSatir: number;
+    yazilan: number;
+    eslesmeyen: number;
+    bilinmeyenHafta: number;
+    toplamAtlanan: number;
   };
   yuklemeId?: string;
   yuklenmeZamani?: string;

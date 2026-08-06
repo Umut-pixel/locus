@@ -25,7 +25,7 @@ export const SEVKIYAT_RISK_SHORT_LABELS: Record<RiskDurumu, string> = {
 export const BORC_RISK_LABELS: Record<RiskDurumu, string> = {
   saglikli: "Temiz",
   izlenmeli: "Borçlu",
-  riskli: "Riskli borç (60+ hf)",
+  riskli: "Riskli borç (56+ gün)",
   hic_teslimat_yok: "Yaşlandırma yok",
 };
 

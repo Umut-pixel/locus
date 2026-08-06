@@ -24,3 +24,5 @@ export const MUSTERI_SNAPSHOTLARI_TABLE = "musteri_snapshotlari";
 export const PANORAMA_SYNC_RUNS_TABLE = "panorama_sync_runs";
 export const YUKLEME_LOGLARI_TABLE = "yukleme_loglari";
 export const PANORAMA_SYNC_DOSYA_TIPI = "PanoramaSync";
+export const PANORAMA_ACIK_FATURA_VADE_KUP_VIEW =
+  "v_panorama_acik_fatura_vade_kup_guncel";

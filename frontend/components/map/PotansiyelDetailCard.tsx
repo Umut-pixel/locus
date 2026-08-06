@@ -15,6 +15,7 @@ import {
   EyeOffIcon,
   GripHorizontalIcon,
   MapPinnedIcon,
+  StarIcon,
   XIcon,
 } from "lucide-react";
 import { animate, motion, useDragControls, useMotionValue } from "motion/react";
@@ -137,6 +138,14 @@ interface PotansiyelDetailCardProps {
   onClose: () => void;
   /** Yanlış kayıt — haritadan gizle. */
   onHide?: (potansiyel: PotansiyelHarita) => void | Promise<void>;
+  /** Ortak "sonra bak" listesinde mi. */
+  isFavori?: boolean;
+  favoriNot?: string | null;
+  onToggleFavori?: (potansiyel: PotansiyelHarita) => void | Promise<void>;
+  onUpdateFavoriNot?: (
+    potansiyel: PotansiyelHarita,
+    notMetni: string | null
+  ) => void | Promise<void>;
 }
 
 export const PotansiyelDetailCard = memo(function PotansiyelDetailCard({
@@ -145,6 +154,10 @@ export const PotansiyelDetailCard = memo(function PotansiyelDetailCard({
   containerRef,
   onClose,
   onHide,
+  isFavori = false,
+  favoriNot = null,
+  onToggleFavori,
+  onUpdateFavoriNot,
 }: PotansiyelDetailCardProps) {
   const panelRef = useRef<HTMLDivElement | null>(null);
   const reanchorRef = useRef(true);
@@ -155,6 +168,11 @@ export const PotansiyelDetailCard = memo(function PotansiyelDetailCard({
   const [dragging, setDragging] = useState(false);
   const [hiding, setHiding] = useState(false);
   const [hideError, setHideError] = useState<string | null>(null);
+  const [favoriBusy, setFavoriBusy] = useState(false);
+  const [favoriError, setFavoriError] = useState<string | null>(null);
+  const [noteDraft, setNoteDraft] = useState(favoriNot ?? "");
+  const [noteSaving, setNoteSaving] = useState(false);
+  const noteTimerRef = useRef(0);
   const posX = useMotionValue(0);
   const posY = useMotionValue(0);
 
@@ -163,7 +181,10 @@ export const PotansiyelDetailCard = memo(function PotansiyelDetailCard({
     draggedRef.current = false;
     setHiding(false);
     setHideError(null);
-  }, [potansiyel.id, anchor.x, anchor.y]);
+    setFavoriBusy(false);
+    setFavoriError(null);
+    setNoteDraft(favoriNot ?? "");
+  }, [potansiyel.id, anchor.x, anchor.y, favoriNot]);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -190,7 +211,15 @@ export const PotansiyelDetailCard = memo(function PotansiyelDetailCard({
     if (!el) return;
     const h = el.getBoundingClientRect().height;
     if (h > 0) setPanelHeight(h);
-  }, [potansiyel.id, potansiyel.google_types, potansiyel.kalite_bayragi]);
+  }, [
+    potansiyel.id,
+    potansiyel.google_types,
+    potansiyel.kalite_bayragi,
+    isFavori,
+    noteDraft,
+    favoriError,
+    hideError,
+  ]);
 
   const containerW = containerSize.width;
   const containerH = containerSize.height;
@@ -290,6 +319,44 @@ export const PotansiyelDetailCard = memo(function PotansiyelDetailCard({
     }
   };
 
+  const handleToggleFavori = async () => {
+    if (!onToggleFavori || favoriBusy) return;
+    setFavoriBusy(true);
+    setFavoriError(null);
+    try {
+      await onToggleFavori(potansiyel);
+    } catch (err) {
+      setFavoriError(
+        err instanceof Error ? err.message : "Favori güncellenemedi"
+      );
+    } finally {
+      setFavoriBusy(false);
+    }
+  };
+
+  const handleNoteChange = (value: string) => {
+    setNoteDraft(value);
+    if (!onUpdateFavoriNot || !isFavori) return;
+    window.clearTimeout(noteTimerRef.current);
+    noteTimerRef.current = window.setTimeout(() => {
+      const trimmed = value.trim().slice(0, 280);
+      const next = trimmed || null;
+      if (next === (favoriNot ?? null)) return;
+      setNoteSaving(true);
+      void Promise.resolve(onUpdateFavoriNot(potansiyel, next))
+        .catch((err) => {
+          setFavoriError(
+            err instanceof Error ? err.message : "Not kaydedilemedi"
+          );
+        })
+        .finally(() => setNoteSaving(false));
+    }, 450);
+  };
+
+  useEffect(() => {
+    return () => window.clearTimeout(noteTimerRef.current);
+  }, []);
+
   return (
     <motion.div
       className="pointer-events-none absolute inset-0 z-20"
@@ -366,15 +433,38 @@ export const PotansiyelDetailCard = memo(function PotansiyelDetailCard({
               {potansiyel.isim ?? "İsimsiz"}
             </h2>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            onPointerDown={(e) => e.stopPropagation()}
-            aria-label="Paneli kapat"
-            className="flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-full text-white transition-colors hover:bg-white/10 sm:size-8"
-          >
-            <XIcon className="size-4 stroke-[2.5]" />
-          </button>
+          <div className="flex shrink-0 items-center gap-0.5">
+            {onToggleFavori ? (
+              <button
+                type="button"
+                onClick={() => void handleToggleFavori()}
+                onPointerDown={(e) => e.stopPropagation()}
+                disabled={favoriBusy}
+                aria-pressed={isFavori}
+                aria-label={isFavori ? "Sonra bak listesinden çıkar" : "Sonra bak"}
+                className={cn(
+                  "flex size-10 cursor-pointer items-center justify-center rounded-full transition-colors sm:size-8",
+                  isFavori
+                    ? "text-amber-400 hover:bg-amber-400/10"
+                    : "text-muted-foreground hover:bg-white/10 hover:text-amber-300",
+                  favoriBusy && "opacity-60"
+                )}
+              >
+                <StarIcon
+                  className={cn("size-4", isFavori && "fill-current")}
+                />
+              </button>
+            ) : null}
+            <button
+              type="button"
+              onClick={onClose}
+              onPointerDown={(e) => e.stopPropagation()}
+              aria-label="Paneli kapat"
+              className="flex size-10 cursor-pointer items-center justify-center rounded-full text-white transition-colors hover:bg-white/10 sm:size-8"
+            >
+              <XIcon className="size-4 stroke-[2.5]" />
+            </button>
+          </div>
         </div>
 
         <dl className="flex flex-col gap-2 px-4 pt-3 pb-1 text-xs">
@@ -405,6 +495,26 @@ export const PotansiyelDetailCard = memo(function PotansiyelDetailCard({
         </dl>
 
         <div className="mt-auto shrink-0 space-y-2 border-t bg-muted/30 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+          {isFavori && onUpdateFavoriNot ? (
+            <div className="space-y-1">
+              <label
+                htmlFor={`favori-not-${potansiyel.id}`}
+                className="font-mono text-[10px] tracking-wide text-muted-foreground uppercase"
+              >
+                Not{noteSaving ? " · kaydediliyor…" : ""}
+              </label>
+              <textarea
+                id={`favori-not-${potansiyel.id}`}
+                value={noteDraft}
+                onChange={(e) => handleNoteChange(e.target.value)}
+                onPointerDown={(e) => e.stopPropagation()}
+                rows={2}
+                maxLength={280}
+                placeholder="Pazartesi ara, rute ekle…"
+                className="w-full resize-none rounded-md border border-border/70 bg-background/80 px-2.5 py-1.5 text-[11px] leading-snug outline-none placeholder:text-muted-foreground/60 focus:border-amber-500/50"
+              />
+            </div>
+          ) : null}
           <Button
             variant="secondary"
             size="sm"
@@ -431,6 +541,11 @@ export const PotansiyelDetailCard = memo(function PotansiyelDetailCard({
               <EyeOffIcon className="size-3.5" />
               {hiding ? "Gizleniyor…" : "Haritadan gizle"}
             </Button>
+          ) : null}
+          {favoriError ? (
+            <p className="text-[10px] leading-snug text-destructive">
+              {favoriError}
+            </p>
           ) : null}
           {hideError ? (
             <p className="text-[10px] leading-snug text-destructive">{hideError}</p>

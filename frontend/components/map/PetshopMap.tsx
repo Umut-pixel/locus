@@ -44,6 +44,11 @@ import {
 } from "@/lib/map-potansiyel-layers";
 import type { PotansiyelFeatureCollection } from "@/lib/potansiyel-geojson";
 import type { MusteriHarita, PotansiyelHarita } from "@/lib/types";
+import {
+  GEOLOCATE_FIT_OPTIONS,
+  initialMapViewFromUserLocation,
+  writeLastUserLocation,
+} from "@/lib/user-location";
 
 const ROUTE_SOURCE_ID = "route-points";
 const ROUTE_LINE_SOURCE_ID = "route-line";
@@ -81,6 +86,13 @@ interface PetshopMapProps {
     lon: number;
     nonce: number;
   } | null;
+  /** Favori listesinden seçim — potansiyel katmanını açıp focus */
+  potansiyelFocusTarget?: {
+    id: string;
+    lat: number;
+    lon: number;
+    nonce: number;
+  } | null;
   potansiyelData?: PotansiyelFeatureCollection;
   potansiyelVisible?: boolean;
   selectedPotansiyelId?: string | null;
@@ -99,6 +111,7 @@ export const PetshopMap = memo(function PetshopMap({
   selectedMusteriKodu,
   highlightedRutKod,
   focusTarget = null,
+  potansiyelFocusTarget = null,
   potansiyelData = EMPTY_POTANSIYEL_COLLECTION,
   potansiyelVisible = false,
   selectedPotansiyelId = null,
@@ -188,14 +201,61 @@ export const PetshopMap = memo(function PetshopMap({
   }, [focusTarget]);
 
   useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !loadedRef.current || !potansiyelFocusTarget) return;
+
+    const { lat, lon, id } = potansiyelFocusTarget;
+    const targetZoom = Math.max(map.getZoom(), 14);
+    let done = false;
+
+    const finish = () => {
+      if (done) return;
+      done = true;
+      const screen = map.project([lon, lat]);
+      const feat = potansiyelDataRef.current.features.find(
+        (f) => f.properties.id === id
+      );
+      const props = (feat?.properties ?? {
+        id,
+        lat,
+        lon,
+        kaynak_id: null,
+        isim: null,
+        adres: null,
+        ilce: null,
+        il: null,
+        primary_type: null,
+        google_types: null,
+        kalite_bayragi: null,
+        tarandigi_tarih: null,
+      }) as PotansiyelHarita;
+      onSelectPotansiyelRef.current?.(props, { x: screen.x, y: screen.y });
+    };
+
+    map.easeTo({
+      center: [lon, lat],
+      zoom: targetZoom,
+      duration: 700,
+      essential: true,
+    });
+    const timer = window.setTimeout(finish, 720);
+
+    return () => {
+      done = true;
+      window.clearTimeout(timer);
+    };
+  }, [potansiyelFocusTarget]);
+
+  useEffect(() => {
     if (!containerRef.current || mapRef.current || !MAPBOX_TOKEN) return;
 
     mapboxgl.accessToken = MAPBOX_TOKEN;
+    const startView = initialMapViewFromUserLocation(DEFAULT_MAP_VIEW);
     const map = new mapboxgl.Map({
       container: containerRef.current,
       style: MAPBOX_STYLE_URL,
-      center: DEFAULT_MAP_VIEW.center,
-      zoom: DEFAULT_MAP_VIEW.zoom,
+      center: startView.center,
+      zoom: startView.zoom,
       attributionControl: true,
       // Dokunmatikte nokta seçimini kolaylaştır
       clickTolerance: 10,
@@ -203,6 +263,18 @@ export const PetshopMap = memo(function PetshopMap({
     mapRef.current = map;
 
     map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), "top-right");
+    const geolocate = new mapboxgl.GeolocateControl({
+      positionOptions: { enableHighAccuracy: true },
+      fitBoundsOptions: { ...GEOLOCATE_FIT_OPTIONS },
+      trackUserLocation: true,
+      showUserHeading: true,
+      showAccuracyCircle: true,
+    });
+    map.addControl(geolocate, "top-right");
+
+    geolocate.on("geolocate", (e) => {
+      writeLastUserLocation(e.coords.longitude, e.coords.latitude);
+    });
 
     const popup = new mapboxgl.Popup({
       closeButton: false,
@@ -363,6 +435,15 @@ export const PetshopMap = memo(function PetshopMap({
 
       loadedRef.current = true;
       dataSignatureRef.current = "";
+
+      // İzin bir kez verildiyse tarayıcı tekrar sormaz; her girişte nokta + merkez.
+      requestAnimationFrame(() => {
+        try {
+          geolocate.trigger();
+        } catch {
+          // Geolocation API yok / insecure context
+        }
+      });
     };
 
     map.on("load", mountOverlays);

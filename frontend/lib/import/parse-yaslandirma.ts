@@ -1,7 +1,7 @@
 import type { YaslandirmaUpdateRow } from "./types";
 import { cellStr, metinTemizle, sayiyaCevir } from "./utils";
 
-/** Excel hafta bandı → DB kolonu (trim edilmiş header). */
+/** Excel gün bandı → DB kolonu (trim edilmiş header). */
 export const YAS_BUCKET_MAP: Array<{ excel: string; field: keyof YaslandirmaUpdateRow; label: string }> = [
   { excel: "01 - 06", field: "hf_01_06", label: "01-06" },
   { excel: "07 - 13", field: "hf_07_13", label: "07-13" },

@@ -54,3 +54,27 @@ export function panoramaSevkiyatToExcelRows(
     Plaka: r.plaka,
   }));
 }
+
+/** 5450 → BelgeDetayRaporu kolon adları (parseBelgeDetayRaporu) */
+export function panoramaBelgeDetayToExcelRows(
+  rows: Record<string, unknown>[]
+): Record<string, unknown>[] {
+  return rows.map((r) => ({
+    BelgeTip: r.belge_tip,
+    MusteriKod: r.musteri_kod,
+    MusteriKodu: r.musteri_kod,
+    Nettutar: r.nettutar,
+    BrutTutar: r.brut_tutar,
+    Iskonto: r.iskonto,
+    Kayittip: r.kayittip,
+    IptalNeden: r.iptal_neden,
+    SiparisNo: r.siparis_no,
+    FaturaNo: r.fatura_no,
+    IslemTarihi: r.islem_tarihi,
+    VadeGunu: r.vade_gunu,
+    UrunGrup: r.urun_grup,
+    Urun: r.urun,
+    SatisTemsilcisi: r.satis_temsilcisi,
+    STKodu: r.st_kodu,
+  }));
+}

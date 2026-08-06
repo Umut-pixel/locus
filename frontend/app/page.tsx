@@ -21,10 +21,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { ImportStage } from "@/components/import/DataImportFlow";
 import { useIsMobileLayout } from "@/hooks/useMediaQuery";
+import { useMusteriFavoriler } from "@/hooks/useMusteriFavoriler";
 import { useMusteriHarita } from "@/hooks/useMusteriHarita";
 import type { MusteriSearchHit } from "@/hooks/useMusteriSearch";
 import { usePanoramaSyncStatus } from "@/hooks/usePanoramaSyncStatus";
+import { usePotansiyelFavoriler } from "@/hooks/usePotansiyelFavoriler";
 import { usePotansiyelHarita } from "@/hooks/usePotansiyelHarita";
+import type { SonraBakItem } from "@/components/sidebar/PotansiyelFavoriList";
 import { musterilerToGeoJSON } from "@/lib/geojson";
 import type { UploadResult } from "@/lib/import/types";
 import { filterRowsLocally } from "@/lib/map-filter";
@@ -35,7 +38,11 @@ import {
   withEffectiveRiskRows,
   type RiskMetricMode,
 } from "@/lib/risk-mode";
-import type { MusteriHarita, PotansiyelHarita, RiskDurumu } from "@/lib/types";
+import type {
+  MusteriHarita,
+  PotansiyelHarita,
+  RiskDurumu,
+} from "@/lib/types";
 import {
   buildHighlightSet,
   getHighlightCodes,
@@ -87,12 +94,20 @@ export default function Home() {
     null
   );
   const [showPotansiyel, setShowPotansiyel] = useState(false);
+  const [onlyFavoriler, setOnlyFavoriler] = useState(false);
+  const [potansiyelFocusTarget, setPotansiyelFocusTarget] = useState<{
+    id: string;
+    lat: number;
+    lon: number;
+    nonce: number;
+  } | null>(null);
 
   const handleShowPotansiyelChange = useCallback((active: boolean) => {
     setShowPotansiyel(active);
     if (!active) {
       setSelectedPotansiyel(null);
       setPotansiyelAnchor(null);
+      setOnlyFavoriler(false);
     }
   }, []);
 
@@ -102,8 +117,52 @@ export default function Home() {
     removeLocal: removePotansiyelLocal,
   } = usePotansiyelHarita({ enabled: showPotansiyel });
 
+  const {
+    items: potansiyelFavoriler,
+    favoriIds: potansiyelFavoriIds,
+    loading: potansiyelFavorilerLoading,
+    toggle: togglePotansiyelFavori,
+    updateNote: updatePotansiyelFavoriNote,
+    isFavori: isPotansiyelFavori,
+    getNote: getPotansiyelFavoriNote,
+    removeLocal: removePotansiyelFavoriLocal,
+  } = usePotansiyelFavoriler();
+
+  const {
+    items: musteriFavoriler,
+    favoriKodlari: musteriFavoriKodlari,
+    loading: musteriFavorilerLoading,
+    toggle: toggleMusteriFavori,
+    updateNote: updateMusteriFavoriNote,
+    isFavori: isMusteriFavori,
+    getNote: getMusteriFavoriNote,
+  } = useMusteriFavoriler();
+
+  const favorilerLoading = potansiyelFavorilerLoading || musteriFavorilerLoading;
+
+  const sonraBakItems = useMemo((): SonraBakItem[] => {
+    const merged: SonraBakItem[] = [
+      ...musteriFavoriler.map((item) => ({
+        kind: "musteri" as const,
+        item,
+      })),
+      ...potansiyelFavoriler.map((item) => ({
+        kind: "potansiyel" as const,
+        item,
+      })),
+    ];
+    merged.sort((a, b) => {
+      const ta = a.item.olusturulma;
+      const tb = b.item.olusturulma;
+      return tb.localeCompare(ta);
+    });
+    return merged;
+  }, [musteriFavoriler, potansiyelFavoriler]);
+
   const [selectedCities, setSelectedCities] = useState<string[]>([]);
   const [selectedRisk, setSelectedRisk] = useState<RiskDurumu | null>(null);
+  /** Varsayılan: YEM TOPTAN vb. haritada yok; yalnızca petshop + veteriner. */
+  const [includeDigerKanallar, setIncludeDigerKanallar] = useState(false);
   const [riskMode, setRiskMode] = useState<RiskMetricMode>("sevkiyat");
   const [search, setSearch] = useState("");
   const [focusTarget, setFocusTarget] = useState<{
@@ -147,8 +206,9 @@ export default function Home() {
     () => ({
       cities: selectedCities,
       risk: selectedRisk,
+      includeDigerKanallar,
     }),
-    [selectedCities, selectedRisk]
+    [selectedCities, selectedRisk, includeDigerKanallar]
   );
 
   const cities = useMemo(() => {
@@ -159,21 +219,24 @@ export default function Home() {
     return Array.from(set).sort((a, b) => a.localeCompare(b, "tr"));
   }, [scoredRows]);
 
-  const filteredRows = useMemo(
-    () => filterRowsLocally(scoredRows, filterState),
-    [scoredRows, filterState]
-  );
+  const filteredRows = useMemo(() => {
+    const base = filterRowsLocally(scoredRows, filterState);
+    if (!onlyFavoriler) return base;
+    return base.filter((r) => musteriFavoriKodlari.has(r.musteri_kodu));
+  }, [scoredRows, filterState, onlyFavoriler, musteriFavoriKodlari]);
 
   // Clustering doğru kalsın diye filtreli GeoJSON.
   const geojson = useMemo(
-    () => musterilerToGeoJSON(filteredRows, highlightSet),
-    [filteredRows, highlightSet]
+    () => musterilerToGeoJSON(filteredRows, highlightSet, musteriFavoriKodlari),
+    [filteredRows, highlightSet, musteriFavoriKodlari]
   );
 
-  const potansiyelGeojson = useMemo(
-    () => potansiyellerToGeoJSON(potansiyelRows),
-    [potansiyelRows]
-  );
+  const potansiyelGeojson = useMemo(() => {
+    const rows = onlyFavoriler
+      ? potansiyelRows.filter((r) => potansiyelFavoriIds.has(r.id))
+      : potansiyelRows;
+    return potansiyellerToGeoJSON(rows, potansiyelFavoriIds);
+  }, [potansiyelRows, potansiyelFavoriIds, onlyFavoriler]);
 
   const handleUploadResult = useCallback((result: UploadResult) => {
     setLastUploadResult(result);
@@ -222,8 +285,18 @@ export default function Home() {
     });
   }, [scoredRows]);
 
+  // Favori focus erken açılırsa stub satırı harita verisi gelince zenginleştir.
+  useEffect(() => {
+    setSelectedPotansiyel((prev) => {
+      if (!prev) return prev;
+      return potansiyelRows.find((r) => r.id === prev.id) ?? prev;
+    });
+  }, [potansiyelRows]);
+
   const hasActiveFilters =
-    selectedCities.length > 0 || selectedRisk !== null;
+    selectedCities.length > 0 ||
+    selectedRisk !== null ||
+    includeDigerKanallar;
 
   const toggleCity = useCallback((city: string) => {
     setSelectedCities((prev) =>
@@ -234,6 +307,7 @@ export default function Home() {
   const resetFilters = useCallback(() => {
     setSelectedCities([]);
     setSelectedRisk(null);
+    setIncludeDigerKanallar(false);
     setSearch("");
   }, []);
 
@@ -352,11 +426,104 @@ export default function Home() {
         throw new Error(payload.error ?? `Gizleme başarısız (${res.status})`);
       }
       removePotansiyelLocal(p.id);
+      removePotansiyelFavoriLocal(p.id);
       setSelectedPotansiyel(null);
       setPotansiyelAnchor(null);
     },
-    [removePotansiyelLocal]
+    [removePotansiyelLocal, removePotansiyelFavoriLocal]
   );
+
+  const handleTogglePotansiyelFavori = useCallback(
+    async (p: PotansiyelHarita) => {
+      await togglePotansiyelFavori(p.id, {
+        snapshot: {
+          favori_id: "",
+          not_metni: null,
+          olusturulma: new Date().toISOString(),
+          id: p.id,
+          kaynak_id: p.kaynak_id,
+          isim: p.isim,
+          adres: p.adres,
+          il: p.il,
+          ilce: p.ilce,
+          lat: p.lat,
+          lon: p.lon,
+          primary_type: p.primary_type,
+          google_types: p.google_types,
+          kalite_bayragi: p.kalite_bayragi,
+          tarandigi_tarih: p.tarandigi_tarih,
+        },
+      });
+    },
+    [togglePotansiyelFavori]
+  );
+
+  const handleUpdatePotansiyelFavoriNot = useCallback(
+    async (p: PotansiyelHarita, notMetni: string | null) => {
+      await updatePotansiyelFavoriNote(p.id, notMetni);
+    },
+    [updatePotansiyelFavoriNote]
+  );
+
+  const handleToggleMusteriFavori = useCallback(
+    async (m: MusteriHarita) => {
+      await toggleMusteriFavori(m.musteri_kodu, {
+        snapshot: {
+          favori_id: "",
+          not_metni: null,
+          olusturulma: new Date().toISOString(),
+          musteri_kodu: m.musteri_kodu,
+          unvan: m.unvan,
+          adres: m.adres ?? null,
+          sehir: m.sehir,
+          ilce: m.ilce,
+          lat: m.lat,
+          lon: m.lon,
+          risk_durumu: m.risk_durumu,
+        },
+      });
+    },
+    [toggleMusteriFavori]
+  );
+
+  const handleUpdateMusteriFavoriNot = useCallback(
+    async (m: MusteriHarita, notMetni: string | null) => {
+      await updateMusteriFavoriNote(m.musteri_kodu, notMetni);
+    },
+    [updateMusteriFavoriNote]
+  );
+
+  const handleOnlyFavorilerChange = useCallback((value: boolean) => {
+    setOnlyFavoriler(value);
+    if (value) setShowPotansiyel(true);
+  }, []);
+
+  const handleFavoriSelect = useCallback((entry: SonraBakItem) => {
+    setImportOpen(false);
+    setImportActivity(null);
+    setHighlightedRutKod(null);
+    if (entry.kind === "musteri") {
+      const item = entry.item;
+      setSelectedPotansiyel(null);
+      setPotansiyelAnchor(null);
+      setFocusTarget({
+        musteri_kodu: item.musteri_kodu,
+        lat: item.lat,
+        lon: item.lon,
+        nonce: Date.now(),
+      });
+      return;
+    }
+    setShowPotansiyel(true);
+    setSelectedMusteri(null);
+    setPanelAnchor(null);
+    setPotansiyelFocusTarget({
+      id: entry.item.id,
+      lat: entry.item.lat,
+      lon: entry.item.lon,
+      nonce: Date.now(),
+    });
+  }, []);
 
   const handleToggleImport = useCallback(() => {
     setImportOpen((open) => {
@@ -393,6 +560,13 @@ export default function Home() {
       lastUploadResult,
       riskLabels,
       riskShortLabels,
+      includeDigerKanallar,
+      onIncludeDigerKanallarChange: setIncludeDigerKanallar,
+      favoriler: sonraBakItems,
+      favorilerLoading,
+      onlyFavoriler,
+      onOnlyFavorilerChange: handleOnlyFavorilerChange,
+      onFavoriSelect: handleFavoriSelect,
     }),
     [
       cities,
@@ -408,6 +582,12 @@ export default function Home() {
       lastUploadResult,
       riskLabels,
       riskShortLabels,
+      includeDigerKanallar,
+      sonraBakItems,
+      favorilerLoading,
+      onlyFavoriler,
+      handleOnlyFavorilerChange,
+      handleFavoriSelect,
     ]
   );
 
@@ -432,6 +612,7 @@ export default function Home() {
           selectedMusteriKodu={selectedMusteri?.musteri_kodu ?? null}
           highlightedRutKod={highlightedRutKod}
           focusTarget={focusTarget}
+          potansiyelFocusTarget={potansiyelFocusTarget}
           potansiyelData={potansiyelGeojson}
           potansiyelVisible={showPotansiyel}
           selectedPotansiyelId={selectedPotansiyel?.id ?? null}
@@ -539,6 +720,10 @@ export default function Home() {
                 onClose={handleCloseDetail}
                 onShowRoute={setHighlightedRutKod}
                 riskLabels={riskLabels}
+                isFavori={isMusteriFavori(selectedMusteri.musteri_kodu)}
+                favoriNot={getMusteriFavoriNote(selectedMusteri.musteri_kodu)}
+                onToggleFavori={handleToggleMusteriFavori}
+                onUpdateFavoriNot={handleUpdateMusteriFavoriNot}
               />
             )}
             {selectedPotansiyel && potansiyelAnchor && (
@@ -549,6 +734,10 @@ export default function Home() {
                 containerRef={mapAreaRef}
                 onClose={handleClosePotansiyel}
                 onHide={handleHidePotansiyel}
+                isFavori={isPotansiyelFavori(selectedPotansiyel.id)}
+                favoriNot={getPotansiyelFavoriNote(selectedPotansiyel.id)}
+                onToggleFavori={handleTogglePotansiyelFavori}
+                onUpdateFavoriNot={handleUpdatePotansiyelFavoriNot}
               />
             )}
           </AnimatePresence>

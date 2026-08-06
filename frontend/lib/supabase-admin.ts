@@ -30,3 +30,7 @@ export const MUSTERI_SNAPSHOTLARI_TABLE = "musteri_snapshotlari";
 export const MUSTERI_YASLANDIRMA_TABLE = "musteri_yaslandirma";
 export const MUSTERI_BELGE_OZET_TABLE = "musteri_belge_ozet";
 export const POTANSIYEL_MUSTERILER_TABLE = "potansiyel_musteriler";
+export const POTANSIYEL_FAVORILER_TABLE = "potansiyel_favoriler";
+export const POTANSIYEL_FAVORILER_LISTE_VIEW = "potansiyel_favoriler_liste";
+export const MUSTERI_FAVORILER_TABLE = "musteri_favoriler";
+export const MUSTERI_FAVORILER_LISTE_VIEW = "musteri_favoriler_liste";

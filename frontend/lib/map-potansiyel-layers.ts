@@ -8,10 +8,13 @@ import {
   type ClusterConfig,
 } from "@/lib/map-clusters";
 import type { PotansiyelFeatureCollection } from "@/lib/potansiyel-geojson";
+import { tipStrokeColorExpr } from "@/lib/tip-style";
 
 export const POTANSIYEL_SOURCE_ID = "potansiyeller";
 export const POTANSIYEL_CLUSTER_LAYER = "potansiyel-clusters";
 export const POTANSIYEL_CLUSTER_COUNT_LAYER = "potansiyel-cluster-count";
+/** Petshop / veteriner halkası — teal noktanın çevresi. */
+export const POTANSIYEL_TIP_RING_LAYER = "potansiyel-tip-ring";
 export const POTANSIYEL_POINT_LAYER = "potansiyel-point";
 export const POTANSIYEL_POINT_HIT_LAYER = "potansiyel-point-hit";
 export const POTANSIYEL_SELECTED_LAYER = "potansiyel-selected";
@@ -19,9 +22,12 @@ export const POTANSIYEL_SELECTED_LAYER = "potansiyel-selected";
 /** Müşteri risk paletine karışmayan nötr teal. */
 export const POTANSIYEL_COLOR = "#5eead4";
 export const POTANSIYEL_STROKE = "#0f766e";
+/** "Sonra bak" favori — teal nokta üzerinde amber halka. */
+export const POTANSIYEL_FAVORI_STROKE = "#f59e0b";
 /** Küme balonu — müşteri gri’sinden ayrılan teal-gri */
 export const POTANSIYEL_CLUSTER_FILL = "#99f6e4";
 export const POTANSIYEL_CLUSTER_TEXT = "#134e4a";
+export const POTANSIYEL_TIP_RING_RADIUS = 10;
 
 const EMPTY: PotansiyelFeatureCollection = {
   type: "FeatureCollection",
@@ -32,6 +38,7 @@ const LAYER_IDS = [
   POTANSIYEL_SELECTED_LAYER,
   POTANSIYEL_POINT_HIT_LAYER,
   POTANSIYEL_POINT_LAYER,
+  POTANSIYEL_TIP_RING_LAYER,
   POTANSIYEL_CLUSTER_COUNT_LAYER,
   POTANSIYEL_CLUSTER_LAYER,
 ] as const;
@@ -98,6 +105,40 @@ export function addPotansiyelLayers(
     );
   }
 
+  if (!map.getLayer(POTANSIYEL_TIP_RING_LAYER)) {
+    map.addLayer(
+      {
+        id: POTANSIYEL_TIP_RING_LAYER,
+        type: "circle",
+        source: POTANSIYEL_SOURCE_ID,
+        filter: [
+          "all",
+          ["!", ["has", "point_count"]],
+          [
+            "any",
+            ["==", ["get", "tip_kanal"], "petshop"],
+            ["==", ["get", "tip_kanal"], "veteriner"],
+          ],
+        ],
+        layout: { visibility },
+        paint: {
+          "circle-radius": POTANSIYEL_TIP_RING_RADIUS,
+          "circle-color": "rgba(0,0,0,0)",
+          "circle-stroke-width": 2.5,
+          "circle-stroke-color": tipStrokeColorExpr(),
+          "circle-stroke-opacity": [
+            "case",
+            ["==", ["get", "kalite_bayragi"], "suspicious_name"],
+            0.4,
+            0.95,
+          ],
+          "circle-opacity": 1,
+        },
+      },
+      before
+    );
+  }
+
   if (!map.getLayer(POTANSIYEL_POINT_LAYER)) {
     map.addLayer(
       {
@@ -108,9 +149,24 @@ export function addPotansiyelLayers(
         layout: { visibility },
         paint: {
           "circle-color": POTANSIYEL_COLOR,
-          "circle-radius": 7,
-          "circle-stroke-width": 1.25,
-          "circle-stroke-color": "rgba(255,255,255,0.85)",
+          "circle-radius": [
+            "case",
+            ["boolean", ["get", "favori"], false],
+            8,
+            7,
+          ],
+          "circle-stroke-width": [
+            "case",
+            ["boolean", ["get", "favori"], false],
+            2.75,
+            1.25,
+          ],
+          "circle-stroke-color": [
+            "case",
+            ["boolean", ["get", "favori"], false],
+            POTANSIYEL_FAVORI_STROKE,
+            "rgba(255,255,255,0.85)",
+          ],
           "circle-opacity": [
             "case",
             ["==", ["get", "kalite_bayragi"], "suspicious_name"],

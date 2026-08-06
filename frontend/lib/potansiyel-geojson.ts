@@ -1,5 +1,6 @@
 import type { Feature, FeatureCollection, Point } from "geojson";
 
+import { tipKanalFromPrimaryType } from "./tip-style";
 import type { PotansiyelHarita } from "./types";
 
 export type PotansiyelFeature = Feature<Point, PotansiyelHarita>;
@@ -9,7 +10,8 @@ export type PotansiyelFeatureCollection = FeatureCollection<
 >;
 
 export function potansiyellerToGeoJSON(
-  rows: PotansiyelHarita[]
+  rows: PotansiyelHarita[],
+  favoriIds?: ReadonlySet<string>
 ): PotansiyelFeatureCollection {
   return {
     type: "FeatureCollection",
@@ -17,7 +19,11 @@ export function potansiyellerToGeoJSON(
       (row): PotansiyelFeature => ({
         type: "Feature",
         geometry: { type: "Point", coordinates: [row.lon, row.lat] },
-        properties: row,
+        properties: {
+          ...row,
+          tip_kanal: tipKanalFromPrimaryType(row.primary_type),
+          favori: favoriIds ? favoriIds.has(row.id) : Boolean(row.favori),
+        },
       })
     ),
   };

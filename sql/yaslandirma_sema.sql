@@ -18,7 +18,8 @@ create table if not exists public.musteri_yaslandirma (
     toplam         numeric(16,2) not null default 0,
     riskli_tutar   numeric(16,2) not null default 0,
     borc_riskli    boolean not null default false,
-    guncellendi    timestamptz not null default now()
+    guncellendi    timestamptz not null default now(),
+    inserted_at    timestamptz not null default now()
 );
 
 create index if not exists musteri_yaslandirma_risk_idx
@@ -42,7 +43,7 @@ with (security_invoker = true) as
 select m.musteri_kodu, m.unvan, m.adres, m.sehir, m.ilce, m.lat, m.lon, m.rut_kod, m.rut_aciklama,
        m.ziyaret_sira, m.son_teslimat_tarihi, m.ilk_teslimat_tarihi, m.toplam_teslimat_sayisi,
        m.toplam_agirlik, m.toplam_tutar, m.son_teslimattan_gecen_gun,
-       m.durum, m.geocode_hassasiyet, m.guncellendi,
+       m.durum, m.musteri_grubu, m.geocode_hassasiyet, m.guncellendi,
        case
          when m.toplam_teslimat_sayisi = 0            then 'hic_teslimat_yok'
          when m.son_teslimattan_gecen_gun > 90        then 'riskli'
@@ -55,6 +56,7 @@ select m.musteri_kodu, m.unvan, m.adres, m.sehir, m.ilce, m.lat, m.lon, m.rut_ko
        y.toplam as yas_toplam,
        y.riskli_tutar as yas_riskli_tutar,
        y.borc_riskli,
+       y.inserted_at as yas_inserted_at,
        b.donem_bas as belge_donem_bas,
        b.donem_bit as belge_donem_bit,
        b.satir_sayisi as belge_satir_sayisi,

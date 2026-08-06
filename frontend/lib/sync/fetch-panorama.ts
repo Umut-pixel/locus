@@ -5,27 +5,44 @@ import type { SyncRunSummary } from "./types";
 export const PANORAMA_MUSTERI_VIEW = "v_panorama_musteri_listesi_guncel";
 export const PANORAMA_RUT_VIEW = "v_panorama_rut_tanim_listesi_guncel";
 export const PANORAMA_SEVKIYAT_VIEW = "v_panorama_sevkiyat_raporu_kup_guncel";
+export const PANORAMA_BELGE_DETAY_VIEW =
+  "v_panorama_belge_detay_raporu_guncel";
+export const PANORAMA_YASLANDIRMA_VIEW =
+  "v_panorama_acik_fatura_vade_kup_guncel";
 export const PANORAMA_SYNC_RUNS_TABLE = "panorama_sync_runs";
 export const PANORAMA_SYNC_DOSYA_TIPI = "PanoramaSync";
 
 const PAGE = 1000;
 
-/** View'dan tüm satırları sayfalı çek. */
+/**
+ * View'dan tüm satırları sayfalı çek.
+ * PostgREST range sıralamasız güvenilmez — mutlaka orderBy gerekir.
+ * count ile eksik sayfa yakalanır (max_rows / sessiz kesme).
+ */
 export async function fetchAllFromView(
   admin: SupabaseClient,
-  view: string
+  view: string,
+  orderBy = "id"
 ): Promise<Record<string, unknown>[]> {
   const out: Record<string, unknown>[] = [];
   let from = 0;
+  let total: number | null = null;
 
   for (;;) {
-    const { data, error } = await admin
+    const q = admin
       .from(view)
-      .select("*")
+      .select("*", from === 0 ? { count: "exact" } : undefined)
+      .order(orderBy, { ascending: true })
       .range(from, from + PAGE - 1);
+
+    const { data, error, count } = await q;
 
     if (error) {
       throw new Error(`${view} okunamadı: ${error.message}`);
+    }
+
+    if (from === 0 && typeof count === "number") {
+      total = count;
     }
 
     const rows = (data ?? []) as Record<string, unknown>[];
@@ -34,12 +51,18 @@ export async function fetchAllFromView(
     from += PAGE;
   }
 
+  if (total != null && out.length !== total) {
+    throw new Error(
+      `${view}: beklenen ${total} satır, okunan ${out.length} — sayfalama eksik.`
+    );
+  }
+
   return out;
 }
 
 export async function fetchLatestCompletedSyncs(
   admin: SupabaseClient,
-  reportIds: number[] = [5020, 5500, 5130]
+  reportIds: number[] = [5020, 5500, 5130, 5450, 5530]
 ): Promise<Map<number, SyncRunSummary>> {
   const map = new Map<number, SyncRunSummary>();
 
@@ -68,7 +91,10 @@ export async function fetchLatestCompletedSyncs(
 
 export async function fetchLastPanoramaTransformMeta(
   admin: SupabaseClient
-): Promise<{ syncIds: Record<string, string> | null; yuklenmeZamani: string | null }> {
+): Promise<{
+  syncIds: Record<string, string | null> | null;
+  yuklenmeZamani: string | null;
+}> {
   const { data, error } = await admin
     .from("yukleme_loglari")
     .select("uyarilar, yuklenme_zamani")
@@ -89,7 +115,7 @@ export async function fetchLastPanoramaTransformMeta(
     typeof uyarilar === "object" &&
     uyarilar.sync_ids &&
     typeof uyarilar.sync_ids === "object"
-      ? (uyarilar.sync_ids as Record<string, string>)
+      ? (uyarilar.sync_ids as Record<string, string | null>)
       : null;
 
   return {

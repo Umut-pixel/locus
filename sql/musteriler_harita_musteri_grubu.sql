@@ -1,41 +1,9 @@
--- Delta: BelgeDetayRaporu müşteri aggregate + harita view genişletmesi
--- Uygula: Supabase SQL Editor veya MCP apply_migration
+-- musteriler_harita: musteri_grubu (petshop/veteriner stroke için)
+-- Bağımlı view musteri_favoriler_liste yeniden oluşturulur.
 
-create table if not exists public.musteri_belge_ozet (
-    musteri_kodu      text primary key references public.musteriler (musteri_kodu) on delete cascade,
-    donem_bas         date,
-    donem_bit         date,
-    satir_sayisi      integer not null default 0,
-    siparis_sayisi    integer not null default 0,
-    fatura_sayisi     integer not null default 0,
-    net_ciro          numeric(16,2) not null default 0,
-    brut_ciro         numeric(16,2) not null default 0,
-    iskonto_toplam    numeric(16,2) not null default 0,
-    promo_satir       integer not null default 0,
-    iptal_satir       integer not null default 0,
-    son_islem_tarihi  date,
-    vade_gunu         integer,
-    top_urun_grup     text,
-    son_urun_grup     text,
-    top_urun          text,
-    son_urun          text,
-    st_adi            text,
-    st_kodu           text,
-    guncellendi       timestamptz not null default now()
-);
-
-alter table public.musteri_belge_ozet enable row level security;
-
-do $$ begin
-  create policy "musteri_belge_ozet_select_public"
-    on public.musteri_belge_ozet
-    for select
-    to anon, authenticated
-    using (true);
-exception when duplicate_object then null;
-end $$;
-
+drop view if exists public.musteri_favoriler_liste;
 drop view if exists public.musteriler_harita;
+
 create view public.musteriler_harita
 with (security_invoker = true) as
 select m.musteri_kodu, m.unvan, m.adres, m.sehir, m.ilce, m.lat, m.lon, m.rut_kod, m.rut_aciklama,
@@ -79,3 +47,24 @@ left join public.musteri_belge_ozet b on b.musteri_kodu = m.musteri_kodu
 where m.lat is not null and m.lon is not null;
 
 grant select on public.musteriler_harita to anon, authenticated;
+
+create view public.musteri_favoriler_liste
+with (security_invoker = true)
+as
+select
+  f.id as favori_id,
+  f.not_metni,
+  f.olusturulma,
+  m.musteri_kodu,
+  m.unvan,
+  m.adres,
+  m.sehir,
+  m.ilce,
+  m.lat,
+  m.lon,
+  m.risk_durumu
+from public.musteri_favoriler f
+join public.musteriler_harita m on m.musteri_kodu = f.musteri_kodu
+where m.lat is not null and m.lon is not null;
+
+revoke all on public.musteri_favoriler_liste from anon, authenticated;

@@ -28,6 +28,15 @@ const dateTimeFormatter = new Intl.DateTimeFormat("tr-TR", {
   minute: "2-digit",
 });
 
+/** Peek / dar satırlar — kısa güncelleme damgası (örn. 6 Ağu 15:20). */
+const dateTimeShortFormatter = new Intl.DateTimeFormat("tr-TR", {
+  timeZone: "Europe/Istanbul",
+  day: "numeric",
+  month: "short",
+  hour: "2-digit",
+  minute: "2-digit",
+});
+
 export function formatCurrency(value: number): string {
   return currencyFormatter.format(value);
 }
@@ -58,4 +67,12 @@ export function formatDateTime(value: string | null | undefined): string {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "—";
   return dateTimeFormatter.format(date);
+}
+
+/** timestamptz — peek satırı için kısa format. */
+export function formatDateTimeShort(value: string | null | undefined): string {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+  return dateTimeShortFormatter.format(date);
 }

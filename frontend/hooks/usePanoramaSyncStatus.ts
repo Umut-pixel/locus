@@ -10,7 +10,7 @@ import {
 } from "@/lib/supabase";
 
 const POLL_MS = 3 * 60 * 1000; // 3 dk
-const REPORT_IDS = [5020, 5500, 5130] as const;
+const REPORT_IDS = [5020, 5500, 5130, 5450, 5530] as const;
 
 export interface SyncStatusSnapshot {
   /** En son tamamlanan sync (5020/5500/5130 arası max tamamlandi_at) */
@@ -33,13 +33,15 @@ interface UsePanoramaSyncStatusOptions {
   enabled?: boolean;
 }
 
-function fingerprint(ids: Record<string, string> | null): string | null {
+function fingerprint(ids: Record<string, string | null> | null): string | null {
   if (!ids) return null;
   const a = ids["5020"] ?? "";
   const b = ids["5500"] ?? "";
   const c = ids["5130"] ?? "";
-  if (!a && !b && !c) return null;
-  return `${a}|${b}|${c}`;
+  const d = ids["5450"] ?? "";
+  const e = ids["5530"] ?? "";
+  if (!a && !b && !c && !d && !e) return null;
+  return `${a}|${b}|${c}|${d}|${e}`;
 }
 
 function formatIstanbul(iso: string | null): string | null {
