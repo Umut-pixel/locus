@@ -190,6 +190,86 @@
   border-right-color: oklch(0.215 0.005 260) !important;
 }
 
+/*
+ * Kullanıcı konumu — mavi blip + pulse (blink).
+ * Daire müşterilerden ayrılsın: kalın beyaz halka + sürekli animasyon.
+ */
+@keyframes locus-user-blip-pulse {
+  0% {
+    transform: scale(0.55);
+    opacity: 0.7;
+  }
+  70% {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+}
+
+@keyframes locus-user-blip-glow {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 2px #fff,
+      0 0 0 4px #1da1f2,
+      0 0 10px 2px rgb(29 161 242 / 0.55);
+  }
+  50% {
+    box-shadow:
+      0 0 0 2px #fff,
+      0 0 0 5px #1da1f2,
+      0 0 16px 4px rgb(29 161 242 / 0.85);
+  }
+}
+
+.mapboxgl-user-location-accuracy-circle {
+  background-color: rgb(29 161 242 / 0.14) !important;
+  border: 1px solid rgb(29 161 242 / 0.28);
+}
+
+.mapboxgl-user-location-dot {
+  width: 14px !important;
+  height: 14px !important;
+  border-radius: 50% !important;
+  background-color: #1da1f2 !important;
+  background-image: none !important;
+  border: none !important;
+  top: 0 !important;
+  left: 0 !important;
+  animation: locus-user-blip-glow 1.6s ease-in-out infinite !important;
+}
+
+/* Genişleyen pulse halkası */
+.mapboxgl-user-location-dot::before {
+  display: block !important;
+  content: "" !important;
+  position: absolute !important;
+  inset: 0 !important;
+  border-radius: 50% !important;
+  background-color: #1da1f2 !important;
+  box-shadow: none !important;
+  border: none !important;
+  animation: locus-user-blip-pulse 1.6s ease-out infinite !important;
+  pointer-events: none !important;
+}
+
+.mapboxgl-user-location-dot-stale {
+  opacity: 0.55;
+  animation: none !important;
+}
+
+.mapboxgl-user-location-dot-stale::before {
+  animation: none !important;
+  opacity: 0 !important;
+}
+
+.mapboxgl-user-location-heading {
+  border-bottom-color: #1da1f2 !important;
+}
+
 /* ─── Transitions.dev — Input clear with dissolve ─── */
 :root {
   --clear-dur: 1000ms;
