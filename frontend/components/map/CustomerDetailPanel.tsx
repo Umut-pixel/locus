@@ -12,9 +12,11 @@ import {
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
+  ExternalLinkIcon,
   EyeIcon,
   EyeOffIcon,
   GripHorizontalIcon,
+  MapPinnedIcon,
   StarIcon,
   XIcon,
 } from "lucide-react";
@@ -1198,6 +1200,23 @@ export const CustomerDetailPanel = memo(function CustomerDetailPanel({
         >
           Rotada göster
         </Button>
+        <Button
+          variant="secondary"
+          size="sm"
+          nativeButton={false}
+          className="w-full"
+          render={
+            <a
+              href={musteriGoogleMapsUrl(musteri)}
+              target="_blank"
+              rel="noopener noreferrer"
+            />
+          }
+        >
+          <MapPinnedIcon className="size-3.5" />
+          Google Maps’te aç
+          <ExternalLinkIcon className="size-3 opacity-60" />
+        </Button>
         {onToggleGizle && isGizlenen ? (
           <Button
             type="button"
@@ -1229,6 +1248,26 @@ export const CustomerDetailPanel = memo(function CustomerDetailPanel({
     </motion.div>
   );
 });
+
+/** Müşteri konumuna Google Maps arama linki (lat/lon). */
+export function musteriGoogleMapsUrl(m: {
+  lat: number;
+  lon: number;
+  unvan?: string | null;
+  adres?: string | null;
+}): string {
+  if (
+    Number.isFinite(m.lat) &&
+    Number.isFinite(m.lon) &&
+    !(m.lat === 0 && m.lon === 0)
+  ) {
+    return `https://www.google.com/maps/search/?api=1&query=${m.lat},${m.lon}`;
+  }
+  const q = encodeURIComponent(
+    [m.unvan, m.adres].filter(Boolean).join(", ") || "Konum"
+  );
+  return `https://www.google.com/maps/search/?api=1&query=${q}`;
+}
 
 function RiskPeekSummary({
   accent,
