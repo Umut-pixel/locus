@@ -120,18 +120,31 @@ export function selectRouteComponent(
   );
 }
 
+export type RouteWaypointOptions = {
+  selectedMusteriKodu?: string | null;
+  maxHopKm?: number;
+  /** Verilirse rota depodan başlar ve depoya döner. */
+  depot?: LngLat | null;
+};
+
 /** Tek bileşen → Directions / düz çizgi için waypoint listeleri. */
 export function buildRouteWaypointSegments(
   routeFeatures: MusteriPointFeature[],
-  options?: {
-    selectedMusteriKodu?: string | null;
-    maxHopKm?: number;
-  }
+  options?: RouteWaypointOptions
 ): LngLat[][] {
   const component = selectRouteComponent(routeFeatures, options);
   const coords = dedupeCoords(
     component.map((f) => f.geometry.coordinates as LngLat)
   );
+  if (coords.length === 0) return [];
+
+  const depot = options?.depot;
+  if (depot && isValidLngLat(depot)) {
+    const withDepot = dedupeCoords([depot, ...coords, depot]);
+    if (withDepot.length < 2) return [];
+    return [withDepot];
+  }
+
   if (coords.length < 2) return [];
   return [coords];
 }
@@ -139,10 +152,7 @@ export function buildRouteWaypointSegments(
 /** Düz (kuş uçuşu) çizgi — Directions başarısız olursa yedek. */
 export function buildRouteLineCollection(
   routeFeatures: MusteriPointFeature[],
-  options?: {
-    selectedMusteriKodu?: string | null;
-    maxHopKm?: number;
-  }
+  options?: RouteWaypointOptions
 ): FeatureCollection<LineString> {
   const segments = buildRouteWaypointSegments(routeFeatures, options);
   return {

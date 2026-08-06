@@ -4,6 +4,7 @@ import { memo, useEffect, useRef } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 
+import { DEPOT } from "@/lib/depot";
 import { DEFAULT_MAP_VIEW, MAPBOX_STYLE_URL, MAPBOX_TOKEN } from "@/lib/mapbox-style";
 import { clusterConfigForZoom, type ClusterConfig } from "@/lib/map-clusters";
 import {
@@ -134,6 +135,7 @@ export const PetshopMap = memo(function PetshopMap({
   const selectedPotansiyelIdRef = useRef<string | null>(null);
   const clusterZoomTimerRef = useRef(0);
   const popupRef = useRef<mapboxgl.Popup | null>(null);
+  const depotMarkerRef = useRef<mapboxgl.Marker | null>(null);
 
   useEffect(() => {
     dataRef.current = data;
@@ -283,6 +285,9 @@ export const PetshopMap = memo(function PetshopMap({
       className: "petshop-popup",
     });
     popupRef.current = popup;
+
+    depotMarkerRef.current?.remove();
+    depotMarkerRef.current = createDepotMarker().addTo(map);
 
     const mountOverlays = () => {
       const initialCfg = clusterConfigForZoom(map.getZoom());
@@ -617,6 +622,8 @@ export const PetshopMap = memo(function PetshopMap({
     return () => {
       window.clearTimeout(clusterZoomTimerRef.current);
       loadedRef.current = false;
+      depotMarkerRef.current?.remove();
+      depotMarkerRef.current = null;
       popup.remove();
       popupRef.current = null;
       map.remove();
@@ -753,7 +760,10 @@ export const PetshopMap = memo(function PetshopMap({
     const component = selectRouteComponent(sorted, {
       selectedMusteriKodu,
     });
-    const routeOpts = { selectedMusteriKodu };
+    const routeOpts = {
+      selectedMusteriKodu,
+      depot: DEPOT.lngLat,
+    };
     const segments = buildRouteWaypointSegments(sorted, routeOpts);
     const straight = buildRouteLineCollection(sorted, routeOpts);
     const componentKodlari = component.map((f) => f.properties.musteri_kodu);
@@ -764,8 +774,9 @@ export const PetshopMap = memo(function PetshopMap({
     const zoomCoords = component.map(
       (f) => f.geometry.coordinates as [number, number]
     );
-    if (zoomCoords.length > 0) {
+    if (zoomCoords.length > 0 || segments.length > 0) {
       const bounds = new mapboxgl.LngLatBounds();
+      bounds.extend(DEPOT.lngLat);
       for (const c of zoomCoords) bounds.extend(c);
       const w = map.getContainer().clientWidth;
       const h = map.getContainer().clientHeight;
@@ -868,4 +879,59 @@ function escapeHtml(value: string): string {
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;");
+}
+
+function createDepotMarker(): mapboxgl.Marker {
+  const el = document.createElement("button");
+  el.type = "button";
+  el.setAttribute("aria-label", DEPOT.label);
+  el.title = `${DEPOT.label} — ${DEPOT.address}`;
+  el.style.cssText = [
+    "display:flex",
+    "flex-direction:column",
+    "align-items:center",
+    "gap:4px",
+    "border:0",
+    "background:transparent",
+    "padding:0",
+    "cursor:pointer",
+    "filter:drop-shadow(0 2px 6px rgba(28,29,32,0.35))",
+  ].join(";");
+
+  el.innerHTML = `
+    <span style="
+      display:flex;align-items:center;justify-content:center;
+      width:36px;height:36px;border-radius:10px;
+      background:#1c1d20;border:2px solid #f4f4f5;
+      color:#f4f4f5;
+    ">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M3 10.5 12 4l9 6.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-9.5Z" stroke="currentColor" stroke-width="1.75" stroke-linejoin="round"/>
+        <path d="M9 21v-7h6v7" stroke="currentColor" stroke-width="1.75" stroke-linejoin="round"/>
+        <path d="M3.5 10.8h17" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/>
+      </svg>
+    </span>
+    <span style="
+      font-family:var(--font-geist-sans),system-ui,sans-serif;
+      font-size:11px;font-weight:600;letter-spacing:0.02em;
+      color:#1c1d20;background:#f4f4f5;padding:2px 7px;border-radius:999px;
+      border:1px solid rgba(28,29,32,0.12);white-space:nowrap;
+      line-height:1.3;
+    ">Depo</span>
+  `;
+
+  const popup = new mapboxgl.Popup({
+    offset: 18,
+    closeButton: false,
+    className: "petshop-popup",
+  }).setHTML(
+    `<div style="line-height:1.45;min-width:160px">
+      <div style="font-family:var(--font-geist-sans),system-ui,sans-serif;font-size:12px;font-weight:600">${escapeHtml(DEPOT.label)}</div>
+      <div style="font-family:var(--font-geist-sans),system-ui,sans-serif;font-size:11px;opacity:0.7;margin-top:4px">${escapeHtml(DEPOT.address)}</div>
+    </div>`
+  );
+
+  return new mapboxgl.Marker({ element: el, anchor: "bottom" })
+    .setLngLat(DEPOT.lngLat)
+    .setPopup(popup);
 }

@@ -9,11 +9,15 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { SearchIcon, XIcon } from "lucide-react";
+import { SearchIcon, EyeOffIcon, XIcon } from "lucide-react";
 import { motion } from "motion/react";
 
 import { AgentAssistant } from "@/components/agent/AgentAssistant";
 import { LogoutButton } from "@/components/auth/LogoutButton";
+import {
+  GizlenenList,
+  type GizlenenItem,
+} from "@/components/sidebar/GizlenenList";
 import { PotansiyelFavoriList } from "@/components/sidebar/PotansiyelFavoriList";
 import type { SonraBakItem } from "@/components/sidebar/PotansiyelFavoriList";
 import { Button } from "@/components/ui/button";
@@ -67,6 +71,12 @@ interface FilterPanelProps {
   onlyFavoriler?: boolean;
   onOnlyFavorilerChange?: (value: boolean) => void;
   onFavoriSelect?: (entry: SonraBakItem) => void;
+  gizlenen?: GizlenenItem[];
+  gizlenenLoading?: boolean;
+  gizlenenKodlari?: ReadonlySet<string>;
+  onlyGizlenen?: boolean;
+  onOnlyGizlenenChange?: (value: boolean) => void;
+  onGizlenenSelect?: (entry: GizlenenItem) => void;
 }
 
 export const FilterPanel = memo(function FilterPanel({
@@ -93,6 +103,12 @@ export const FilterPanel = memo(function FilterPanel({
   onlyFavoriler = false,
   onOnlyFavorilerChange,
   onFavoriSelect,
+  gizlenen = [],
+  gizlenenLoading = false,
+  gizlenenKodlari,
+  onlyGizlenen = false,
+  onOnlyGizlenenChange,
+  onGizlenenSelect,
 }: FilterPanelProps) {
   const isSheet = variant === "sheet";
   const selectedCitySet = useMemo(
@@ -104,6 +120,45 @@ export const FilterPanel = memo(function FilterPanel({
   const searchWrapRef = useRef<HTMLDivElement | null>(null);
 
   const showList = listOpen && search.trim().length >= 2;
+
+  const searchResults = useMemo(() => {
+    const q = search.trim().toLocaleLowerCase("tr-TR");
+    const fromApi = results;
+    const seen = new Set(fromApi.map((r) => r.musteri_kodu));
+
+    // Gizlenenler API sonucunda olmasa bile aramada görünsün.
+    const fromGizlenen: MusteriSearchHit[] = [];
+    if (q.length >= 2) {
+      for (const entry of gizlenen) {
+        if (entry.kind !== "musteri") continue;
+        const item = entry.item;
+        if (seen.has(item.musteri_kodu)) continue;
+        const hay = [
+          item.unvan,
+          item.musteri_kodu,
+          item.adres ?? "",
+          item.sehir ?? "",
+          item.ilce ?? "",
+        ]
+          .join(" ")
+          .toLocaleLowerCase("tr-TR");
+        if (!hay.includes(q)) continue;
+        fromGizlenen.push({
+          musteri_kodu: item.musteri_kodu,
+          unvan: item.unvan,
+          adres: item.adres,
+          sehir: item.sehir,
+          ilce: item.ilce,
+          lat: item.lat,
+          lon: item.lon,
+          risk_durumu: item.risk_durumu ?? "hic_teslimat_yok",
+        });
+        seen.add(item.musteri_kodu);
+      }
+    }
+
+    return [...fromGizlenen, ...fromApi];
+  }, [results, gizlenen, search]);
 
   useEffect(() => {
     if (search.trim().length < 2) setListOpen(false);
@@ -192,21 +247,23 @@ export const FilterPanel = memo(function FilterPanel({
               role="listbox"
               className="absolute top-[calc(100%+0.35rem)] right-0 left-0 max-h-56 overflow-y-auto rounded-xl border border-border/80 bg-popover py-1 shadow-lg"
             >
-              {loading && results.length === 0 ? (
+              {loading && searchResults.length === 0 ? (
                 <li className="px-3 py-2 text-[11px] text-muted-foreground">
                   Aranıyor…
                 </li>
-              ) : results.length === 0 ? (
+              ) : searchResults.length === 0 ? (
                 <li className="px-3 py-2 text-[11px] text-muted-foreground">
                   Sonuç yok
                 </li>
               ) : (
-                results.map((hit) => {
+                searchResults.map((hit) => {
                   const place = [hit.ilce, hit.sehir].filter(Boolean).join(", ");
                   const adres =
                     hit.adres && hit.adres.length > 48
                       ? `${hit.adres.slice(0, 48)}…`
                       : hit.adres;
+                  const gizlenenHit =
+                    gizlenenKodlari?.has(hit.musteri_kodu) ?? false;
                   return (
                     <li key={hit.musteri_kodu} role="option">
                       <button
@@ -215,12 +272,21 @@ export const FilterPanel = memo(function FilterPanel({
                         onMouseDown={(e) => e.preventDefault()}
                         onClick={() => handleSelect(hit)}
                       >
-                        <span className="line-clamp-1 text-[12px] font-medium leading-snug">
-                          {hit.unvan}
+                        <span className="flex items-center gap-1.5">
+                          <span className="line-clamp-1 min-w-0 flex-1 text-[12px] font-medium leading-snug">
+                            {hit.unvan}
+                          </span>
+                          {gizlenenHit ? (
+                            <EyeOffIcon
+                              className="size-3 shrink-0 text-muted-foreground"
+                              aria-label="Gizlenen"
+                            />
+                          ) : null}
                         </span>
                         <span className="line-clamp-1 font-mono text-[10px] text-muted-foreground">
                           {hit.musteri_kodu}
                           {place ? ` · ${place}` : ""}
+                          {gizlenenHit ? " · gizli" : ""}
                         </span>
                         {adres ? (
                           <span className="line-clamp-1 text-[10px] text-muted-foreground/80">
@@ -253,14 +319,6 @@ export const FilterPanel = memo(function FilterPanel({
         <div>
           <SectionLabel>Kanal</SectionLabel>
           <div className="flex flex-wrap gap-1.5">
-            <Button
-              size="sm"
-              variant="default"
-              disabled
-              className="h-7 rounded-full px-2.5 text-[11px] opacity-100"
-            >
-              Petshop + Veteriner
-            </Button>
             {onIncludeDigerKanallarChange ? (
               <Button
                 size="sm"
@@ -274,11 +332,11 @@ export const FilterPanel = memo(function FilterPanel({
               </Button>
             ) : null}
           </div>
-          {!includeDigerKanallar ? (
-            <p className="mt-1.5 text-[10px] leading-snug text-muted-foreground">
-              Yem toptan, geleneksel vb. gizli — açmak için Diğer kanallar.
-            </p>
-          ) : null}
+          <p className="mt-1.5 text-[10px] leading-snug text-muted-foreground">
+            {!includeDigerKanallar
+              ? "Yem toptan, geleneksel vb. gizli — açmak için Diğer kanallar. Petshop / veteriner harita toggle’ından."
+              : "Petshop / veteriner harita toggle’ından filtrelenir."}
+          </p>
         </div>
 
         <div>
@@ -317,6 +375,16 @@ export const FilterPanel = memo(function FilterPanel({
             onlyFavoriler={onlyFavoriler}
             onOnlyFavorilerChange={onOnlyFavorilerChange}
             onSelect={onFavoriSelect}
+          />
+        ) : null}
+
+        {onGizlenenSelect ? (
+          <GizlenenList
+            items={gizlenen}
+            loading={gizlenenLoading}
+            onlyGizlenen={onlyGizlenen}
+            onOnlyGizlenenChange={onOnlyGizlenenChange}
+            onSelect={onGizlenenSelect}
           />
         ) : null}
 

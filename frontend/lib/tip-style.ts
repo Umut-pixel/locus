@@ -1,14 +1,11 @@
-/** Petshop / veteriner — daire çevresi (stroke) ile ayırt. Risk fill’e karışmaz. */
-
-import type { ExpressionSpecification } from "mapbox-gl";
+/** Petshop / veteriner kanal sınıflandırması — filtre ve GeoJSON. */
 
 export type TipKanal = "petshop" | "veteriner" | "diger";
 
-export const TIP_STROKE_COLORS: Record<TipKanal, string> = {
-  petshop: "#22d3ee",
-  veteriner: "#e879f9",
-  diger: "rgba(255,255,255,0.85)",
-};
+/** Harita toggle’ında seçilebilir kanallar (diğer hariç). */
+export type TipKanalSecilebilir = "petshop" | "veteriner";
+
+export type TipKanalFilter = Record<TipKanalSecilebilir, boolean>;
 
 export const TIP_LABELS: Record<TipKanal, string> = {
   petshop: "Petshop",
@@ -17,7 +14,12 @@ export const TIP_LABELS: Record<TipKanal, string> = {
 };
 
 /** Legend / filtrede gösterilen ana kanallar (diğer hariç). */
-export const TIP_ORDER: TipKanal[] = ["petshop", "veteriner"];
+export const TIP_ORDER: TipKanalSecilebilir[] = ["petshop", "veteriner"];
+
+export const DEFAULT_TIP_FILTER: TipKanalFilter = {
+  petshop: true,
+  veteriner: true,
+};
 
 export function tipKanalFromMusteriGrubu(
   g: string | null | undefined
@@ -75,32 +77,15 @@ export function isPetOrVetSignal(
   return false;
 }
 
-/** Mapbox paint — tip_kanal property’sine göre stroke. */
-export function tipStrokeColorExpr(
-  fallback: string = TIP_STROKE_COLORS.diger
-): ExpressionSpecification {
-  return [
-    "match",
-    ["get", "tip_kanal"],
-    "petshop",
-    TIP_STROKE_COLORS.petshop,
-    "veteriner",
-    TIP_STROKE_COLORS.veteriner,
-    fallback,
-  ];
+export function isTipFilterActive(filter: TipKanalFilter): boolean {
+  return !filter.petshop || !filter.veteriner;
 }
 
-export function tipStrokeWidthExpr(
-  tipWidth = 2.5,
-  defaultWidth = 1.25
-): ExpressionSpecification {
-  return [
-    "match",
-    ["get", "tip_kanal"],
-    "petshop",
-    tipWidth,
-    "veteriner",
-    tipWidth,
-    defaultWidth,
-  ];
+export function tipPassesFilter(
+  tip: TipKanal,
+  filter: TipKanalFilter,
+  includeDiger: boolean
+): boolean {
+  if (tip === "diger") return includeDiger;
+  return filter[tip];
 }

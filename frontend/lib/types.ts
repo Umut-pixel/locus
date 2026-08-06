@@ -27,7 +27,7 @@ export interface MusteriHarita {
   musteri_grubu?: string | null;
   geocode_hassasiyet: GeocodeHassasiyet | null;
   risk_durumu: RiskDurumu;
-  /** Harita stroke — GeoJSON’da türetilir (petshop / veteriner / diger). */
+  /** Harita kanal filtresi — GeoJSON’da türetilir (petshop / veteriner / diger). */
   tip_kanal?: TipKanal;
   /** ISO timestamptz — satırın son güncellenme anı */
   guncellendi?: string | null;
@@ -130,4 +130,36 @@ export interface MusteriFavori {
   lat: number;
   lon: number;
   risk_durumu: RiskDurumu | null;
+}
+
+/** `public.musteri_gizlenenler_liste` — haritadan gizlenen müşteri. */
+export interface MusteriGizlenen {
+  gizle_id: string;
+  olusturulma: string;
+  musteri_kodu: string;
+  unvan: string;
+  adres: string | null;
+  sehir: string | null;
+  ilce: string | null;
+  lat: number;
+  lon: number;
+  risk_durumu: RiskDurumu | null;
+}
+
+/** `public.potansiyel_gizlenenler_liste` — haritadan gizlenen potansiyel. */
+export interface PotansiyelGizlenen {
+  gizle_id: string;
+  olusturulma: string;
+  id: string;
+  kaynak_id: string | null;
+  isim: string | null;
+  adres: string | null;
+  il: string | null;
+  ilce: string | null;
+  lat: number;
+  lon: number;
+  primary_type: string | null;
+  google_types: string[] | null;
+  kalite_bayragi: string | null;
+  tarandigi_tarih: string | null;
 }

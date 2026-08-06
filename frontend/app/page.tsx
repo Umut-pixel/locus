@@ -13,6 +13,7 @@ import { FilterPanel } from "@/components/sidebar/FilterPanel";
 import { MobileFilterSheet } from "@/components/sidebar/MobileFilterSheet";
 import { RiskLegend } from "@/components/map/RiskLegend";
 import { RiskModeToggle } from "@/components/map/RiskModeToggle";
+import { TipKanalToggle } from "@/components/map/TipKanalToggle";
 import { PotansiyelDetailCard } from "@/components/map/PotansiyelDetailCard";
 import { PotansiyelLayerToggle } from "@/components/map/PotansiyelLayerToggle";
 import { LoginEnterTransition } from "@/components/auth/LoginEnterTransition";
@@ -22,11 +23,14 @@ import { Skeleton } from "@/components/ui/skeleton";
 import type { ImportStage } from "@/components/import/DataImportFlow";
 import { useIsMobileLayout } from "@/hooks/useMediaQuery";
 import { useMusteriFavoriler } from "@/hooks/useMusteriFavoriler";
+import { useMusteriGizlenenler } from "@/hooks/useMusteriGizlenenler";
 import { useMusteriHarita } from "@/hooks/useMusteriHarita";
 import type { MusteriSearchHit } from "@/hooks/useMusteriSearch";
 import { usePanoramaSyncStatus } from "@/hooks/usePanoramaSyncStatus";
 import { usePotansiyelFavoriler } from "@/hooks/usePotansiyelFavoriler";
+import { usePotansiyelGizlenenler } from "@/hooks/usePotansiyelGizlenenler";
 import { usePotansiyelHarita } from "@/hooks/usePotansiyelHarita";
+import type { GizlenenItem } from "@/components/sidebar/GizlenenList";
 import type { SonraBakItem } from "@/components/sidebar/PotansiyelFavoriList";
 import { musterilerToGeoJSON } from "@/lib/geojson";
 import type { UploadResult } from "@/lib/import/types";
@@ -38,6 +42,13 @@ import {
   withEffectiveRiskRows,
   type RiskMetricMode,
 } from "@/lib/risk-mode";
+import {
+  DEFAULT_TIP_FILTER,
+  isTipFilterActive,
+  tipKanalFromPrimaryType,
+  tipPassesFilter,
+  type TipKanalFilter,
+} from "@/lib/tip-style";
 import type {
   MusteriHarita,
   PotansiyelHarita,
@@ -95,6 +106,14 @@ export default function Home() {
   );
   const [showPotansiyel, setShowPotansiyel] = useState(false);
   const [onlyFavoriler, setOnlyFavoriler] = useState(false);
+  const [onlyGizlenen, setOnlyGizlenen] = useState(false);
+  /** Arama / listeden seçilen gizlenen — haritada geçici görünür. */
+  const [revealMusteriKodu, setRevealMusteriKodu] = useState<string | null>(
+    null
+  );
+  const [revealPotansiyelId, setRevealPotansiyelId] = useState<string | null>(
+    null
+  );
   const [potansiyelFocusTarget, setPotansiyelFocusTarget] = useState<{
     id: string;
     lat: number;
@@ -114,7 +133,6 @@ export default function Home() {
   const {
     data: potansiyelRows,
     loading: potansiyelLoading,
-    removeLocal: removePotansiyelLocal,
   } = usePotansiyelHarita({ enabled: showPotansiyel });
 
   const {
@@ -125,7 +143,6 @@ export default function Home() {
     updateNote: updatePotansiyelFavoriNote,
     isFavori: isPotansiyelFavori,
     getNote: getPotansiyelFavoriNote,
-    removeLocal: removePotansiyelFavoriLocal,
   } = usePotansiyelFavoriler();
 
   const {
@@ -138,7 +155,24 @@ export default function Home() {
     getNote: getMusteriFavoriNote,
   } = useMusteriFavoriler();
 
+  const {
+    items: musteriGizlenenler,
+    gizlenenKodlari: musteriGizlenenKodlari,
+    loading: musteriGizlenenLoading,
+    toggle: toggleMusteriGizle,
+    isGizlenen: isMusteriGizlenen,
+  } = useMusteriGizlenenler();
+
+  const {
+    items: potansiyelGizlenenler,
+    gizlenenIds: potansiyelGizlenenIds,
+    loading: potansiyelGizlenenLoading,
+    toggle: togglePotansiyelGizle,
+    isGizlenen: isPotansiyelGizlenen,
+  } = usePotansiyelGizlenenler();
+
   const favorilerLoading = potansiyelFavorilerLoading || musteriFavorilerLoading;
+  const gizlenenLoading = musteriGizlenenLoading || potansiyelGizlenenLoading;
 
   const sonraBakItems = useMemo((): SonraBakItem[] => {
     const merged: SonraBakItem[] = [
@@ -159,10 +193,31 @@ export default function Home() {
     return merged;
   }, [musteriFavoriler, potansiyelFavoriler]);
 
+  const gizlenenItems = useMemo((): GizlenenItem[] => {
+    const merged: GizlenenItem[] = [
+      ...musteriGizlenenler.map((item) => ({
+        kind: "musteri" as const,
+        item,
+      })),
+      ...potansiyelGizlenenler.map((item) => ({
+        kind: "potansiyel" as const,
+        item,
+      })),
+    ];
+    merged.sort((a, b) => {
+      const ta = a.item.olusturulma;
+      const tb = b.item.olusturulma;
+      return tb.localeCompare(ta);
+    });
+    return merged;
+  }, [musteriGizlenenler, potansiyelGizlenenler]);
+
   const [selectedCities, setSelectedCities] = useState<string[]>([]);
   const [selectedRisk, setSelectedRisk] = useState<RiskDurumu | null>(null);
   /** Varsayılan: YEM TOPTAN vb. haritada yok; yalnızca petshop + veteriner. */
   const [includeDigerKanallar, setIncludeDigerKanallar] = useState(false);
+  const [tipFilter, setTipFilter] =
+    useState<TipKanalFilter>(DEFAULT_TIP_FILTER);
   const [riskMode, setRiskMode] = useState<RiskMetricMode>("sevkiyat");
   const [search, setSearch] = useState("");
   const [focusTarget, setFocusTarget] = useState<{
@@ -207,8 +262,9 @@ export default function Home() {
       cities: selectedCities,
       risk: selectedRisk,
       includeDigerKanallar,
+      tipFilter,
     }),
-    [selectedCities, selectedRisk, includeDigerKanallar]
+    [selectedCities, selectedRisk, includeDigerKanallar, tipFilter]
   );
 
   const cities = useMemo(() => {
@@ -220,10 +276,31 @@ export default function Home() {
   }, [scoredRows]);
 
   const filteredRows = useMemo(() => {
-    const base = filterRowsLocally(scoredRows, filterState);
-    if (!onlyFavoriler) return base;
-    return base.filter((r) => musteriFavoriKodlari.has(r.musteri_kodu));
-  }, [scoredRows, filterState, onlyFavoriler, musteriFavoriKodlari]);
+    let base = filterRowsLocally(scoredRows, filterState);
+
+    if (onlyGizlenen) {
+      base = base.filter((r) => musteriGizlenenKodlari.has(r.musteri_kodu));
+    } else {
+      base = base.filter(
+        (r) =>
+          !musteriGizlenenKodlari.has(r.musteri_kodu) ||
+          r.musteri_kodu === revealMusteriKodu
+      );
+    }
+
+    if (onlyFavoriler) {
+      base = base.filter((r) => musteriFavoriKodlari.has(r.musteri_kodu));
+    }
+    return base;
+  }, [
+    scoredRows,
+    filterState,
+    onlyFavoriler,
+    musteriFavoriKodlari,
+    onlyGizlenen,
+    musteriGizlenenKodlari,
+    revealMusteriKodu,
+  ]);
 
   // Clustering doğru kalsın diye filtreli GeoJSON.
   const geojson = useMemo(
@@ -232,11 +309,35 @@ export default function Home() {
   );
 
   const potansiyelGeojson = useMemo(() => {
-    const rows = onlyFavoriler
+    let next = onlyFavoriler
       ? potansiyelRows.filter((r) => potansiyelFavoriIds.has(r.id))
       : potansiyelRows;
-    return potansiyellerToGeoJSON(rows, potansiyelFavoriIds);
-  }, [potansiyelRows, potansiyelFavoriIds, onlyFavoriler]);
+    next = next.filter((r) =>
+      tipPassesFilter(
+        tipKanalFromPrimaryType(r.primary_type),
+        tipFilter,
+        includeDigerKanallar
+      )
+    );
+    if (onlyGizlenen) {
+      next = next.filter((r) => potansiyelGizlenenIds.has(r.id));
+    } else {
+      next = next.filter(
+        (r) =>
+          !potansiyelGizlenenIds.has(r.id) || r.id === revealPotansiyelId
+      );
+    }
+    return potansiyellerToGeoJSON(next, potansiyelFavoriIds);
+  }, [
+    potansiyelRows,
+    potansiyelFavoriIds,
+    onlyFavoriler,
+    tipFilter,
+    includeDigerKanallar,
+    onlyGizlenen,
+    potansiyelGizlenenIds,
+    revealPotansiyelId,
+  ]);
 
   const handleUploadResult = useCallback((result: UploadResult) => {
     setLastUploadResult(result);
@@ -296,7 +397,8 @@ export default function Home() {
   const hasActiveFilters =
     selectedCities.length > 0 ||
     selectedRisk !== null ||
-    includeDigerKanallar;
+    includeDigerKanallar ||
+    isTipFilterActive(tipFilter);
 
   const toggleCity = useCallback((city: string) => {
     setSelectedCities((prev) =>
@@ -308,12 +410,20 @@ export default function Home() {
     setSelectedCities([]);
     setSelectedRisk(null);
     setIncludeDigerKanallar(false);
+    setTipFilter(DEFAULT_TIP_FILTER);
+    setOnlyGizlenen(false);
+    setRevealMusteriKodu(null);
+    setRevealPotansiyelId(null);
     setSearch("");
   }, []);
 
   const handleRiskModeChange = useCallback((mode: RiskMetricMode) => {
     setRiskMode(mode);
     setSelectedRisk(null);
+  }, []);
+
+  const handleTipFilterChange = useCallback((next: TipKanalFilter) => {
+    setTipFilter(next);
   }, []);
 
   const handleSelectMusteri = useCallback(
@@ -386,6 +496,10 @@ export default function Home() {
           geocode_hassasiyet: null,
         } satisfies MusteriHarita);
 
+      if (musteriGizlenenKodlari.has(resolved.musteri_kodu)) {
+        setRevealMusteriKodu(resolved.musteri_kodu);
+      }
+
       setImportOpen(false);
       setImportActivity(null);
       setHighlightedRutKod(null);
@@ -398,39 +512,81 @@ export default function Home() {
         nonce: Date.now(),
       });
     },
-    [scoredRows]
+    [scoredRows, musteriGizlenenKodlari]
   );
 
   const handleCloseDetail = useCallback(() => {
     setSelectedMusteri(null);
     setPanelAnchor(null);
     setHighlightedRutKod(null);
+    setRevealMusteriKodu(null);
   }, []);
 
   const handleClosePotansiyel = useCallback(() => {
     setSelectedPotansiyel(null);
     setPotansiyelAnchor(null);
+    setRevealPotansiyelId(null);
   }, []);
 
-  const handleHidePotansiyel = useCallback(
+  const handleTogglePotansiyelGizle = useCallback(
     async (p: PotansiyelHarita) => {
-      const res = await fetch("/api/potansiyel/hide", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: p.id }),
+      const wasHidden = isPotansiyelGizlenen(p.id);
+      await togglePotansiyelGizle(p.id, {
+        snapshot: {
+          gizle_id: "",
+          olusturulma: new Date().toISOString(),
+          id: p.id,
+          kaynak_id: p.kaynak_id,
+          isim: p.isim,
+          adres: p.adres,
+          il: p.il,
+          ilce: p.ilce,
+          lat: p.lat,
+          lon: p.lon,
+          primary_type: p.primary_type,
+          google_types: p.google_types,
+          kalite_bayragi: p.kalite_bayragi,
+          tarandigi_tarih: p.tarandigi_tarih,
+        },
       });
-      const payload = (await res.json().catch(() => ({}))) as {
-        error?: string;
-      };
-      if (!res.ok) {
-        throw new Error(payload.error ?? `Gizleme başarısız (${res.status})`);
+      if (!wasHidden) {
+        // Yeni gizlendi → panel kapat, reveal temizle
+        setRevealPotansiyelId(null);
+        setSelectedPotansiyel(null);
+        setPotansiyelAnchor(null);
+      } else {
+        setRevealPotansiyelId(null);
       }
-      removePotansiyelLocal(p.id);
-      removePotansiyelFavoriLocal(p.id);
-      setSelectedPotansiyel(null);
-      setPotansiyelAnchor(null);
     },
-    [removePotansiyelLocal, removePotansiyelFavoriLocal]
+    [togglePotansiyelGizle, isPotansiyelGizlenen]
+  );
+
+  const handleToggleMusteriGizle = useCallback(
+    async (m: MusteriHarita) => {
+      const wasHidden = isMusteriGizlenen(m.musteri_kodu);
+      await toggleMusteriGizle(m.musteri_kodu, {
+        snapshot: {
+          gizle_id: "",
+          olusturulma: new Date().toISOString(),
+          musteri_kodu: m.musteri_kodu,
+          unvan: m.unvan,
+          adres: m.adres ?? null,
+          sehir: m.sehir,
+          ilce: m.ilce,
+          lat: m.lat,
+          lon: m.lon,
+          risk_durumu: m.risk_durumu,
+        },
+      });
+      if (!wasHidden) {
+        setRevealMusteriKodu(null);
+        setSelectedMusteri(null);
+        setPanelAnchor(null);
+      } else {
+        setRevealMusteriKodu(null);
+      }
+    },
+    [toggleMusteriGizle, isMusteriGizlenen]
   );
 
   const handleTogglePotansiyelFavori = useCallback(
@@ -495,8 +651,21 @@ export default function Home() {
 
   const handleOnlyFavorilerChange = useCallback((value: boolean) => {
     setOnlyFavoriler(value);
-    if (value) setShowPotansiyel(true);
+    if (value) {
+      setShowPotansiyel(true);
+      setOnlyGizlenen(false);
+    }
   }, []);
+
+  const handleOnlyGizlenenChange = useCallback((value: boolean) => {
+    setOnlyGizlenen(value);
+    if (value) {
+      setOnlyFavoriler(false);
+      setRevealMusteriKodu(null);
+      setRevealPotansiyelId(null);
+      if (potansiyelGizlenenIds.size > 0) setShowPotansiyel(true);
+    }
+  }, [potansiyelGizlenenIds.size]);
 
   const handleFavoriSelect = useCallback((entry: SonraBakItem) => {
     setImportOpen(false);
@@ -504,6 +673,40 @@ export default function Home() {
     setHighlightedRutKod(null);
     if (entry.kind === "musteri") {
       const item = entry.item;
+      setSelectedPotansiyel(null);
+      setPotansiyelAnchor(null);
+      if (musteriGizlenenKodlari.has(item.musteri_kodu)) {
+        setRevealMusteriKodu(item.musteri_kodu);
+      }
+      setFocusTarget({
+        musteri_kodu: item.musteri_kodu,
+        lat: item.lat,
+        lon: item.lon,
+        nonce: Date.now(),
+      });
+      return;
+    }
+    setShowPotansiyel(true);
+    setSelectedMusteri(null);
+    setPanelAnchor(null);
+    if (potansiyelGizlenenIds.has(entry.item.id)) {
+      setRevealPotansiyelId(entry.item.id);
+    }
+    setPotansiyelFocusTarget({
+      id: entry.item.id,
+      lat: entry.item.lat,
+      lon: entry.item.lon,
+      nonce: Date.now(),
+    });
+  }, [musteriGizlenenKodlari, potansiyelGizlenenIds]);
+
+  const handleGizlenenSelect = useCallback((entry: GizlenenItem) => {
+    setImportOpen(false);
+    setImportActivity(null);
+    setHighlightedRutKod(null);
+    if (entry.kind === "musteri") {
+      const item = entry.item;
+      setRevealMusteriKodu(item.musteri_kodu);
       setSelectedPotansiyel(null);
       setPotansiyelAnchor(null);
       setFocusTarget({
@@ -515,6 +718,7 @@ export default function Home() {
       return;
     }
     setShowPotansiyel(true);
+    setRevealPotansiyelId(entry.item.id);
     setSelectedMusteri(null);
     setPanelAnchor(null);
     setPotansiyelFocusTarget({
@@ -567,6 +771,12 @@ export default function Home() {
       onlyFavoriler,
       onOnlyFavorilerChange: handleOnlyFavorilerChange,
       onFavoriSelect: handleFavoriSelect,
+      gizlenen: gizlenenItems,
+      gizlenenLoading,
+      gizlenenKodlari: musteriGizlenenKodlari,
+      onlyGizlenen,
+      onOnlyGizlenenChange: handleOnlyGizlenenChange,
+      onGizlenenSelect: handleGizlenenSelect,
     }),
     [
       cities,
@@ -588,6 +798,12 @@ export default function Home() {
       onlyFavoriler,
       handleOnlyFavorilerChange,
       handleFavoriSelect,
+      gizlenenItems,
+      gizlenenLoading,
+      musteriGizlenenKodlari,
+      onlyGizlenen,
+      handleOnlyGizlenenChange,
+      handleGizlenenSelect,
     ]
   );
 
@@ -623,6 +839,10 @@ export default function Home() {
         {/* Masaüstü: zoom solunda. Mobilde üst toolbar'a taşındı. */}
         <div className="risk-mode-toggle-anchor hidden lg:flex lg:flex-col lg:items-end lg:gap-1.5">
           <RiskModeToggle value={riskMode} onChange={handleRiskModeChange} />
+          <TipKanalToggle
+            value={tipFilter}
+            onChange={handleTipFilterChange}
+          />
           <PotansiyelLayerToggle
             active={showPotansiyel}
             onChange={handleShowPotansiyelChange}
@@ -672,10 +892,15 @@ export default function Home() {
             </div>
             {/* Ayrı satır: dar ekranda menü/yükle arasına sıkışıp kaybolmasın */}
             {isMobileLayout ? (
-              <div className="pointer-events-auto flex w-fit flex-wrap items-center gap-1.5">
+              <div className="pointer-events-auto flex w-fit flex-col items-start gap-1.5">
                 <RiskModeToggle
                   value={riskMode}
                   onChange={handleRiskModeChange}
+                  className="shadow-md"
+                />
+                <TipKanalToggle
+                  value={tipFilter}
+                  onChange={handleTipFilterChange}
                   className="shadow-md"
                 />
                 <PotansiyelLayerToggle
@@ -724,6 +949,8 @@ export default function Home() {
                 favoriNot={getMusteriFavoriNote(selectedMusteri.musteri_kodu)}
                 onToggleFavori={handleToggleMusteriFavori}
                 onUpdateFavoriNot={handleUpdateMusteriFavoriNot}
+                isGizlenen={isMusteriGizlenen(selectedMusteri.musteri_kodu)}
+                onToggleGizle={handleToggleMusteriGizle}
               />
             )}
             {selectedPotansiyel && potansiyelAnchor && (
@@ -733,7 +960,8 @@ export default function Home() {
                 anchor={potansiyelAnchor}
                 containerRef={mapAreaRef}
                 onClose={handleClosePotansiyel}
-                onHide={handleHidePotansiyel}
+                isGizlenen={isPotansiyelGizlenen(selectedPotansiyel.id)}
+                onToggleGizle={handleTogglePotansiyelGizle}
                 isFavori={isPotansiyelFavori(selectedPotansiyel.id)}
                 favoriNot={getPotansiyelFavoriNote(selectedPotansiyel.id)}
                 onToggleFavori={handleTogglePotansiyelFavori}

@@ -8,7 +8,6 @@ import {
   type ClusterConfig,
 } from "@/lib/map-clusters";
 import { RISK_COLORS } from "@/lib/risk-style";
-import { tipStrokeColorExpr } from "@/lib/tip-style";
 import type { MusteriFeatureCollection } from "@/lib/geojson";
 
 export const SOURCE_ID = "musteriler";
@@ -16,8 +15,6 @@ export const CLUSTER_LAYER = "clusters";
 export const CLUSTER_COUNT_LAYER = "cluster-count";
 /** Güncellenen noktanın etrafındaki dış halka (point'in altında). */
 export const UPDATED_RING_LAYER = "updated-point-ring";
-/** Petshop / veteriner — risk noktasının çevresinde renkli halka. */
-export const TIP_RING_LAYER = "tip-point-ring";
 export const POINT_LAYER = "unclustered-point";
 /** Görünmez dokunma alanı — görsel noktadan büyük. */
 export const POINT_HIT_LAYER = "unclustered-point-hit";
@@ -31,8 +28,6 @@ export const MUSTERI_FAVORI_STROKE = "#f59e0b";
 /** Dokunma hedefi (~36–44px); görsel yarıçap ayrı kalır. */
 export const POINT_HIT_RADIUS = 18;
 export const POINT_VISUAL_RADIUS = 7;
-/** Tip halkası — point ile updated ring arasında. */
-export const TIP_RING_RADIUS = 10;
 
 export function applyClusterDimPaint(map: MapboxMap, dimmed: boolean) {
   if (map.getLayer(CLUSTER_LAYER)) {
@@ -118,33 +113,6 @@ export function addCustomerLayers(
         "circle-color": "rgba(0,0,0,0)",
         "circle-stroke-width": 2.5,
         "circle-stroke-color": UPDATED_RING_COLOR,
-        "circle-stroke-opacity": 0.95,
-        "circle-opacity": 1,
-      },
-    },
-    before
-  );
-
-  // Tip halkası — petshop (cyan) / veteriner (fuchsia); risk fill bozulmaz
-  map.addLayer(
-    {
-      id: TIP_RING_LAYER,
-      type: "circle",
-      source: SOURCE_ID,
-      filter: [
-        "all",
-        ["!", ["has", "point_count"]],
-        [
-          "any",
-          ["==", ["get", "tip_kanal"], "petshop"],
-          ["==", ["get", "tip_kanal"], "veteriner"],
-        ],
-      ],
-      paint: {
-        "circle-radius": TIP_RING_RADIUS,
-        "circle-color": "rgba(0,0,0,0)",
-        "circle-stroke-width": 2.5,
-        "circle-stroke-color": tipStrokeColorExpr(),
         "circle-stroke-opacity": 0.95,
         "circle-opacity": 1,
       },
@@ -265,7 +233,6 @@ export function recreateCustomerSource(
     SELECTED_LAYER,
     POINT_HIT_LAYER,
     POINT_LAYER,
-    TIP_RING_LAYER,
     UPDATED_RING_LAYER,
     CLUSTER_COUNT_LAYER,
     CLUSTER_LAYER,

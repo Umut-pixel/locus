@@ -12,6 +12,7 @@ import {
 } from "react";
 import {
   ExternalLinkIcon,
+  EyeIcon,
   EyeOffIcon,
   GripHorizontalIcon,
   MapPinnedIcon,
@@ -136,8 +137,9 @@ interface PotansiyelDetailCardProps {
   anchor: PanelAnchor;
   containerRef: RefObject<HTMLDivElement | null>;
   onClose: () => void;
-  /** Yanlış kayıt — haritadan gizle. */
-  onHide?: (potansiyel: PotansiyelHarita) => void | Promise<void>;
+  /** Haritadan gizlendi mi (geri alınabilir). */
+  isGizlenen?: boolean;
+  onToggleGizle?: (potansiyel: PotansiyelHarita) => void | Promise<void>;
   /** Ortak "sonra bak" listesinde mi. */
   isFavori?: boolean;
   favoriNot?: string | null;
@@ -153,7 +155,8 @@ export const PotansiyelDetailCard = memo(function PotansiyelDetailCard({
   anchor,
   containerRef,
   onClose,
-  onHide,
+  isGizlenen = false,
+  onToggleGizle,
   isFavori = false,
   favoriNot = null,
   onToggleFavori,
@@ -305,17 +308,18 @@ export const PotansiyelDetailCard = memo(function PotansiyelDetailCard({
   );
   const mapsHref = useMemo(() => googleMapsUrl(potansiyel), [potansiyel]);
 
-  const handleHide = async () => {
-    if (!onHide || hiding) return;
+  const handleToggleGizle = async () => {
+    if (!onToggleGizle || hiding) return;
     setHiding(true);
     setHideError(null);
     try {
-      await onHide(potansiyel);
+      await onToggleGizle(potansiyel);
     } catch (err) {
-      setHiding(false);
       setHideError(
-        err instanceof Error ? err.message : "Gizleme başarısız"
+        err instanceof Error ? err.message : "Gizleme güncellenemedi"
       );
+    } finally {
+      setHiding(false);
     }
   };
 
@@ -455,6 +459,31 @@ export const PotansiyelDetailCard = memo(function PotansiyelDetailCard({
                 />
               </button>
             ) : null}
+            {onToggleGizle ? (
+              <button
+                type="button"
+                onClick={() => void handleToggleGizle()}
+                onPointerDown={(e) => e.stopPropagation()}
+                disabled={hiding}
+                aria-pressed={isGizlenen}
+                aria-label={
+                  isGizlenen ? "Gizlemeyi kaldır" : "Haritadan gizle"
+                }
+                className={cn(
+                  "flex size-10 cursor-pointer items-center justify-center rounded-full transition-colors sm:size-8",
+                  isGizlenen
+                    ? "text-slate-300 hover:bg-slate-400/10"
+                    : "text-muted-foreground hover:bg-white/10 hover:text-foreground",
+                  hiding && "opacity-60"
+                )}
+              >
+                {isGizlenen ? (
+                  <EyeIcon className="size-4" />
+                ) : (
+                  <EyeOffIcon className="size-4" />
+                )}
+              </button>
+            ) : null}
             <button
               type="button"
               onClick={onClose}
@@ -528,18 +557,18 @@ export const PotansiyelDetailCard = memo(function PotansiyelDetailCard({
             Google Maps’te aç
             <ExternalLinkIcon className="size-3 opacity-60" />
           </Button>
-          {onHide ? (
+          {onToggleGizle && isGizlenen ? (
             <Button
               type="button"
               variant="outline"
               size="sm"
               className="w-full rounded-md"
               disabled={hiding}
-              onClick={() => void handleHide()}
+              onClick={() => void handleToggleGizle()}
               onPointerDown={(e) => e.stopPropagation()}
             >
-              <EyeOffIcon className="size-3.5" />
-              {hiding ? "Gizleniyor…" : "Haritadan gizle"}
+              <EyeIcon className="size-3.5" />
+              {hiding ? "Güncelleniyor…" : "Gizlemeyi kaldır"}
             </Button>
           ) : null}
           {favoriError ? (

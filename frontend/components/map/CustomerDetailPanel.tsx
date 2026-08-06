@@ -12,6 +12,8 @@ import {
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
+  EyeIcon,
+  EyeOffIcon,
   GripHorizontalIcon,
   StarIcon,
   XIcon,
@@ -167,6 +169,9 @@ interface CustomerDetailPanelProps {
     musteri: MusteriHarita,
     notMetni: string | null
   ) => void | Promise<void>;
+  /** Haritadan gizlendi mi. */
+  isGizlenen?: boolean;
+  onToggleGizle?: (musteri: MusteriHarita) => void | Promise<void>;
 }
 
 export const CustomerDetailPanel = memo(function CustomerDetailPanel({
@@ -180,6 +185,8 @@ export const CustomerDetailPanel = memo(function CustomerDetailPanel({
   favoriNot = null,
   onToggleFavori,
   onUpdateFavoriNot,
+  isGizlenen = false,
+  onToggleGizle,
 }: CustomerDetailPanelProps) {
   const panelRef = useRef<HTMLDivElement | null>(null);
   const pageMeasureRef = useRef<HTMLDivElement | null>(null);
@@ -197,6 +204,8 @@ export const CustomerDetailPanel = memo(function CustomerDetailPanel({
   const [sheetExpanded, setSheetExpanded] = useState(true);
   const [favoriBusy, setFavoriBusy] = useState(false);
   const [favoriError, setFavoriError] = useState<string | null>(null);
+  const [gizleBusy, setGizleBusy] = useState(false);
+  const [gizleError, setGizleError] = useState<string | null>(null);
   const [noteDraft, setNoteDraft] = useState(favoriNot ?? "");
   const [noteSaving, setNoteSaving] = useState(false);
   const noteTimerRef = useRef(0);
@@ -276,6 +285,8 @@ export const CustomerDetailPanel = memo(function CustomerDetailPanel({
     setSnapshot(null);
     setFavoriBusy(false);
     setFavoriError(null);
+    setGizleBusy(false);
+    setGizleError(null);
 
     let cancelled = false;
     (async () => {
@@ -324,6 +335,21 @@ export const CustomerDetailPanel = memo(function CustomerDetailPanel({
       );
     } finally {
       setFavoriBusy(false);
+    }
+  };
+
+  const handleToggleGizle = async () => {
+    if (!onToggleGizle || gizleBusy) return;
+    setGizleBusy(true);
+    setGizleError(null);
+    try {
+      await onToggleGizle(musteri);
+    } catch (err) {
+      setGizleError(
+        err instanceof Error ? err.message : "Gizleme güncellenemedi"
+      );
+    } finally {
+      setGizleBusy(false);
     }
   };
 
@@ -857,6 +883,31 @@ export const CustomerDetailPanel = memo(function CustomerDetailPanel({
                 />
               </button>
             ) : null}
+            {onToggleGizle ? (
+              <button
+                type="button"
+                onClick={() => void handleToggleGizle()}
+                onPointerDown={(e) => e.stopPropagation()}
+                disabled={gizleBusy}
+                aria-pressed={isGizlenen}
+                aria-label={
+                  isGizlenen ? "Gizlemeyi kaldır" : "Haritadan gizle"
+                }
+                className={cn(
+                  "flex size-10 cursor-pointer items-center justify-center rounded-full transition-colors sm:size-8",
+                  isGizlenen
+                    ? "text-slate-300 hover:bg-slate-400/10"
+                    : "text-muted-foreground hover:bg-white/10 hover:text-foreground",
+                  gizleBusy && "opacity-60"
+                )}
+              >
+                {isGizlenen ? (
+                  <EyeIcon className="size-4" />
+                ) : (
+                  <EyeOffIcon className="size-4" />
+                )}
+              </button>
+            ) : null}
             <button
               type="button"
               onClick={onClose}
@@ -1147,9 +1198,28 @@ export const CustomerDetailPanel = memo(function CustomerDetailPanel({
         >
           Rotada göster
         </Button>
+        {onToggleGizle && isGizlenen ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="w-full"
+            disabled={gizleBusy}
+            onClick={() => void handleToggleGizle()}
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+            <EyeIcon className="size-3.5" />
+            {gizleBusy ? "Güncelleniyor…" : "Gizlemeyi kaldır"}
+          </Button>
+        ) : null}
         {favoriError ? (
           <p className="text-[10px] leading-snug text-destructive">
             {favoriError}
+          </p>
+        ) : null}
+        {gizleError ? (
+          <p className="text-[10px] leading-snug text-destructive">
+            {gizleError}
           </p>
         ) : null}
       </div>

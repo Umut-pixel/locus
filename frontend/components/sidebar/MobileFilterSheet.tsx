@@ -41,6 +41,14 @@ interface MobileFilterSheetProps {
   onlyFavoriler?: boolean;
   onOnlyFavorilerChange?: (value: boolean) => void;
   onFavoriSelect?: (entry: SonraBakItem) => void;
+  gizlenen?: import("@/components/sidebar/GizlenenList").GizlenenItem[];
+  gizlenenLoading?: boolean;
+  gizlenenKodlari?: ReadonlySet<string>;
+  onlyGizlenen?: boolean;
+  onOnlyGizlenenChange?: (value: boolean) => void;
+  onGizlenenSelect?: (
+    entry: import("@/components/sidebar/GizlenenList").GizlenenItem
+  ) => void;
 }
 
 export function MobileFilterSheet(props: MobileFilterSheetProps) {
