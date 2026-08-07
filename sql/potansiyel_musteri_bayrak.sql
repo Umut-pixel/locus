@@ -1,5 +1,7 @@
 -- potansiyel_musteri bayrağı + harita view (musteriler_harita'ya dokunma)
 -- Not: kolon sırası değişince CREATE OR REPLACE yetmez → DROP + CREATE.
+-- eslesme_durumu: yeni | mevcut_musteri | manuel_kontrol | gizli
+--   gizli = dashboard “Haritadan gizle”; view yalnızca yeni gösterir.
 
 alter table public.potansiyel_musteriler
   add column if not exists potansiyel_musteri boolean

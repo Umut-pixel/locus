@@ -4,7 +4,7 @@ import { SESSION_COOKIE, verifySessionToken } from "@/lib/auth";
 
 const PUBLIC_PATHS = new Set(["/login", "/api/auth/login"]);
 
-/** Cron / n8n — oturum yok; route CRON_SECRET ile korur. */
+/** Database Webhook / manuel — oturum yok; route CRON_SECRET ile korur. */
 const CRON_PATHS = new Set(["/api/sync/panorama"]);
 
 export async function middleware(request: NextRequest) {
