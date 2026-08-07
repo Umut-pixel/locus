@@ -66,6 +66,7 @@ import {
 import type { MusteriHarita, RiskDurumu } from "@/lib/types";
 import { yasTutarCevir } from "@/lib/import/parse-yaslandirma";
 import { cn } from "@/lib/utils";
+import { EntityNotesButton } from "@/components/map/EntityNotesButton";
 
 const PANEL_WIDTH = 304;
 const ANCHOR_GAP = 18;
@@ -862,6 +863,10 @@ export const CustomerDetailPanel = memo(function CustomerDetailPanel({
             </h2>
           </div>
           <div className="flex shrink-0 items-center gap-0.5">
+            <EntityNotesButton
+              entityKind="musteri"
+              musteriKodu={musteri.musteri_kodu}
+            />
             {onToggleFavori ? (
               <button
                 type="button"

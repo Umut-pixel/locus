@@ -22,6 +22,7 @@ import {
 import { animate, motion, useDragControls, useMotionValue } from "motion/react";
 
 import type { PanelAnchor } from "@/components/map/CustomerDetailPanel";
+import { EntityNotesButton } from "@/components/map/EntityNotesButton";
 import { Button } from "@/components/ui/button";
 import { formatDate } from "@/lib/format";
 import type { PotansiyelHarita } from "@/lib/types";
@@ -438,6 +439,10 @@ export const PotansiyelDetailCard = memo(function PotansiyelDetailCard({
             </h2>
           </div>
           <div className="flex shrink-0 items-center gap-0.5">
+            <EntityNotesButton
+              entityKind="potansiyel"
+              potansiyelId={potansiyel.id}
+            />
             {onToggleFavori ? (
               <button
                 type="button"

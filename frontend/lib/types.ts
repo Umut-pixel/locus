@@ -163,3 +163,16 @@ export interface PotansiyelGizlenen {
   kalite_bayragi: string | null;
   tarandigi_tarih: string | null;
 }
+
+/** `public.entity_notlar` — müşteri / potansiyel serbest not. */
+export type EntityNotKind = "musteri" | "potansiyel";
+
+export interface EntityNot {
+  id: string;
+  entity_kind: EntityNotKind;
+  musteri_kodu: string | null;
+  potansiyel_id: string | null;
+  metin: string;
+  olusturulma: string;
+  guncelleme: string;
+}
