@@ -48,58 +48,101 @@ export function useMusteriFavoriler() {
       musteriKodu: string,
       opts?: { not_metni?: string | null; snapshot?: MusteriFavori }
     ): Promise<FavoriToggleResult> => {
-      const res = await fetch("/api/musteri/favori", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          musteri_kodu: musteriKodu,
-          action: "toggle",
-          ...(opts && "not_metni" in opts
-            ? { not_metni: opts.not_metni ?? null }
-            : {}),
-        }),
-      });
-      const payload = (await res.json().catch(() => ({}))) as {
-        error?: string;
-        favori?: boolean;
-        not_metni?: string | null;
-      };
-      if (!res.ok) {
-        throw new Error(payload.error ?? `Favori güncellenemedi (${res.status})`);
-      }
-
-      const nextFavori = Boolean(payload.favori);
-      const nextNote = payload.not_metni ?? null;
+      let rollback: MusteriFavori[] = [];
 
       setItems((prev) => {
-        if (!nextFavori) {
+        rollback = prev;
+        const wasFavori = prev.some((i) => i.musteri_kodu === musteriKodu);
+        const optimisticFavori = !wasFavori;
+        const optimisticNote =
+          opts && "not_metni" in opts
+            ? (opts.not_metni ?? null)
+            : (prev.find((i) => i.musteri_kodu === musteriKodu)?.not_metni ??
+              null);
+
+        if (!optimisticFavori) {
           return prev.filter((i) => i.musteri_kodu !== musteriKodu);
         }
         const existing = prev.find((i) => i.musteri_kodu === musteriKodu);
         if (existing) {
           return prev.map((i) =>
             i.musteri_kodu === musteriKodu
-              ? { ...i, not_metni: nextNote }
+              ? { ...i, not_metni: optimisticNote }
               : i
           );
         }
         const snap = opts?.snapshot;
-        if (!snap) {
-          void refresh();
-          return prev;
-        }
+        if (!snap) return prev;
         return [
           {
             ...snap,
             favori_id: snap.favori_id || `tmp-${musteriKodu}`,
-            not_metni: nextNote,
+            not_metni: optimisticNote,
             olusturulma: snap.olusturulma || new Date().toISOString(),
           },
           ...prev.filter((i) => i.musteri_kodu !== musteriKodu),
         ];
       });
 
-      return { favori: nextFavori, not_metni: nextNote };
+      try {
+        const res = await fetch("/api/musteri/favori", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            musteri_kodu: musteriKodu,
+            action: "toggle",
+            ...(opts && "not_metni" in opts
+              ? { not_metni: opts.not_metni ?? null }
+              : {}),
+          }),
+        });
+        const payload = (await res.json().catch(() => ({}))) as {
+          error?: string;
+          favori?: boolean;
+          not_metni?: string | null;
+        };
+        if (!res.ok) {
+          throw new Error(
+            payload.error ?? `Favori güncellenemedi (${res.status})`
+          );
+        }
+
+        const nextFavori = Boolean(payload.favori);
+        const nextNote = payload.not_metni ?? null;
+
+        setItems((prev) => {
+          if (!nextFavori) {
+            return prev.filter((i) => i.musteri_kodu !== musteriKodu);
+          }
+          const existing = prev.find((i) => i.musteri_kodu === musteriKodu);
+          if (existing) {
+            return prev.map((i) =>
+              i.musteri_kodu === musteriKodu
+                ? { ...i, not_metni: nextNote }
+                : i
+            );
+          }
+          const snap = opts?.snapshot;
+          if (!snap) {
+            void refresh();
+            return prev;
+          }
+          return [
+            {
+              ...snap,
+              favori_id: snap.favori_id || `tmp-${musteriKodu}`,
+              not_metni: nextNote,
+              olusturulma: snap.olusturulma || new Date().toISOString(),
+            },
+            ...prev.filter((i) => i.musteri_kodu !== musteriKodu),
+          ];
+        });
+
+        return { favori: nextFavori, not_metni: nextNote };
+      } catch (err) {
+        setItems(rollback);
+        throw err;
+      }
     },
     [refresh]
   );

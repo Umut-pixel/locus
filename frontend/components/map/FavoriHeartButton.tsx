@@ -44,10 +44,9 @@ export function FavoriHeartButton({
       aria-pressed={active}
       aria-label={active ? labelActive : labelInactive}
       className={cn(
-        "flex cursor-pointer items-center justify-center rounded-full transition-[transform,opacity] duration-150",
+        "flex cursor-pointer items-center justify-center rounded-full transition-transform duration-150",
         "hover:scale-105 active:scale-90",
         touch,
-        busy && "pointer-events-none opacity-50",
         className
       )}
     >
@@ -55,7 +54,7 @@ export function FavoriHeartButton({
         strokeWidth={active ? 1.75 : 2.25}
         className={cn(
           icon,
-          "transition-[transform,color,fill] duration-200 ease-out",
+          "transition-[transform,color,fill] duration-150 ease-out",
           active
             ? "scale-110 fill-[#ff385c] text-[#ff385c]"
             : "fill-[rgba(0,0,0,0.28)] text-white drop-shadow-[0_1px_1.5px_rgba(0,0,0,0.45)]"
