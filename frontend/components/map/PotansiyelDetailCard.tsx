@@ -16,13 +16,13 @@ import {
   EyeOffIcon,
   GripHorizontalIcon,
   MapPinnedIcon,
-  StarIcon,
   XIcon,
 } from "lucide-react";
 import { animate, motion, useDragControls, useMotionValue } from "motion/react";
 
 import type { PanelAnchor } from "@/components/map/CustomerDetailPanel";
 import { EntityNotesButton } from "@/components/map/EntityNotesButton";
+import { FavoriHeartButton } from "@/components/map/FavoriHeartButton";
 import { Button } from "@/components/ui/button";
 import { formatDate } from "@/lib/format";
 import type { PotansiyelHarita } from "@/lib/types";
@@ -444,25 +444,11 @@ export const PotansiyelDetailCard = memo(function PotansiyelDetailCard({
               potansiyelId={potansiyel.id}
             />
             {onToggleFavori ? (
-              <button
-                type="button"
-                onClick={() => void handleToggleFavori()}
-                onPointerDown={(e) => e.stopPropagation()}
-                disabled={favoriBusy}
-                aria-pressed={isFavori}
-                aria-label={isFavori ? "Sonra bak listesinden çıkar" : "Sonra bak"}
-                className={cn(
-                  "flex size-10 cursor-pointer items-center justify-center rounded-full transition-colors sm:size-8",
-                  isFavori
-                    ? "text-amber-400 hover:bg-amber-400/10"
-                    : "text-muted-foreground hover:bg-white/10 hover:text-amber-300",
-                  favoriBusy && "opacity-60"
-                )}
-              >
-                <StarIcon
-                  className={cn("size-4", isFavori && "fill-current")}
-                />
-              </button>
+              <FavoriHeartButton
+                active={isFavori}
+                busy={favoriBusy}
+                onToggle={() => void handleToggleFavori()}
+              />
             ) : null}
             {onToggleGizle ? (
               <button

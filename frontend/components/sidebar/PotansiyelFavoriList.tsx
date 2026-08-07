@@ -1,7 +1,8 @@
 "use client";
 
-import { StarIcon } from "lucide-react";
+import { HeartIcon } from "lucide-react";
 
+import { FAVORI_HEART_COLOR } from "@/components/map/FavoriHeartButton";
 import type { MusteriFavori, PotansiyelFavori } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -17,7 +18,6 @@ interface SonraBakListProps {
   onSelect: (entry: SonraBakItem) => void;
   className?: string;
 }
-
 /** Sidebar / sheet — ortak "sonra bak" listesi (müşteri + potansiyel). */
 export function SonraBakList({
   items,
@@ -44,7 +44,7 @@ export function SonraBakList({
             className={cn(
               "rounded-full px-2 py-0.5 text-[10px] font-medium transition-colors",
               onlyFavoriler
-                ? "bg-amber-500/15 text-amber-700 dark:text-amber-200"
+                ? "bg-[#ff385c]/15 text-[#ff385c]"
                 : "text-muted-foreground hover:text-foreground"
             )}
           >
@@ -57,7 +57,7 @@ export function SonraBakList({
         <p className="text-[11px] text-muted-foreground">Yükleniyor…</p>
       ) : items.length === 0 ? (
         <p className="text-[11px] leading-relaxed text-muted-foreground">
-          Müşteri veya potansiyel kartındaki yıldızla buraya ekleyin.
+          Müşteri veya potansiyel kartındaki kalple buraya ekleyin.
         </p>
       ) : (
         <ul className="max-h-44 space-y-0.5 overflow-y-auto overscroll-contain rounded-xl border border-border/60 bg-muted/20 py-1">
@@ -72,7 +72,13 @@ export function SonraBakList({
                     className="flex w-full items-start gap-2 px-2.5 py-1.5 text-left hover:bg-muted/50"
                     onClick={() => onSelect(entry)}
                   >
-                    <StarIcon className="mt-0.5 size-3 shrink-0 fill-amber-400 text-amber-400" />
+                    <HeartIcon
+                      className="mt-0.5 size-3 shrink-0"
+                      style={{
+                        color: FAVORI_HEART_COLOR,
+                        fill: FAVORI_HEART_COLOR,
+                      }}
+                    />
                     <span className="min-w-0 flex-1">
                       <span className="line-clamp-1 text-[12px] font-medium leading-snug">
                         {item.unvan}
@@ -97,7 +103,13 @@ export function SonraBakList({
                   className="flex w-full items-start gap-2 px-2.5 py-1.5 text-left hover:bg-muted/50"
                   onClick={() => onSelect(entry)}
                 >
-                  <StarIcon className="mt-0.5 size-3 shrink-0 fill-amber-400 text-amber-400" />
+                  <HeartIcon
+                    className="mt-0.5 size-3 shrink-0"
+                    style={{
+                      color: FAVORI_HEART_COLOR,
+                      fill: FAVORI_HEART_COLOR,
+                    }}
+                  />
                   <span className="min-w-0 flex-1">
                     <span className="line-clamp-1 text-[12px] font-medium leading-snug">
                       {item.isim ?? "İsimsiz"}
@@ -118,5 +130,5 @@ export function SonraBakList({
   );
 }
 
-/** @deprecated Prefer SonraBakList */
+/** @deprecated — eski ad; SonraBakList kullan. */
 export const PotansiyelFavoriList = SonraBakList;
