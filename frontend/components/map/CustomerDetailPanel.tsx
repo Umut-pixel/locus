@@ -938,6 +938,7 @@ export const CustomerDetailPanel = memo(function CustomerDetailPanel({
             gecikmeGun={gecikmeGun}
             sonTeslimatTarihi={musteri.son_teslimat_tarihi}
             sonGuncelleme={musteri.yas_inserted_at ?? musteri.guncellendi}
+            st={musteri.yas_st}
             compact
           />
         </div>
@@ -1277,6 +1278,7 @@ function RiskPeekSummary({
   gecikmeGun,
   sonTeslimatTarihi,
   sonGuncelleme,
+  st,
   compact = false,
 }: {
   accent: string;
@@ -1286,11 +1288,13 @@ function RiskPeekSummary({
   gecikmeGun: number | null | undefined;
   sonTeslimatTarihi: string | null | undefined;
   sonGuncelleme?: string | null;
+  st?: string | null;
   compact?: boolean;
 }) {
   const guncellemeShort = sonGuncelleme
     ? formatDateTimeShort(sonGuncelleme)
     : null;
+  const stLabel = st?.trim() || null;
   const teslimatLine =
     hicTeslimat || gecikmeGun == null
       ? guncellemeShort
@@ -1352,6 +1356,16 @@ function RiskPeekSummary({
       >
         {teslimatLine}
       </p>
+      {stLabel ? (
+        <p
+          className={cn(
+            "font-mono text-[10px] tracking-wide text-muted-foreground uppercase",
+            compact ? "mt-0.5 truncate" : "mt-1"
+          )}
+        >
+          ST {stLabel}
+        </p>
+      ) : null}
     </>
   );
 }
@@ -1465,6 +1479,7 @@ function BorclarPage({ musteri }: { musteri: MusteriHarita }) {
         />
         {YAS_BUCKET_FIELDS.map(({ field, label }) => {
           const amount = Number(musteri[field] ?? 0);
+          if (!(amount > 0.005)) return null;
           const isRiskBand =
             field === "hf_56_62" ||
             field === "hf_63_69" ||
@@ -1473,9 +1488,7 @@ function BorclarPage({ musteri }: { musteri: MusteriHarita }) {
             <MetricRow
               key={label}
               label={`${label} gün${isRiskBand ? " · risk" : ""}`}
-              value={
-                amount > 0.005 ? formatCurrencyPrecise(amount) : "—"
-              }
+              value={formatCurrencyPrecise(amount)}
             />
           );
         })}
@@ -1524,6 +1537,15 @@ function BorclarPage({ musteri }: { musteri: MusteriHarita }) {
           </ul>
         )}
       </div>
+
+      <dl className="border-t border-border/60 pt-3 text-xs">
+        <MetricRow
+          label="Son güncelleme"
+          value={formatDateTime(
+            musteri.yas_inserted_at ?? musteri.guncellendi ?? null
+          )}
+        />
+      </dl>
     </div>
   );
 }
