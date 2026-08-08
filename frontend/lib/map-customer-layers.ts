@@ -25,8 +25,8 @@ export const SELECTED_LAYER = "selected-point";
 
 /** Son yüklemede güncellenen müşteri — açık, net dış halka. */
 export const UPDATED_RING_COLOR = "#f4f4f5";
-/** "Sonra bak" favori — nokta üzerinde amber halka. */
-export const MUSTERI_FAVORI_STROKE = "#f59e0b";
+/** "Sonra bak" favori — nokta üzerinde Airbnb Rausch halka. */
+export const MUSTERI_FAVORI_STROKE = "#ff385c";
 
 /** Dokunma hedefi (~36–44px); görsel yarıçap ayrı kalır. */
 export const POINT_HIT_RADIUS = 18;

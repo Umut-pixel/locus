@@ -17,6 +17,14 @@ export {
   panoramaBelgeDetayToExcelRows,
 } from "./panorama-to-rows";
 export { parseYaslandirma5530 } from "./parse-yaslandirma-5530";
+export {
+  CORE_PANORAMA_REPORT_IDS,
+  CORE_SYNC_FRESHNESS_MS,
+  INDEPENDENT_PANORAMA_REPORT_IDS,
+  corePanoramaSyncsAreFresh,
+  isIndependentPanoramaReport,
+} from "./freshness-gate";
+export type { FreshnessGateResult } from "./freshness-gate";
 export { runPanoramaTransform } from "./run-transform";
 export { replaceBelgeOzet } from "./write-belge-ozet";
 export { replaceYaslandirma } from "./write-yaslandirma";

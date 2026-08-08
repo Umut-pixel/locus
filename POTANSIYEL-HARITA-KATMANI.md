@@ -76,10 +76,12 @@ Grid merkezi referansı (134 ilçe, 8 il).
 | `isim`, `isim_normalized`, `adres`, `il`, `ilce`, `lat`, `lon` | |
 | `google_types`, `primary_type` | |
 | `kalite_bayragi` | örn. `suspicious_name` |
-| `eslesme_durumu` | `yeni` \| `mevcut_musteri` \| `manuel_kontrol` |
+| `eslesme_durumu` | `yeni` \| `mevcut_musteri` \| `manuel_kontrol` \| `gizli` |
 | `eslesen_musteri_kodu` | fuzzy eşleşince `musteriler.musteri_kodu` |
 | `tarandigi_tarih` | |
 | **`potansiyel_musteri`** | **GENERATED** `(eslesme_durumu = 'yeni')` — ayrı yazma yok |
+
+`gizli`: dashboard’dan manuel (“Haritadan gizle”) — yanlış/alakasız Places kaydı. View’dan düşer; n8n upsert `eslesme_durumu` ezmez.
 
 Upsert kuralları (n8n — frontend bilmeli, değiştirmemeli):
 - **Yeni** `kaynak_id` → fuzzy + insert (eşleşme alanları dolu)

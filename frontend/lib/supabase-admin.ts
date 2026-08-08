@@ -34,3 +34,4 @@ export const POTANSIYEL_FAVORILER_TABLE = "potansiyel_favoriler";
 export const POTANSIYEL_FAVORILER_LISTE_VIEW = "potansiyel_favoriler_liste";
 export const MUSTERI_FAVORILER_TABLE = "musteri_favoriler";
 export const MUSTERI_FAVORILER_LISTE_VIEW = "musteri_favoriler_liste";
+export const ENTITY_NOTLAR_TABLE = "entity_notlar";

@@ -22,8 +22,8 @@ export const POTANSIYEL_SELECTED_LAYER = "potansiyel-selected";
 /** Müşteri risk paletine karışmayan nötr teal. */
 export const POTANSIYEL_COLOR = "#5eead4";
 export const POTANSIYEL_STROKE = "#0f766e";
-/** "Sonra bak" favori — teal nokta üzerinde amber halka. */
-export const POTANSIYEL_FAVORI_STROKE = "#f59e0b";
+/** "Sonra bak" favori — teal nokta üzerinde Airbnb Rausch halka. */
+export const POTANSIYEL_FAVORI_STROKE = "#ff385c";
 /** Küme balonu — müşteri gri’sinden ayrılan teal-gri */
 export const POTANSIYEL_CLUSTER_FILL = "#99f6e4";
 export const POTANSIYEL_CLUSTER_TEXT = "#134e4a";

@@ -17,12 +17,13 @@ import {
   EyeOffIcon,
   GripHorizontalIcon,
   MapPinnedIcon,
-  StarIcon,
   XIcon,
 } from "lucide-react";
 import { AnimatePresence, animate, motion, useDragControls, useMotionValue } from "motion/react";
 
 import { Button } from "@/components/ui/button";
+import { EntityNotesButton } from "@/components/map/EntityNotesButton";
+import { FavoriHeartButton } from "@/components/map/FavoriHeartButton";
 import { SegmentBar } from "@/components/ui/segment-bar";
 import {
   Tooltip,
@@ -862,28 +863,16 @@ export const CustomerDetailPanel = memo(function CustomerDetailPanel({
             </h2>
           </div>
           <div className="flex shrink-0 items-center gap-0.5">
+            <EntityNotesButton
+              entityKind="musteri"
+              musteriKodu={musteri.musteri_kodu}
+            />
             {onToggleFavori ? (
-              <button
-                type="button"
-                onClick={() => void handleToggleFavori()}
-                onPointerDown={(e) => e.stopPropagation()}
-                disabled={favoriBusy}
-                aria-pressed={isFavori}
-                aria-label={
-                  isFavori ? "Sonra bak listesinden çıkar" : "Sonra bak"
-                }
-                className={cn(
-                  "flex size-10 cursor-pointer items-center justify-center rounded-full transition-colors sm:size-8",
-                  isFavori
-                    ? "text-amber-400 hover:bg-amber-400/10"
-                    : "text-muted-foreground hover:bg-white/10 hover:text-amber-300",
-                  favoriBusy && "opacity-60"
-                )}
-              >
-                <StarIcon
-                  className={cn("size-4", isFavori && "fill-current")}
-                />
-              </button>
+              <FavoriHeartButton
+                active={isFavori}
+                busy={favoriBusy}
+                onToggle={() => void handleToggleFavori()}
+              />
             ) : null}
             {onToggleGizle ? (
               <button
@@ -938,6 +927,7 @@ export const CustomerDetailPanel = memo(function CustomerDetailPanel({
             gecikmeGun={gecikmeGun}
             sonTeslimatTarihi={musteri.son_teslimat_tarihi}
             sonGuncelleme={musteri.yas_inserted_at ?? musteri.guncellendi}
+            st={musteri.yas_st}
             compact
           />
         </div>
@@ -1277,6 +1267,7 @@ function RiskPeekSummary({
   gecikmeGun,
   sonTeslimatTarihi,
   sonGuncelleme,
+  st,
   compact = false,
 }: {
   accent: string;
@@ -1286,11 +1277,13 @@ function RiskPeekSummary({
   gecikmeGun: number | null | undefined;
   sonTeslimatTarihi: string | null | undefined;
   sonGuncelleme?: string | null;
+  st?: string | null;
   compact?: boolean;
 }) {
   const guncellemeShort = sonGuncelleme
     ? formatDateTimeShort(sonGuncelleme)
     : null;
+  const stLabel = st?.trim() || null;
   const teslimatLine =
     hicTeslimat || gecikmeGun == null
       ? guncellemeShort
@@ -1352,6 +1345,16 @@ function RiskPeekSummary({
       >
         {teslimatLine}
       </p>
+      {stLabel ? (
+        <p
+          className={cn(
+            "font-mono text-[10px] tracking-wide text-muted-foreground uppercase",
+            compact ? "mt-0.5 truncate" : "mt-1"
+          )}
+        >
+          ST {stLabel}
+        </p>
+      ) : null}
     </>
   );
 }
@@ -1465,6 +1468,7 @@ function BorclarPage({ musteri }: { musteri: MusteriHarita }) {
         />
         {YAS_BUCKET_FIELDS.map(({ field, label }) => {
           const amount = Number(musteri[field] ?? 0);
+          if (!(amount > 0.005)) return null;
           const isRiskBand =
             field === "hf_56_62" ||
             field === "hf_63_69" ||
@@ -1473,9 +1477,7 @@ function BorclarPage({ musteri }: { musteri: MusteriHarita }) {
             <MetricRow
               key={label}
               label={`${label} gün${isRiskBand ? " · risk" : ""}`}
-              value={
-                amount > 0.005 ? formatCurrencyPrecise(amount) : "—"
-              }
+              value={formatCurrencyPrecise(amount)}
             />
           );
         })}
@@ -1524,6 +1526,15 @@ function BorclarPage({ musteri }: { musteri: MusteriHarita }) {
           </ul>
         )}
       </div>
+
+      <dl className="border-t border-border/60 pt-3 text-xs">
+        <MetricRow
+          label="Son güncelleme"
+          value={formatDateTime(
+            musteri.yas_inserted_at ?? musteri.guncellendi ?? null
+          )}
+        />
+      </dl>
     </div>
   );
 }
