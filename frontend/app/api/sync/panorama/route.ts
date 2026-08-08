@@ -46,7 +46,9 @@ async function handle(request: Request) {
   }
 }
 
-/** Vercel Cron GET; n8n / manuel POST. */
+/** Vercel Cron GET; n8n / manuel POST.
+ * Tech debt: production cron 2026-08-06’da düşmedi — bkz. /tech-debt.md
+ */
 export async function GET(request: Request) {
   return handle(request);
 }

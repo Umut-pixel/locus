@@ -29,6 +29,9 @@ Root Directory: `frontend`. Build: `npm run build`, Output: Next varsayılan.
 Cron (Europe/Istanbul ≈ UTC+3): `04:15` ve `16:15` UTC → n8n 07:00 / 19:00 sonrası transform.  
 `CRON_SECRET` tanımlı olmalı; aksi halde production’da endpoint 401 döner.
 
+> **Tech debt:** 2026-08-06 akşam cron’u düşmedi — landing geldi, transform yok.  
+> Takip: [`tech-debt.md`](../tech-debt.md#panorama-transform-cron-güvenilir-değil-2026-08-06).
+
 ## Kurulum
 
 ```bash
