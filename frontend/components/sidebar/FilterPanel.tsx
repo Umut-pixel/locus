@@ -13,7 +13,6 @@ import { SearchIcon, EyeOffIcon, XIcon } from "lucide-react";
 import { motion } from "motion/react";
 
 import { AgentAssistant } from "@/components/agent/AgentAssistant";
-import { LogoutButton } from "@/components/auth/LogoutButton";
 import {
   GizlenenList,
   type GizlenenItem,
@@ -271,18 +270,13 @@ export const FilterPanel = memo(function FilterPanel({
           isSheet ? "flex-1 pt-12 pr-12" : "max-h-[48%] shrink-0 pt-5"
         )}
       >
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0">
-            <h1 className="text-[15px] font-medium tracking-tight">
-              Petshop Müşteri Haritası
-            </h1>
-            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-              Ege bölgesi müşteri dağılımı ve teslimat risk durumu
-            </p>
-          </div>
-          {!isSheet ? (
-            <LogoutButton className="shrink-0 text-muted-foreground" />
-          ) : null}
+        <div className="min-w-0">
+          <h1 className="text-[15px] font-medium tracking-tight">
+            Petshop Müşteri Haritası
+          </h1>
+          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+            Ege bölgesi müşteri dağılımı ve teslimat risk durumu
+          </p>
         </div>
 
         <div className="grid grid-cols-3 gap-2">
@@ -519,12 +513,6 @@ export const FilterPanel = memo(function FilterPanel({
           />
         ) : null}
 
-        {isSheet ? (
-          <LogoutButton
-            showLabel
-            className="mt-1 h-8 gap-1.5 self-start rounded-full px-2.5 text-[11px] text-muted-foreground"
-          />
-        ) : null}
       </div>
 
       <div

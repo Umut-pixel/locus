@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { UploadIcon } from "lucide-react";
 import { AnimatePresence } from "motion/react";
 
+import { AppSidebarMobileTrigger } from "@/components/sidebar/AppSidebar";
 import {
   CustomerDetailPanel,
   type PanelAnchor,
@@ -16,7 +17,6 @@ import { RiskModeToggle } from "@/components/map/RiskModeToggle";
 import { TipKanalToggle } from "@/components/map/TipKanalToggle";
 import { PotansiyelDetailCard } from "@/components/map/PotansiyelDetailCard";
 import { PotansiyelLayerToggle } from "@/components/map/PotansiyelLayerToggle";
-import { LoginEnterTransition } from "@/components/auth/LoginEnterTransition";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -865,8 +865,7 @@ export default function Home() {
   const showBlockingLoader = loading && rows.length === 0;
 
   return (
-    <div className="relative flex h-dvh w-full max-w-[100vw] overflow-hidden">
-      <LoginEnterTransition />
+    <>
       {!isMobileLayout ? (
         <aside className="hidden w-80 shrink-0 border-r border-sidebar-border bg-sidebar lg:block xl:w-[22.5rem]">
           <FilterPanel {...filterProps} />
@@ -910,6 +909,7 @@ export default function Home() {
         >
           <div className="flex min-h-0 w-full max-w-full flex-col items-stretch gap-1.5 sm:max-w-[22rem] sm:items-start">
             <div className="flex items-center gap-2">
+              <AppSidebarMobileTrigger />
               {isMobileLayout ? (
                 <div className="pointer-events-auto">
                   <MobileFilterSheet {...filterProps} />
@@ -1056,6 +1056,6 @@ export default function Home() {
           </div>
         )}
       </div>
-    </div>
+    </>
   );
 }

@@ -125,6 +125,20 @@
   --sidebar-ring: oklch(0.93 0.003 260 / 35%);
 }
 
+/*
+ * Analytics/metrik tasarım tokenları — sidebar brief'inden (2026-08-10).
+ * Şu an hiçbir bileşen tarafından zorunlu kullanılmıyor (bu aşamada metrik
+ * kartı / grafik yok); ileride Analytics içeriği kurulunca burada kalsın
+ * diye saklanıyor. Sidebar kendi rengini mevcut --sidebar-* token'larından
+ * alıyor (koyu temaya uygun); bunlar ham marka/chart renkleri.
+ */
+:root {
+  --metric-text-default: #333333;
+  --metric-text-subtle: #777777;
+  --metric-chart-line: #519dfa;
+  --metric-chart-bar: #0077e6;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
