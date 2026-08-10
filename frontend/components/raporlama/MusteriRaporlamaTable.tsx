@@ -3,6 +3,7 @@
 import { Fragment, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import {
+  ArrowLeftRightIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   ChevronsUpDownIcon,
@@ -43,8 +44,15 @@ import {
   formatKg,
   formatNumber,
 } from "@/lib/format";
-import { BORC_RISK_LABELS, BORC_RISK_SHORT_LABELS, debtRiskDurumu } from "@/lib/risk-mode";
+import {
+  RISK_MODE_LABELS,
+  debtRiskDurumu,
+  riskLabelsForMode,
+  riskShortLabelsForMode,
+  type RiskMetricMode,
+} from "@/lib/risk-mode";
 import { HASSASIYET_LABELS, RISK_COLORS } from "@/lib/risk-style";
+import { AKSIYON_GUN } from "@/lib/snapshot-compare";
 import type { RiskDurumu } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -69,6 +77,8 @@ interface MusteriRaporlamaTableProps {
   selectedRows: Map<string, MusteriRaporSatiri>;
   onToggleSelect: (row: MusteriRaporSatiri) => void;
   onSelectPage: (rows: MusteriRaporSatiri[], checked: boolean) => void;
+  riskMode: RiskMetricMode;
+  onToggleRiskMode: () => void;
 }
 
 /** Kolon başlığına tıklama döngüsü: azalan → artan → varsayılan (null). */
@@ -119,6 +129,36 @@ function SortableHeader({
   );
 }
 
+/**
+ * Risk kolonu başlığı, sıralanabilir başlıklarla aynı tıklanabilir dilde —
+ * ama sıra yerine ölçüt değiştirir: borç yaşlandırması ↔ sevkiyat gecikmesi.
+ * Etiketin yanındaki küçük rozet o an hangi ölçütün aktif olduğunu gösterir.
+ */
+function RiskModeHeader({
+  riskMode,
+  onToggle,
+}: {
+  riskMode: RiskMetricMode;
+  onToggle: () => void;
+}) {
+  return (
+    <th scope="col" className={TH_BASE}>
+      <button
+        type="button"
+        onClick={onToggle}
+        title={`Risk ölçütü: ${RISK_MODE_LABELS[riskMode]} — değiştirmek için tıkla`}
+        className="inline-flex items-center gap-1.5 rounded-sm outline-none transition-colors hover:text-foreground focus-visible:text-foreground"
+      >
+        Risk
+        <span className="inline-flex items-center gap-1 rounded-[4px] bg-muted px-1.5 py-0.5 text-[9.5px] font-medium normal-case tracking-normal text-foreground/75">
+          <ArrowLeftRightIcon className="size-2.5" />
+          {RISK_MODE_LABELS[riskMode]}
+        </span>
+      </button>
+    </th>
+  );
+}
+
 const COLUMN_COUNT = 8;
 const SKELETON_ROWS = 12;
 /** 28+ gün bantları riskli_tutar tarafına yaklaşır — kırmızı; öncesi amber. */
@@ -144,6 +184,8 @@ export function MusteriRaporlamaTable({
   selectedRows,
   onToggleSelect,
   onSelectPage,
+  riskMode,
+  onToggleRiskMode,
 }: MusteriRaporlamaTableProps) {
   const musteriKodlari = useMemo(() => rows.map((r) => r.musteri_kodu), [rows]);
   const { trendMap } = useMusteriTrend(musteriKodlari);
@@ -181,9 +223,7 @@ export function MusteriRaporlamaTable({
               <th scope="col" className={TH_BASE}>
                 Temsilci
               </th>
-              <th scope="col" className={TH_BASE}>
-                Risk
-              </th>
+              <RiskModeHeader riskMode={riskMode} onToggle={onToggleRiskMode} />
               <SortableHeader alan="ciro" sort={sort} onSortChange={onSortChange}>
                 Net Ciro
               </SortableHeader>
@@ -211,6 +251,7 @@ export function MusteriRaporlamaTable({
                       trend={trendMap.get(row.musteri_kodu) ?? []}
                       selected={selectedRows.has(row.musteri_kodu)}
                       expanded={expandedKod === row.musteri_kodu}
+                      riskMode={riskMode}
                       onToggleSelect={onToggleSelect}
                       onToggleExpand={() =>
                         setExpandedKod((prev) =>
@@ -221,7 +262,7 @@ export function MusteriRaporlamaTable({
                     {expandedKod === row.musteri_kodu ? (
                       <tr className="border-b border-border bg-muted/25">
                         <td colSpan={COLUMN_COUNT} className="p-0">
-                          <MusteriDetayPanel row={row} />
+                          <MusteriDetayPanel row={row} riskMode={riskMode} />
                         </td>
                       </tr>
                     ) : null}
@@ -292,6 +333,7 @@ function RaporSatiri({
   trend,
   selected,
   expanded,
+  riskMode,
   onToggleSelect,
   onToggleExpand,
 }: {
@@ -299,11 +341,12 @@ function RaporSatiri({
   trend: { tarih: string; net_ciro: number }[];
   selected: boolean;
   expanded: boolean;
+  riskMode: RiskMetricMode;
   onToggleSelect: (row: MusteriRaporSatiri) => void;
   onToggleExpand: () => void;
 }) {
   const danger = (row.yas_riskli_tutar ?? 0) > 0;
-  const risk = debtRiskDurumu(row);
+  const risk = riskMode === "borc" ? debtRiskDurumu(row) : row.risk_durumu;
   return (
     <tr
       className={cn(
@@ -343,7 +386,7 @@ function RaporSatiri({
         <TemsilciAvatar ad={row.belge_st_adi} />
       </td>
       <td className={TD_BASE}>
-        <RiskPill risk={risk} labels={BORC_RISK_SHORT_LABELS} />
+        <RiskPill risk={risk} labels={riskShortLabelsForMode(riskMode)} />
       </td>
       <td className={cn(TD_BASE, "text-right")}>
         <CurrencyAmount value={row.belge_net_ciro} />
@@ -377,7 +420,13 @@ type DetayTab = (typeof DETAY_TABS)[number]["id"];
  * yerine tablo satırı genişliğinde yatay bir düzen (kaydırmalı sekme yerine
  * gerçek sekme şeridi kullanılabilecek kadar yer var).
  */
-function MusteriDetayPanel({ row }: { row: MusteriRaporSatiri }) {
+function MusteriDetayPanel({
+  row,
+  riskMode,
+}: {
+  row: MusteriRaporSatiri;
+  riskMode: RiskMetricMode;
+}) {
   const { detay, loading } = useMusteriDetay(row.musteri_kodu);
   const [tab, setTab] = useState<DetayTab>("ozet");
 
@@ -393,15 +442,39 @@ function MusteriDetayPanel({ row }: { row: MusteriRaporSatiri }) {
 
   if (!detay) return null;
 
-  const risk = debtRiskDurumu(row);
+  const risk = riskMode === "borc" ? debtRiskDurumu(row) : row.risk_durumu;
   const accent = RISK_COLORS[risk];
-  // Borç yaşlandırmasının riskli (56+ gün) payı — sevkiyat gecikme günü değil.
-  const toplamBorc = detay.yas_toplam ?? row.yas_toplam;
-  const riskliTutar = detay.yas_riskli_tutar ?? row.yas_riskli_tutar ?? 0;
-  const borcOrani =
-    toplamBorc != null && toplamBorc > 0.005
-      ? Math.min(Math.round((riskliTutar / toplamBorc) * 100), 100)
-      : null;
+
+  // Gösterge yüzdesi mod'a göre iki farklı hesap: borçta riskli tutarın açık
+  // bakiyeye oranı, sevkiyatta gecikme gününün eşiğe (AKSIYON_GUN) oranı.
+  let gaugePercent: number | null;
+  let gaugeLabel: string;
+  if (riskMode === "borc") {
+    const toplamBorc = detay.yas_toplam ?? row.yas_toplam;
+    const riskliTutar = detay.yas_riskli_tutar ?? row.yas_riskli_tutar ?? 0;
+    gaugePercent =
+      toplamBorc != null && toplamBorc > 0.005
+        ? Math.min(Math.round((riskliTutar / toplamBorc) * 100), 100)
+        : null;
+    gaugeLabel =
+      gaugePercent != null
+        ? `Açık bakiyenin riskli (56+ gün) payı %${gaugePercent}'i`
+        : toplamBorc == null
+          ? "Yaşlandırma kaydı yok"
+          : "Açık bakiye yok";
+  } else {
+    const hicTeslimat = row.risk_durumu === "hic_teslimat_yok";
+    const gecikmeGun = detay.son_teslimattan_gecen_gun;
+    gaugePercent =
+      !hicTeslimat && gecikmeGun != null
+        ? Math.min(Math.round((gecikmeGun / AKSIYON_GUN) * 100), 999)
+        : null;
+    gaugeLabel =
+      gaugePercent != null
+        ? `Gecikme eşiğinin %${gaugePercent}'i`
+        : "Teslimat kaydı yok";
+  }
+
   const hasCoords = detay.lat != null && detay.lon != null;
 
   return (
@@ -424,30 +497,24 @@ function MusteriDetayPanel({ row }: { row: MusteriRaporSatiri }) {
               className="font-mono text-[11px] tracking-wide uppercase"
               style={{ color: accent }}
             >
-              {BORC_RISK_LABELS[risk]}
+              {riskLabelsForMode(riskMode)[risk]}
             </span>
           </span>
-          {borcOrani != null ? (
+          {gaugePercent != null ? (
             <span
               className="font-mono text-[15px] font-semibold tabular-nums"
               style={{ color: accent }}
             >
-              %{borcOrani}
+              %{gaugePercent}
             </span>
           ) : null}
         </div>
         <SegmentBar
           className="mt-2"
           segments={40}
-          value={borcOrani != null ? borcOrani / 100 : 0}
+          value={gaugePercent != null ? gaugePercent / 100 : 0}
           color={accent}
-          label={
-            borcOrani != null
-              ? `Açık bakiyenin riskli (56+ gün) payı %${borcOrani}'i`
-              : toplamBorc == null
-                ? "Yaşlandırma kaydı yok"
-                : "Açık bakiye yok"
-          }
+          label={gaugeLabel}
         />
 
         <div

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-import { debtRiskDurumu } from "@/lib/risk-mode";
+import { debtRiskDurumu, type RiskMetricMode } from "@/lib/risk-mode";
 import {
   MUSTERILER_HARITA_VIEW,
   MUSTERI_METRIK_GECMIS_TABLE,
@@ -123,23 +123,31 @@ function escapeIlike(q: string): string {
  * çağrı noktasında bilinen satır tipine cast ediliyor.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function applyFilters(query: any, filters: RaporlamaFilters): any {
+function applyFilters(
+  query: any,
+  filters: RaporlamaFilters,
+  riskMode: RiskMetricMode
+): any {
   let q = query;
   const term = filters.search.trim();
   if (term.length >= 2) {
     const pattern = `%${escapeIlike(term)}%`;
     q = q.or(`unvan.ilike."${pattern}",musteri_kodu.ilike."${pattern}"`);
   }
-  // Risk filtresi borç yaşlandırmasına göre — debtRiskDurumu'nun SQL karşılığı
-  // (bkz. lib/risk-mode.ts). risk_durumu kolonu sevkiyat bazlı, burada kullanılmaz.
-  if (filters.risk === "hic_teslimat_yok") {
-    q = q.is("yas_toplam", null);
-  } else if (filters.risk === "riskli") {
-    q = q.eq("borc_riskli", true);
-  } else if (filters.risk === "izlenmeli") {
-    q = q.not("yas_toplam", "is", null).gt("yas_toplam", 0.005).eq("borc_riskli", false);
-  } else if (filters.risk === "saglikli") {
-    q = q.not("yas_toplam", "is", null).lte("yas_toplam", 0.005);
+  if (riskMode === "borc") {
+    // debtRiskDurumu'nun SQL karşılığı (bkz. lib/risk-mode.ts).
+    if (filters.risk === "hic_teslimat_yok") {
+      q = q.is("yas_toplam", null);
+    } else if (filters.risk === "riskli") {
+      q = q.eq("borc_riskli", true);
+    } else if (filters.risk === "izlenmeli") {
+      q = q.not("yas_toplam", "is", null).gt("yas_toplam", 0.005).eq("borc_riskli", false);
+    } else if (filters.risk === "saglikli") {
+      q = q.not("yas_toplam", "is", null).lte("yas_toplam", 0.005);
+    }
+  } else if (filters.risk) {
+    // Sevkiyat modu — view'daki hazır risk_durumu kolonu doğrudan kullanılır.
+    q = q.eq("risk_durumu", filters.risk);
   }
   if (filters.segment) q = q.eq("musteri_grubu", filters.segment);
   if (filters.temsilci) q = q.eq("belge_st_adi", filters.temsilci);
@@ -160,6 +168,7 @@ function applyFilters(query: any, filters: RaporlamaFilters): any {
 async function fetchAllFiltered<T>(
   select: string,
   filters: RaporlamaFilters,
+  riskMode: RiskMetricMode,
   options?: { signal?: AbortSignal; orderBy?: string }
 ): Promise<T[]> {
   const results: T[] = [];
@@ -167,7 +176,11 @@ async function fetchAllFiltered<T>(
 
   for (let i = 0; i < FETCH_ALL_MAX_BATCHES; i++) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let query: any = applyFilters(supabase.from(MUSTERILER_HARITA_VIEW).select(select), filters);
+    let query: any = applyFilters(
+      supabase.from(MUSTERILER_HARITA_VIEW).select(select),
+      filters,
+      riskMode
+    );
     if (options?.orderBy) query = query.order(options.orderBy, { ascending: true });
     query = query.range(from, from + FETCH_ALL_BATCH_SIZE - 1);
     if (options?.signal) query = query.abortSignal(options.signal);
@@ -211,7 +224,8 @@ interface UseMusteriRaporlamaResult {
 export function useMusteriRaporlama(
   filters: RaporlamaFilters,
   page: number,
-  sort: RaporlamaSort | null = null
+  sort: RaporlamaSort | null = null,
+  riskMode: RiskMetricMode = "borc"
 ): UseMusteriRaporlamaResult {
   const [rows, setRows] = useState<MusteriRaporSatiri[]>([]);
   const [totalCount, setTotalCount] = useState(0);
@@ -254,7 +268,8 @@ export function useMusteriRaporlama(
       const to = from + RAPORLAMA_PAGE_SIZE - 1;
       let query = applyFilters(
         supabase.from(MUSTERILER_HARITA_VIEW).select(ROW_SELECT, { count: "exact" }),
-        effectiveFilters
+        effectiveFilters,
+        riskMode
       );
       // Kullanıcı bir kolon sıralaması seçtiyse onu uygula; yoksa varsayılan
       // (en gecikmiş teslimat en üstte) sıralamaya dön. `unvan` her zaman
@@ -288,7 +303,7 @@ export function useMusteriRaporlama(
 
     void run();
     return () => ac.abort();
-  }, [effectiveFilters, page, sort]);
+  }, [effectiveFilters, page, sort, riskMode]);
 
   useEffect(() => {
     const ac = new AbortController();
@@ -296,16 +311,6 @@ export function useMusteriRaporlama(
 
     async function run() {
       try {
-        // risk_durumu (sevkiyat) değil — borç yaşlandırmasına göre dağılım.
-        const data = await fetchAllFiltered<{
-          belge_net_ciro: number | null;
-          yas_toplam: number | null;
-          borc_riskli: boolean | null;
-        }>("belge_net_ciro,yas_toplam,borc_riskli", effectiveFilters, {
-          signal: ac.signal,
-        });
-        if (ac.signal.aborted) return;
-
         const dagilim: Record<RiskDurumu, number> = {
           saglikli: 0,
           izlenmeli: 0,
@@ -313,10 +318,34 @@ export function useMusteriRaporlama(
           hic_teslimat_yok: 0,
         };
         let toplam = 0;
-        for (const row of data) {
-          toplam += row.belge_net_ciro ?? 0;
-          dagilim[debtRiskDurumu(row)] += 1;
+
+        if (riskMode === "borc") {
+          const data = await fetchAllFiltered<{
+            belge_net_ciro: number | null;
+            yas_toplam: number | null;
+            borc_riskli: boolean | null;
+          }>("belge_net_ciro,yas_toplam,borc_riskli", effectiveFilters, riskMode, {
+            signal: ac.signal,
+          });
+          if (ac.signal.aborted) return;
+          for (const row of data) {
+            toplam += row.belge_net_ciro ?? 0;
+            dagilim[debtRiskDurumu(row)] += 1;
+          }
+        } else {
+          const data = await fetchAllFiltered<{
+            belge_net_ciro: number | null;
+            risk_durumu: RiskDurumu;
+          }>("belge_net_ciro,risk_durumu", effectiveFilters, riskMode, {
+            signal: ac.signal,
+          });
+          if (ac.signal.aborted) return;
+          for (const row of data) {
+            toplam += row.belge_net_ciro ?? 0;
+            dagilim[row.risk_durumu] += 1;
+          }
         }
+
         setSummary({ toplamNetCiro: toplam, riskDagilimi: dagilim });
       } catch {
         // abort ya da ağ hatası — özet sessizce önceki değerinde kalır
@@ -327,16 +356,19 @@ export function useMusteriRaporlama(
 
     void run();
     return () => ac.abort();
-  }, [effectiveFilters]);
+  }, [effectiveFilters, riskMode]);
 
   return { rows, totalCount, loading, error, summary, summaryLoading };
 }
 
 /** Dışa aktarma — geçerli filtrelerle eşleşen TÜM satırlar (sadece görünen sayfa değil). */
 export async function fetchAllMusteriRaporu(
-  filters: RaporlamaFilters
+  filters: RaporlamaFilters,
+  riskMode: RiskMetricMode
 ): Promise<MusteriRaporSatiri[]> {
-  return fetchAllFiltered<MusteriRaporSatiri>(ROW_SELECT, filters, { orderBy: "unvan" });
+  return fetchAllFiltered<MusteriRaporSatiri>(ROW_SELECT, filters, riskMode, {
+    orderBy: "unvan",
+  });
 }
 
 /** Tekil-kolon dropdown seçenekleri için sayfalı toplayıcı — aynı 1000 satır kesilme riski geçerli. */

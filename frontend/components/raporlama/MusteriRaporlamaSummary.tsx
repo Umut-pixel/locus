@@ -1,12 +1,13 @@
 import type { RaporlamaSummary } from "@/hooks/useMusteriRaporlama";
 import { formatCurrency, formatNumber } from "@/lib/format";
-import { BORC_RISK_SHORT_LABELS } from "@/lib/risk-mode";
+import { riskShortLabelsForMode, type RiskMetricMode } from "@/lib/risk-mode";
 import { RISK_COLORS, RISK_ORDER } from "@/lib/risk-style";
 
 interface MusteriRaporlamaSummaryProps {
   totalCount: number;
   summary: RaporlamaSummary;
   loading: boolean;
+  riskMode: RiskMetricMode;
 }
 
 /**
@@ -18,7 +19,9 @@ export function MusteriRaporlamaSummary({
   totalCount,
   summary,
   loading,
+  riskMode,
 }: MusteriRaporlamaSummaryProps) {
+  const riskLabels = riskShortLabelsForMode(riskMode);
   return (
     <div className="flex h-[52px] shrink-0 items-center gap-x-5 gap-y-1 overflow-x-auto border-t border-border bg-muted/25 px-3.5 text-[13.5px] whitespace-nowrap">
       <span className="font-mono font-medium text-foreground tabular-nums">
@@ -51,7 +54,7 @@ export function MusteriRaporlamaSummary({
               {loading ? "…" : formatNumber(summary.riskDagilimi[risk])}
             </span>
             <span className="text-[12px] text-muted-foreground">
-              {BORC_RISK_SHORT_LABELS[risk]}
+              {riskLabels[risk]}
             </span>
           </span>
         ))}

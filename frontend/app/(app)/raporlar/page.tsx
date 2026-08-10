@@ -16,17 +16,19 @@ import {
 } from "@/hooks/useMusteriRaporlama";
 import { exportMusteriRaporu, exportSelectedRows } from "@/lib/raporlama-export";
 import { formatNumber } from "@/lib/format";
+import type { RiskMetricMode } from "@/lib/risk-mode";
 
 export default function RaporlarPage() {
   const [filters, setFilters] = useState<RaporlamaFilters>(EMPTY_RAPORLAMA_FILTERS);
   const [sort, setSort] = useState<RaporlamaSort | null>(null);
   const [page, setPage] = useState(0);
+  const [riskMode, setRiskMode] = useState<RiskMetricMode>("borc");
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
   const [selectedRows, setSelectedRows] = useState<Map<string, MusteriRaporSatiri>>(new Map());
 
   const { rows, totalCount, loading, error, summary, summaryLoading } =
-    useMusteriRaporlama(filters, page, sort);
+    useMusteriRaporlama(filters, page, sort, riskMode);
 
   const handleFiltersChange = useCallback((next: RaporlamaFilters) => {
     setFilters(next);
@@ -36,6 +38,14 @@ export default function RaporlarPage() {
 
   const handleSortChange = useCallback((next: RaporlamaSort | null) => {
     setSort(next);
+    setPage(0);
+  }, []);
+
+  const handleToggleRiskMode = useCallback(() => {
+    // Aktif risk seçimi bir moddan diğerine anlamsızca taşınmasın —
+    // "Riskli" borçta 56+ gün, sevkiyatta >90 gün demek, aynı şey değil.
+    setRiskMode((prev) => (prev === "borc" ? "sevkiyat" : "borc"));
+    setFilters((prev) => (prev.risk ? { ...prev, risk: null } : prev));
     setPage(0);
   }, []);
 
@@ -70,7 +80,7 @@ export default function RaporlarPage() {
     setExportError(null);
     if (selectedRows.size > 0) {
       try {
-        exportSelectedRows(Array.from(selectedRows.values()));
+        exportSelectedRows(Array.from(selectedRows.values()), riskMode);
       } catch (err) {
         setExportError(
           err instanceof Error ? err.message : "Dışa aktarma başarısız oldu."
@@ -80,7 +90,7 @@ export default function RaporlarPage() {
     }
     setExporting(true);
     try {
-      await exportMusteriRaporu(filters);
+      await exportMusteriRaporu(filters, riskMode);
     } catch (err) {
       setExportError(
         err instanceof Error ? err.message : "Dışa aktarma başarısız oldu."
@@ -88,7 +98,7 @@ export default function RaporlarPage() {
     } finally {
       setExporting(false);
     }
-  }, [filters, selectedRows]);
+  }, [filters, riskMode, selectedRows]);
 
   return (
     <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden bg-background">
@@ -121,6 +131,7 @@ export default function RaporlarPage() {
         onExport={handleExport}
         exporting={exporting}
         selectedCount={selectedRows.size}
+        riskMode={riskMode}
       />
 
       {exportError ? (
@@ -144,12 +155,15 @@ export default function RaporlarPage() {
         selectedRows={selectedRows}
         onToggleSelect={handleToggleSelect}
         onSelectPage={handleSelectPage}
+        riskMode={riskMode}
+        onToggleRiskMode={handleToggleRiskMode}
       />
 
       <MusteriRaporlamaSummary
         totalCount={totalCount}
         summary={summary}
         loading={summaryLoading}
+        riskMode={riskMode}
       />
     </div>
   );

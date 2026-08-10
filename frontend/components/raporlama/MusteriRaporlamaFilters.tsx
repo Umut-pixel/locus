@@ -22,7 +22,7 @@ import {
 } from "@/hooks/useMusteriRaporlama";
 import { SEHIR_HEDEF } from "@/lib/import/cities";
 import { SEGMENT_OPTIONS, segmentDisplayLabel } from "@/lib/raporlama-style";
-import { BORC_RISK_SHORT_LABELS } from "@/lib/risk-mode";
+import { riskShortLabelsForMode, type RiskMetricMode } from "@/lib/risk-mode";
 import { RISK_ORDER } from "@/lib/risk-style";
 import type { RiskDurumu } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -91,6 +91,7 @@ interface MusteriRaporlamaFiltersProps {
   onExport: () => void;
   exporting: boolean;
   selectedCount: number;
+  riskMode: RiskMetricMode;
 }
 
 export function MusteriRaporlamaFilters({
@@ -101,10 +102,12 @@ export function MusteriRaporlamaFilters({
   onExport,
   exporting,
   selectedCount,
+  riskMode,
 }: MusteriRaporlamaFiltersProps) {
   const { options: temsilciOptions } = useTemsilciSecenekleri();
   const { options: ilceOptions } = useIlceSecenekleri(filters.sehir);
   const active = raporlamaFiltersActive(filters);
+  const riskLabels = riskShortLabelsForMode(riskMode);
 
   return (
     <div className="flex flex-wrap items-center gap-2 border-b border-border px-3.5 py-2.5 lg:flex-nowrap">
@@ -149,14 +152,14 @@ export function MusteriRaporlamaFilters({
       >
         <SelectTrigger size="sm" className={cn(FILTER_CONTROL, "w-[7.5rem]")}>
           <SelectValue>
-            {(v: string) => (v === "all" ? "Risk" : BORC_RISK_SHORT_LABELS[v as RiskDurumu])}
+            {(v: string) => (v === "all" ? "Risk" : riskLabels[v as RiskDurumu])}
           </SelectValue>
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="all">Tüm risk durumları</SelectItem>
           {RISK_ORDER.map((risk) => (
             <SelectItem key={risk} value={risk}>
-              {BORC_RISK_SHORT_LABELS[risk]}
+              {riskLabels[risk]}
             </SelectItem>
           ))}
         </SelectContent>

@@ -7,9 +7,14 @@ import {
 } from "@/hooks/useMusteriRaporlama";
 import { formatDate } from "@/lib/format";
 import { segmentDisplayLabel } from "@/lib/raporlama-style";
-import { BORC_RISK_SHORT_LABELS, debtRiskDurumu } from "@/lib/risk-mode";
+import {
+  debtRiskDurumu,
+  riskShortLabelsForMode,
+  type RiskMetricMode,
+} from "@/lib/risk-mode";
 
-function rowsToSheet(rows: MusteriRaporSatiri[]) {
+function rowsToSheet(rows: MusteriRaporSatiri[], riskMode: RiskMetricMode) {
+  const labels = riskShortLabelsForMode(riskMode);
   return rows.map((r) => ({
     "Müşteri Kodu": r.musteri_kodu,
     Unvan: r.unvan,
@@ -18,8 +23,8 @@ function rowsToSheet(rows: MusteriRaporSatiri[]) {
     Segment: segmentDisplayLabel(r.musteri_grubu),
     Durum: r.durum ?? "",
     Temsilci: r.belge_st_adi ?? "",
-    // Borç yaşlandırmasına göre — ekranda gösterilenle birebir aynı (bkz. lib/risk-mode.ts).
-    "Risk Durumu": BORC_RISK_SHORT_LABELS[debtRiskDurumu(r)],
+    // Ekrandaki risk moduyla birebir aynı — borç ya da sevkiyat (bkz. lib/risk-mode.ts).
+    "Risk Durumu": labels[riskMode === "borc" ? debtRiskDurumu(r) : r.risk_durumu],
     "Net Ciro (TL)": r.belge_net_ciro ?? 0,
     "Sipariş Sayısı": r.belge_siparis_sayisi ?? 0,
     "Fatura Sayısı": r.belge_fatura_sayisi ?? 0,
@@ -31,9 +36,12 @@ function rowsToSheet(rows: MusteriRaporSatiri[]) {
 }
 
 /** Geçerli filtrelerle eşleşen tüm müşteri raporunu .xlsx olarak indirir (xlsx zaten bağımlılıkta — bkz. lib/import). */
-export async function exportMusteriRaporu(filters: RaporlamaFilters): Promise<number> {
-  const rows = await fetchAllMusteriRaporu(filters);
-  const sheetRows = rowsToSheet(rows);
+export async function exportMusteriRaporu(
+  filters: RaporlamaFilters,
+  riskMode: RiskMetricMode
+): Promise<number> {
+  const rows = await fetchAllMusteriRaporu(filters, riskMode);
+  const sheetRows = rowsToSheet(rows, riskMode);
 
   const worksheet = XLSX.utils.json_to_sheet(sheetRows);
   const workbook = XLSX.utils.book_new();
@@ -46,8 +54,11 @@ export async function exportMusteriRaporu(filters: RaporlamaFilters): Promise<nu
 }
 
 /** Seçili satırları — yeni fetch olmadan — anında .xlsx olarak indirir. */
-export function exportSelectedRows(rows: MusteriRaporSatiri[]): void {
-  const sheetRows = rowsToSheet(rows);
+export function exportSelectedRows(
+  rows: MusteriRaporSatiri[],
+  riskMode: RiskMetricMode
+): void {
+  const sheetRows = rowsToSheet(rows, riskMode);
 
   const worksheet = XLSX.utils.json_to_sheet(sheetRows);
   const workbook = XLSX.utils.book_new();
