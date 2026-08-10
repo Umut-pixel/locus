@@ -4,6 +4,7 @@ import { useState } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
+import { Typography } from "@heroui/react";
 
 import { CelixionMarkReveal } from "@/components/brand/CelixionMarkReveal";
 import { LoginForm } from "@/components/auth/LoginForm";
@@ -65,22 +66,29 @@ export function LoginShell({ nextPath = "/" }: { nextPath?: string }) {
             <div className="rounded-2xl bg-white px-7 py-8 shadow-[0_20px_50px_-20px_rgba(0,0,0,0.5)] sm:px-8 sm:py-9">
               <div className="flex flex-col items-center text-center">
                 <CelixionMarkReveal size={32} className="text-zinc-900" />
-                <motion.h1
+                <motion.div
                   initial={{ opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.95, duration: 0.4, ease: EASE }}
-                  className="mt-5 text-[1.375rem] leading-snug font-semibold tracking-tight text-zinc-900"
+                  className="mt-5"
                 >
-                  Giriş yap
-                </motion.h1>
-                <motion.p
+                  <Typography.Heading
+                    level={4}
+                    className="tracking-tight text-zinc-900"
+                  >
+                    Giriş yap
+                  </Typography.Heading>
+                </motion.div>
+                <motion.div
                   initial={{ opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 1.08, duration: 0.4, ease: EASE }}
-                  className="mt-1.5 text-[13px] leading-relaxed text-zinc-500"
+                  className="mt-1.5"
                 >
-                  Patigo müşteri haritasına devam etmek için oturum açın.
-                </motion.p>
+                  <Typography.Paragraph size="xs" className="text-zinc-500">
+                    Patigo müşteri haritasına devam etmek için oturum açın.
+                  </Typography.Paragraph>
+                </motion.div>
               </div>
 
               <motion.div

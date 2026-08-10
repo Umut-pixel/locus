@@ -1,13 +1,14 @@
-import Avatar from "boring-avatars";
+import { Avatar } from "@heroui/react";
 
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency, formatCurrencyPrecise } from "@/lib/format";
 import {
-  AVATAR_COLORS,
   RISK_ICONS,
   durumPalette,
   segmentDisplayLabel,
   segmentPalette,
+  temsilciInitials,
+  temsilciRengi,
 } from "@/lib/raporlama-style";
 import { RISK_COLORS, RISK_SHORT_LABELS } from "@/lib/risk-style";
 import type { RiskDurumu } from "@/lib/types";
@@ -21,8 +22,18 @@ import { cn } from "@/lib/utils";
 const DENSE_BADGE =
   "h-6 rounded-[6px] border px-2 py-0 text-[12px] leading-none font-medium";
 
-/** Haritada kullanılan risk renk/etiket token'larıyla birebir aynı (RISK_COLORS/RISK_SHORT_LABELS). */
-export function RiskPill({ risk }: { risk: RiskDurumu }) {
+/**
+ * Renk/ikon haritadakiyle birebir aynı (RISK_COLORS/RISK_ICONS — boyut-nötr).
+ * `labels` varsayılan olarak sevkiyat sözlüğü; raporlama borç bazlı gösterim
+ * için BORC_RISK_SHORT_LABELS geçirir (bkz. lib/risk-mode.ts).
+ */
+export function RiskPill({
+  risk,
+  labels = RISK_SHORT_LABELS,
+}: {
+  risk: RiskDurumu;
+  labels?: Record<RiskDurumu, string>;
+}) {
   const color = RISK_COLORS[risk];
   const Icon = RISK_ICONS[risk];
   return (
@@ -32,7 +43,7 @@ export function RiskPill({ risk }: { risk: RiskDurumu }) {
       style={{ backgroundColor: `${color}1f`, color, borderColor: `${color}4d` }}
     >
       <Icon />
-      {RISK_SHORT_LABELS[risk]}
+      {labels[risk]}
     </Badge>
   );
 }
@@ -81,13 +92,14 @@ export function TemsilciAvatar({ ad }: { ad: string | null }) {
   }
   return (
     <div className="flex min-w-0 items-center gap-2">
-      <Avatar
-        name={ad}
-        variant="beam"
-        colors={AVATAR_COLORS}
-        size={24}
-        square={false}
-      />
+      <Avatar size="sm">
+        <Avatar.Fallback
+          className="font-semibold"
+          style={{ backgroundColor: temsilciRengi(ad), color: "#14161a" }}
+        >
+          {temsilciInitials(ad)}
+        </Avatar.Fallback>
+      </Avatar>
       <span className="truncate text-[13.5px]">{ad}</span>
     </div>
   );

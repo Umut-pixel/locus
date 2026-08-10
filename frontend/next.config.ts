@@ -14,6 +14,11 @@ const nextConfig: NextConfig = {
   },
   // SheetJS yalnızca API route'ta — client graph'a sızmasın
   serverExternalPackages: ["xlsx"],
+  // @heroui/react'in "use client" sınırları prebuilt dist'te Next'in RSC
+  // analiziyle güvenilir eşleşmiyor (route prefetch'te "client-only cannot be
+  // imported from a Server Component" hatası) — transpilePackages paketi
+  // kendi derleyicisinden geçirip sınırları yeniden, doğru tespit ettiriyor.
+  transpilePackages: ["@heroui/react"],
   experimental: {
     optimizePackageImports: ["lucide-react", "motion", "thinking-orbs"],
   },

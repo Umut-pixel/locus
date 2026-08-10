@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { Typography } from "@heroui/react";
 
 import { MusteriRaporlamaFilters } from "@/components/raporlama/MusteriRaporlamaFilters";
 import { MusteriRaporlamaSummary } from "@/components/raporlama/MusteriRaporlamaSummary";
@@ -94,16 +95,21 @@ export default function RaporlarPage() {
       <div className="flex h-16 shrink-0 items-center gap-3 border-b border-border px-3.5">
         <AppSidebarMobileTrigger />
         <div className="flex min-w-0 items-center gap-3">
-          <h1 className="shrink-0 text-[18px] font-semibold tracking-tight">
+          <Typography.Heading level={5} className="shrink-0 tracking-tight">
             Müşteri Raporlama
-          </h1>
+          </Typography.Heading>
           <span className="inline-flex h-6 shrink-0 items-center gap-1.5 rounded-md bg-emerald-500/10 px-2 font-mono text-[12.5px] font-medium text-emerald-400 tabular-nums">
             <span className="size-1.5 shrink-0 rounded-full bg-emerald-400" />
             {formatNumber(totalCount)}
           </span>
-          <span className="hidden truncate text-[14px] text-muted-foreground md:block">
+          <Typography.Paragraph
+            size="sm"
+            color="muted"
+            truncate
+            className="hidden md:block"
+          >
             Segment, risk ve ciro kırılımıyla müşteri portföyü
-          </span>
+          </Typography.Paragraph>
         </div>
       </div>
 
@@ -118,9 +124,12 @@ export default function RaporlarPage() {
       />
 
       {exportError ? (
-        <p className="shrink-0 border-b border-destructive/30 bg-destructive/10 px-3.5 py-2 text-[13px] text-destructive">
+        <Typography
+          type="body-sm"
+          className="shrink-0 border-b border-destructive/30 bg-destructive/10 px-3.5 py-2 text-destructive"
+        >
           {exportError}
-        </p>
+        </Typography>
       ) : null}
 
       <MusteriRaporlamaTable

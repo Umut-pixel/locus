@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { UploadIcon } from "lucide-react";
 import { AnimatePresence } from "motion/react";
+import { Typography } from "@heroui/react";
 
 import { AppSidebarMobileTrigger } from "@/components/sidebar/AppSidebar";
 import {
@@ -1039,14 +1040,16 @@ export default function Home() {
           <div className="absolute inset-0 flex items-center justify-center bg-background/80 p-4 sm:p-6">
             <Card className="w-full max-w-sm">
               <CardContent>
-                <p className="text-sm font-medium text-destructive">
+                <Typography.Heading level={6} className="text-destructive">
                   Veri yüklenemedi
-                </p>
-                <p className="mt-1 text-xs text-muted-foreground">{error}</p>
-                <p className="mt-2 text-xs text-muted-foreground">
-                  <code>frontend/.env.local</code> dosyasındaki Supabase
-                  değerlerini kontrol edin.
-                </p>
+                </Typography.Heading>
+                <Typography.Paragraph size="xs" color="muted" className="mt-1">
+                  {error}
+                </Typography.Paragraph>
+                <Typography.Paragraph size="xs" color="muted" className="mt-2">
+                  <Typography.Code>frontend/.env.local</Typography.Code>{" "}
+                  dosyasındaki Supabase değerlerini kontrol edin.
+                </Typography.Paragraph>
               </CardContent>
             </Card>
           </div>

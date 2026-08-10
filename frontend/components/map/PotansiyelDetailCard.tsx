@@ -19,6 +19,7 @@ import {
   XIcon,
 } from "lucide-react";
 import { animate, motion, useDragControls, useMotionValue } from "motion/react";
+import { Typography } from "@heroui/react";
 
 import type { PanelAnchor } from "@/components/map/CustomerDetailPanel";
 import { EntityNotesButton } from "@/components/map/EntityNotesButton";
@@ -434,9 +435,9 @@ export const PotansiyelDetailCard = memo(function PotansiyelDetailCard({
               Potansiyel
               {place ? ` · ${place}` : ""}
             </p>
-            <h2 className="mt-1 line-clamp-2 text-sm leading-snug font-medium">
+            <Typography.Heading level={6} className="mt-1 line-clamp-2">
               {potansiyel.isim ?? "İsimsiz"}
-            </h2>
+            </Typography.Heading>
           </div>
           <div className="flex shrink-0 items-center gap-0.5">
             <EntityNotesButton

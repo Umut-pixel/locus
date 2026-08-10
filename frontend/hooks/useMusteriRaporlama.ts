@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 
+import { debtRiskDurumu } from "@/lib/risk-mode";
 import {
   MUSTERILER_HARITA_VIEW,
   MUSTERI_METRIK_GECMIS_TABLE,
@@ -87,6 +88,7 @@ export interface MusteriRaporSatiri {
   durum: string | null;
   /** BelgeDetayRaporu (5450) satış temsilcisi adı — view'da "temsilci" alanı yok, en yakın gerçek karşılık. */
   belge_st_adi: string | null;
+  /** Sevkiyat (teslimat gecikmesi) bazlı — raporlamada risk GÖSTERİMİ için kullanılmaz, bkz. debtRiskDurumu. */
   risk_durumu: RiskDurumu;
   belge_net_ciro: number | null;
   belge_siparis_sayisi: number | null;
@@ -94,6 +96,8 @@ export interface MusteriRaporSatiri {
   belge_son_islem_tarihi: string | null;
   yas_toplam: number | null;
   yas_riskli_tutar: number | null;
+  /** debtRiskDurumu'nun "riskli" (56+ gün) eşiğini belirlediği alan. */
+  borc_riskli: boolean | null;
   son_teslimat_tarihi: string | null;
   toplam_teslimat_sayisi: number;
 }
@@ -101,7 +105,7 @@ export interface MusteriRaporSatiri {
 const ROW_SELECT =
   "musteri_kodu,unvan,sehir,ilce,musteri_grubu,durum,belge_st_adi,risk_durumu," +
   "belge_net_ciro,belge_siparis_sayisi,belge_fatura_sayisi,belge_son_islem_tarihi," +
-  "yas_toplam,yas_riskli_tutar,son_teslimat_tarihi,toplam_teslimat_sayisi";
+  "yas_toplam,yas_riskli_tutar,borc_riskli,son_teslimat_tarihi,toplam_teslimat_sayisi";
 
 function escapeIlike(q: string): string {
   return q
@@ -126,7 +130,17 @@ function applyFilters(query: any, filters: RaporlamaFilters): any {
     const pattern = `%${escapeIlike(term)}%`;
     q = q.or(`unvan.ilike."${pattern}",musteri_kodu.ilike."${pattern}"`);
   }
-  if (filters.risk) q = q.eq("risk_durumu", filters.risk);
+  // Risk filtresi borç yaşlandırmasına göre — debtRiskDurumu'nun SQL karşılığı
+  // (bkz. lib/risk-mode.ts). risk_durumu kolonu sevkiyat bazlı, burada kullanılmaz.
+  if (filters.risk === "hic_teslimat_yok") {
+    q = q.is("yas_toplam", null);
+  } else if (filters.risk === "riskli") {
+    q = q.eq("borc_riskli", true);
+  } else if (filters.risk === "izlenmeli") {
+    q = q.not("yas_toplam", "is", null).gt("yas_toplam", 0.005).eq("borc_riskli", false);
+  } else if (filters.risk === "saglikli") {
+    q = q.not("yas_toplam", "is", null).lte("yas_toplam", 0.005);
+  }
   if (filters.segment) q = q.eq("musteri_grubu", filters.segment);
   if (filters.temsilci) q = q.eq("belge_st_adi", filters.temsilci);
   if (filters.sehir) q = q.eq("sehir", filters.sehir);
@@ -282,10 +296,14 @@ export function useMusteriRaporlama(
 
     async function run() {
       try {
+        // risk_durumu (sevkiyat) değil — borç yaşlandırmasına göre dağılım.
         const data = await fetchAllFiltered<{
           belge_net_ciro: number | null;
-          risk_durumu: RiskDurumu;
-        }>("belge_net_ciro,risk_durumu", effectiveFilters, { signal: ac.signal });
+          yas_toplam: number | null;
+          borc_riskli: boolean | null;
+        }>("belge_net_ciro,yas_toplam,borc_riskli", effectiveFilters, {
+          signal: ac.signal,
+        });
         if (ac.signal.aborted) return;
 
         const dagilim: Record<RiskDurumu, number> = {
@@ -297,7 +315,7 @@ export function useMusteriRaporlama(
         let toplam = 0;
         for (const row of data) {
           toplam += row.belge_net_ciro ?? 0;
-          dagilim[row.risk_durumu] += 1;
+          dagilim[debtRiskDurumu(row)] += 1;
         }
         setSummary({ toplamNetCiro: toplam, riskDagilimi: dagilim });
       } catch {

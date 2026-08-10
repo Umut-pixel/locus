@@ -1,6 +1,7 @@
 "use client";
 
 import { HeartIcon } from "lucide-react";
+import { Typography } from "@heroui/react";
 
 import { FAVORI_HEART_COLOR } from "@/components/map/FavoriHeartButton";
 import type { MusteriFavori, PotansiyelFavori } from "@/lib/types";
@@ -56,9 +57,9 @@ export function SonraBakList({
       {loading && items.length === 0 ? (
         <p className="text-[11px] text-muted-foreground">Yükleniyor…</p>
       ) : items.length === 0 ? (
-        <p className="text-[11px] leading-relaxed text-muted-foreground">
+        <Typography.Paragraph size="xs" color="muted">
           Müşteri veya potansiyel kartındaki kalple buraya ekleyin.
-        </p>
+        </Typography.Paragraph>
       ) : (
         <ul className="max-h-44 space-y-0.5 overflow-y-auto overscroll-contain rounded-xl border border-border/60 bg-muted/20 py-1">
           {items.map((entry) => {

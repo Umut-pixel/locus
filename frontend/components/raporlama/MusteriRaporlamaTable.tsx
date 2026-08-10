@@ -10,6 +10,7 @@ import {
   ChevronDownIcon,
   ExternalLinkIcon,
 } from "lucide-react";
+import { Typography } from "@heroui/react";
 
 import { musteriGoogleMapsUrl } from "@/components/map/CustomerDetailPanel";
 import {
@@ -42,12 +43,8 @@ import {
   formatKg,
   formatNumber,
 } from "@/lib/format";
-import {
-  HASSASIYET_LABELS,
-  RISK_COLORS,
-  RISK_LABELS,
-} from "@/lib/risk-style";
-import { AKSIYON_GUN } from "@/lib/snapshot-compare";
+import { BORC_RISK_LABELS, BORC_RISK_SHORT_LABELS, debtRiskDurumu } from "@/lib/risk-mode";
+import { HASSASIYET_LABELS, RISK_COLORS } from "@/lib/risk-style";
 import type { RiskDurumu } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -236,14 +233,14 @@ export function MusteriRaporlamaTable({
                   colSpan={COLUMN_COUNT}
                   className="px-3 py-16 text-center align-middle"
                 >
-                  <p className="text-[15px] text-foreground">
+                  <Typography.Heading level={6}>
                     {error ? "Veri yüklenemedi" : "Eşleşen müşteri yok"}
-                  </p>
-                  <p className="mt-1 text-[13.5px] text-muted-foreground">
+                  </Typography.Heading>
+                  <Typography.Paragraph size="sm" color="muted" className="mt-1">
                     {error
                       ? error
                       : "Filtreleri gevşetin ya da arama terimini kısaltın."}
-                  </p>
+                  </Typography.Paragraph>
                 </td>
               </tr>
             ) : null}
@@ -306,6 +303,7 @@ function RaporSatiri({
   onToggleExpand: () => void;
 }) {
   const danger = (row.yas_riskli_tutar ?? 0) > 0;
+  const risk = debtRiskDurumu(row);
   return (
     <tr
       className={cn(
@@ -345,7 +343,7 @@ function RaporSatiri({
         <TemsilciAvatar ad={row.belge_st_adi} />
       </td>
       <td className={TD_BASE}>
-        <RiskPill risk={row.risk_durumu} />
+        <RiskPill risk={risk} labels={BORC_RISK_SHORT_LABELS} />
       </td>
       <td className={cn(TD_BASE, "text-right")}>
         <CurrencyAmount value={row.belge_net_ciro} />
@@ -395,12 +393,14 @@ function MusteriDetayPanel({ row }: { row: MusteriRaporSatiri }) {
 
   if (!detay) return null;
 
-  const accent = RISK_COLORS[row.risk_durumu];
-  const hicTeslimat = row.risk_durumu === "hic_teslimat_yok";
-  const gecikmeGun = detay.son_teslimattan_gecen_gun;
-  const gecikmeYuzde =
-    !hicTeslimat && gecikmeGun != null
-      ? Math.min(Math.round((gecikmeGun / AKSIYON_GUN) * 100), 999)
+  const risk = debtRiskDurumu(row);
+  const accent = RISK_COLORS[risk];
+  // Borç yaşlandırmasının riskli (56+ gün) payı — sevkiyat gecikme günü değil.
+  const toplamBorc = detay.yas_toplam ?? row.yas_toplam;
+  const riskliTutar = detay.yas_riskli_tutar ?? row.yas_riskli_tutar ?? 0;
+  const borcOrani =
+    toplamBorc != null && toplamBorc > 0.005
+      ? Math.min(Math.round((riskliTutar / toplamBorc) * 100), 100)
       : null;
   const hasCoords = detay.lat != null && detay.lon != null;
 
@@ -408,9 +408,9 @@ function MusteriDetayPanel({ row }: { row: MusteriRaporSatiri }) {
     <div className="flex items-start gap-8 px-4 py-4">
       <div className="min-w-0 flex-1">
         {detay.adres ? (
-          <p className="mb-3.5 truncate text-[13px] text-muted-foreground">
-            <span className="text-foreground">{detay.adres}</span>
-          </p>
+          <Typography type="body-sm" truncate className="mb-3.5">
+            {detay.adres}
+          </Typography>
         ) : null}
 
         <div className="flex items-baseline justify-between gap-3">
@@ -424,27 +424,29 @@ function MusteriDetayPanel({ row }: { row: MusteriRaporSatiri }) {
               className="font-mono text-[11px] tracking-wide uppercase"
               style={{ color: accent }}
             >
-              {RISK_LABELS[row.risk_durumu]}
+              {BORC_RISK_LABELS[risk]}
             </span>
           </span>
-          {gecikmeYuzde != null ? (
+          {borcOrani != null ? (
             <span
               className="font-mono text-[15px] font-semibold tabular-nums"
               style={{ color: accent }}
             >
-              %{gecikmeYuzde}
+              %{borcOrani}
             </span>
           ) : null}
         </div>
         <SegmentBar
           className="mt-2"
           segments={40}
-          value={gecikmeYuzde != null ? gecikmeYuzde / 100 : 0}
+          value={borcOrani != null ? borcOrani / 100 : 0}
           color={accent}
           label={
-            gecikmeYuzde != null
-              ? `Gecikme eşiğinin %${gecikmeYuzde}'i`
-              : "Teslimat kaydı yok"
+            borcOrani != null
+              ? `Açık bakiyenin riskli (56+ gün) payı %${borcOrani}'i`
+              : toplamBorc == null
+                ? "Yaşlandırma kaydı yok"
+                : "Açık bakiye yok"
           }
         />
 
@@ -482,7 +484,7 @@ function MusteriDetayPanel({ row }: { row: MusteriRaporSatiri }) {
         </div>
       </div>
 
-      <KonumKarti detay={detay} risk={row.risk_durumu} hasCoords={hasCoords} unvan={row.unvan} />
+      <KonumKarti detay={detay} risk={risk} hasCoords={hasCoords} unvan={row.unvan} />
     </div>
   );
 }
@@ -623,9 +625,9 @@ function SevkiyatTabIcerik({
 function YaslandirmaTabIcerik({ detay }: { detay: MusteriDetay }) {
   if (detay.yas_toplam == null) {
     return (
-      <p className="text-[13px] leading-relaxed text-muted-foreground">
+      <Typography.Paragraph size="sm" color="muted">
         Henüz yaşlandırma verisi yok.
-      </p>
+      </Typography.Paragraph>
     );
   }
 

@@ -107,9 +107,8 @@ export function durumPalette(durum: string | null | undefined): TagPalette {
 }
 
 /**
- * Boring Avatars (https://github.com/boringdesigners/boring-avatars) "beam"
- * varyantı için renk paleti — SEGMENT_PALETTE ile aynı hue ailesi, sayfa
- * genelinde tutarlı bir renk dili için.
+ * Temsilci avatar rozeti (HeroUI Avatar.Fallback) için renk paleti —
+ * SEGMENT_PALETTE ile aynı hue ailesi, sayfa genelinde tutarlı bir renk dili için.
  */
 export const AVATAR_COLORS = [
   "#60a5fa",
@@ -118,3 +117,20 @@ export const AVATAR_COLORS = [
   "#fbbf24",
   "#f472b6",
 ];
+
+/** Ad'a göre AVATAR_COLORS paletinden deterministik renk — aynı temsilci her yerde aynı rengi taşır. */
+export function temsilciRengi(ad: string): string {
+  let hash = 0;
+  for (let i = 0; i < ad.length; i++) {
+    hash = (hash * 31 + ad.charCodeAt(i)) >>> 0;
+  }
+  return AVATAR_COLORS[hash % AVATAR_COLORS.length]!;
+}
+
+/** Ad'dan baş harfler — "TAMER ÇELİK" → "TÇ", tek kelimeli adlarda ilk iki harf. */
+export function temsilciInitials(ad: string): string {
+  const parts = ad.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0]!.slice(0, 2).toLocaleUpperCase("tr-TR");
+  return (parts[0]![0] + parts[1]![0]).toLocaleUpperCase("tr-TR");
+}

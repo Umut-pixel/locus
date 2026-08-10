@@ -3,6 +3,7 @@
 import { memo, useEffect, useRef } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
+import { Typography } from "@heroui/react";
 
 import { DEPOT } from "@/lib/depot";
 import { DEFAULT_MAP_VIEW, MAPBOX_STYLE_URL, MAPBOX_TOKEN } from "@/lib/mapbox-style";
@@ -911,11 +912,13 @@ export const PetshopMap = memo(function PetshopMap({
   if (!MAPBOX_TOKEN) {
     return (
       <div className="flex h-full w-full items-center justify-center bg-muted p-8 text-center text-sm text-muted-foreground">
-        <p>
-          <code>NEXT_PUBLIC_MAPBOX_TOKEN</code> tanımlı değil. <br />
-          <code>frontend/.env.local</code> dosyasına Mapbox public access
-          token&apos;ınızı ekleyip sunucuyu yeniden başlatın.
-        </p>
+        <Typography.Paragraph size="sm">
+          <Typography.Code>NEXT_PUBLIC_MAPBOX_TOKEN</Typography.Code> tanımlı
+          değil. <br />
+          <Typography.Code>frontend/.env.local</Typography.Code> dosyasına
+          Mapbox public access token&apos;ınızı ekleyip sunucuyu yeniden
+          başlatın.
+        </Typography.Paragraph>
       </div>
     );
   }

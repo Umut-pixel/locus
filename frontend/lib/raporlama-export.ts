@@ -7,7 +7,7 @@ import {
 } from "@/hooks/useMusteriRaporlama";
 import { formatDate } from "@/lib/format";
 import { segmentDisplayLabel } from "@/lib/raporlama-style";
-import { RISK_SHORT_LABELS } from "@/lib/risk-style";
+import { BORC_RISK_SHORT_LABELS, debtRiskDurumu } from "@/lib/risk-mode";
 
 function rowsToSheet(rows: MusteriRaporSatiri[]) {
   return rows.map((r) => ({
@@ -18,7 +18,8 @@ function rowsToSheet(rows: MusteriRaporSatiri[]) {
     Segment: segmentDisplayLabel(r.musteri_grubu),
     Durum: r.durum ?? "",
     Temsilci: r.belge_st_adi ?? "",
-    "Risk Durumu": RISK_SHORT_LABELS[r.risk_durumu],
+    // Borç yaşlandırmasına göre — ekranda gösterilenle birebir aynı (bkz. lib/risk-mode.ts).
+    "Risk Durumu": BORC_RISK_SHORT_LABELS[debtRiskDurumu(r)],
     "Net Ciro (TL)": r.belge_net_ciro ?? 0,
     "Sipariş Sayısı": r.belge_siparis_sayisi ?? 0,
     "Fatura Sayısı": r.belge_fatura_sayisi ?? 0,

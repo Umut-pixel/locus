@@ -1,6 +1,7 @@
 "use client";
 
 import { EyeOffIcon } from "lucide-react";
+import { Typography } from "@heroui/react";
 
 import type { MusteriGizlenen, PotansiyelGizlenen } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -56,9 +57,9 @@ export function GizlenenList({
       {loading && items.length === 0 ? (
         <p className="text-[11px] text-muted-foreground">Yükleniyor…</p>
       ) : items.length === 0 ? (
-        <p className="text-[11px] leading-relaxed text-muted-foreground">
+        <Typography.Paragraph size="xs" color="muted">
           Karttaki göz ikonuyla gizlenenler burada listelenir.
-        </p>
+        </Typography.Paragraph>
       ) : (
         <ul className="max-h-44 space-y-0.5 overflow-y-auto overscroll-contain rounded-xl border border-border/60 bg-muted/20 py-1">
           {items.map((entry) => {

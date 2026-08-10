@@ -20,6 +20,7 @@ import {
   XIcon,
 } from "lucide-react";
 import { AnimatePresence, animate, motion, useDragControls, useMotionValue } from "motion/react";
+import { Typography } from "@heroui/react";
 
 import { Button } from "@/components/ui/button";
 import { EntityNotesButton } from "@/components/map/EntityNotesButton";
@@ -851,16 +852,17 @@ export const CustomerDetailPanel = memo(function CustomerDetailPanel({
               {musteri.sehir ? ` · ${musteri.sehir}` : ""}
               {musteri.ilce ? ` / ${musteri.ilce}` : ""}
             </p>
-            <h2
+            <Typography.Heading
+              level={6}
               className={cn(
-                "mt-1 text-sm leading-snug font-medium",
+                "mt-1",
                 !sheetExpanded && !sheetDragging
                   ? "line-clamp-1"
                   : "line-clamp-2"
               )}
             >
               {musteri.unvan}
-            </h2>
+            </Typography.Heading>
           </div>
           <div className="flex shrink-0 items-center gap-0.5">
             <EntityNotesButton
@@ -1406,11 +1408,11 @@ function BorclarPage({ musteri }: { musteri: MusteriHarita }) {
 
   if (musteri.yas_toplam == null) {
     return (
-      <p className="text-xs leading-relaxed text-muted-foreground">
+      <Typography.Paragraph size="xs" color="muted">
         Henüz yaşlandırma verisi yok. Panorama 5530 sync veya manuel{" "}
         <span className="text-foreground">ST Yaşlandırma</span> yüklemesinden
         sonra gecikmeli borç kırılımı burada görünür.
-      </p>
+      </Typography.Paragraph>
     );
   }
 
@@ -1492,14 +1494,14 @@ function BorclarPage({ musteri }: { musteri: MusteriHarita }) {
           <p className="mt-2 text-xs text-muted-foreground">Yükleniyor…</p>
         )}
         {faturaDurum === "error" && (
-          <p className="mt-2 text-xs text-muted-foreground">
+          <Typography.Paragraph size="xs" color="muted" className="mt-2">
             Fatura detayı şu an okunamadı.
-          </p>
+          </Typography.Paragraph>
         )}
         {faturaDurum === "empty" && (
-          <p className="mt-2 text-xs text-muted-foreground">
+          <Typography.Paragraph size="xs" color="muted" className="mt-2">
             Açık fatura satırı yok.
-          </p>
+          </Typography.Paragraph>
         )}
         {faturaDurum === "ok" && faturalar && faturalar.length > 0 && (
           <ul className="mt-2 flex flex-col gap-1.5">
@@ -1566,11 +1568,11 @@ function formatDonem(
 function SatisPage({ musteri }: { musteri: MusteriHarita }) {
   if (musteri.belge_net_ciro == null && musteri.belge_satir_sayisi == null) {
     return (
-      <p className="text-xs leading-relaxed text-muted-foreground">
+      <Typography.Paragraph size="xs" color="muted">
         Henüz satış belgesi yok. Bir{" "}
         <span className="text-foreground">BelgeDetayRaporu</span> dosyası
         yükledikten sonra dönem satış özeti burada görünür.
-      </p>
+      </Typography.Paragraph>
     );
   }
 
@@ -1710,11 +1712,11 @@ function DegisimPage({
     return (
       <div className="space-y-3.5">
         <FormHeader sonuc={sonuc} formColor={formColor} olayColor={olayColor} />
-        <p className="text-xs leading-relaxed text-muted-foreground">
+        <Typography.Paragraph size="xs" color="muted">
           Henüz önceki sevkiyat yüklemesi yok. Bir{" "}
           <span className="text-foreground">SevkiyatRaporuKup</span> dosyası
           yükledikten sonra kazanım / uyarı / aksiyon olayları burada görünür.
-        </p>
+        </Typography.Paragraph>
         <BaskiBar baski={sonuc.baski} color={formColor} />
         <dl className="flex flex-col gap-2 text-xs">
           <MetricRow

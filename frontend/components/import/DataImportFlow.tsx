@@ -18,6 +18,7 @@ import {
   useTransform,
   type MotionValue,
 } from "motion/react";
+import { Typography } from "@heroui/react";
 
 import { Button } from "@/components/ui/button";
 import type { UploadResult } from "@/lib/import/types";
@@ -230,9 +231,9 @@ export function DataImportFlow({
       <div className="overflow-hidden rounded-xl border border-border/80 bg-popover/95 text-popover-foreground shadow-[0_10px_28px_-14px_rgba(0,0,0,0.55)] backdrop-blur-sm">
         <div className={cn("px-3", isComplete ? "pt-2.5 pb-2" : "py-2.5")}>
           <div className="flex items-center gap-1.5">
-            <h2 className="min-w-0 flex-1 truncate text-[12px] font-medium">
+            <Typography.Heading level={6} className="min-w-0 flex-1 truncate">
               Müşteri verisi yükle
-            </h2>
+            </Typography.Heading>
             <AnimatePresence>
               {(stage === "uploaded" ||
                 stage === "matching" ||

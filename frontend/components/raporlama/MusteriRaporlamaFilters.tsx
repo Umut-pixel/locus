@@ -22,7 +22,8 @@ import {
 } from "@/hooks/useMusteriRaporlama";
 import { SEHIR_HEDEF } from "@/lib/import/cities";
 import { SEGMENT_OPTIONS, segmentDisplayLabel } from "@/lib/raporlama-style";
-import { RISK_ORDER, RISK_SHORT_LABELS } from "@/lib/risk-style";
+import { BORC_RISK_SHORT_LABELS } from "@/lib/risk-mode";
+import { RISK_ORDER } from "@/lib/risk-style";
 import type { RiskDurumu } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -148,14 +149,14 @@ export function MusteriRaporlamaFilters({
       >
         <SelectTrigger size="sm" className={cn(FILTER_CONTROL, "w-[7.5rem]")}>
           <SelectValue>
-            {(v: string) => (v === "all" ? "Risk" : RISK_SHORT_LABELS[v as RiskDurumu])}
+            {(v: string) => (v === "all" ? "Risk" : BORC_RISK_SHORT_LABELS[v as RiskDurumu])}
           </SelectValue>
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="all">Tüm risk durumları</SelectItem>
           {RISK_ORDER.map((risk) => (
             <SelectItem key={risk} value={risk}>
-              {RISK_SHORT_LABELS[risk]}
+              {BORC_RISK_SHORT_LABELS[risk]}
             </SelectItem>
           ))}
         </SelectContent>

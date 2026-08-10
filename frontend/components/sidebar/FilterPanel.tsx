@@ -11,6 +11,7 @@ import {
 } from "react";
 import { SearchIcon, EyeOffIcon, XIcon } from "lucide-react";
 import { motion } from "motion/react";
+import { Typography } from "@heroui/react";
 
 import {
   GizlenenList,
@@ -264,12 +265,12 @@ export const FilterPanel = memo(function FilterPanel({
         )}
       >
         <div className="min-w-0">
-          <h1 className="text-[15px] font-medium tracking-tight">
+          <Typography.Heading level={5} className="tracking-tight">
             Petshop Müşteri Haritası
-          </h1>
-          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+          </Typography.Heading>
+          <Typography.Paragraph size="xs" color="muted" className="mt-1">
             Ege bölgesi müşteri dağılımı ve teslimat risk durumu
-          </p>
+          </Typography.Paragraph>
         </div>
 
         <div className="grid grid-cols-3 gap-2">

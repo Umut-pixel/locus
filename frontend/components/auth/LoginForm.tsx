@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { EyeIcon, EyeOffIcon } from "lucide-react";
+import { Typography } from "@heroui/react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -101,9 +102,9 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
       </div>
 
       {error ? (
-        <p className="text-sm text-red-600" role="alert">
+        <Typography type="body-sm" className="text-red-600" role="alert">
           {error}
-        </p>
+        </Typography>
       ) : null}
 
       <Button
