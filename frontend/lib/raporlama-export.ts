@@ -1,15 +1,16 @@
 import * as XLSX from "xlsx";
 
-import { fetchAllMusteriRaporu, type RaporlamaFilters } from "@/hooks/useMusteriRaporlama";
+import {
+  fetchAllMusteriRaporu,
+  type MusteriRaporSatiri,
+  type RaporlamaFilters,
+} from "@/hooks/useMusteriRaporlama";
 import { formatDate } from "@/lib/format";
 import { segmentDisplayLabel } from "@/lib/raporlama-style";
 import { RISK_SHORT_LABELS } from "@/lib/risk-style";
 
-/** Geçerli filtrelerle eşleşen tüm müşteri raporunu .xlsx olarak indirir (xlsx zaten bağımlılıkta — bkz. lib/import). */
-export async function exportMusteriRaporu(filters: RaporlamaFilters): Promise<number> {
-  const rows = await fetchAllMusteriRaporu(filters);
-
-  const sheetRows = rows.map((r) => ({
+function rowsToSheet(rows: MusteriRaporSatiri[]) {
+  return rows.map((r) => ({
     "Müşteri Kodu": r.musteri_kodu,
     Unvan: r.unvan,
     Şehir: r.sehir ?? "",
@@ -26,6 +27,12 @@ export async function exportMusteriRaporu(filters: RaporlamaFilters): Promise<nu
     "Son Teslimat": formatDate(r.son_teslimat_tarihi),
     "Toplam Teslimat Sayısı": r.toplam_teslimat_sayisi,
   }));
+}
+
+/** Geçerli filtrelerle eşleşen tüm müşteri raporunu .xlsx olarak indirir (xlsx zaten bağımlılıkta — bkz. lib/import). */
+export async function exportMusteriRaporu(filters: RaporlamaFilters): Promise<number> {
+  const rows = await fetchAllMusteriRaporu(filters);
+  const sheetRows = rowsToSheet(rows);
 
   const worksheet = XLSX.utils.json_to_sheet(sheetRows);
   const workbook = XLSX.utils.book_new();
@@ -35,4 +42,16 @@ export async function exportMusteriRaporu(filters: RaporlamaFilters): Promise<nu
   XLSX.writeFile(workbook, `locus-musteri-raporu-${stamp}.xlsx`);
 
   return rows.length;
+}
+
+/** Seçili satırları — yeni fetch olmadan — anında .xlsx olarak indirir. */
+export function exportSelectedRows(rows: MusteriRaporSatiri[]): void {
+  const sheetRows = rowsToSheet(rows);
+
+  const worksheet = XLSX.utils.json_to_sheet(sheetRows);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Müşteri Raporu");
+
+  const stamp = new Date().toISOString().slice(0, 10);
+  XLSX.writeFile(workbook, `locus-musteri-raporu-${stamp}.xlsx`);
 }

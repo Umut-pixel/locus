@@ -12,7 +12,6 @@ import {
 import { SearchIcon, EyeOffIcon, XIcon } from "lucide-react";
 import { motion } from "motion/react";
 
-import { AgentAssistant } from "@/components/agent/AgentAssistant";
 import {
   GizlenenList,
   type GizlenenItem,
@@ -33,8 +32,6 @@ import {
   RISK_ORDER,
   RISK_SHORT_LABELS as DEFAULT_RISK_SHORT_LABELS,
 } from "@/lib/risk-style";
-import type { ImportActivity } from "@/lib/agent-states";
-import type { UploadResult } from "@/lib/import/types";
 import type { PotansiyelHarita, RiskDurumu } from "@/lib/types";
 
 export interface FilterStats {
@@ -75,8 +72,6 @@ interface FilterPanelProps {
   stats: FilterStats;
   onReset: () => void;
   hasActiveFilters: boolean;
-  importActivity?: ImportActivity | null;
-  lastUploadResult?: UploadResult | null;
   /** Mobil sheet içinde farklı yükseklik/padding davranışı. */
   variant?: "sidebar" | "sheet";
   riskLabels?: Record<RiskDurumu, string>;
@@ -114,8 +109,6 @@ export const FilterPanel = memo(function FilterPanel({
   stats,
   onReset,
   hasActiveFilters,
-  importActivity = null,
-  lastUploadResult = null,
   variant = "sidebar",
   riskLabels = DEFAULT_RISK_LABELS,
   riskShortLabels = DEFAULT_RISK_SHORT_LABELS,
@@ -267,7 +260,7 @@ export const FilterPanel = memo(function FilterPanel({
       <div
         className={cn(
           "flex min-h-0 flex-col gap-4 overflow-y-auto overscroll-contain px-5 pb-3",
-          isSheet ? "flex-1 pt-12 pr-12" : "max-h-[48%] shrink-0 pt-5"
+          isSheet ? "flex-1 pt-12 pr-12" : "flex-1 pt-5"
         )}
       >
         <div className="min-w-0">
@@ -300,7 +293,7 @@ export const FilterPanel = memo(function FilterPanel({
           />
         </div>
 
-        <div ref={searchWrapRef} className="relative z-20">
+        <div ref={searchWrapRef} className="relative z-10">
           <ClearDissolveInput
             value={search}
             onChange={onSearchChange}
@@ -512,19 +505,6 @@ export const FilterPanel = memo(function FilterPanel({
             onSelect={onGizlenenSelect}
           />
         ) : null}
-
-      </div>
-
-      <div
-        className={cn(
-          "flex min-h-0 flex-col border-t border-sidebar-border/80 bg-black/20",
-          isSheet ? "h-[min(42%,22rem)] shrink-0" : "flex-1"
-        )}
-      >
-        <AgentAssistant
-          importActivity={importActivity}
-          lastUploadResult={lastUploadResult}
-        />
       </div>
     </div>
   );

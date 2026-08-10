@@ -1,16 +1,25 @@
+import Avatar from "boring-avatars";
+
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency, formatCurrencyPrecise } from "@/lib/format";
 import {
+  AVATAR_COLORS,
   RISK_ICONS,
-  avatarBackgroundFor,
   durumPalette,
-  initialsFor,
   segmentDisplayLabel,
   segmentPalette,
 } from "@/lib/raporlama-style";
 import { RISK_COLORS, RISK_SHORT_LABELS } from "@/lib/risk-style";
 import type { RiskDurumu } from "@/lib/types";
 import { cn } from "@/lib/utils";
+
+/**
+ * Yoğun (dense) CRM tablosu için ortak rozet ölçüsü — 2026-08-10'da ilk
+ * geçişten (20px/10.5px) sonra "çok dar" geri bildirimiyle ~%20 büyütüldü:
+ * 24px yükseklik, 12px metin, 6px köşe.
+ */
+const DENSE_BADGE =
+  "h-6 rounded-[6px] border px-2 py-0 text-[12px] leading-none font-medium";
 
 /** Haritada kullanılan risk renk/etiket token'larıyla birebir aynı (RISK_COLORS/RISK_SHORT_LABELS). */
 export function RiskPill({ risk }: { risk: RiskDurumu }) {
@@ -19,10 +28,10 @@ export function RiskPill({ risk }: { risk: RiskDurumu }) {
   return (
     <Badge
       variant="outline"
-      className="gap-1 font-medium"
+      className={cn(DENSE_BADGE, "gap-1.5 [&>svg]:size-3!")}
       style={{ backgroundColor: `${color}1f`, color, borderColor: `${color}4d` }}
     >
-      <Icon className="size-3" />
+      <Icon />
       {RISK_SHORT_LABELS[risk]}
     </Badge>
   );
@@ -33,6 +42,7 @@ export function SegmentTag({ musteriGrubu }: { musteriGrubu: string | null }) {
   return (
     <Badge
       variant="outline"
+      className={DENSE_BADGE}
       style={{
         backgroundColor: palette.bg,
         color: palette.text,
@@ -46,11 +56,13 @@ export function SegmentTag({ musteriGrubu }: { musteriGrubu: string | null }) {
 
 /** musteri_ek_grup canlı şemada yok — durum (Aktif/Pasif/İptal) en yakın gerçek ikinci etiket. */
 export function DurumTag({ durum }: { durum: string | null }) {
-  if (!durum) return <span className="text-xs text-muted-foreground/50">—</span>;
+  if (!durum)
+    return <span className="text-[13px] text-muted-foreground">—</span>;
   const palette = durumPalette(durum);
   return (
     <Badge
       variant="outline"
+      className={DENSE_BADGE}
       style={{
         backgroundColor: palette.bg,
         color: palette.text,
@@ -65,18 +77,18 @@ export function DurumTag({ durum }: { durum: string | null }) {
 /** belge_st_adi (5450/BelgeDetayRaporu) — view'da ayrı bir "temsilci" alanı yok, en yakın gerçek isim kolonu. */
 export function TemsilciAvatar({ ad }: { ad: string | null }) {
   if (!ad) {
-    return <span className="text-xs text-muted-foreground/50">Atanmamış</span>;
+    return <span className="text-[13px] text-muted-foreground">Atanmamış</span>;
   }
   return (
     <div className="flex min-w-0 items-center gap-2">
-      <div
-        className="flex size-6 shrink-0 items-center justify-center rounded-full text-[10px] font-medium text-white/90"
-        style={{ backgroundColor: avatarBackgroundFor(ad) }}
-        aria-hidden
-      >
-        {initialsFor(ad)}
-      </div>
-      <span className="truncate text-[13px]">{ad}</span>
+      <Avatar
+        name={ad}
+        variant="beam"
+        colors={AVATAR_COLORS}
+        size={24}
+        square={false}
+      />
+      <span className="truncate text-[13.5px]">{ad}</span>
     </div>
   );
 }
@@ -96,7 +108,7 @@ export function CurrencyAmount({
   return (
     <span
       className={cn(
-        "font-mono text-[13px] font-semibold tabular-nums",
+        "font-mono text-[14px] font-medium tabular-nums",
         danger ? "text-red-400" : "text-foreground"
       )}
     >

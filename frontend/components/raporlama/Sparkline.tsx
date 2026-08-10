@@ -17,7 +17,7 @@ interface SparklineProps {
 export function Sparkline({
   values,
   width = 72,
-  height = 24,
+  height = 22,
   color = "#60a5fa",
   className,
 }: SparklineProps) {
@@ -25,13 +25,13 @@ export function Sparkline({
     return (
       <div
         className={cn(
-          "flex items-center justify-center text-[10px] text-muted-foreground/45",
+          "flex items-center justify-center text-[11px] text-muted-foreground",
           className
         )}
         style={{ width, height }}
         title="Henüz yeterli trend verisi yok"
       >
-        henüz veri yok
+        —
       </div>
     );
   }

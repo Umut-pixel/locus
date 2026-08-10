@@ -50,6 +50,21 @@
 
 :root {
   /*
+   * Uygulama kabuğu ölçüleri — TEK layout kaynağı.
+   *
+   * Sidebar genişliği ve tablo satır ritmi yalnızca buradan okunur. Hiçbir
+   * bileşen kendi margin-left / offset değerini hesaplamaz: kabuk flex,
+   * sidebar bu değişkeni genişlik olarak alır, içerik kalan alanı kaplar.
+   * Böylece sidebar daraldığında/genişlediğinde içerik tek başına takip eder,
+   * iki ayrı yerde senkron tutulması gereken sabit sayı kalmaz.
+   */
+  --sidebar-w: 11.5rem; /* 184px — ikon + etiket (varsayılan) */
+  --sidebar-w-rail: 3.25rem; /* 52px — yalnız ikon rayı */
+  /* 2026-08-10: ilk yoğun geçişten (%36/34px) sonra "çok dar" geri bildirimiyle ~%20 büyütüldü. */
+  --row-h: 2.75rem; /* 44px — yoğun tablo veri satırı */
+  --row-h-head: 2.625rem; /* 42px — tablo başlık satırı */
+
+  /*
    * Koyu charcoal tema — tüm dashboard'un tek renk kaynağı.
    * Saf siyah yerine kömür grisi yüzeyler, katmanlar arasında küçük
    * parlaklık adımları (background → sidebar → card → popover) ve

@@ -9,12 +9,28 @@ import {
 } from "@/lib/supabase";
 import type { RiskDurumu } from "@/lib/types";
 
-export const RAPORLAMA_PAGE_SIZE = 25;
+export const RAPORLAMA_PAGE_SIZE = 50;
 const SEARCH_DEBOUNCE_MS = 300;
 const TREND_GUN_SAYISI = 14;
 /** PostgREST varsayılan olarak .range()/.limit() verilmezse yanıtı sessizce 1000 satırda keser. */
 const FETCH_ALL_BATCH_SIZE = 1000;
 const FETCH_ALL_MAX_BATCHES = 5;
+
+/** musteri_yaslandirma gün bandı kolonları — Excel'deki "01 - 06" … "70 Üstü" başlıklarının DB karşılığı. */
+export const BORC_GECIKME_BANTLARI: { value: string; label: string }[] = [
+  { value: "hf_01_06", label: "1–6 gün" },
+  { value: "hf_07_13", label: "7–13 gün" },
+  { value: "hf_14_20", label: "14–20 gün" },
+  { value: "hf_21_27", label: "21–27 gün" },
+  { value: "hf_28_34", label: "28–34 gün" },
+  { value: "hf_35_41", label: "35–41 gün" },
+  { value: "hf_42_48", label: "42–48 gün" },
+  { value: "hf_49_55", label: "49–55 gün" },
+  { value: "hf_56_62", label: "56–62 gün" },
+  { value: "hf_63_69", label: "63–69 gün" },
+  { value: "hf_70_ustu", label: "70+ gün" },
+];
+const BORC_GECIKME_KOLONLARI = new Set(BORC_GECIKME_BANTLARI.map((b) => b.value));
 
 export interface RaporlamaFilters {
   search: string;
@@ -23,6 +39,8 @@ export interface RaporlamaFilters {
   temsilci: string | null;
   sehir: string | null;
   ilce: string | null;
+  /** BORC_GECIKME_BANTLARI'ndan bir kolon adı (örn. "hf_70_ustu") ya da null. */
+  gecikmeBandi: string | null;
 }
 
 export const EMPTY_RAPORLAMA_FILTERS: RaporlamaFilters = {
@@ -32,6 +50,7 @@ export const EMPTY_RAPORLAMA_FILTERS: RaporlamaFilters = {
   temsilci: null,
   sehir: null,
   ilce: null,
+  gecikmeBandi: null,
 };
 
 export function raporlamaFiltersActive(filters: RaporlamaFilters): boolean {
@@ -41,9 +60,22 @@ export function raporlamaFiltersActive(filters: RaporlamaFilters): boolean {
       filters.segment ||
       filters.temsilci ||
       filters.sehir ||
-      filters.ilce
+      filters.ilce ||
+      filters.gecikmeBandi
   );
 }
+
+export type RaporlamaSortAlan = "ciro" | "acik_bakiye";
+
+export interface RaporlamaSort {
+  alan: RaporlamaSortAlan;
+  yon: "asc" | "desc";
+}
+
+const SORT_KOLON: Record<RaporlamaSortAlan, string> = {
+  ciro: "belge_net_ciro",
+  acik_bakiye: "yas_toplam",
+};
 
 /** `musteriler_harita`'dan rapor tablosunun ihtiyaç duyduğu dar kolon seti. */
 export interface MusteriRaporSatiri {
@@ -99,6 +131,10 @@ function applyFilters(query: any, filters: RaporlamaFilters): any {
   if (filters.temsilci) q = q.eq("belge_st_adi", filters.temsilci);
   if (filters.sehir) q = q.eq("sehir", filters.sehir);
   if (filters.ilce) q = q.eq("ilce", filters.ilce);
+  // Sabit BORC_GECIKME_BANTLARI enum'undan geldiği için kolon adı güvenli.
+  if (filters.gecikmeBandi && BORC_GECIKME_KOLONLARI.has(filters.gecikmeBandi)) {
+    q = q.gt(filters.gecikmeBandi, 0);
+  }
   return q;
 }
 
@@ -160,7 +196,8 @@ interface UseMusteriRaporlamaResult {
  */
 export function useMusteriRaporlama(
   filters: RaporlamaFilters,
-  page: number
+  page: number,
+  sort: RaporlamaSort | null = null
 ): UseMusteriRaporlamaResult {
   const [rows, setRows] = useState<MusteriRaporSatiri[]>([]);
   const [totalCount, setTotalCount] = useState(0);
@@ -189,6 +226,7 @@ export function useMusteriRaporlama(
       filters.temsilci,
       filters.sehir,
       filters.ilce,
+      filters.gecikmeBandi,
     ]
   );
 
@@ -200,12 +238,23 @@ export function useMusteriRaporlama(
     async function run() {
       const from = page * RAPORLAMA_PAGE_SIZE;
       const to = from + RAPORLAMA_PAGE_SIZE - 1;
-      const query = applyFilters(
+      let query = applyFilters(
         supabase.from(MUSTERILER_HARITA_VIEW).select(ROW_SELECT, { count: "exact" }),
         effectiveFilters
       );
+      // Kullanıcı bir kolon sıralaması seçtiyse onu uygula; yoksa varsayılan
+      // (en gecikmiş teslimat en üstte) sıralamaya dön. `unvan` her zaman
+      // eşit değerler arasında deterministik ikincil sıralamadır.
+      query = sort
+        ? query.order(SORT_KOLON[sort.alan], {
+            ascending: sort.yon === "asc",
+            nullsFirst: false,
+          })
+        : query.order("son_teslimattan_gecen_gun", {
+            ascending: false,
+            nullsFirst: false,
+          });
       const { data, error: err, count } = await query
-        .order("son_teslimattan_gecen_gun", { ascending: false, nullsFirst: false })
         .order("unvan", { ascending: true })
         .range(from, to)
         .abortSignal(ac.signal);
@@ -225,7 +274,7 @@ export function useMusteriRaporlama(
 
     void run();
     return () => ac.abort();
-  }, [effectiveFilters, page]);
+  }, [effectiveFilters, page, sort]);
 
   useEffect(() => {
     const ac = new AbortController();
@@ -348,6 +397,90 @@ export function useIlceSecenekleri(sehir: string | null): {
   }, [sehir]);
 
   return { options, loading };
+}
+
+/**
+ * Satır detay paneli için genişletilmiş veri — isteğe bağlı yüklenir.
+ * Alan seti bilinçli olarak haritadaki CustomerDetailPanel'in Özet/Borçlar
+ * sayfalarıyla aynı kolon havuzundan geliyor — rapor tablosundaki satır
+ * detayı, haritadaki müşteri kartıyla aynı "kaynak gerçeği"ni gösterir.
+ */
+export interface MusteriDetay {
+  musteri_kodu: string;
+  lat: number | null;
+  lon: number | null;
+  adres: string | null;
+  geocode_hassasiyet: import("@/lib/types").GeocodeHassasiyet | null;
+  rut_kod: string | null;
+  guncellendi: string | null;
+  ilk_teslimat_tarihi: string | null;
+  toplam_agirlik: number | null;
+  toplam_tutar: number | null;
+  son_teslimattan_gecen_gun: number | null;
+  belge_top_urun: string | null;
+  belge_son_urun: string | null;
+  belge_vade_gunu: number | null;
+  borc_riskli: boolean | null;
+  yas_st: string | null;
+  yas_inserted_at: string | null;
+  hf_01_06: number | null;
+  hf_07_13: number | null;
+  hf_14_20: number | null;
+  hf_21_27: number | null;
+  hf_28_34: number | null;
+  hf_35_41: number | null;
+  hf_42_48: number | null;
+  hf_49_55: number | null;
+  hf_56_62: number | null;
+  hf_63_69: number | null;
+  hf_70_ustu: number | null;
+  yas_toplam: number | null;
+  yas_riskli_tutar: number | null;
+  belge_net_ciro: number | null;
+  belge_son_islem_tarihi: string | null;
+}
+
+const DETAY_SELECT =
+  "musteri_kodu,lat,lon,adres,geocode_hassasiyet,rut_kod,guncellendi," +
+  "ilk_teslimat_tarihi,toplam_agirlik,toplam_tutar,son_teslimattan_gecen_gun," +
+  "belge_top_urun,belge_son_urun,belge_vade_gunu,borc_riskli,yas_st,yas_inserted_at," +
+  "hf_01_06,hf_07_13,hf_14_20,hf_21_27,hf_28_34,hf_35_41,hf_42_48," +
+  "hf_49_55,hf_56_62,hf_63_69,hf_70_ustu,yas_toplam,yas_riskli_tutar," +
+  "belge_net_ciro,belge_son_islem_tarihi";
+
+/** Satıra tıklanınca tek müşteri için ek detay çeker. */
+export function useMusteriDetay(musteriKodu: string | null): {
+  detay: MusteriDetay | null;
+  loading: boolean;
+} {
+  const [detay, setDetay] = useState<MusteriDetay | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!musteriKodu) {
+      setDetay(null);
+      return;
+    }
+    let cancelled = false;
+    setLoading(true);
+
+    supabase
+      .from(MUSTERILER_HARITA_VIEW)
+      .select(DETAY_SELECT)
+      .eq("musteri_kodu", musteriKodu)
+      .single()
+      .then(({ data, error }) => {
+        if (cancelled) return;
+        if (!error && data) setDetay(data as unknown as MusteriDetay);
+        setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [musteriKodu]);
+
+  return { detay, loading };
 }
 
 export interface TrendNoktasi {

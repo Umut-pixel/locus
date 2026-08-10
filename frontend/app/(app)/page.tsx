@@ -238,10 +238,10 @@ export default function Home() {
   const [panelAnchor, setPanelAnchor] = useState<PanelAnchor | null>(null);
   const [highlightedRutKod, setHighlightedRutKod] = useState<string | null>(null);
   const [importOpen, setImportOpen] = useState(false);
-  const [importActivity, setImportActivity] = useState<ImportStage | null>(null);
-  const [lastUploadResult, setLastUploadResult] = useState<UploadResult | null>(
-    null
-  );
+  // Değer artık UI'da okunmuyor (AI paneli kaldırıldı) — setter'lar yükleme
+  // akışının yan etkileri (harita vurgusu, filtre sıfırlama) için hâlâ gerekli.
+  const [, setImportActivity] = useState<ImportStage | null>(null);
+  const [, setLastUploadResult] = useState<UploadResult | null>(null);
   const [highlightCodes, setHighlightCodesState] = useState<string[] | null>(
     () => getHighlightCodes()
   );
@@ -806,8 +806,6 @@ export default function Home() {
       stats,
       onReset: resetFilters,
       hasActiveFilters,
-      importActivity,
-      lastUploadResult,
       riskLabels,
       riskShortLabels,
       includeDigerKanallar,
@@ -839,8 +837,6 @@ export default function Home() {
       stats,
       resetFilters,
       hasActiveFilters,
-      importActivity,
-      lastUploadResult,
       riskLabels,
       riskShortLabels,
       includeDigerKanallar,

@@ -106,17 +106,15 @@ export function durumPalette(durum: string | null | undefined): TagPalette {
   return DURUM_PALETTE[durumKey(durum)] ?? NEUTRAL_PALETTE;
 }
 
-/** Temsilci baş harfi avatarı — sabit doygunluk/parlaklık, hue isimden deterministik. */
-export function avatarBackgroundFor(name: string): string {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) | 0;
-  const hue = Math.abs(hash) % 360;
-  return `hsl(${hue}, 42%, 30%)`;
-}
-
-export function initialsFor(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return "?";
-  if (parts.length === 1) return parts[0]!.slice(0, 2).toLocaleUpperCase("tr-TR");
-  return (parts[0]![0] + parts[1]![0]).toLocaleUpperCase("tr-TR");
-}
+/**
+ * Boring Avatars (https://github.com/boringdesigners/boring-avatars) "beam"
+ * varyantı için renk paleti — SEGMENT_PALETTE ile aynı hue ailesi, sayfa
+ * genelinde tutarlı bir renk dili için.
+ */
+export const AVATAR_COLORS = [
+  "#60a5fa",
+  "#a78bfa",
+  "#34d399",
+  "#fbbf24",
+  "#f472b6",
+];

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type FocusEvent } from "react";
-import { MenuIcon, PinIcon, PinOffIcon, type LucideIcon } from "lucide-react";
+import { MenuIcon, PanelLeftCloseIcon, PanelLeftIcon } from "lucide-react";
 
 import { AppSidebarNavItem } from "@/components/sidebar/AppSidebarNavItem";
 import { LogoutButton } from "@/components/auth/LogoutButton";
@@ -14,78 +14,62 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import {
-  HARITA_KAPSAMI,
-  MAIN_NAV,
-  PINNED_ITEMS,
-  RECENT_ITEMS,
-  TOOLS_NAV,
-} from "@/lib/app-sidebar-nav";
+import { HARITA_KAPSAMI, MAIN_NAV, TOOLS_NAV } from "@/lib/app-sidebar-nav";
 import { cn } from "@/lib/utils";
 
-const PINNED_STORAGE_KEY = "locus-sidebar-pinned";
-const COLLAPSED_WIDTH = "4rem";
-const EXPANDED_WIDTH = "16rem";
+/**
+ * Yeni anahtar: eski "locus-sidebar-pinned" varsayılanı DAR raydı; ray artık
+ * varsayılan olarak geniş (ikon + etiket) açıldığı için eski kayıt okunsaydı
+ * mevcut kullanıcılar yanlışlıkla dar rayda kalırdı.
+ */
+const EXPANDED_STORAGE_KEY = "locus-sidebar-expanded";
+/** Genişlikler globals.css'te — bkz. --sidebar-w / --sidebar-w-rail (tek layout kaynağı). */
+const EXPANDED_WIDTH = "var(--sidebar-w)";
+const RAIL_WIDTH = "var(--sidebar-w-rail)";
 
-/** Pin tercihi localStorage'da — SSR-safe: ilk paint'te false, hydrate sonrası gerçek değer. */
-function usePinnedPreference(): [boolean, (next: boolean) => void] {
-  const [pinned, setPinnedState] = useState(false);
+/**
+ * Ray genişlik tercihi localStorage'da. Varsayılan GENİŞ (ikon + etiket) —
+ * SSR-safe: ilk paint'te geniş, hydrate sonrası kullanıcının kaydettiği değer.
+ */
+function useExpandedPreference(): [boolean, (next: boolean) => void] {
+  const [expanded, setExpandedState] = useState(true);
 
   useEffect(() => {
-    if (window.localStorage.getItem(PINNED_STORAGE_KEY) === "1") {
-      setPinnedState(true);
+    if (window.localStorage.getItem(EXPANDED_STORAGE_KEY) === "0") {
+      setExpandedState(false);
     }
   }, []);
 
-  function setPinned(next: boolean) {
-    setPinnedState(next);
-    window.localStorage.setItem(PINNED_STORAGE_KEY, next ? "1" : "0");
+  function setExpanded(next: boolean) {
+    setExpandedState(next);
+    window.localStorage.setItem(EXPANDED_STORAGE_KEY, next ? "1" : "0");
   }
 
-  return [pinned, setPinned];
+  return [expanded, setExpanded];
 }
 
 function SidebarSectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <p className="px-2.5 pt-4 pb-1.5 text-[10.5px] font-medium tracking-[0.14em] text-muted-foreground/70 uppercase first:pt-3">
+    <p className="px-2 pt-3 pb-1 text-[9.5px] font-medium tracking-[0.13em] text-muted-foreground uppercase first:pt-2">
       {children}
     </p>
   );
 }
 
-function SidebarListButton({
-  label,
-  icon: Icon,
-}: {
-  label: string;
-  icon?: LucideIcon;
-}) {
-  return (
-    <button
-      type="button"
-      title={label}
-      className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-[12.5px] text-muted-foreground outline-none transition-colors duration-150 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground focus-visible:ring-3 focus-visible:ring-sidebar-ring/60"
-    >
-      {Icon ? <Icon className="size-3.5 shrink-0 text-muted-foreground" /> : null}
-      <span className="min-w-0 flex-1 truncate">{label}</span>
-    </button>
-  );
-}
-
 interface SidebarBodyProps {
-  /** İkon rayı modu — etiketler, alt gruplar ve Sabitlenenler/Sohbet gizlenir. */
+  /** İkon rayı modu — etiketler ve alt gruplar gizlenir. */
   collapsed?: boolean;
-  pinned?: boolean;
-  onTogglePin?: () => void;
-  showPinToggle?: boolean;
+  expanded?: boolean;
+  onToggleExpand?: () => void;
+  showExpandToggle?: boolean;
 }
 
 /** Masaüstü rayı ve mobil sheet aynı gövdeyi kullanır. */
 function SidebarBody({
   collapsed = false,
-  pinned = false,
-  onTogglePin,
-  showPinToggle = true,
+  expanded = true,
+  onToggleExpand,
+  showExpandToggle = true,
 }: SidebarBodyProps) {
   const coveragePct = Math.round(
     (HARITA_KAPSAMI.konumlanan / HARITA_KAPSAMI.toplam) * 100
@@ -98,35 +82,33 @@ function SidebarBody({
     >
       <div
         className={cn(
-          "flex shrink-0 items-center gap-2 border-b border-sidebar-border py-3.5",
-          collapsed ? "justify-center px-0" : "px-4"
+          "flex h-11 shrink-0 items-center gap-2 border-b border-sidebar-border",
+          collapsed ? "justify-center px-0" : "px-2.5"
         )}
       >
-        <CelixionMark size={20} className="shrink-0 text-sidebar-foreground" />
+        <CelixionMark size={17} className="shrink-0 text-sidebar-foreground" />
         {collapsed ? null : (
           <>
-            <span className="min-w-0 flex-1 truncate text-[13px] font-medium tracking-tight text-sidebar-foreground">
+            <span className="min-w-0 flex-1 truncate text-[12.5px] font-medium tracking-tight text-sidebar-foreground">
               Locus
             </span>
-            {showPinToggle ? (
+            {showExpandToggle ? (
               <button
                 type="button"
-                onClick={onTogglePin}
-                title={pinned ? "Sabitlemeyi kaldır" : "Sidebar'ı sabitle"}
-                aria-label={pinned ? "Sabitlemeyi kaldır" : "Sidebar'ı sabitle"}
-                aria-pressed={pinned}
+                onClick={onToggleExpand}
+                title={expanded ? "Rayı daralt" : "Rayı genişlet"}
+                aria-label={expanded ? "Rayı daralt" : "Rayı genişlet"}
+                aria-pressed={expanded}
                 className={cn(
-                  "flex size-6 shrink-0 items-center justify-center rounded-md outline-none transition-colors duration-150",
-                  "focus-visible:ring-3 focus-visible:ring-sidebar-ring/60",
-                  pinned
-                    ? "text-sidebar-accent-foreground"
-                    : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground"
+                  "flex size-5.5 shrink-0 items-center justify-center rounded-md text-muted-foreground outline-none transition-colors duration-150",
+                  "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                  "focus-visible:ring-2 focus-visible:ring-sidebar-ring/60"
                 )}
               >
-                {pinned ? (
-                  <PinOffIcon className="size-3.5" />
+                {expanded ? (
+                  <PanelLeftCloseIcon className="size-3.5" />
                 ) : (
-                  <PinIcon className="size-3.5" />
+                  <PanelLeftIcon className="size-3.5" />
                 )}
               </button>
             ) : null}
@@ -136,69 +118,51 @@ function SidebarBody({
 
       <nav
         className={cn(
-          "min-h-0 flex-1 overflow-y-auto overscroll-contain pb-4",
-          collapsed ? "px-2" : "px-2.5"
+          "min-h-0 flex-1 overflow-y-auto overscroll-contain pb-3",
+          collapsed ? "px-1.5" : "px-2"
         )}
       >
         {collapsed ? (
-          <div className="h-3" />
+          <div className="h-2" />
         ) : (
           <SidebarSectionLabel>Navigasyon</SidebarSectionLabel>
         )}
-        <div className="flex flex-col gap-0.5">
+        <div className="flex flex-col gap-px">
           {MAIN_NAV.map((item) => (
             <AppSidebarNavItem key={item.id} item={item} collapsed={collapsed} />
           ))}
         </div>
 
         {collapsed ? (
-          <div className="mt-3 border-t border-sidebar-border pt-3" />
+          <div className="mt-2 border-t border-sidebar-border pt-2" />
         ) : (
           <SidebarSectionLabel>Araçlar</SidebarSectionLabel>
         )}
-        <div className="flex flex-col gap-0.5">
+        <div className="flex flex-col gap-px">
           {TOOLS_NAV.map((item) => (
             <AppSidebarNavItem key={item.id} item={item} collapsed={collapsed} />
           ))}
         </div>
-
-        {collapsed ? null : (
-          <>
-            <SidebarSectionLabel>Sabitlenenler</SidebarSectionLabel>
-            <div className="flex flex-col gap-0.5">
-              {PINNED_ITEMS.map((item) => (
-                <SidebarListButton key={item.id} label={item.label} icon={item.icon} />
-              ))}
-            </div>
-
-            <SidebarSectionLabel>Sohbet geçmişi</SidebarSectionLabel>
-            <div className="flex flex-col gap-0.5">
-              {RECENT_ITEMS.map((item) => (
-                <SidebarListButton key={item.id} label={item.label} />
-              ))}
-            </div>
-          </>
-        )}
       </nav>
 
       <div
         className={cn(
           "shrink-0 border-t border-sidebar-border",
-          collapsed ? "flex flex-col items-center py-3" : "p-3"
+          collapsed ? "flex flex-col items-center py-2" : "p-2"
         )}
       >
         {collapsed ? (
           <LogoutButton className="text-muted-foreground" />
         ) : (
           <>
-            <div className="mb-2.5 rounded-xl bg-black/20 px-3 py-2.5">
-              <div className="mb-1.5 flex items-center justify-between text-[10.5px] text-muted-foreground">
-                <span>Harita kapsamı</span>
+            <div className="mb-1.5 px-1">
+              <div className="mb-1 flex items-center justify-between text-[9.5px] text-muted-foreground">
+                <span className="tracking-[0.06em] uppercase">Kapsam</span>
                 <span className="font-mono tabular-nums">
                   {HARITA_KAPSAMI.konumlanan}/{HARITA_KAPSAMI.toplam}
                 </span>
               </div>
-              <div className="h-1 overflow-hidden rounded-full bg-white/10">
+              <div className="h-[3px] overflow-hidden rounded-full bg-white/10">
                 <div
                   className="h-full rounded-full"
                   style={{
@@ -209,13 +173,13 @@ function SidebarBody({
               </div>
             </div>
 
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex min-w-0 items-center gap-2">
-                <div className="flex size-6 shrink-0 items-center justify-center rounded-full bg-sidebar-accent text-[10px] font-medium text-sidebar-accent-foreground">
-                  PT
+            <div className="flex items-center justify-between gap-1.5">
+              <div className="flex min-w-0 items-center gap-1.5">
+                <div className="flex size-5 shrink-0 items-center justify-center rounded-full bg-sidebar-accent text-[9px] font-medium text-sidebar-accent-foreground">
+                  PG
                 </div>
-                <span className="truncate text-[12.5px] text-sidebar-foreground">
-                  Peritas ekibi
+                <span className="truncate text-[11.5px] text-sidebar-foreground">
+                  Patigo
                 </span>
               </div>
               <LogoutButton className="shrink-0 text-muted-foreground" />
@@ -228,51 +192,72 @@ function SidebarBody({
 }
 
 /**
- * Masaüstü sol ray — Supabase tarzı davranış:
- * varsayılan ikon rayı (collapsed) → hover'da geçici genişler (overlay, FilterPanel/harita
- * kaymaz) → pin ile kalıcı genişler (sticky, gerçek layout genişliği).
+ * Masaüstü sol ray. Genişlik daima --sidebar-w / --sidebar-w-rail'den gelir;
+ * kabuk flex olduğu için içerik hiçbir yerde margin/offset hesaplamaz.
+ *
+ *   • Genişletilmiş (varsayılan): 184px ikon + etiket, flex akışında —
+ *     içerik yan yana, üst üste binme yok.
+ *   • Daraltılmış ray: 52px ikon rayı. Üzerine gelinince genişleyen panel
+ *     OVERLAY olarak absolute konumlanır; flex genişliği 52px'te kaldığı için
+ *     içerik sağa kaymaz ve Mapbox canvas'ı yeniden boyutlanmaz (sağ kenar
+ *     artefaktının kaynağı buydu).
  */
 export function AppSidebar({ className }: { className?: string }) {
-  const [pinned, setPinned] = usePinnedPreference();
+  const [expanded, setExpanded] = useExpandedPreference();
   const [hovering, setHovering] = useState(false);
-  const expanded = pinned || hovering;
 
-  function handleBlur(e: FocusEvent<HTMLDivElement>) {
+  const showOverlay = hovering && !expanded;
+
+  function handleBlur(e: FocusEvent<HTMLElement>) {
     if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
       setHovering(false);
     }
   }
 
   return (
-    <div
+    <aside
       className={cn(
-        "relative hidden shrink-0 transition-[width] duration-150 ease-out lg:block",
+        "relative hidden shrink-0 border-r border-sidebar-border bg-sidebar transition-[width] duration-150 ease-out lg:block",
         className
       )}
-      style={{ width: pinned ? EXPANDED_WIDTH : COLLAPSED_WIDTH }}
-      onMouseEnter={() => setHovering(true)}
+      style={{
+        width: expanded ? EXPANDED_WIDTH : RAIL_WIDTH,
+        // Overlay içeriğin ray genişliğini aşabilmesi için overflow açılır.
+        overflow: showOverlay ? "visible" : "hidden",
+        zIndex: showOverlay ? 50 : undefined,
+      }}
+      onMouseEnter={() => !expanded && setHovering(true)}
       onMouseLeave={() => setHovering(false)}
-      onFocus={() => setHovering(true)}
+      onFocus={() => !expanded && setHovering(true)}
       onBlur={handleBlur}
     >
-      <aside
-        className={cn(
-          "absolute inset-y-0 left-0 z-20 overflow-hidden border-r border-sidebar-border bg-sidebar transition-[width] duration-150 ease-out",
-          expanded ? "w-64" : "w-16",
-          !pinned && expanded ? "shadow-2xl" : ""
-        )}
-      >
+      {showOverlay ? (
+        <div
+          className="absolute inset-y-0 left-0 overflow-hidden bg-sidebar"
+          style={{
+            width: EXPANDED_WIDTH,
+            borderRight: "1px solid var(--color-sidebar-border)",
+            boxShadow: "4px 0 20px -4px rgba(0,0,0,0.45)",
+          }}
+        >
+          <SidebarBody
+            collapsed={false}
+            expanded={false}
+            onToggleExpand={() => setExpanded(true)}
+          />
+        </div>
+      ) : (
         <SidebarBody
           collapsed={!expanded}
-          pinned={pinned}
-          onTogglePin={() => setPinned(!pinned)}
+          expanded={expanded}
+          onToggleExpand={() => setExpanded(!expanded)}
         />
-      </aside>
-    </div>
+      )}
+    </aside>
   );
 }
 
-/** Mobil — lg altında görünen tetikleyici + soldan açılan sheet. Her zaman tam genişlik, pin yok. */
+/** Mobil — lg altında görünen tetikleyici + soldan açılan sheet. Her zaman tam genişlik. */
 export function AppSidebarMobileTrigger({ className }: { className?: string }) {
   const [open, setOpen] = useState(false);
 
@@ -284,7 +269,7 @@ export function AppSidebarMobileTrigger({ className }: { className?: string }) {
             variant="secondary"
             size="icon"
             className={cn(
-              "pointer-events-auto size-10 rounded-full border shadow-md lg:hidden",
+              "pointer-events-auto size-9 rounded-lg border shadow-md lg:hidden",
               className
             )}
             aria-label="Menüyü aç"
@@ -293,11 +278,15 @@ export function AppSidebarMobileTrigger({ className }: { className?: string }) {
       >
         <MenuIcon />
       </SheetTrigger>
-      <SheetContent side="left" className="w-72 gap-0 p-0 sm:max-w-72" showCloseButton={false}>
+      <SheetContent
+        side="left"
+        className="w-60 gap-0 p-0 sm:max-w-60"
+        showCloseButton={false}
+      >
         <SheetHeader className="sr-only">
           <SheetTitle>Menü</SheetTitle>
         </SheetHeader>
-        <SidebarBody showPinToggle={false} />
+        <SidebarBody showExpandToggle={false} />
       </SheetContent>
     </Sheet>
   );

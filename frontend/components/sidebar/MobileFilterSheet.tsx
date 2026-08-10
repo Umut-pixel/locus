@@ -13,8 +13,6 @@ import {
 } from "@/components/ui/sheet";
 import { FilterPanel, type FilterStats } from "@/components/sidebar/FilterPanel";
 import type { MusteriSearchHit } from "@/hooks/useMusteriSearch";
-import type { ImportActivity } from "@/lib/agent-states";
-import type { UploadResult } from "@/lib/import/types";
 import type { PotansiyelHarita, RiskDurumu } from "@/lib/types";
 import type { SonraBakItem } from "@/components/sidebar/PotansiyelFavoriList";
 
@@ -35,8 +33,6 @@ interface MobileFilterSheetProps {
   stats: FilterStats;
   onReset: () => void;
   hasActiveFilters: boolean;
-  importActivity?: ImportActivity | null;
-  lastUploadResult?: UploadResult | null;
   riskLabels?: Record<RiskDurumu, string>;
   riskShortLabels?: Record<RiskDurumu, string>;
   includeDigerKanallar?: boolean;

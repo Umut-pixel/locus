@@ -20,7 +20,8 @@ export function AppSidebarNavItem({
   collapsed?: boolean;
 }) {
   const pathname = usePathname();
-  const active = Boolean(item.href) && pathname === item.href;
+  const childActive = item.children?.some((c) => c.href === pathname) ?? false;
+  const active = (Boolean(item.href) && pathname === item.href) || childActive;
 
   return (
     <div>
@@ -32,9 +33,16 @@ export function AppSidebarNavItem({
         collapsed={collapsed}
       />
       {!collapsed && item.children && item.children.length > 0 ? (
-        <div className="mt-0.5 mb-1 ml-[1.05rem] flex flex-col gap-0.5 border-l border-sidebar-border pl-3">
+        <div className="mt-px mb-0.5 ml-[0.9rem] flex flex-col gap-px border-l border-sidebar-border pl-2.5">
           {item.children.map((child) => (
-            <NavRow key={child.id} label={child.label} icon={child.icon} active={false} nested />
+            <NavRow
+              key={child.id}
+              label={child.label}
+              icon={child.icon}
+              href={child.href}
+              active={Boolean(child.href) && pathname === child.href}
+              nested
+            />
           ))}
         </div>
       ) : null}
@@ -58,11 +66,15 @@ function NavRow({
   collapsed?: boolean;
 }) {
   const className = cn(
-    "group flex w-full items-center rounded-lg text-left outline-none transition-colors duration-150",
-    "focus-visible:ring-3 focus-visible:ring-sidebar-ring/60",
+    "group flex w-full items-center rounded-md text-left outline-none transition-colors duration-150",
+    "focus-visible:ring-2 focus-visible:ring-sidebar-ring/60",
+    // Sabit yükseklik: collapsed'ta metin satırı olmadığı için py ile hizalamak
+    // expanded haliyle (ikon + metin satır yüksekliği) farklı boy verir — h-* ile
+    // her iki modda da aynı satır boyu garanti edilir.
+    nested ? "h-7" : "h-8",
     collapsed
-      ? "justify-center px-0 py-2"
-      : cn("gap-2.5", nested ? "px-2.5 py-1.5 text-[12.5px]" : "px-2.5 py-2 text-[13px]"),
+      ? "justify-center px-0"
+      : cn("gap-2 px-2", nested ? "text-[11.5px]" : "text-[12.5px]"),
     active
       ? "bg-sidebar-accent font-medium text-sidebar-accent-foreground"
       : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground"
@@ -73,7 +85,7 @@ function NavRow({
       <Icon
         className={cn(
           "shrink-0",
-          nested ? "size-3.5" : "size-4",
+          nested ? "size-3" : "size-3.5",
           active
             ? "text-sidebar-accent-foreground"
             : "text-muted-foreground group-hover:text-sidebar-accent-foreground"
