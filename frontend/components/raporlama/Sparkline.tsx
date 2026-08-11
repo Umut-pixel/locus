@@ -38,13 +38,28 @@ export function Sparkline({
 
   const min = Math.min(...values);
   const max = Math.max(...values);
-  const range = max - min || 1;
+  const range = max - min;
   const pad = 2;
   const stepX = width / (values.length - 1);
+  // Değer boyunca hiç değişim yoksa (ör. yeni birikmeye başlayan geçmişte
+  // art arda iki gün aynı ciro) normalizasyon bölen sıfırlanır ve eskiden
+  // TÜM noktalar "min" konumuna, yani grafiğin altına sabitlenirdi — renk
+  // mavi (düşmüyor) olsa da çizgi düz ve dipte görünüp "düşüyor" okunuyordu.
+  // Bunun yerine düz veri, rengiyle tutarlı yönde (mavi→yukarı, kırmızı→aşağı)
+  // düz bir eğim çizsin.
+  const rising = values[values.length - 1]! >= values[0]!;
 
   const points = values.map((v, i) => {
     const x = i * stepX;
-    const y = pad + (1 - (v - min) / range) * (height - pad * 2);
+    let y: number;
+    if (range > 0) {
+      y = pad + (1 - (v - min) / range) * (height - pad * 2);
+    } else {
+      const t = i / (values.length - 1);
+      y = rising
+        ? height - pad - t * (height - pad * 2)
+        : pad + t * (height - pad * 2);
+    }
     return [x, y] as const;
   });
 

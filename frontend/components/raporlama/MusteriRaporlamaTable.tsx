@@ -347,6 +347,14 @@ function RaporSatiri({
 }) {
   const danger = (row.yas_riskli_tutar ?? 0) > 0;
   const risk = riskMode === "borc" ? debtRiskDurumu(row) : row.risk_durumu;
+  const trendValues = trend.map((t) => t.net_ciro);
+  // Sparkline rengi borç riskiyle değil gerçek ciro yönüyle eşleşsin — aksi
+  // halde aynı düşen eğri hem "riskli" (kırmızı) hem "sağlıklı ama düşüyor"
+  // (mavi) satırlarda aynı görünüp yanıltıcı oluyordu. Borç riski zaten Risk
+  // rozetinde ve kırmızı Açık Bakiye tutarında ayrıca gösteriliyor.
+  const trendDusuyor =
+    trendValues.length >= 2 &&
+    trendValues[trendValues.length - 1]! < trendValues[0]!;
   return (
     <tr
       className={cn(
@@ -396,8 +404,8 @@ function RaporSatiri({
       </td>
       <td className={cn(TD_BASE, "pr-3.5")}>
         <Sparkline
-          values={trend.map((t) => t.net_ciro)}
-          color={danger ? "#f87171" : "#60a5fa"}
+          values={trendValues}
+          color={trendDusuyor ? "#f87171" : "#60a5fa"}
         />
       </td>
     </tr>
