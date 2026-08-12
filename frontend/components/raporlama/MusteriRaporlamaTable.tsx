@@ -50,6 +50,7 @@ import {
 import { RISK_BAND_KEYS } from "@/lib/import/parse-yaslandirma";
 import {
   RISK_MODE_LABELS,
+  borcOnemli,
   debtRiskDurumu,
   riskLabelsForMode,
   riskShortLabelsForMode,
@@ -360,7 +361,7 @@ function RaporSatiri({
   const acikBakiye = acikBakiyeDegeri(row, filters);
   const danger = filters.gecikmeBandi
     ? RISK_BAND_KEYS.has(filters.gecikmeBandi)
-    : (row.yas_riskli_tutar ?? 0) > 0;
+    : borcOnemli(row.yas_riskli_tutar);
   const risk = riskMode === "borc" ? debtRiskDurumu(row) : row.risk_durumu;
   const trendValues = trend.map((t) => t.net_ciro);
   // Sparkline rengi borç riskiyle değil gerçek ciro yönüyle eşleşsin — aksi
@@ -723,7 +724,9 @@ function YaslandirmaTabIcerik({ detay }: { detay: MusteriDetay }) {
 
   const toplam = detay.yas_toplam;
   const riskliTutar = detay.yas_riskli_tutar ?? 0;
-  const riskli = Boolean(detay.borc_riskli) || riskliTutar > 0.005;
+  // Saklanan borc_riskli bayrağı kuruşluk artıkları da "riskli" sayıyor —
+  // karar tutarın önemliliğinden veriliyor (bkz. BORC_ONEMLILIK_ESIGI).
+  const riskli = borcOnemli(riskliTutar);
   const risksizTutar = Math.max(0, Math.round((toplam - riskliTutar) * 100) / 100);
   // "risk" işareti riskli_tutar'ın tanımıyla aynı kaynaktan (56+ gün) gelmeli;
   // aksi halde kalem kırmızı görünürken müşteri "Borçlu" sayılıyordu.
@@ -764,7 +767,7 @@ function YaslandirmaTabIcerik({ detay }: { detay: MusteriDetay }) {
         <MetricRow
           label="Riskli borç (56+ gün)"
           value={riskliTutar > 0.005 ? formatCurrencyPrecise(riskliTutar) : "—"}
-          danger={riskliTutar > 0.005}
+          danger={borcOnemli(riskliTutar)}
         />
         <MetricRow
           label="Risksiz borç (56 gün altı)"

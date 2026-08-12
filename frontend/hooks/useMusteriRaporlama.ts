@@ -2,7 +2,11 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-import { debtRiskDurumu, type RiskMetricMode } from "@/lib/risk-mode";
+import {
+  BORC_ONEMLILIK_ESIGI,
+  debtRiskDurumu,
+  type RiskMetricMode,
+} from "@/lib/risk-mode";
 import {
   MUSTERILER_HARITA_VIEW,
   MUSTERI_METRIK_GECMIS_TABLE,
@@ -184,15 +188,18 @@ function applyFilters(
     q = q.or(`unvan.ilike."${pattern}",musteri_kodu.ilike."${pattern}"`);
   }
   if (riskMode === "borc") {
-    // debtRiskDurumu'nun SQL karşılığı (bkz. lib/risk-mode.ts).
+    // debtRiskDurumu'nun SQL karşılığı (bkz. lib/risk-mode.ts). Karar
+    // saklanan borc_riskli bayrağından değil TUTARDAN veriliyor; bayrak
+    // kuruşluk artıkları da "riskli" sayıp etiketi şişiriyordu.
+    const E = BORC_ONEMLILIK_ESIGI;
     if (filters.risk === "hic_teslimat_yok") {
       q = q.is("yas_toplam", null);
     } else if (filters.risk === "riskli") {
-      q = q.eq("borc_riskli", true);
+      q = q.gte("yas_riskli_tutar", E);
     } else if (filters.risk === "izlenmeli") {
-      q = q.not("yas_toplam", "is", null).gt("yas_toplam", 0.005).eq("borc_riskli", false);
+      q = q.gte("yas_toplam", E).lt("yas_riskli_tutar", E);
     } else if (filters.risk === "saglikli") {
-      q = q.not("yas_toplam", "is", null).lte("yas_toplam", 0.005);
+      q = q.not("yas_toplam", "is", null).lt("yas_toplam", E);
     }
   } else if (filters.risk) {
     // Sevkiyat modu — view'daki hazır risk_durumu kolonu doğrudan kullanılır.
@@ -380,10 +387,13 @@ export function useMusteriRaporlama(
           const data = await fetchAllFiltered<{
             belge_net_ciro: number | null;
             yas_toplam: number | null;
-            borc_riskli: boolean | null;
-          }>("belge_net_ciro,yas_toplam,borc_riskli", effectiveFilters, riskMode, {
-            signal: ac.signal,
-          });
+            yas_riskli_tutar: number | null;
+          }>(
+            "belge_net_ciro,yas_toplam,yas_riskli_tutar",
+            effectiveFilters,
+            riskMode,
+            { signal: ac.signal }
+          );
           if (ac.signal.aborted) return;
           for (const row of data) {
             toplam += row.belge_net_ciro ?? 0;

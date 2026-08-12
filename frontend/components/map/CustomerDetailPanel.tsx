@@ -41,6 +41,7 @@ import {
   formatKg,
   formatNumber,
 } from "@/lib/format";
+import { borcOnemli } from "@/lib/risk-mode";
 import {
   HASSASIYET_LABELS,
   RISK_COLORS,
@@ -1418,7 +1419,9 @@ function BorclarPage({ musteri }: { musteri: MusteriHarita }) {
 
   const toplam = Number(musteri.yas_toplam);
   const riskliTutar = Number(musteri.yas_riskli_tutar ?? 0);
-  const riskli = Boolean(musteri.borc_riskli);
+  // Saklanan borc_riskli bayrağı 56+ günde "bir kuruş bile varsa" true oluyor;
+  // kırmızı uyarıyı kuruşluk yuvarlama artıkları tetiklemesin (bkz. lib/risk-mode.ts).
+  const riskli = borcOnemli(riskliTutar);
   const risksizTutar = Math.max(0, Math.round((toplam - riskliTutar) * 100) / 100);
 
   return (

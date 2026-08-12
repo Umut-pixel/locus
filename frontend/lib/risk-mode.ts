@@ -46,19 +46,47 @@ export function riskShortLabelsForMode(
   return mode === "borc" ? BORC_RISK_SHORT_LABELS : SEVKIYAT_RISK_SHORT_LABELS;
 }
 
-/** Borç yaşlandırmasına göre risk bandı. */
+/**
+ * Borcun "gerçek alacak" sayılması için gereken en küçük tutar (TL).
+ *
+ * NEDEN VAR: eskiden eşik 0.005 idi — bu bir iş kuralı değil, kayan nokta
+ * gürültüsünü elemek için konmuş yarım-kuruşluk epsilon'du. Ama `borc_riskli`
+ * bayrağı da aynı epsilon'la üretilip risk etiketi olarak kullanılınca, ERP'den
+ * gelen 1 kuruşluk yuvarlama artığı müşteriyi "Riskli" yapıyordu.
+ * 2026-08-11 ölçümü: 112 "Riskli" müşterinin 42'sinin (%37,5) riskli borcu
+ * 1 TL'nin altındaydı; bazıları tam olarak ₺0,01 (ör. ₺75.178 toplam borcun
+ * yalnızca ₺0,01'i 56+ günde olan müşteri "Riskli" görünüyordu).
+ *
+ * 1 TL, para biriminin altındaki artıkları eleyen en küçük eşik — bunun
+ * üstündeki her tutar gerçek bir alacaktır. Kuruş bazlı raporlama gerekirse
+ * burayı düşürmek yeterli.
+ */
+export const BORC_ONEMLILIK_ESIGI = 1;
+
+/**
+ * Borç yaşlandırmasına göre risk bandı.
+ *
+ * Karar TUTARLARDAN veriliyor, saklanan `borc_riskli` bayrağından değil:
+ * bayrak "56+ günde bir kuruş bile var mı" sorusunun cevabı ve bu yüzden
+ * önemlilik bilgisini kaybediyor (bkz. BORC_ONEMLILIK_ESIGI).
+ */
 export function debtRiskDurumu(row: {
   yas_toplam?: number | null;
-  borc_riskli?: boolean | null;
+  yas_riskli_tutar?: number | null;
 }): RiskDurumu {
   if (row.yas_toplam == null) return "hic_teslimat_yok";
-  if (row.borc_riskli) return "riskli";
-  if (Number(row.yas_toplam) > 0.005) return "izlenmeli";
+  if (Number(row.yas_riskli_tutar ?? 0) >= BORC_ONEMLILIK_ESIGI) return "riskli";
+  if (Number(row.yas_toplam) >= BORC_ONEMLILIK_ESIGI) return "izlenmeli";
   return "saglikli";
 }
 
+/** Tutar önemli mi — kuruşluk yuvarlama artıklarını eler. */
+export function borcOnemli(tutar: number | null | undefined): boolean {
+  return Number(tutar ?? 0) >= BORC_ONEMLILIK_ESIGI;
+}
+
 export function effectiveRiskDurumu(
-  row: Pick<MusteriHarita, "risk_durumu" | "yas_toplam" | "borc_riskli">,
+  row: Pick<MusteriHarita, "risk_durumu" | "yas_toplam" | "yas_riskli_tutar">,
   mode: RiskMetricMode
 ): RiskDurumu {
   if (mode === "borc") return debtRiskDurumu(row);

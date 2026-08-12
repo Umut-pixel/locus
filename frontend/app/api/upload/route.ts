@@ -19,6 +19,7 @@ import {
   type SnapshotMetrics,
   type YuklemeKarsilastirma,
 } from "@/lib/snapshot-compare";
+import { borcOnemli } from "@/lib/risk-mode";
 import { replaceBelgeOzet } from "@/lib/sync/write-belge-ozet";
 import { replaceYaslandirma } from "@/lib/sync/write-yaslandirma";
 import {
@@ -432,7 +433,11 @@ export async function POST(request: Request) {
         await replaceYaslandirma(admin, eslesen);
       }
 
-      const riskliSayisi = eslesen.filter((r) => r.borc_riskli).length;
+      // Ekrandaki "Riskli" etiketiyle aynı ölçüt: kuruşluk yuvarlama artıkları
+      // riskli sayılmaz (bkz. BORC_ONEMLILIK_ESIGI).
+      const riskliSayisi = eslesen.filter((r) =>
+        borcOnemli(r.riskli_tutar)
+      ).length;
       if (eslesen.length > 0) {
         uyarilar.push(
           `Yaşlandırma snapshot: ${eslesen.length} müşteri, ${riskliSayisi} riskli (56+ gün).`

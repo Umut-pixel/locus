@@ -122,6 +122,10 @@ export function parseYaslandirma5530(
       0
     );
     parsed.riskli_tutar = Math.round(riskli * 100) / 100;
+    // NOT: bu bayrak HAM bir gercek — "56+ gunde bir kurus bile var mi".
+    // Risk ETIKETI icin dogrudan kullanmayin; kurusluk yuvarlama artiklarini da
+    // true yapar. Gosterim tarafi tutar + BORC_ONEMLILIK_ESIGI kullaniyor
+    // (bkz. lib/risk-mode.ts, 2026-08-11 audit'i).
     parsed.borc_riskli = parsed.riskli_tutar > 0.005;
     out.push(parsed);
   }
