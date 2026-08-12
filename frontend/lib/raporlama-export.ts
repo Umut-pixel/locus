@@ -1,7 +1,9 @@
 import * as XLSX from "xlsx";
 
 import {
+  acikBakiyeDegeri,
   fetchAllMusteriRaporu,
+  gecikmeBandiEtiketi,
   type MusteriRaporSatiri,
   type RaporlamaFilters,
 } from "@/hooks/useMusteriRaporlama";
@@ -13,8 +15,18 @@ import {
   type RiskMetricMode,
 } from "@/lib/risk-mode";
 
-function rowsToSheet(rows: MusteriRaporSatiri[], riskMode: RiskMetricMode) {
+function rowsToSheet(
+  rows: MusteriRaporSatiri[],
+  riskMode: RiskMetricMode,
+  filters: RaporlamaFilters
+) {
   const labels = riskShortLabelsForMode(riskMode);
+  // Bant filtresi aktifse kolon başlığı da neyin dışa aktarıldığını söylesin —
+  // ekranda "70+ gün" görüp Excel'de toplam bakiye bulmak yanıltıcı olurdu.
+  const bandEtiketi = gecikmeBandiEtiketi(filters);
+  const bakiyeBaslik = bandEtiketi
+    ? `Açık Bakiye · ${bandEtiketi} (TL)`
+    : "Açık Bakiye (TL)";
   return rows.map((r) => ({
     "Müşteri Kodu": r.musteri_kodu,
     Unvan: r.unvan,
@@ -30,7 +42,7 @@ function rowsToSheet(rows: MusteriRaporSatiri[], riskMode: RiskMetricMode) {
     "Net Ciro (TL)": r.belge_net_ciro,
     "Sipariş Sayısı": r.belge_siparis_sayisi,
     "Fatura Sayısı": r.belge_fatura_sayisi,
-    "Açık Bakiye (TL)": r.yas_toplam,
+    [bakiyeBaslik]: acikBakiyeDegeri(r, filters),
     "Riskli Bakiye (TL)": r.yas_riskli_tutar,
     "Son Teslimat": formatDate(r.son_teslimat_tarihi),
     "Toplam Teslimat Sayısı": r.toplam_teslimat_sayisi,
@@ -43,7 +55,7 @@ export async function exportMusteriRaporu(
   riskMode: RiskMetricMode
 ): Promise<number> {
   const rows = await fetchAllMusteriRaporu(filters, riskMode);
-  const sheetRows = rowsToSheet(rows, riskMode);
+  const sheetRows = rowsToSheet(rows, riskMode, filters);
 
   const worksheet = XLSX.utils.json_to_sheet(sheetRows);
   const workbook = XLSX.utils.book_new();
@@ -58,9 +70,10 @@ export async function exportMusteriRaporu(
 /** Seçili satırları — yeni fetch olmadan — anında .xlsx olarak indirir. */
 export function exportSelectedRows(
   rows: MusteriRaporSatiri[],
-  riskMode: RiskMetricMode
+  riskMode: RiskMetricMode,
+  filters: RaporlamaFilters
 ): void {
-  const sheetRows = rowsToSheet(rows, riskMode);
+  const sheetRows = rowsToSheet(rows, riskMode, filters);
 
   const worksheet = XLSX.utils.json_to_sheet(sheetRows);
   const workbook = XLSX.utils.book_new();

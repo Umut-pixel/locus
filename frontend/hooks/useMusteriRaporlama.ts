@@ -79,6 +79,39 @@ const SORT_KOLON: Record<RaporlamaSortAlan, string> = {
   acik_bakiye: "yas_toplam",
 };
 
+/**
+ * "Açık Bakiye" kolonunun HANGİ alanı gösterdiği filtreye bağlı.
+ *
+ * Bir gecikme bandı seçiliyken (ör. "70+ gün") kullanıcı o banda düşen borcu
+ * görmek istiyor; toplam borcu göstermek yanıltıcıydı — filtre satırları
+ * daraltıyor ama tutar tüm bantların toplamı olarak kalıyordu.
+ * Bant seçili değilse davranış eskisi gibi: yas_toplam (tüm açık bakiye).
+ */
+export function acikBakiyeKolonu(filters: RaporlamaFilters): string {
+  return filters.gecikmeBandi && BORC_GECIKME_KOLONLARI.has(filters.gecikmeBandi)
+    ? filters.gecikmeBandi
+    : "yas_toplam";
+}
+
+/** Satırda gösterilecek açık bakiye tutarı — bkz. acikBakiyeKolonu. */
+export function acikBakiyeDegeri(
+  row: MusteriRaporSatiri,
+  filters: RaporlamaFilters
+): number | null {
+  const kolon = acikBakiyeKolonu(filters);
+  const v = (row as unknown as Record<string, unknown>)[kolon];
+  return typeof v === "number" ? v : null;
+}
+
+/** Aktif bandın etiketi (ör. "70+ gün") — kolon başlığında gösterilir. */
+export function gecikmeBandiEtiketi(filters: RaporlamaFilters): string | null {
+  if (!filters.gecikmeBandi) return null;
+  return (
+    BORC_GECIKME_BANTLARI.find((b) => b.value === filters.gecikmeBandi)?.label ??
+    null
+  );
+}
+
 /** `musteriler_harita`'dan rapor tablosunun ihtiyaç duyduğu dar kolon seti. */
 export interface MusteriRaporSatiri {
   musteri_kodu: string;
@@ -101,12 +134,26 @@ export interface MusteriRaporSatiri {
   borc_riskli: boolean | null;
   son_teslimat_tarihi: string | null;
   toplam_teslimat_sayisi: number;
+  /** Gün bandı kırılımı — Açık Bakiye kolonu bant filtresindeyken buradan okur. */
+  hf_01_06: number | null;
+  hf_07_13: number | null;
+  hf_14_20: number | null;
+  hf_21_27: number | null;
+  hf_28_34: number | null;
+  hf_35_41: number | null;
+  hf_42_48: number | null;
+  hf_49_55: number | null;
+  hf_56_62: number | null;
+  hf_63_69: number | null;
+  hf_70_ustu: number | null;
 }
 
 const ROW_SELECT =
   "musteri_kodu,unvan,sehir,ilce,musteri_grubu,durum,belge_st_adi,risk_durumu," +
   "belge_net_ciro,belge_siparis_sayisi,belge_fatura_sayisi,belge_son_islem_tarihi," +
-  "yas_toplam,yas_riskli_tutar,borc_riskli,son_teslimat_tarihi,toplam_teslimat_sayisi";
+  "yas_toplam,yas_riskli_tutar,borc_riskli,son_teslimat_tarihi,toplam_teslimat_sayisi," +
+  "hf_01_06,hf_07_13,hf_14_20,hf_21_27,hf_28_34,hf_35_41,hf_42_48," +
+  "hf_49_55,hf_56_62,hf_63_69,hf_70_ustu";
 
 function escapeIlike(q: string): string {
   return q
@@ -276,8 +323,16 @@ export function useMusteriRaporlama(
       // Kullanıcı bir kolon sıralaması seçtiyse onu uygula; yoksa varsayılan
       // (en gecikmiş teslimat en üstte) sıralamaya dön. `unvan` her zaman
       // eşit değerler arasında deterministik ikincil sıralamadır.
+      // Açık Bakiye sıralaması ekranda gösterilen kolonu takip eder: bant
+      // filtresi aktifken toplam yerine o bandın tutarına göre sıralanır.
+      const sortKolon =
+        sort?.alan === "acik_bakiye"
+          ? acikBakiyeKolonu(effectiveFilters)
+          : sort
+            ? SORT_KOLON[sort.alan]
+            : "";
       query = sort
-        ? query.order(SORT_KOLON[sort.alan], {
+        ? query.order(sortKolon, {
             ascending: sort.yon === "asc",
             nullsFirst: false,
           })

@@ -91,7 +91,7 @@ export default function RaporlarPage() {
     setExportError(null);
     if (selectedRows.size > 0) {
       try {
-        exportSelectedRows(Array.from(selectedRows.values()), riskMode);
+        exportSelectedRows(Array.from(selectedRows.values()), riskMode, filters);
       } catch (err) {
         setExportError(
           err instanceof Error ? err.message : "Dışa aktarma başarısız oldu."
@@ -171,6 +171,7 @@ export default function RaporlarPage() {
         onSelectPage={handleSelectPage}
         riskMode={riskMode}
         onToggleRiskMode={handleToggleRiskMode}
+        filters={filters}
       />
 
       <MusteriRaporlamaSummary

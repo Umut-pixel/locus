@@ -29,10 +29,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   BORC_GECIKME_BANTLARI,
   RAPORLAMA_PAGE_SIZE,
+  acikBakiyeDegeri,
+  gecikmeBandiEtiketi,
   useMusteriDetay,
   useMusteriTrend,
   type MusteriDetay,
   type MusteriRaporSatiri,
+  type RaporlamaFilters,
   type RaporlamaSort,
   type RaporlamaSortAlan,
 } from "@/hooks/useMusteriRaporlama";
@@ -80,6 +83,8 @@ interface MusteriRaporlamaTableProps {
   onSelectPage: (rows: MusteriRaporSatiri[], checked: boolean) => void;
   riskMode: RiskMetricMode;
   onToggleRiskMode: () => void;
+  /** Açık Bakiye kolonunun hangi alanı göstereceğini belirler (gecikme bandı). */
+  filters: RaporlamaFilters;
 }
 
 /** Kolon başlığına tıklama döngüsü: azalan → artan → varsayılan (null). */
@@ -177,10 +182,12 @@ export function MusteriRaporlamaTable({
   onSelectPage,
   riskMode,
   onToggleRiskMode,
+  filters,
 }: MusteriRaporlamaTableProps) {
   const musteriKodlari = useMemo(() => rows.map((r) => r.musteri_kodu), [rows]);
   const { trendMap } = useMusteriTrend(musteriKodlari);
   const [expandedKod, setExpandedKod] = useState<string | null>(null);
+  const bandEtiketi = gecikmeBandiEtiketi(filters);
 
   const pageCount = Math.max(1, Math.ceil(totalCount / RAPORLAMA_PAGE_SIZE));
   const fromRow = totalCount === 0 ? 0 : page * RAPORLAMA_PAGE_SIZE + 1;
@@ -223,7 +230,16 @@ export function MusteriRaporlamaTable({
                 sort={sort}
                 onSortChange={onSortChange}
               >
-                Açık Bakiye
+                {bandEtiketi ? (
+                  <span className="inline-flex items-baseline gap-1">
+                    Açık Bakiye
+                    <span className="font-normal normal-case text-amber-400/90">
+                      · {bandEtiketi}
+                    </span>
+                  </span>
+                ) : (
+                  "Açık Bakiye"
+                )}
               </SortableHeader>
               <th scope="col" className={cn(TH_BASE, "pr-3.5")}>
                 Trend 14g
@@ -243,6 +259,7 @@ export function MusteriRaporlamaTable({
                       selected={selectedRows.has(row.musteri_kodu)}
                       expanded={expandedKod === row.musteri_kodu}
                       riskMode={riskMode}
+                      filters={filters}
                       onToggleSelect={onToggleSelect}
                       onToggleExpand={() =>
                         setExpandedKod((prev) =>
@@ -325,6 +342,7 @@ function RaporSatiri({
   selected,
   expanded,
   riskMode,
+  filters,
   onToggleSelect,
   onToggleExpand,
 }: {
@@ -333,10 +351,16 @@ function RaporSatiri({
   selected: boolean;
   expanded: boolean;
   riskMode: RiskMetricMode;
+  filters: RaporlamaFilters;
   onToggleSelect: (row: MusteriRaporSatiri) => void;
   onToggleExpand: () => void;
 }) {
-  const danger = (row.yas_riskli_tutar ?? 0) > 0;
+  // Bant filtresi aktifken kolon o bandın tutarını gösterir; kırmızı vurgu da
+  // toplam riskli tutara değil, gösterilen bandın riskli (56+) olup olmadığına bakar.
+  const acikBakiye = acikBakiyeDegeri(row, filters);
+  const danger = filters.gecikmeBandi
+    ? RISK_BAND_KEYS.has(filters.gecikmeBandi)
+    : (row.yas_riskli_tutar ?? 0) > 0;
   const risk = riskMode === "borc" ? debtRiskDurumu(row) : row.risk_durumu;
   const trendValues = trend.map((t) => t.net_ciro);
   // Sparkline rengi borç riskiyle değil gerçek ciro yönüyle eşleşsin — aksi
@@ -391,7 +415,7 @@ function RaporSatiri({
         <CurrencyAmount value={row.belge_net_ciro} />
       </td>
       <td className={cn(TD_BASE, "text-right")}>
-        <CurrencyAmount value={row.yas_toplam} precise danger={danger} />
+        <CurrencyAmount value={acikBakiye} precise danger={danger} />
       </td>
       <td className={cn(TD_BASE, "pr-3.5")}>
         <Sparkline
