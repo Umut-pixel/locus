@@ -16,11 +16,21 @@ export const YAS_BUCKET_MAP: Array<{ excel: string; field: keyof YaslandirmaUpda
   { excel: "70 Üstü", field: "hf_70_ustu", label: "70+" },
 ];
 
-const RISK_FIELDS: Array<keyof YaslandirmaUpdateRow> = [
+/**
+ * "Riskli borç" eşiği — TEK KAYNAK.
+ *
+ * `riskli_tutar` / `borc_riskli` yalnızca bu bantların toplamıdır (56+ gün).
+ * UI'da riskli görünen kalemler de buradan türetilmeli; ayrı bir liste tutulursa
+ * "kırmızı kalem ama Riskli değil" çelişkisi oluşuyor (2026-08-11 audit'i).
+ */
+export const RISK_FIELDS: Array<keyof YaslandirmaUpdateRow> = [
   "hf_56_62",
   "hf_63_69",
   "hf_70_ustu",
 ];
+
+/** RISK_FIELDS'in string set hâli — UI tarafında kolon adıyla kontrol için. */
+export const RISK_BAND_KEYS: ReadonlySet<string> = new Set(RISK_FIELDS as string[]);
 
 /** Header anahtarını trim ederek satırdan değer al. */
 function cellByTrimmed(

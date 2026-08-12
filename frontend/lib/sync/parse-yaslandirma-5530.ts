@@ -1,19 +1,14 @@
 import {
+  RISK_FIELDS,
   YAS_BUCKET_MAP,
   yasTutarCevir,
 } from "@/lib/import/parse-yaslandirma";
 import type { YaslandirmaUpdateRow } from "@/lib/import/types";
 import { metinTemizle } from "@/lib/import/utils";
 
-const RISK_FIELDS: Array<keyof YaslandirmaUpdateRow> = [
-  "hf_56_62",
-  "hf_63_69",
-  "hf_70_ustu",
-];
-
 /** Excel / landing `hafta` değerini YAS_BUCKET_MAP anahtarına normalize et. */
 function normalizeHaftaBand(raw: string): string {
-  let s = raw.trim().replace(/\s+/g, " ");
+  const s = raw.trim().replace(/\s+/g, " ");
   // "70 Üstü" / "70 ustu" / "70+"
   if (/^70\s*(üstü|ustu|\+)$/i.test(s) || s === "70+") {
     return "70 Üstü";

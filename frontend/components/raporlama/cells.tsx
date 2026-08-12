@@ -105,7 +105,14 @@ export function TemsilciAvatar({ ad }: { ad: string | null }) {
   );
 }
 
-/** ₺ formatter'ın kendisi zaten para birimi ikonlu (Intl currency, tr-TR). */
+/**
+ * ₺ formatter'ın kendisi zaten para birimi ikonlu (Intl currency, tr-TR).
+ *
+ * null = "bu müşteri için veri yok" (ör. hiç satış belgesi ya da yaşlandırma
+ * kaydı yok) — gerçek sıfırdan ayrılsın diye "—" gösterilir. Eskiden `?? 0` ile
+ * ₺0,00 basılıyordu ve 1.203 müşterinin ~750'sinde "cirosu yok" izlenimi
+ * veriyordu (2026-08-11 audit'i).
+ */
 export function CurrencyAmount({
   value,
   precise = false,
@@ -115,8 +122,17 @@ export function CurrencyAmount({
   precise?: boolean;
   danger?: boolean;
 }) {
-  const amount = value ?? 0;
-  const text = precise ? formatCurrencyPrecise(amount) : formatCurrency(amount);
+  if (value == null) {
+    return (
+      <span
+        className="font-mono text-[14px] tabular-nums text-muted-foreground"
+        title="Bu müşteri için veri yok"
+      >
+        —
+      </span>
+    );
+  }
+  const text = precise ? formatCurrencyPrecise(value) : formatCurrency(value);
   return (
     <span
       className={cn(

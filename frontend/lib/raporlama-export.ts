@@ -25,11 +25,13 @@ function rowsToSheet(rows: MusteriRaporSatiri[], riskMode: RiskMetricMode) {
     Temsilci: r.belge_st_adi ?? "",
     // Ekrandaki risk moduyla birebir aynı — borç ya da sevkiyat (bkz. lib/risk-mode.ts).
     "Risk Durumu": labels[riskMode === "borc" ? debtRiskDurumu(r) : r.risk_durumu],
-    "Net Ciro (TL)": r.belge_net_ciro ?? 0,
-    "Sipariş Sayısı": r.belge_siparis_sayisi ?? 0,
-    "Fatura Sayısı": r.belge_fatura_sayisi ?? 0,
-    "Açık Bakiye (TL)": r.yas_toplam ?? 0,
-    "Riskli Bakiye (TL)": r.yas_riskli_tutar ?? 0,
+    // null = veri yok → boş hücre. `?? 0` yazılırsa Excel'de "cirosu sıfır"
+    // gibi okunuyor ve toplam/ortalama formülleri bunu gerçek 0 sayıyor.
+    "Net Ciro (TL)": r.belge_net_ciro,
+    "Sipariş Sayısı": r.belge_siparis_sayisi,
+    "Fatura Sayısı": r.belge_fatura_sayisi,
+    "Açık Bakiye (TL)": r.yas_toplam,
+    "Riskli Bakiye (TL)": r.yas_riskli_tutar,
     "Son Teslimat": formatDate(r.son_teslimat_tarihi),
     "Toplam Teslimat Sayısı": r.toplam_teslimat_sayisi,
   }));

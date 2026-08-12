@@ -79,7 +79,15 @@ create index if not exists {TABLO}_son_teslimat_idx on public.{TABLO} (son_tesli
 create index if not exists {TABLO}_konum_idx        on public.{TABLO} (lat, lon)
     where lat is not null;
 
--- Haritada sadece konumu olan aktif musteriler
+-- !! DIKKAT (2026-08-11 audit'i, K7) !!
+-- Asagidaki view tanimi ESKI Python-ETL donemine ait ve GUNCEL DEGIL.
+-- Uretimdeki musteriler_harita cok daha genis (yaslandirma + belge ozet
+-- kolonlari) ve risk_durumu artik current_date'ten turetiliyor.
+-- TEK KAYNAK: sema.sql + sql/risk_durumu_current_date.sql
+--
+-- `--sema-yaz` bu blogu calistirirsa uretimdeki view'i BOZAR (kolonlar
+-- eksildigi icin create or replace hata verir; drop edilirse uygulama coker).
+-- Sema kurulumunu artik sema.sql uzerinden yapin.
 create or replace view public.{TABLO}_harita
 with (security_invoker = true) as
 select musteri_kodu, unvan, sehir, ilce, lat, lon, rut_kod, rut_aciklama,

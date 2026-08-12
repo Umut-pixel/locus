@@ -6,6 +6,7 @@ import { debtRiskDurumu, type RiskMetricMode } from "@/lib/risk-mode";
 import {
   MUSTERILER_HARITA_VIEW,
   MUSTERI_METRIK_GECMIS_TABLE,
+  PANORAMA_SYNC_RUNS_TABLE,
   supabase,
 } from "@/lib/supabase";
 import type { RiskDurumu } from "@/lib/types";
@@ -122,12 +123,13 @@ function escapeIlike(q: string): string {
  * deep" hatası veriyor. Sınırı burada, tek yerde kesiyoruz; sonuç yine de her
  * çağrı noktasında bilinen satır tipine cast ediliyor.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+/* eslint-disable @typescript-eslint/no-explicit-any */
 function applyFilters(
   query: any,
   filters: RaporlamaFilters,
   riskMode: RiskMetricMode
 ): any {
+  /* eslint-enable @typescript-eslint/no-explicit-any */
   let q = query;
   const term = filters.search.trim();
   if (term.length >= 2) {
@@ -589,4 +591,66 @@ export function useMusteriTrend(musteriKodlari: readonly string[]): {
   }, [key]);
 
   return { trendMap, loading };
+}
+
+/**
+ * Panorama raporlarının GERÇEK veri yaşı.
+ *
+ * `musteri_yaslandirma.guncellendi` transform'un çalıştığı anı gösteriyor; ana
+ * hat her sabah çalıştığı için veri bayat olsa bile "bugün" görünüyordu. Asıl
+ * soru "Panorama'dan en son ne zaman çekildi" — o da panorama_sync_runs'ta.
+ *
+ * 5530 (ST Yaşlandırma) özellikle önemli: bu turda n8n'de cron'u yok, sadece
+ * manuel tetikleniyor — ve Açık Bakiye / Borç riski tamamen buna dayanıyor.
+ */
+export const YASLANDIRMA_REPORT_ID = 5530;
+export const BELGE_DETAY_REPORT_ID = 5450;
+
+export interface RaporTazeligi {
+  /** Panorama'dan en son başarılı çekim anı (ISO) — yoksa null. */
+  cekildiAt: string | null;
+  /** Şu ana kadar geçen saat; cekildiAt yoksa null. */
+  saatOnce: number | null;
+  loading: boolean;
+}
+
+export function useRaporTazeligi(reportId: number): RaporTazeligi {
+  // Yaş, `Date.now()` render sırasında çağrılmasın diye effect içinde hesaplanıp
+  // state'e yazılır (react-hooks/purity: impure fonksiyon render'da çağrılamaz).
+  const [state, setState] = useState<{
+    cekildiAt: string | null;
+    saatOnce: number | null;
+    loading: boolean;
+  }>({ cekildiAt: null, saatOnce: null, loading: true });
+
+  useEffect(() => {
+    let cancelled = false;
+
+    supabase
+      .from(PANORAMA_SYNC_RUNS_TABLE)
+      .select("cekildi_at")
+      .eq("report_id", reportId)
+      .eq("durum", "completed")
+      .order("cekildi_at", { ascending: false })
+      .limit(1)
+      .maybeSingle()
+      .then(({ data, error }) => {
+        if (cancelled) return;
+        const cekildiAt =
+          !error && data
+            ? (data as { cekildi_at: string | null }).cekildi_at
+            : null;
+        const t = cekildiAt ? new Date(cekildiAt).getTime() : NaN;
+        const saatOnce = Number.isNaN(t)
+          ? null
+          : Math.max(0, Math.floor((Date.now() - t) / 3_600_000));
+        setState({ cekildiAt, saatOnce, loading: false });
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [reportId]);
+
+  return state;
 }

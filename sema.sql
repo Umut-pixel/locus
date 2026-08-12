@@ -112,12 +112,22 @@ create view public.musteriler_harita
 with (security_invoker = true) as
 select m.musteri_kodu, m.unvan, m.adres, m.sehir, m.ilce, m.lat, m.lon, m.rut_kod, m.rut_aciklama,
        m.ziyaret_sira, m.son_teslimat_tarihi, m.ilk_teslimat_tarihi, m.toplam_teslimat_sayisi,
-       m.toplam_agirlik, m.toplam_tutar, m.son_teslimattan_gecen_gun,
+       m.toplam_agirlik, m.toplam_tutar,
+       -- Takvime gore yasananan gun sayisi. m.son_teslimattan_gecen_gun ETL
+       -- sirasinda "dosyadaki EN YENI sevkiyat" referansiyla yaziliyor
+       -- (bkz. lib/import/parse-sevkiyat.ts) — yani sync durursa donuyor ve
+       -- kimse riskli banda gecmiyor (2026-08-06 olayi, tech-debt.md).
+       -- Burada current_date'ten turetince gorunum kendi kendini duzeltiyor.
+       case
+         when m.son_teslimat_tarihi is null then m.son_teslimattan_gecen_gun
+         else (current_date - m.son_teslimat_tarihi)
+       end as son_teslimattan_gecen_gun,
        m.durum, m.musteri_grubu, m.geocode_hassasiyet, m.guncellendi,
        case
-         when m.toplam_teslimat_sayisi = 0            then 'hic_teslimat_yok'
-         when m.son_teslimattan_gecen_gun > 90        then 'riskli'
-         when m.son_teslimattan_gecen_gun > 45        then 'izlenmeli'
+         when m.toplam_teslimat_sayisi = 0                        then 'hic_teslimat_yok'
+         when m.son_teslimat_tarihi is null                       then 'hic_teslimat_yok'
+         when (current_date - m.son_teslimat_tarihi) > 90         then 'riskli'
+         when (current_date - m.son_teslimat_tarihi) > 45         then 'izlenmeli'
          else 'saglikli'
        end as risk_durumu,
        y.st as yas_st,

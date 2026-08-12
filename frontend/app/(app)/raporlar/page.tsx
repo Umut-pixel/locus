@@ -16,7 +16,18 @@ import {
 } from "@/hooks/useMusteriRaporlama";
 import { exportMusteriRaporu, exportSelectedRows } from "@/lib/raporlama-export";
 import { formatNumber } from "@/lib/format";
+import { SEHIR_HEDEF } from "@/lib/import/cities";
 import type { RiskMetricMode } from "@/lib/risk-mode";
+
+/**
+ * Raporlar yalnızca hedef bölgeyi kapsıyor — bölge dışı müşteriler daha
+ * import aşamasında eleniyor (bkz. lib/import/parse-musteri.ts). Bu kapsam
+ * ekranda hiçbir yerde yazmıyordu; toplamlar şirket geneli sanılabiliyordu.
+ */
+const BOLGE_IL_SAYISI = SEHIR_HEDEF.size;
+const BOLGE_ILLER = Array.from(SEHIR_HEDEF)
+  .sort((a, b) => a.localeCompare(b, "tr"))
+  .join(", ");
 
 export default function RaporlarPage() {
   const [filters, setFilters] = useState<RaporlamaFilters>(EMPTY_RAPORLAMA_FILTERS);
@@ -108,7 +119,10 @@ export default function RaporlarPage() {
           <Typography.Heading level={5} className="shrink-0 tracking-tight">
             Müşteri Raporlama
           </Typography.Heading>
-          <span className="inline-flex h-6 shrink-0 items-center gap-1.5 rounded-md bg-emerald-500/10 px-2 font-mono text-[12.5px] font-medium text-emerald-400 tabular-nums">
+          <span
+            className="inline-flex h-6 shrink-0 cursor-help items-center gap-1.5 rounded-md bg-emerald-500/10 px-2 font-mono text-[12.5px] font-medium text-emerald-400 tabular-nums"
+            title={`Kapsam: Ege bölgesi ${BOLGE_IL_SAYISI} il (${BOLGE_ILLER}). Bölge dışı müşteriler ve koordinatı olmayan kayıtlar bu sayıya ve tüm toplamlara dahil değildir.`}
+          >
             <span className="size-1.5 shrink-0 rounded-full bg-emerald-400" />
             {formatNumber(totalCount)}
           </span>

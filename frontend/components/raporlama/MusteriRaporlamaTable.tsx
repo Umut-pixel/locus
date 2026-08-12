@@ -44,6 +44,7 @@ import {
   formatKg,
   formatNumber,
 } from "@/lib/format";
+import { RISK_BAND_KEYS } from "@/lib/import/parse-yaslandirma";
 import {
   RISK_MODE_LABELS,
   debtRiskDurumu,
@@ -161,16 +162,6 @@ function RiskModeHeader({
 
 const COLUMN_COUNT = 8;
 const SKELETON_ROWS = 12;
-/** 28+ gün bantları riskli_tutar tarafına yaklaşır — kırmızı; öncesi amber. */
-const LATE_BAND_KEYS = new Set([
-  "hf_28_34",
-  "hf_35_41",
-  "hf_42_48",
-  "hf_49_55",
-  "hf_56_62",
-  "hf_63_69",
-  "hf_70_ustu",
-]);
 
 export function MusteriRaporlamaTable({
   rows,
@@ -710,9 +701,11 @@ function YaslandirmaTabIcerik({ detay }: { detay: MusteriDetay }) {
   const riskliTutar = detay.yas_riskli_tutar ?? 0;
   const riskli = Boolean(detay.borc_riskli) || riskliTutar > 0.005;
   const risksizTutar = Math.max(0, Math.round((toplam - riskliTutar) * 100) / 100);
+  // "risk" işareti riskli_tutar'ın tanımıyla aynı kaynaktan (56+ gün) gelmeli;
+  // aksi halde kalem kırmızı görünürken müşteri "Borçlu" sayılıyordu.
   const bantlar = BORC_GECIKME_BANTLARI.map((b) => ({
     label: b.label,
-    late: LATE_BAND_KEYS.has(b.value),
+    late: RISK_BAND_KEYS.has(b.value),
     tutar: (detay[b.value as keyof MusteriDetay] as number | null) ?? 0,
   })).filter((b) => b.tutar > 0.005);
 

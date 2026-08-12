@@ -1,13 +1,76 @@
-import type { RaporlamaSummary } from "@/hooks/useMusteriRaporlama";
+"use client";
+
+import {
+  YASLANDIRMA_REPORT_ID,
+  useRaporTazeligi,
+  type RaporlamaSummary,
+} from "@/hooks/useMusteriRaporlama";
 import { formatCurrency, formatNumber } from "@/lib/format";
 import { riskShortLabelsForMode, type RiskMetricMode } from "@/lib/risk-mode";
 import { RISK_COLORS, RISK_ORDER } from "@/lib/risk-style";
+import { cn } from "@/lib/utils";
 
 interface MusteriRaporlamaSummaryProps {
   totalCount: number;
   summary: RaporlamaSummary;
   loading: boolean;
   riskMode: RiskMetricMode;
+}
+
+/** 24 saati aşan borç verisi amber, 48 saati aşan kırmızı — n8n'de 5530 cron'u yok. */
+const TAZELIK_UYARI_SAAT = 24;
+const TAZELIK_KRITIK_SAAT = 48;
+
+/**
+ * Açık Bakiye ve Borç riski tamamen ST Yaşlandırma'ya (5530) dayanıyor ve bu
+ * rapor otomatik çekilmiyor. Verinin kaç saatlik olduğunu göstermezsek bayat
+ * borçla karar alınıyor ve ekranda hiçbir iz kalmıyor.
+ */
+function BorcTazeligi() {
+  const { saatOnce, loading } = useRaporTazeligi(YASLANDIRMA_REPORT_ID);
+
+  if (loading || saatOnce == null) return null;
+
+  const kritik = saatOnce >= TAZELIK_KRITIK_SAAT;
+  const uyari = saatOnce >= TAZELIK_UYARI_SAAT;
+  const metin =
+    saatOnce < 1
+      ? "az önce"
+      : saatOnce < 24
+        ? `${saatOnce} saat önce`
+        : `${Math.floor(saatOnce / 24)} gün önce`;
+
+  return (
+    <span
+      className="flex shrink-0 items-center gap-1.5"
+      title={`ST Yaşlandırma (5530) Panorama'dan en son ${metin} çekildi. Açık bakiye ve borç riski bu veriye dayanıyor.`}
+    >
+      <span
+        className={cn(
+          "size-2 shrink-0 rounded-full",
+          kritik
+            ? "bg-red-400"
+            : uyari
+              ? "bg-amber-400"
+              : "bg-emerald-400"
+        )}
+        aria-hidden
+      />
+      <span className="text-[12px] text-muted-foreground">Borç verisi</span>
+      <span
+        className={cn(
+          "font-mono font-medium tabular-nums",
+          kritik
+            ? "text-red-400"
+            : uyari
+              ? "text-amber-400"
+              : "text-foreground"
+        )}
+      >
+        {metin}
+      </span>
+    </span>
+  );
 }
 
 /**
@@ -58,6 +121,10 @@ export function MusteriRaporlamaSummary({
             </span>
           </span>
         ))}
+      </div>
+
+      <div className="ml-auto flex items-center gap-x-5 pl-5">
+        <BorcTazeligi />
       </div>
     </div>
   );
