@@ -179,6 +179,7 @@ export default function RaporlarPage() {
         summary={summary}
         loading={summaryLoading}
         riskMode={riskMode}
+        filters={filters}
       />
     </div>
   );

@@ -254,11 +254,18 @@ async function fetchAllFiltered<T>(
 
 export interface RaporlamaSummary {
   toplamNetCiro: number;
+  /**
+   * Filtreye uyan TÜM satırların açık bakiye toplamı (görünen sayfa değil).
+   * Gecikme bandı seçiliyse yalnızca o bandın tutarı toplanır — tabloda
+   * gösterilen kolonla aynı alan (bkz. acikBakiyeKolonu).
+   */
+  toplamAcikBakiye: number;
   riskDagilimi: Record<RiskDurumu, number>;
 }
 
 const EMPTY_SUMMARY: RaporlamaSummary = {
   toplamNetCiro: 0,
+  toplamAcikBakiye: 0,
   riskDagilimi: { saglikli: 0, izlenmeli: 0, riskli: 0, hic_teslimat_yok: 0 },
 };
 
@@ -382,38 +389,51 @@ export function useMusteriRaporlama(
           hic_teslimat_yok: 0,
         };
         let toplam = 0;
+        let bakiyeToplam = 0;
+
+        // Açık bakiye toplamı ekrandaki kolonla aynı alandan gelsin: bant
+        // seçiliyse o bandın tutarı, değilse tüm açık bakiye.
+        const bakiyeKolon = acikBakiyeKolonu(effectiveFilters);
 
         if (riskMode === "borc") {
-          const data = await fetchAllFiltered<{
-            belge_net_ciro: number | null;
-            yas_toplam: number | null;
-            yas_riskli_tutar: number | null;
-          }>(
-            "belge_net_ciro,yas_toplam,yas_riskli_tutar",
-            effectiveFilters,
-            riskMode,
-            { signal: ac.signal }
-          );
+          // Set: bakiyeKolon zaten yas_toplam ise iki kez istenmesin.
+          const select = [
+            ...new Set([
+              "belge_net_ciro",
+              "yas_toplam",
+              "yas_riskli_tutar",
+              bakiyeKolon,
+            ]),
+          ].join(",");
+          const data = await fetchAllFiltered<
+            Record<string, number | null>
+          >(select, effectiveFilters, riskMode, { signal: ac.signal });
           if (ac.signal.aborted) return;
           for (const row of data) {
             toplam += row.belge_net_ciro ?? 0;
+            bakiyeToplam += row[bakiyeKolon] ?? 0;
             dagilim[debtRiskDurumu(row)] += 1;
           }
         } else {
-          const data = await fetchAllFiltered<{
-            belge_net_ciro: number | null;
-            risk_durumu: RiskDurumu;
-          }>("belge_net_ciro,risk_durumu", effectiveFilters, riskMode, {
-            signal: ac.signal,
-          });
+          const select = [
+            ...new Set(["belge_net_ciro", "risk_durumu", bakiyeKolon]),
+          ].join(",");
+          const data = await fetchAllFiltered<
+            Record<string, number | RiskDurumu | null>
+          >(select, effectiveFilters, riskMode, { signal: ac.signal });
           if (ac.signal.aborted) return;
           for (const row of data) {
-            toplam += row.belge_net_ciro ?? 0;
-            dagilim[row.risk_durumu] += 1;
+            toplam += (row.belge_net_ciro as number | null) ?? 0;
+            bakiyeToplam += (row[bakiyeKolon] as number | null) ?? 0;
+            dagilim[row.risk_durumu as RiskDurumu] += 1;
           }
         }
 
-        setSummary({ toplamNetCiro: toplam, riskDagilimi: dagilim });
+        setSummary({
+          toplamNetCiro: toplam,
+          toplamAcikBakiye: Math.round(bakiyeToplam * 100) / 100,
+          riskDagilimi: dagilim,
+        });
       } catch {
         // abort ya da ağ hatası — özet sessizce önceki değerinde kalır
       } finally {

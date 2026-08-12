@@ -2,7 +2,9 @@
 
 import {
   YASLANDIRMA_REPORT_ID,
+  gecikmeBandiEtiketi,
   useRaporTazeligi,
+  type RaporlamaFilters,
   type RaporlamaSummary,
 } from "@/hooks/useMusteriRaporlama";
 import { formatCurrency, formatNumber } from "@/lib/format";
@@ -15,6 +17,8 @@ interface MusteriRaporlamaSummaryProps {
   summary: RaporlamaSummary;
   loading: boolean;
   riskMode: RiskMetricMode;
+  /** Açık bakiye toplamının hangi alanı özetlediğini etiketlemek için. */
+  filters: RaporlamaFilters;
 }
 
 /** 24 saati aşan borç verisi amber, 48 saati aşan kırmızı — n8n'de 5530 cron'u yok. */
@@ -83,8 +87,10 @@ export function MusteriRaporlamaSummary({
   summary,
   loading,
   riskMode,
+  filters,
 }: MusteriRaporlamaSummaryProps) {
   const riskLabels = riskShortLabelsForMode(riskMode);
+  const bandEtiketi = gecikmeBandiEtiketi(filters);
   return (
     <div className="flex h-[52px] shrink-0 items-center gap-x-5 gap-y-1 overflow-x-auto border-t border-border bg-muted/25 px-3.5 text-[13.5px] whitespace-nowrap">
       <span className="font-mono font-medium text-foreground tabular-nums">
@@ -100,6 +106,26 @@ export function MusteriRaporlamaSummary({
         {loading ? "…" : formatCurrency(summary.toplamNetCiro)}
         <span className="ml-1.5 font-sans text-[12px] font-normal text-muted-foreground">
           net ciro
+        </span>
+      </span>
+
+      <Ayirac />
+
+      {/* Bant seçiliyken tabloda gösterilen kolonun TÜM veri üzerindeki toplamı. */}
+      <span
+        className={cn(
+          "font-mono font-medium tabular-nums",
+          bandEtiketi ? "text-amber-400" : "text-foreground"
+        )}
+        title={
+          bandEtiketi
+            ? `Filtreye uyan tüm müşterilerin ${bandEtiketi} bandındaki borç toplamı`
+            : "Filtreye uyan tüm müşterilerin açık bakiye toplamı"
+        }
+      >
+        {loading ? "…" : formatCurrency(summary.toplamAcikBakiye)}
+        <span className="ml-1.5 font-sans text-[12px] font-normal text-muted-foreground">
+          {bandEtiketi ? `${bandEtiketi} borç` : "açık bakiye"}
         </span>
       </span>
 
