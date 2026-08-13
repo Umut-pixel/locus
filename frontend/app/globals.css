@@ -491,3 +491,25 @@
     transition: none !important;
   }
 }
+
+/*
+ * heroui/styles ile token çakışması (2026-08-13 audit'i).
+ *
+ * @heroui/styles kendi `--muted` tanımını OKUNABİLİR ikincil metin rengi
+ * olarak kullanıyor (kendi temasında light 0.55 / dark 0.70 lightness).
+ * Bu uygulama ise shadcn kuralını izliyor: `--muted` yalnızca ARKA PLAN
+ * tonu (bkz. yukarıdaki :root — 0.23), okunabilir metin için ayrı bir
+ * `--muted-foreground` (0.65) var. Aynı değişken adı iki farklı anlamda
+ * kullanılınca `.typography--color-muted` (Typography'nin color="muted"
+ * prop'u — heroui/react/dist/components/typography/typography.js) neredeyse
+ * arka planla aynı tonda (0.23 üstüne 0.23) render oluyor, panelde
+ * görünmez/okunaksız oluyordu ("Segment, risk ve ciro kırılımıyla..." vb.).
+ *
+ * Uygulamada @heroui/react'ten yalnızca Typography ve Avatar kullanılıyor;
+ * diğer heroui bileşenlerinin (accordion, card, table, toast, ...) CSS'i de
+ * aynı text-muted hatasını taşıyor ama DOM'da hiç render edilmedikleri için
+ * dokunulmadı — bkz. `grep -rn 'from "@heroui/react"' frontend`.
+ */
+.typography--color-muted {
+  color: var(--muted-foreground);
+}
