@@ -3,7 +3,6 @@
 import { Fragment, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import {
-  ArrowLeftRightIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   ChevronsUpDownIcon,
@@ -49,7 +48,6 @@ import {
 } from "@/lib/format";
 import { RISK_BAND_KEYS } from "@/lib/import/parse-yaslandirma";
 import {
-  RISK_MODE_LABELS,
   borcOnemli,
   debtRiskDurumu,
   riskLabelsForMode,
@@ -82,8 +80,8 @@ interface MusteriRaporlamaTableProps {
   selectedRows: Map<string, MusteriRaporSatiri>;
   onToggleSelect: (row: MusteriRaporSatiri) => void;
   onSelectPage: (rows: MusteriRaporSatiri[], checked: boolean) => void;
+  /** Raporlar sadece borç yaşlandırmasına göre risklendiriyor — bkz. lib/risk-mode.ts. */
   riskMode: RiskMetricMode;
-  onToggleRiskMode: () => void;
   /** Açık Bakiye kolonunun hangi alanı göstereceğini belirler (gecikme bandı). */
   filters: RaporlamaFilters;
 }
@@ -137,33 +135,11 @@ function SortableHeader({
 }
 
 /**
- * Risk kolonu başlığı, sıralanabilir başlıklarla aynı tıklanabilir dilde —
- * ama sıra yerine ölçüt değiştirir: borç yaşlandırması ↔ sevkiyat gecikmesi.
- * Etiketin yanındaki küçük rozet o an hangi ölçütün aktif olduğunu gösterir.
+ * Risk kolonu başlığı — raporlarda risk ölçütü sabit borç yaşlandırmasıdır,
+ * sevkiyat gecikmesine göre değiştirme kaldırıldı (bkz. lib/risk-mode.ts).
  */
-function RiskModeHeader({
-  riskMode,
-  onToggle,
-}: {
-  riskMode: RiskMetricMode;
-  onToggle: () => void;
-}) {
-  return (
-    <th scope="col" className={TH_BASE}>
-      <button
-        type="button"
-        onClick={onToggle}
-        title={`Risk ölçütü: ${RISK_MODE_LABELS[riskMode]} — değiştirmek için tıkla`}
-        className="inline-flex items-center gap-1.5 rounded-sm outline-none transition-colors hover:text-foreground focus-visible:text-foreground"
-      >
-        Risk
-        <span className="inline-flex items-center gap-1 rounded-[4px] bg-muted px-1.5 py-0.5 text-[9.5px] font-medium normal-case tracking-normal text-foreground/75">
-          <ArrowLeftRightIcon className="size-2.5" />
-          {RISK_MODE_LABELS[riskMode]}
-        </span>
-      </button>
-    </th>
-  );
+function RiskModeHeader() {
+  return <th scope="col" className={TH_BASE}>Risk</th>;
 }
 
 const COLUMN_COUNT = 8;
@@ -182,7 +158,6 @@ export function MusteriRaporlamaTable({
   onToggleSelect,
   onSelectPage,
   riskMode,
-  onToggleRiskMode,
   filters,
 }: MusteriRaporlamaTableProps) {
   const musteriKodlari = useMemo(() => rows.map((r) => r.musteri_kodu), [rows]);
@@ -222,7 +197,7 @@ export function MusteriRaporlamaTable({
               <th scope="col" className={TH_BASE}>
                 Temsilci
               </th>
-              <RiskModeHeader riskMode={riskMode} onToggle={onToggleRiskMode} />
+              <RiskModeHeader />
               <SortableHeader alan="ciro" sort={sort} onSortChange={onSortChange}>
                 Net Ciro
               </SortableHeader>
