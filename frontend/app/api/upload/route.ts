@@ -477,7 +477,11 @@ export async function POST(request: Request) {
         await replaceBelgeOzet(admin, eslesen);
       }
 
-      const netToplam = eslesen.reduce((s, r) => s + r.net_ciro, 0);
+      // KDV dahil "Nettutar" degil, brut - iskonto (bkz. sql/net_ciro_kdv_haric.sql).
+      const netToplam = eslesen.reduce(
+        (s, r) => s + (r.brut_ciro - r.iskonto_toplam),
+        0
+      );
       if (eslesen.length > 0) {
         uyarilar.push(
           `Belge özeti snapshot: ${eslesen.length} müşteri, ${parsed.islenenSatir} satış satırı, net ₺${Math.round(netToplam).toLocaleString("tr-TR")}.`

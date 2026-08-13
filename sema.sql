@@ -142,7 +142,9 @@ select m.musteri_kodu, m.unvan, m.adres, m.sehir, m.ilce, m.lat, m.lon, m.rut_ko
        b.satir_sayisi as belge_satir_sayisi,
        b.siparis_sayisi as belge_siparis_sayisi,
        b.fatura_sayisi as belge_fatura_sayisi,
-       b.net_ciro as belge_net_ciro,
+       -- KDV haric gercek net satis geliri. Panorama'nin "Nettutar"i
+       -- (b.net_ciro) KDV DAHIL tutar -- bkz. sql/net_ciro_kdv_haric.sql.
+       (round(b.brut_ciro - b.iskonto_toplam, 2))::numeric(16,2) as belge_net_ciro,
        b.brut_ciro as belge_brut_ciro,
        b.iskonto_toplam as belge_iskonto_toplam,
        b.promo_satir as belge_promo_satir,
@@ -154,7 +156,9 @@ select m.musteri_kodu, m.unvan, m.adres, m.sehir, m.ilce, m.lat, m.lon, m.rut_ko
        b.top_urun as belge_top_urun,
        b.son_urun as belge_son_urun,
        b.st_adi as belge_st_adi,
-       b.st_kodu as belge_st_kodu
+       b.st_kodu as belge_st_kodu,
+       -- Eski davranis: KDV dahil tutar, ihtiyaci olan icin ayrica korunuyor.
+       b.net_ciro as belge_net_ciro_kdv_dahil
 from public.musteriler m
 left join public.musteri_yaslandirma y on y.musteri_kodu = m.musteri_kodu
 left join public.musteri_belge_ozet b on b.musteri_kodu = m.musteri_kodu

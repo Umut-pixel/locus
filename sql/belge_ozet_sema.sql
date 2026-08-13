@@ -44,7 +44,8 @@ end $$;
 -- prod'u tanimliyordu. Pratikte bu, sema.sql'de yapilan bir duzeltmenin bu
 -- dosyanin yeniden calistirilmasiyla sessizce geri alinmasi demekti.
 --
--- TEK KAYNAK:  sema.sql  (ve son degisiklik: sql/risk_durumu_current_date.sql)
+-- TEK KAYNAK:  sema.sql  (ve son degisiklikler: sql/risk_durumu_current_date.sql,
+--              sql/net_ciro_kdv_haric.sql)
 --
 -- Bu dosyadaki tablo/policy degisikliklerini uyguladiktan SONRA view'i
 -- tazelemek icin sunu calistir:

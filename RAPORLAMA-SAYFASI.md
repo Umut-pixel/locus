@@ -61,6 +61,16 @@ View `security_invoker = true` ile tanımlı ve `anon, authenticated`'a `grant s
 verilmiş; harita sayfası (`/`) da aynı view'ı okur — rapor ve harita **aynı
 risk tanımını** paylaşır, iki ayrı hesaplama yok.
 
+**2026-08-13 düzeltmesi (`sql/net_ciro_kdv_haric.sql`):** Panorama'nın
+BelgeDetayRaporu'ndaki "Nettutar" alanı KDV dahil tutar olduğu tespit edildi
+(`Nettutar = (BrutTutar - Iskonto) × 1.20`, 455 müşteride istisnasız
+doğrulandı). `belge_net_ciro` artık view'da `brut_ciro - iskonto_toplam`
+olarak hesaplanıyor (KDV hariç gerçek net satış); eski KDV dahil değer
+`belge_net_ciro_kdv_dahil` altında ayrıca korunuyor. Bu değişiklik
+`musteri_metrik_gecmis` sparkline'ını besleyen `snapshot_musteri_metrik_gecmis()`
+pg_cron işini de otomatik düzeltir (view'dan okuyor) — bkz.
+`sql/metrik_gecmis_sema.sql`.
+
 ### 2.2 Raporlama satırının seçtiği kolonlar
 
 `useMusteriRaporlama.ts` içindeki `ROW_SELECT` sabiti, view'dan çekilen dar
@@ -80,7 +90,8 @@ Tablodaki sütunlarla ilişkisi:
 | `unvan`, `sehir`, `ilce`, `durum` | `musteriler` | Kimlik/konum, aktiflik durumu |
 | `musteri_grubu` | `musteriler` | Panorama segment kodu (`"201 - PETSHOP"` gibi) |
 | `belge_st_adi` | `musteri_belge_ozet.st_adi` | Satış temsilcisi — view'da ayrı "temsilci" alanı yok, en yakın gerçek kolon budur |
-| `belge_net_ciro` | `musteri_belge_ozet.net_ciro` | "Net Ciro" kolonu |
+| `belge_net_ciro` | `musteri_belge_ozet.brut_ciro - iskonto_toplam` (view'da hesaplanır) | "Net Ciro" kolonu — KDV hariç gerçek net satış |
+| `belge_net_ciro_kdv_dahil` | `musteri_belge_ozet.net_ciro` (Panorama "Nettutar") | KDV dahil tutar — UI'da kullanılmıyor, referans için tutulur |
 | `belge_siparis_sayisi`, `belge_fatura_sayisi` | `musteri_belge_ozet` | Dışa aktarımda görünür, tabloda değil |
 | `yas_toplam` | `musteri_yaslandirma.toplam` | "Açık Bakiye" kolonu |
 | `yas_riskli_tutar` | `musteri_yaslandirma.riskli_tutar` | `> 0` ise satır "danger" (kırmızı) render edilir |

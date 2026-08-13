@@ -69,3 +69,53 @@ create policy "metrik_gecmis_read"
 --     from public.musteri_metrik_gecmis
 --    group by 1 order by 1 desc limit 14;
 -- Beklenen: her gun icin ~musteri sayisi kadar satir, bosluk yok.
+
+-- =============================================================================
+-- BULUNDU (2026-08-13 audit'i) — yazan is pg_cron, n8n'de degil, repoda
+-- hicbir yerde tanimli degildi. `select * from cron.job;` ile tespit edildi:
+--
+--   jobid=1  schedule='15 5 * * *' (08:15 TR)  command='SELECT snapshot_musteri_metrik_gecmis();'  active=true
+--   jobid=2  schedule='15 5 * * *' (08:15 TR)  command='SELECT snapshot_urun_stok_gecmis();'        active=true
+--
+-- Fonksiyon tanimi (`select prosrc from pg_proc where proname = ...`):
+--
+--   create or replace function public.snapshot_musteri_metrik_gecmis()
+--   returns integer
+--   language plpgsql
+--   as $$
+--   declare
+--     n integer := 0;
+--   begin
+--     insert into musteri_metrik_gecmis (
+--       musteri_kodu, snapshot_tarihi, net_ciro, siparis_sayisi, fatura_sayisi,
+--       acik_bakiye, riskli_bakiye, son_teslimat_tarihi, toplam_teslimat_sayisi, risk_durumu
+--     )
+--     select
+--       h.musteri_kodu, current_date, h.belge_net_ciro, h.belge_siparis_sayisi,
+--       h.belge_fatura_sayisi, h.yas_toplam, h.yas_riskli_tutar,
+--       h.son_teslimat_tarihi, h.toplam_teslimat_sayisi, h.risk_durumu
+--     from musteriler_harita h
+--     on conflict (musteri_kodu, snapshot_tarihi) do update set
+--       net_ciro = excluded.net_ciro,
+--       siparis_sayisi = excluded.siparis_sayisi,
+--       fatura_sayisi = excluded.fatura_sayisi,
+--       acik_bakiye = excluded.acik_bakiye,
+--       riskli_bakiye = excluded.riskli_bakiye,
+--       son_teslimat_tarihi = excluded.son_teslimat_tarihi,
+--       toplam_teslimat_sayisi = excluded.toplam_teslimat_sayisi,
+--       risk_durumu = excluded.risk_durumu;
+--
+--     get diagnostics n = row_count;
+--     return n;
+--   end;
+--   $$;
+--
+-- `h.belge_net_ciro` musteriler_harita view'indan geliyor — yani
+-- sql/net_ciro_kdv_haric.sql'deki KDV-haric duzeltmesi buraya da otomatik
+-- yansiyor (fonksiyon degismedi, view'in sagladigi deger degisti).
+--
+-- HALA YAPILMASI GEREKEN: bu fonksiyon/job Supabase konsolunda tanimli,
+-- migration dosyalarinda degil — degistirmek icin SQL Editor veya
+-- apply_migration kullanilmali, repo icin sadece belge amacli buraya
+-- kopyalandi. `snapshot_urun_stok_gecmis()` de ayni sekilde repo disi.
+-- =============================================================================
