@@ -29,6 +29,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   viewportFit: "cover",
   themeColor: "#1a1b1f",
+  colorScheme: "dark",
 };
 
 export default function RootLayout({
@@ -39,7 +40,8 @@ export default function RootLayout({
   return (
     <html
       lang="tr"
-      className={`${geistSans.variable} ${geistMono.variable} ${inter.variable} h-full antialiased`}
+      data-theme="dark"
+      className={`dark ${geistSans.variable} ${geistMono.variable} ${inter.variable} h-full antialiased`}
     >
       <body className="flex h-dvh min-h-dvh flex-col overflow-hidden overscroll-none">
         {children}
