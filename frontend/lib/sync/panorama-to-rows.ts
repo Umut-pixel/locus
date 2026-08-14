@@ -61,6 +61,10 @@ export function panoramaBelgeDetayToExcelRows(
 ): Record<string, unknown>[] {
   return rows.map((r) => ({
     BelgeTip: r.belge_tip,
+    // İade ayrımı ve belge bazlı dedup parseBelgeDetayRaporu'da bu üç alana bakar.
+    IslemTip: r.islem_tip,
+    MatbuNo: r.matbu_no,
+    Sira: r.sira,
     MusteriKod: r.musteri_kod,
     MusteriKodu: r.musteri_kod,
     Nettutar: r.nettutar,

@@ -1893,7 +1893,7 @@
     },
     {
       "parameters": {
-        "jsCode": "\nconst ctx = $('Parse Filter Form BD').first().json;\nconst prevCookie = ctx.cookieHeader;\nconst baseUrl = String(ctx.baseUrl || '').replace(/\\/$/, '');\nconst reportId = 5450;\nconst reqId = ctx.reqId || (ctx.formFields || {}).__ReqID || '';\nif (!reqId) throw new Error('Rapor id=5450: __ReqID yok');\n\nfunction enc(v) { return encodeURIComponent(v == null ? '' : String(v)); }\nfunction mergeCookieHeader(prevHeader, resHeaders) {\n  const jar = new Map();\n  for (const part of String(prevHeader || '').split(';').map((s) => s.trim()).filter(Boolean)) {\n    const eq = part.indexOf('=');\n    if (eq > -1) jar.set(part.slice(0, eq), part.slice(eq + 1));\n  }\n  const setCookie = (resHeaders && (resHeaders['set-cookie'] || resHeaders['Set-Cookie'])) || [];\n  for (const c of (Array.isArray(setCookie) ? setCookie : [setCookie]).filter(Boolean)) {\n    const part = String(c).split(';')[0].trim();\n    const eq = part.indexOf('=');\n    if (eq > -1) jar.set(part.slice(0, eq), part.slice(eq + 1));\n  }\n  return [...jar.entries()].map(([k, v]) => `${k}=${v}`).join('; ');\n}\n\nconst filterStep = \"tarih_start\";\nconst xhrEvnKey = \"reportGrid_Edt_R3_C4_160,sChange\";\nconst reqSender = \"reportGrid_Edt_R3_C4_160\";\nconst payload = {\"RespJS\": [], \"VS\": \"\", \"FMT\": \"\", \"ResponseText\": \"\", \"RT\": \"\", \"JSONList\": [{\"AllowSet\": false, \"Idx\": 0, \"Getter\": \"getXHRData\", \"Setter\": \"setXHRData\", \"Value\": \"\", \"DefaultProperty\": 1, \"InfoType\": \"JSMTD\", \"ControlID\": \"htmlReportInfo\", \"ClientID\": \"dlgReportInfo_DlgWin_htmlReportInfo\", \"InitialID\": \"dlgReportInfo_DlgWin_htmlReportInfo\"}, {\"AllowSet\": false, \"Idx\": 37, \"Getter\": \"getVisible\", \"Setter\": \"setVisible\", \"Value\": false, \"DefaultProperty\": 2, \"InfoType\": \"JSMTD\", \"ControlID\": \"Edt_R3_C2_160\", \"ClientID\": \"reportGrid_Edt_R3_C2_160\", \"InitialID\": \"reportGrid_Edt_R3_C2_160\"}, {\"AllowSet\": false, \"Idx\": 43, \"Getter\": \"getVisible\", \"Setter\": \"setVisible\", \"Value\": false, \"DefaultProperty\": 2, \"InfoType\": \"JSMTD\", \"ControlID\": \"Edt_R3_C3_160\", \"ClientID\": \"reportGrid_Edt_R3_C3_160\", \"InitialID\": \"reportGrid_Edt_R3_C3_160\"}, {\"AllowSet\": false, \"Idx\": 49, \"Getter\": \"getValue\", \"Setter\": \"setValue\", \"Value\": \"9\", \"DefaultProperty\": 1, \"InfoType\": \"JSMTD\", \"ControlID\": \"Edt_R3_C4_160\", \"ClientID\": \"reportGrid_Edt_R3_C4_160\", \"InitialID\": \"reportGrid_Edt_R3_C4_160\"}, {\"AllowSet\": false, \"Idx\": 50, \"Getter\": \"getVisible\", \"Setter\": \"setVisible\", \"Value\": true, \"DefaultProperty\": 2, \"InfoType\": \"JSMTD\", \"ControlID\": \"Edt_R3_C4_160\", \"ClientID\": \"reportGrid_Edt_R3_C4_160\", \"InitialID\": \"reportGrid_Edt_R3_C4_160\"}, {\"AllowSet\": false, \"Idx\": 55, \"Getter\": \"getValue\", \"Setter\": \"setValue\", \"Value\": \"-\", \"DefaultProperty\": 1, \"InfoType\": \"JSMTD\", \"ControlID\": \"Edt_R3_C5_160\", \"ClientID\": \"reportGrid_Edt_R3_C5_160\", \"InitialID\": \"reportGrid_Edt_R3_C5_160\"}, {\"AllowSet\": false, \"Idx\": 56, \"Getter\": \"getVisible\", \"Setter\": \"setVisible\", \"Value\": true, \"DefaultProperty\": 2, \"InfoType\": \"JSMTD\", \"ControlID\": \"Edt_R3_C5_160\", \"ClientID\": \"reportGrid_Edt_R3_C5_160\", \"InitialID\": \"reportGrid_Edt_R3_C5_160\"}, {\"AllowSet\": false, \"Idx\": 58, \"Getter\": \"getXHRValue\", \"Setter\": \"setXHRValue\", \"Value\": 1, \"DefaultProperty\": 9, \"InfoType\": \"JSMTD\", \"ControlID\": \"Edt_R3_C6_160\", \"ClientID\": \"reportGrid_Edt_R3_C6_160\", \"InitialID\": \"reportGrid_Edt_R3_C6_160\"}, {\"AllowSet\": false, \"Idx\": 80, \"Getter\": \"getValue\", \"Setter\": \"setValue\", \"Value\": \"-\", \"DefaultProperty\": 1, \"InfoType\": \"JSMTD\", \"ControlID\": \"Edt_R8_C1_187\", \"ClientID\": \"reportGrid_Edt_R8_C1_187\", \"InitialID\": \"reportGrid_Edt_R8_C1_187\"}, {\"AllowSet\": false, \"Idx\": 100, \"Getter\": \"getValue\", \"Setter\": \"setValue\", \"Value\": \"-\", \"DefaultProperty\": 1, \"InfoType\": \"JSMTD\", \"ControlID\": \"Edt_R13_C1_163\", \"ClientID\": \"reportGrid_Edt_R13_C1_163\", \"InitialID\": \"reportGrid_Edt_R13_C1_163\"}, {\"AllowSet\": false, \"Idx\": 118, \"Getter\": \"getValue\", \"Setter\": \"setValue\", \"Value\": \"-\", \"DefaultProperty\": 1, \"InfoType\": \"JSMTD\", \"ControlID\": \"Edt_R17_C1_131\", \"ClientID\": \"reportGrid_Edt_R17_C1_131\", \"InitialID\": \"reportGrid_Edt_R17_C1_131\"}]};\nconst prevRes = $('POST Belge Durumu BD').first().json;\nconst cookieHeader = mergeCookieHeader(prevCookie, prevRes.headers || {});\n\n\nconst qs =\n  '__XHROwnerID=' + enc('XHRObj') +\n  '&__UwfXHROwnerID=' + enc('XHRObj') +\n  '&__DMLType=' + enc('New') +\n  '&__XHREvnKey=' + enc(xhrEvnKey) +\n  '&reqSender=' + enc(reqSender);\n\nconst postUrl = `${baseUrl}/Interface/RaporEkran/ReportFilterDML.Aspx?id=${reportId}&${qs}`;\nconst jsonBody = JSON.stringify(payload);\n\nreturn [{\n  json: {\n    ...ctx,\n    cookieHeader,\n    reqId,\n    reportId,\n    excelPostUrl: postUrl,\n    excelJsonBody: jsonBody,\n    filterStep,\n  }\n}];\n"
+        "jsCode": "\nconst ctx = $('Parse Filter Form BD').first().json;\nconst prevCookie = ctx.cookieHeader;\nconst baseUrl = String(ctx.baseUrl || '').replace(/\\/$/, '');\nconst reportId = 5450;\nconst reqId = ctx.reqId || (ctx.formFields || {}).__ReqID || '';\nif (!reqId) throw new Error('Rapor id=5450: __ReqID yok');\n\nfunction enc(v) { return encodeURIComponent(v == null ? '' : String(v)); }\nfunction mergeCookieHeader(prevHeader, resHeaders) {\n  const jar = new Map();\n  for (const part of String(prevHeader || '').split(';').map((s) => s.trim()).filter(Boolean)) {\n    const eq = part.indexOf('=');\n    if (eq > -1) jar.set(part.slice(0, eq), part.slice(eq + 1));\n  }\n  const setCookie = (resHeaders && (resHeaders['set-cookie'] || resHeaders['Set-Cookie'])) || [];\n  for (const c of (Array.isArray(setCookie) ? setCookie : [setCookie]).filter(Boolean)) {\n    const part = String(c).split(';')[0].trim();\n    const eq = part.indexOf('=');\n    if (eq > -1) jar.set(part.slice(0, eq), part.slice(eq + 1));\n  }\n  return [...jar.entries()].map(([k, v]) => `${k}=${v}`).join('; ');\n}\n\nconst filterStep = \"tarih_start\";\nconst xhrEvnKey = \"reportGrid_Edt_R3_C4_160,sChange\";\nconst reqSender = \"reportGrid_Edt_R3_C4_160\";\nconst payload = {\"RespJS\": [], \"VS\": \"\", \"FMT\": \"\", \"ResponseText\": \"\", \"RT\": \"\", \"JSONList\": [{\"AllowSet\": false, \"Idx\": 0, \"Getter\": \"getXHRData\", \"Setter\": \"setXHRData\", \"Value\": \"\", \"DefaultProperty\": 1, \"InfoType\": \"JSMTD\", \"ControlID\": \"htmlReportInfo\", \"ClientID\": \"dlgReportInfo_DlgWin_htmlReportInfo\", \"InitialID\": \"dlgReportInfo_DlgWin_htmlReportInfo\"}, {\"AllowSet\": false, \"Idx\": 37, \"Getter\": \"getVisible\", \"Setter\": \"setVisible\", \"Value\": false, \"DefaultProperty\": 2, \"InfoType\": \"JSMTD\", \"ControlID\": \"Edt_R3_C2_160\", \"ClientID\": \"reportGrid_Edt_R3_C2_160\", \"InitialID\": \"reportGrid_Edt_R3_C2_160\"}, {\"AllowSet\": false, \"Idx\": 43, \"Getter\": \"getVisible\", \"Setter\": \"setVisible\", \"Value\": false, \"DefaultProperty\": 2, \"InfoType\": \"JSMTD\", \"ControlID\": \"Edt_R3_C3_160\", \"ClientID\": \"reportGrid_Edt_R3_C3_160\", \"InitialID\": \"reportGrid_Edt_R3_C3_160\"}, {\"AllowSet\": false, \"Idx\": 49, \"Getter\": \"getValue\", \"Setter\": \"setValue\", \"Value\": \"3\", \"DefaultProperty\": 1, \"InfoType\": \"JSMTD\", \"ControlID\": \"Edt_R3_C4_160\", \"ClientID\": \"reportGrid_Edt_R3_C4_160\", \"InitialID\": \"reportGrid_Edt_R3_C4_160\"}, {\"AllowSet\": false, \"Idx\": 50, \"Getter\": \"getVisible\", \"Setter\": \"setVisible\", \"Value\": true, \"DefaultProperty\": 2, \"InfoType\": \"JSMTD\", \"ControlID\": \"Edt_R3_C4_160\", \"ClientID\": \"reportGrid_Edt_R3_C4_160\", \"InitialID\": \"reportGrid_Edt_R3_C4_160\"}, {\"AllowSet\": false, \"Idx\": 55, \"Getter\": \"getValue\", \"Setter\": \"setValue\", \"Value\": \"-\", \"DefaultProperty\": 1, \"InfoType\": \"JSMTD\", \"ControlID\": \"Edt_R3_C5_160\", \"ClientID\": \"reportGrid_Edt_R3_C5_160\", \"InitialID\": \"reportGrid_Edt_R3_C5_160\"}, {\"AllowSet\": false, \"Idx\": 56, \"Getter\": \"getVisible\", \"Setter\": \"setVisible\", \"Value\": true, \"DefaultProperty\": 2, \"InfoType\": \"JSMTD\", \"ControlID\": \"Edt_R3_C5_160\", \"ClientID\": \"reportGrid_Edt_R3_C5_160\", \"InitialID\": \"reportGrid_Edt_R3_C5_160\"}, {\"AllowSet\": false, \"Idx\": 58, \"Getter\": \"getXHRValue\", \"Setter\": \"setXHRValue\", \"Value\": 1, \"DefaultProperty\": 9, \"InfoType\": \"JSMTD\", \"ControlID\": \"Edt_R3_C6_160\", \"ClientID\": \"reportGrid_Edt_R3_C6_160\", \"InitialID\": \"reportGrid_Edt_R3_C6_160\"}, {\"AllowSet\": false, \"Idx\": 80, \"Getter\": \"getValue\", \"Setter\": \"setValue\", \"Value\": \"-\", \"DefaultProperty\": 1, \"InfoType\": \"JSMTD\", \"ControlID\": \"Edt_R8_C1_187\", \"ClientID\": \"reportGrid_Edt_R8_C1_187\", \"InitialID\": \"reportGrid_Edt_R8_C1_187\"}, {\"AllowSet\": false, \"Idx\": 100, \"Getter\": \"getValue\", \"Setter\": \"setValue\", \"Value\": \"-\", \"DefaultProperty\": 1, \"InfoType\": \"JSMTD\", \"ControlID\": \"Edt_R13_C1_163\", \"ClientID\": \"reportGrid_Edt_R13_C1_163\", \"InitialID\": \"reportGrid_Edt_R13_C1_163\"}, {\"AllowSet\": false, \"Idx\": 118, \"Getter\": \"getValue\", \"Setter\": \"setValue\", \"Value\": \"-\", \"DefaultProperty\": 1, \"InfoType\": \"JSMTD\", \"ControlID\": \"Edt_R17_C1_131\", \"ClientID\": \"reportGrid_Edt_R17_C1_131\", \"InitialID\": \"reportGrid_Edt_R17_C1_131\"}]};\nconst prevRes = $('POST Belge Durumu BD').first().json;\nconst cookieHeader = mergeCookieHeader(prevCookie, prevRes.headers || {});\n\n\nconst qs =\n  '__XHROwnerID=' + enc('XHRObj') +\n  '&__UwfXHROwnerID=' + enc('XHRObj') +\n  '&__DMLType=' + enc('New') +\n  '&__XHREvnKey=' + enc(xhrEvnKey) +\n  '&reqSender=' + enc(reqSender);\n\nconst postUrl = `${baseUrl}/Interface/RaporEkran/ReportFilterDML.Aspx?id=${reportId}&${qs}`;\nconst jsonBody = JSON.stringify(payload);\n\nreturn [{\n  json: {\n    ...ctx,\n    cookieHeader,\n    reqId,\n    reportId,\n    excelPostUrl: postUrl,\n    excelJsonBody: jsonBody,\n    filterStep,\n  }\n}];\n"
       },
       "id": "521e3431-6976-40e3-82ec-03e3a6be21f9",
       "name": "Build Tarih Start BD",
@@ -2002,7 +2002,7 @@
     },
     {
       "parameters": {
-        "jsCode": "\nconst ctx = $('Parse Filter Form BD').first().json;\nconst prevCookie = ctx.cookieHeader;\nconst baseUrl = String(ctx.baseUrl || '').replace(/\\/$/, '');\nconst reportId = 5450;\nconst reqId = ctx.reqId || (ctx.formFields || {}).__ReqID || '';\nif (!reqId) throw new Error('Rapor id=5450: __ReqID yok');\n\nfunction enc(v) { return encodeURIComponent(v == null ? '' : String(v)); }\nfunction mergeCookieHeader(prevHeader, resHeaders) {\n  const jar = new Map();\n  for (const part of String(prevHeader || '').split(';').map((s) => s.trim()).filter(Boolean)) {\n    const eq = part.indexOf('=');\n    if (eq > -1) jar.set(part.slice(0, eq), part.slice(eq + 1));\n  }\n  const setCookie = (resHeaders && (resHeaders['set-cookie'] || resHeaders['Set-Cookie'])) || [];\n  for (const c of (Array.isArray(setCookie) ? setCookie : [setCookie]).filter(Boolean)) {\n    const part = String(c).split(';')[0].trim();\n    const eq = part.indexOf('=');\n    if (eq > -1) jar.set(part.slice(0, eq), part.slice(eq + 1));\n  }\n  return [...jar.entries()].map(([k, v]) => `${k}=${v}`).join('; ');\n}\n\nconst filterStep = \"tarih_end\";\nconst xhrEvnKey = \"reportGrid_Edt_R3_C5_160,sChange\";\nconst reqSender = \"reportGrid_Edt_R3_C5_160\";\nconst payload = {\"RespJS\": [], \"VS\": \"\", \"FMT\": \"\", \"ResponseText\": \"\", \"RT\": \"\", \"JSONList\": [{\"AllowSet\": false, \"Idx\": 0, \"Getter\": \"getXHRData\", \"Setter\": \"setXHRData\", \"Value\": \"\", \"DefaultProperty\": 1, \"InfoType\": \"JSMTD\", \"ControlID\": \"htmlReportInfo\", \"ClientID\": \"dlgReportInfo_DlgWin_htmlReportInfo\", \"InitialID\": \"dlgReportInfo_DlgWin_htmlReportInfo\"}, {\"AllowSet\": false, \"Idx\": 55, \"Getter\": \"getValue\", \"Setter\": \"setValue\", \"Value\": \"0\", \"DefaultProperty\": 1, \"InfoType\": \"JSMTD\", \"ControlID\": \"Edt_R3_C5_160\", \"ClientID\": \"reportGrid_Edt_R3_C5_160\", \"InitialID\": \"reportGrid_Edt_R3_C5_160\"}, {\"AllowSet\": false, \"Idx\": 80, \"Getter\": \"getValue\", \"Setter\": \"setValue\", \"Value\": \"-\", \"DefaultProperty\": 1, \"InfoType\": \"JSMTD\", \"ControlID\": \"Edt_R8_C1_187\", \"ClientID\": \"reportGrid_Edt_R8_C1_187\", \"InitialID\": \"reportGrid_Edt_R8_C1_187\"}, {\"AllowSet\": false, \"Idx\": 100, \"Getter\": \"getValue\", \"Setter\": \"setValue\", \"Value\": \"-\", \"DefaultProperty\": 1, \"InfoType\": \"JSMTD\", \"ControlID\": \"Edt_R13_C1_163\", \"ClientID\": \"reportGrid_Edt_R13_C1_163\", \"InitialID\": \"reportGrid_Edt_R13_C1_163\"}, {\"AllowSet\": false, \"Idx\": 118, \"Getter\": \"getValue\", \"Setter\": \"setValue\", \"Value\": \"-\", \"DefaultProperty\": 1, \"InfoType\": \"JSMTD\", \"ControlID\": \"Edt_R17_C1_131\", \"ClientID\": \"reportGrid_Edt_R17_C1_131\", \"InitialID\": \"reportGrid_Edt_R17_C1_131\"}]};\nconst prevRes = $('POST Tarih Start BD').first().json;\nconst cookieHeader = mergeCookieHeader(prevCookie, prevRes.headers || {});\n\n\nconst qs =\n  '__XHROwnerID=' + enc('XHRObj') +\n  '&__UwfXHROwnerID=' + enc('XHRObj') +\n  '&__DMLType=' + enc('New') +\n  '&__XHREvnKey=' + enc(xhrEvnKey) +\n  '&reqSender=' + enc(reqSender);\n\nconst postUrl = `${baseUrl}/Interface/RaporEkran/ReportFilterDML.Aspx?id=${reportId}&${qs}`;\nconst jsonBody = JSON.stringify(payload);\n\nreturn [{\n  json: {\n    ...ctx,\n    cookieHeader,\n    reqId,\n    reportId,\n    excelPostUrl: postUrl,\n    excelJsonBody: jsonBody,\n    filterStep,\n  }\n}];\n"
+        "jsCode": "\nconst ctx = $('Parse Filter Form BD').first().json;\nconst prevCookie = ctx.cookieHeader;\nconst baseUrl = String(ctx.baseUrl || '').replace(/\\/$/, '');\nconst reportId = 5450;\nconst reqId = ctx.reqId || (ctx.formFields || {}).__ReqID || '';\nif (!reqId) throw new Error('Rapor id=5450: __ReqID yok');\n\nfunction enc(v) { return encodeURIComponent(v == null ? '' : String(v)); }\nfunction mergeCookieHeader(prevHeader, resHeaders) {\n  const jar = new Map();\n  for (const part of String(prevHeader || '').split(';').map((s) => s.trim()).filter(Boolean)) {\n    const eq = part.indexOf('=');\n    if (eq > -1) jar.set(part.slice(0, eq), part.slice(eq + 1));\n  }\n  const setCookie = (resHeaders && (resHeaders['set-cookie'] || resHeaders['Set-Cookie'])) || [];\n  for (const c of (Array.isArray(setCookie) ? setCookie : [setCookie]).filter(Boolean)) {\n    const part = String(c).split(';')[0].trim();\n    const eq = part.indexOf('=');\n    if (eq > -1) jar.set(part.slice(0, eq), part.slice(eq + 1));\n  }\n  return [...jar.entries()].map(([k, v]) => `${k}=${v}`).join('; ');\n}\n\nconst filterStep = \"tarih_end\";\nconst xhrEvnKey = \"reportGrid_Edt_R3_C5_160,sChange\";\nconst reqSender = \"reportGrid_Edt_R3_C5_160\";\nconst payload = {\"RespJS\": [], \"VS\": \"\", \"FMT\": \"\", \"ResponseText\": \"\", \"RT\": \"\", \"JSONList\": [{\"AllowSet\": false, \"Idx\": 0, \"Getter\": \"getXHRData\", \"Setter\": \"setXHRData\", \"Value\": \"\", \"DefaultProperty\": 1, \"InfoType\": \"JSMTD\", \"ControlID\": \"htmlReportInfo\", \"ClientID\": \"dlgReportInfo_DlgWin_htmlReportInfo\", \"InitialID\": \"dlgReportInfo_DlgWin_htmlReportInfo\"}, {\"AllowSet\": false, \"Idx\": 55, \"Getter\": \"getValue\", \"Setter\": \"setValue\", \"Value\": \"1\", \"DefaultProperty\": 1, \"InfoType\": \"JSMTD\", \"ControlID\": \"Edt_R3_C5_160\", \"ClientID\": \"reportGrid_Edt_R3_C5_160\", \"InitialID\": \"reportGrid_Edt_R3_C5_160\"}, {\"AllowSet\": false, \"Idx\": 80, \"Getter\": \"getValue\", \"Setter\": \"setValue\", \"Value\": \"-\", \"DefaultProperty\": 1, \"InfoType\": \"JSMTD\", \"ControlID\": \"Edt_R8_C1_187\", \"ClientID\": \"reportGrid_Edt_R8_C1_187\", \"InitialID\": \"reportGrid_Edt_R8_C1_187\"}, {\"AllowSet\": false, \"Idx\": 100, \"Getter\": \"getValue\", \"Setter\": \"setValue\", \"Value\": \"-\", \"DefaultProperty\": 1, \"InfoType\": \"JSMTD\", \"ControlID\": \"Edt_R13_C1_163\", \"ClientID\": \"reportGrid_Edt_R13_C1_163\", \"InitialID\": \"reportGrid_Edt_R13_C1_163\"}, {\"AllowSet\": false, \"Idx\": 118, \"Getter\": \"getValue\", \"Setter\": \"setValue\", \"Value\": \"-\", \"DefaultProperty\": 1, \"InfoType\": \"JSMTD\", \"ControlID\": \"Edt_R17_C1_131\", \"ClientID\": \"reportGrid_Edt_R17_C1_131\", \"InitialID\": \"reportGrid_Edt_R17_C1_131\"}]};\nconst prevRes = $('POST Tarih Start BD').first().json;\nconst cookieHeader = mergeCookieHeader(prevCookie, prevRes.headers || {});\n\n\nconst qs =\n  '__XHROwnerID=' + enc('XHRObj') +\n  '&__UwfXHROwnerID=' + enc('XHRObj') +\n  '&__DMLType=' + enc('New') +\n  '&__XHREvnKey=' + enc(xhrEvnKey) +\n  '&reqSender=' + enc(reqSender);\n\nconst postUrl = `${baseUrl}/Interface/RaporEkran/ReportFilterDML.Aspx?id=${reportId}&${qs}`;\nconst jsonBody = JSON.stringify(payload);\n\nreturn [{\n  json: {\n    ...ctx,\n    cookieHeader,\n    reqId,\n    reportId,\n    excelPostUrl: postUrl,\n    excelJsonBody: jsonBody,\n    filterStep,\n  }\n}];\n"
       },
       "id": "326605c3-ad78-4199-b476-27f30ee7f516",
       "name": "Build Tarih End BD",
@@ -2111,7 +2111,7 @@
     },
     {
       "parameters": {
-        "jsCode": "\nconst ctx = $('Parse Filter Form BD').first().json;\nconst prevCookie = ctx.cookieHeader;\nconst baseUrl = String(ctx.baseUrl || '').replace(/\\/$/, '');\nconst reportId = 5450;\nconst reqId = ctx.reqId || (ctx.formFields || {}).__ReqID || '';\nif (!reqId) throw new Error('Rapor id=5450: __ReqID yok');\n\nfunction enc(v) { return encodeURIComponent(v == null ? '' : String(v)); }\nfunction mergeCookieHeader(prevHeader, resHeaders) {\n  const jar = new Map();\n  for (const part of String(prevHeader || '').split(';').map((s) => s.trim()).filter(Boolean)) {\n    const eq = part.indexOf('=');\n    if (eq > -1) jar.set(part.slice(0, eq), part.slice(eq + 1));\n  }\n  const setCookie = (resHeaders && (resHeaders['set-cookie'] || resHeaders['Set-Cookie'])) || [];\n  for (const c of (Array.isArray(setCookie) ? setCookie : [setCookie]).filter(Boolean)) {\n    const part = String(c).split(';')[0].trim();\n    const eq = part.indexOf('=');\n    if (eq > -1) jar.set(part.slice(0, eq), part.slice(eq + 1));\n  }\n  return [...jar.entries()].map(([k, v]) => `${k}=${v}`).join('; ');\n}\n\nconst filterStep = \"excel_aktar\";\nconst xhrEvnKey = \"\";\nconst reqSender = \"MainNvg\";\nconst payload = {\"RespJS\": [], \"VS\": \"\", \"FMT\": \"\", \"ResponseText\": \"\", \"RT\": \"\", \"JSONList\": [{\"AllowSet\": false, \"Idx\": 0, \"Getter\": \"getXHRData\", \"Setter\": \"setXHRData\", \"Value\": \"\", \"DefaultProperty\": 1, \"InfoType\": \"JSMTD\", \"ControlID\": \"htmlReportInfo\", \"ClientID\": \"dlgReportInfo_DlgWin_htmlReportInfo\", \"InitialID\": \"dlgReportInfo_DlgWin_htmlReportInfo\"}, {\"AllowSet\": false, \"Idx\": 61, \"Getter\": \"getValue\", \"Setter\": \"setValue\", \"Value\": \"0,1,2\", \"DefaultProperty\": 1, \"InfoType\": \"JSMTD\", \"ControlID\": \"Edt_R4_C1_186\", \"ClientID\": \"reportGrid_Edt_R4_C1_186\", \"InitialID\": \"reportGrid_Edt_R4_C1_186\"}, {\"AllowSet\": false, \"Idx\": 65, \"Getter\": \"getValue\", \"Setter\": \"setValue\", \"Value\": \"0\", \"DefaultProperty\": 1, \"InfoType\": \"JSMTD\", \"ControlID\": \"Edt_R5_C1_175\", \"ClientID\": \"reportGrid_Edt_R5_C1_175\", \"InitialID\": \"reportGrid_Edt_R5_C1_175\"}, {\"AllowSet\": false, \"Idx\": 80, \"Getter\": \"getValue\", \"Setter\": \"setValue\", \"Value\": \"-\", \"DefaultProperty\": 1, \"InfoType\": \"JSMTD\", \"ControlID\": \"Edt_R8_C1_187\", \"ClientID\": \"reportGrid_Edt_R8_C1_187\", \"InitialID\": \"reportGrid_Edt_R8_C1_187\"}, {\"AllowSet\": false, \"Idx\": 100, \"Getter\": \"getValue\", \"Setter\": \"setValue\", \"Value\": \"-\", \"DefaultProperty\": 1, \"InfoType\": \"JSMTD\", \"ControlID\": \"Edt_R13_C1_163\", \"ClientID\": \"reportGrid_Edt_R13_C1_163\", \"InitialID\": \"reportGrid_Edt_R13_C1_163\"}, {\"AllowSet\": false, \"Idx\": 118, \"Getter\": \"getValue\", \"Setter\": \"setValue\", \"Value\": \"-\", \"DefaultProperty\": 1, \"InfoType\": \"JSMTD\", \"ControlID\": \"Edt_R17_C1_131\", \"ClientID\": \"reportGrid_Edt_R17_C1_131\", \"InitialID\": \"reportGrid_Edt_R17_C1_131\"}]};\nconst prevRes = $('POST Tarih End BD').first().json;\nconst cookieHeader = mergeCookieHeader(prevCookie, prevRes.headers || {});\n\n\nconst qs =\n  '__XHROwnerID=' + enc('XHRObj') +\n  '&__UwfXHROwnerID=' + enc('XHRObj') +\n  '&__DMLType=' + enc('New') +\n  '&__XHREvnKey=' + enc(xhrEvnKey) +\n  '&reqSender=' + enc(reqSender);\n\nconst postUrl = `${baseUrl}/Interface/RaporEkran/ReportFilterDML.Aspx?id=${reportId}&${qs}`;\nconst jsonBody = JSON.stringify(payload);\n\nreturn [{\n  json: {\n    ...ctx,\n    cookieHeader,\n    reqId,\n    reportId,\n    excelPostUrl: postUrl,\n    excelJsonBody: jsonBody,\n    filterStep,\n  }\n}];\n"
+        "jsCode": "\nconst ctx = $('Parse Filter Form BD').first().json;\nconst prevCookie = ctx.cookieHeader;\nconst baseUrl = String(ctx.baseUrl || '').replace(/\\/$/, '');\nconst reportId = 5450;\nconst reqId = ctx.reqId || (ctx.formFields || {}).__ReqID || '';\nif (!reqId) throw new Error('Rapor id=5450: __ReqID yok');\n\nfunction enc(v) { return encodeURIComponent(v == null ? '' : String(v)); }\nfunction mergeCookieHeader(prevHeader, resHeaders) {\n  const jar = new Map();\n  for (const part of String(prevHeader || '').split(';').map((s) => s.trim()).filter(Boolean)) {\n    const eq = part.indexOf('=');\n    if (eq > -1) jar.set(part.slice(0, eq), part.slice(eq + 1));\n  }\n  const setCookie = (resHeaders && (resHeaders['set-cookie'] || resHeaders['Set-Cookie'])) || [];\n  for (const c of (Array.isArray(setCookie) ? setCookie : [setCookie]).filter(Boolean)) {\n    const part = String(c).split(';')[0].trim();\n    const eq = part.indexOf('=');\n    if (eq > -1) jar.set(part.slice(0, eq), part.slice(eq + 1));\n  }\n  return [...jar.entries()].map(([k, v]) => `${k}=${v}`).join('; ');\n}\n\nconst filterStep = \"excel_aktar\";\nconst xhrEvnKey = \"\";\nconst reqSender = \"MainNvg\";\nconst payload = {\"RespJS\": [], \"VS\": \"\", \"FMT\": \"\", \"ResponseText\": \"\", \"RT\": \"\", \"JSONList\": [{\"AllowSet\": false, \"Idx\": 0, \"Getter\": \"getXHRData\", \"Setter\": \"setXHRData\", \"Value\": \"\", \"DefaultProperty\": 1, \"InfoType\": \"JSMTD\", \"ControlID\": \"htmlReportInfo\", \"ClientID\": \"dlgReportInfo_DlgWin_htmlReportInfo\", \"InitialID\": \"dlgReportInfo_DlgWin_htmlReportInfo\"}, {\"AllowSet\": false, \"Idx\": 61, \"Getter\": \"getValue\", \"Setter\": \"setValue\", \"Value\": \"0\", \"DefaultProperty\": 1, \"InfoType\": \"JSMTD\", \"ControlID\": \"Edt_R4_C1_186\", \"ClientID\": \"reportGrid_Edt_R4_C1_186\", \"InitialID\": \"reportGrid_Edt_R4_C1_186\"}, {\"AllowSet\": false, \"Idx\": 65, \"Getter\": \"getValue\", \"Setter\": \"setValue\", \"Value\": \"99\", \"DefaultProperty\": 1, \"InfoType\": \"JSMTD\", \"ControlID\": \"Edt_R5_C1_175\", \"ClientID\": \"reportGrid_Edt_R5_C1_175\", \"InitialID\": \"reportGrid_Edt_R5_C1_175\"}, {\"AllowSet\": false, \"Idx\": 80, \"Getter\": \"getValue\", \"Setter\": \"setValue\", \"Value\": \"-\", \"DefaultProperty\": 1, \"InfoType\": \"JSMTD\", \"ControlID\": \"Edt_R8_C1_187\", \"ClientID\": \"reportGrid_Edt_R8_C1_187\", \"InitialID\": \"reportGrid_Edt_R8_C1_187\"}, {\"AllowSet\": false, \"Idx\": 100, \"Getter\": \"getValue\", \"Setter\": \"setValue\", \"Value\": \"-\", \"DefaultProperty\": 1, \"InfoType\": \"JSMTD\", \"ControlID\": \"Edt_R13_C1_163\", \"ClientID\": \"reportGrid_Edt_R13_C1_163\", \"InitialID\": \"reportGrid_Edt_R13_C1_163\"}, {\"AllowSet\": false, \"Idx\": 118, \"Getter\": \"getValue\", \"Setter\": \"setValue\", \"Value\": \"-\", \"DefaultProperty\": 1, \"InfoType\": \"JSMTD\", \"ControlID\": \"Edt_R17_C1_131\", \"ClientID\": \"reportGrid_Edt_R17_C1_131\", \"InitialID\": \"reportGrid_Edt_R17_C1_131\"}]};\nconst prevRes = $('POST Tarih End BD').first().json;\nconst cookieHeader = mergeCookieHeader(prevCookie, prevRes.headers || {});\n\n\nconst qs =\n  '__XHROwnerID=' + enc('XHRObj') +\n  '&__UwfXHROwnerID=' + enc('XHRObj') +\n  '&__DMLType=' + enc('New') +\n  '&__XHREvnKey=' + enc(xhrEvnKey) +\n  '&reqSender=' + enc(reqSender);\n\nconst postUrl = `${baseUrl}/Interface/RaporEkran/ReportFilterDML.Aspx?id=${reportId}&${qs}`;\nconst jsonBody = JSON.stringify(payload);\n\nreturn [{\n  json: {\n    ...ctx,\n    cookieHeader,\n    reqId,\n    reportId,\n    excelPostUrl: postUrl,\n    excelJsonBody: jsonBody,\n    filterStep,\n  }\n}];\n"
       },
       "id": "c94860c9-d9fc-4b2f-9171-30dbf4c2396b",
       "name": "Build Excel Aktar BD",
@@ -4155,6 +4155,1013 @@
         -176,
         2848
       ]
+    },
+    {
+      "parameters": {
+        "content": "## BelgeDetayRaporu (5450) - Ay Basi -> Bugun\n\nAna BD zincirinin ikinci kopyasi. Tek fark tarih araligi:\n  Edt_R3_C4_160 = 5   (ana zincir: 3)\n  Edt_R3_C5_160 = 0   (ana zincir: 1)\n\nBelge Durumu 0 / Belge Tip 0 / Belge Tur 99 - ana zincirle ayni.\nSchedule: Pzt/Car/Cum/Paz 07:15 TR (ana zincirle ayni saat).\nAyni landing tabloya yazar: panorama_belge_detay_raporu (upsert,\non_conflict=unified_doc,sira). Her calisma ayri bir\npanorama_sync_runs kaydi ve ayri bir transform webhook tetikler.\n",
+        "height": 360,
+        "width": 380,
+        "color": 4
+      },
+      "id": "bb3af900-859c-4d6b-89d3-831ce31bf3ff",
+      "name": "Belge Detay BD2 Notu",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -416,
+        3700
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "15 7 * * 0,1,3,5"
+            }
+          ]
+        }
+      },
+      "id": "e09a4cf0-085a-4a20-af80-abefc06be4ef",
+      "name": "Schedule Belge Detay BD2 PZT-CAR-CUM-PAZ",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -176,
+        4068
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "88a867d4-8297-443a-801a-f32b4dd32d36",
+              "name": "baseUrl",
+              "value": "https://panorama.armailac.com.tr",
+              "type": "string"
+            },
+            {
+              "id": "b3c073e0-05f0-4247-ba4d-b61d360d5807",
+              "name": "company",
+              "value": "ARMA",
+              "type": "string"
+            },
+            {
+              "id": "7c7db10b-cf4e-4f46-8945-a350a0695112",
+              "name": "activeYear",
+              "value": "2026",
+              "type": "string"
+            },
+            {
+              "id": "0984fc48-6733-46ea-a2ba-fc6ac4abbe25",
+              "name": "language",
+              "value": "tr-TR",
+              "type": "string"
+            },
+            {
+              "id": "70b0dc28-e4a6-484e-bdbe-3c59a60c4606",
+              "name": "reportIds",
+              "value": "={{ [5450] }}",
+              "type": "array"
+            },
+            {
+              "id": "6581f27e-1dc8-4344-a268-890dee4c5103",
+              "name": "filterExtraFields",
+              "value": "={{ ({}) }}",
+              "type": "object"
+            },
+            {
+              "id": "944e6ad5-ac3e-414d-b0f8-e485791c0d6f",
+              "name": "panoramaUser",
+              "value": "patigo",
+              "type": "string"
+            },
+            {
+              "id": "2ff0c0e9-2bf3-46c4-abac-dbfc0a016e6a",
+              "name": "panoramaPass",
+              "value": "arma123+",
+              "type": "string"
+            },
+            {
+              "id": "0f034171-44bb-4cf8-9db8-b2015025d846",
+              "name": "supabaseUrl",
+              "value": "https://pzepnmzxrwnlhixdrgzm.supabase.co",
+              "type": "string"
+            },
+            {
+              "id": "1c163cd5-c708-4891-b5b3-40088b90ce91",
+              "name": "supabaseServiceRoleKey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB6ZXBubXp4cndubGhpeGRyZ3ptIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4NDk1NDI4OSwiZXhwIjoyMTAwNTMwMjg5fQ.vEuMH_c4QSWwlw-4FuNuVCN7GCkrsShNMG7BimFwo6Q",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "6db22492-efcb-4d3d-b93f-c83d7b4226de",
+      "name": "Config Belge Detay BD2",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        64,
+        3860
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const cfg = $input.first().json;\nconst baseUrl = String(cfg.baseUrl || '').replace(/\\/$/, '');\nconst user = String(cfg.panoramaUser || ($env && $env.PANORAMA_USER) || '').trim();\nconst pass = String(cfg.panoramaPass || ($env && $env.PANORAMA_PASS) || '');\nif (!user || !pass) throw new Error('Config.panoramaUser / panoramaPass gerekli');\n\nconst UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';\n\nfunction parseSetCookie(headers) {\n  const h = headers || {};\n  const list = [];\n  for (const [k, v] of Object.entries(h)) {\n    if (String(k).toLowerCase() !== 'set-cookie') continue;\n    if (Array.isArray(v)) list.push(...v);\n    else if (v) list.push(v);\n  }\n  const map = new Map();\n  for (const entry of list) {\n    if (!entry) continue;\n    const chunks = String(entry).split(/,(?=\\s*[^;\\s=]+=)/);\n    for (const chunk of chunks) {\n      const nv = chunk.split(';')[0].trim();\n      if (!nv || !nv.includes('=')) continue;\n      const eq = nv.indexOf('=');\n      map.set(nv.slice(0, eq), nv.slice(eq + 1));\n    }\n  }\n  return map;\n}\n\nfunction cookieHeaderFromMap(map) {\n  return [...map.entries()].map(([k, v]) => `${k}=${v}`).join('; ');\n}\n\nfunction mergeCookies(jar, headers) {\n  for (const [k, v] of parseSetCookie(headers).entries()) jar.set(k, v);\n}\n\nfunction headerGet(headers, name) {\n  if (!headers) return '';\n  const want = name.toLowerCase();\n  for (const [k, v] of Object.entries(headers)) {\n    if (String(k).toLowerCase() === want) return Array.isArray(v) ? String(v[0]) : String(v);\n  }\n  return '';\n}\n\nfunction pickHidden(html, name) {\n  const re = new RegExp(\n    `name=[\"']${name}[\"'][^>]*value=[\"']([^\"']*)[\"']|value=[\"']([^\"']*)[\"'][^>]*name=[\"']${name}[\"']`,\n    'i'\n  );\n  const m = html.match(re);\n  return m ? (m[1] || m[2] || '') : '';\n}\n\nfunction allHiddenInOrder(html) {\n  const fields = {};\n  const order = [];\n  const re = /<input\\b[^>]*>/gi;\n  let m;\n  while ((m = re.exec(html)) !== null) {\n    const tag = m[0];\n    if (!/type=[\"']hidden[\"']/i.test(tag)) continue;\n    const nameM = tag.match(/\\bname=[\"']([^\"']+)[\"']/i);\n    if (!nameM) continue;\n    const name = nameM[1];\n    const valueM = tag.match(/\\bvalue=[\"']([^\"']*)[\"']/i);\n    if (!Object.prototype.hasOwnProperty.call(fields, name)) order.push(name);\n    fields[name] = valueM ? valueM[1] : '';\n  }\n  return { fields, order };\n}\n\nfunction encodeForm(fields, order) {\n  const keys = order && order.length ? [...order] : Object.keys(fields);\n  for (const k of Object.keys(fields)) if (!keys.includes(k)) keys.push(k);\n  return keys\n    .filter((k) => Object.prototype.hasOwnProperty.call(fields, k))\n    .map((k) => {\n      const raw = fields[k] == null ? '' : String(fields[k]);\n      return encodeURIComponent(k) + '=' + encodeURIComponent(raw).replace(/%20/g, '+');\n    })\n    .join('&');\n}\n\nfunction resolveFormAction(html, base) {\n  const m =\n    html.match(/<form[^>]*\\bid=[\"']frmLogin[\"'][^>]*\\baction=[\"']([^\"']*)[\"']/i) ||\n    html.match(/<form[^>]*\\bname=[\"']frmLogin[\"'][^>]*\\baction=[\"']([^\"']*)[\"']/i) ||\n    html.match(/<form[^>]*\\baction=[\"']([^\"']*)[\"'][^>]*\\b(?:id|name)=[\"']frmLogin[\"']/i);\n  let action = m ? m[1] : '/Login.aspx';\n  action = action.replace(/&amp;/g, '&');\n  if (/^https?:\\/\\//i.test(action)) return action;\n  if (action.startsWith('/')) return base + action;\n  return base + '/' + action.replace(/^\\.\\//, '');\n}\n\nasync function httpRaw(opts) {\n  // 1) legacy request — followRedirect:false guvenilir\n  if (this.helpers.request) {\n    try {\n      const res = await this.helpers.request({\n        method: opts.method,\n        uri: opts.url,\n        headers: opts.headers,\n        body: opts.body,\n        encoding: 'utf8',\n        gzip: true,\n        followRedirect: false,\n        followAllRedirects: false,\n        resolveWithFullResponse: true,\n        simple: false,\n        timeout: opts.timeout || 60000,\n      });\n      return {\n        statusCode: res.statusCode,\n        headers: res.headers || {},\n        body: res.body || '',\n        via: 'helpers.request',\n      };\n    } catch (e) {\n      // bazi surumlerde 302 exception olabilir\n      if (e.statusCode && e.response) {\n        return {\n          statusCode: e.statusCode,\n          headers: (e.response.headers || e.headers || {}),\n          body: (e.response.body || e.error || '') + '',\n          via: 'helpers.request/error',\n        };\n      }\n      // fall through\n    }\n  }\n\n  // 2) httpRequest + maxRedirects 0\n  const res = await this.helpers.httpRequest({\n    method: opts.method,\n    url: opts.url,\n    headers: opts.headers,\n    body: opts.body,\n    json: false,\n    returnFullResponse: true,\n    ignoreHttpStatusErrors: true,\n    timeout: opts.timeout || 60000,\n    maxRedirects: 0,\n  });\n  let body = res.body;\n  if (body != null && typeof body !== 'string') {\n    body = Buffer.isBuffer(body) ? body.toString('utf8') : String(body);\n  }\n  return {\n    statusCode: res.statusCode || res.status || 0,\n    headers: res.headers || {},\n    body: body || '',\n    via: 'helpers.httpRequest',\n  };\n}\n\n// --- GET ---\nconst getRes = await httpRaw.call(this, {\n  method: 'GET',\n  url: baseUrl + '/Login.aspx',\n  headers: {\n    'User-Agent': UA,\n    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',\n    'Accept-Language': 'tr-TR,tr;q=0.9,en;q=0.8',\n    'Cache-Control': 'no-cache',\n    'Upgrade-Insecure-Requests': '1',\n  },\n});\n\nif ((getRes.statusCode || 0) >= 400 || (getRes.body || '').length < 50) {\n  throw new Error(`Login GET fail HTTP ${getRes.statusCode}, len=${(getRes.body || '').length}, via=${getRes.via}`);\n}\n\nconst jar = parseSetCookie(getRes.headers);\nif (!jar.has('f5_cspm')) jar.set('f5_cspm', '1234');\nif (!jar.size) {\n  throw new Error('Login GET Set-Cookie yok. headerKeys=' + Object.keys(getRes.headers || {}).join(','));\n}\n\nconst getHtml = getRes.body;\nconst { fields: hidden, order } = allHiddenInOrder(getHtml);\nconst viewState = hidden.__VIEWSTATE || pickHidden(getHtml, '__VIEWSTATE');\nconst eventValidation = hidden.__EVENTVALIDATION || pickHidden(getHtml, '__EVENTVALIDATION');\nif (!viewState) throw new Error('__VIEWSTATE yok');\nif (!eventValidation) throw new Error('__EVENTVALIDATION yok');\n\nconst fields = { ...hidden };\nfields.__VIEWSTATE = viewState;\nfields.__VIEWSTATEGENERATOR = hidden.__VIEWSTATEGENERATOR || pickHidden(getHtml, '__VIEWSTATEGENERATOR') || 'C2EE9ABB';\nfields.__EVENTVALIDATION = eventValidation;\nfields.edtUserName = user;\nfields.edtPass = pass;\nfields.edtCompanies = cfg.company || 'ARMA';\nfields.edtActiveYear = String(cfg.activeYear || '2026');\nfields.edtLanguage = cfg.language || 'tr-TR';\nfields.btnLogin = 'Giriş';\n\nconst postOrder = [...order];\nfor (const k of ['edtUserName', 'edtPass', 'edtCompanies', 'edtActiveYear', 'edtLanguage', 'btnLogin']) {\n  if (!postOrder.includes(k)) postOrder.push(k);\n}\n\nconst body = encodeForm(fields, postOrder);\nconst postUrl = resolveFormAction(getHtml, baseUrl);\nconst cookieHeader = cookieHeaderFromMap(jar);\n\n// --- POST (NO REDIRECT) ---\nconst postRes = await httpRaw.call(this, {\n  method: 'POST',\n  url: postUrl,\n  headers: {\n    'User-Agent': UA,\n    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',\n    'Accept-Language': 'tr-TR,tr;q=0.9,en;q=0.8',\n    'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',\n    'Origin': baseUrl,\n    'Referer': baseUrl + '/Login.aspx',\n    'Cookie': cookieHeader,\n    'Cache-Control': 'no-cache',\n    'Upgrade-Insecure-Requests': '1',\n  },\n  body,\n});\n\nmergeCookies(jar, postRes.headers);\nconst statusCode = postRes.statusCode || 0;\nconst location = headerGet(postRes.headers, 'location');\nconst setCookieNames = [...parseSetCookie(postRes.headers).keys()];\nconst hasPanAuth = [...jar.keys()].some((k) => /panauth|\\.panauth/i.test(k));\nconst redirectedToApp = /Interface\\/Anamenu|Default\\.aspx/i.test(location);\nconst loginOk = hasPanAuth || (statusCode >= 300 && statusCode < 400 && redirectedToApp);\n\n// Basariysa Location'a GET (cookie ile)\nlet finalBody = postRes.body || '';\nlet finalStatus = statusCode;\nlet finalUrl = postUrl;\nif (loginOk && location) {\n  const nextUrl = location.startsWith('http') ? location : (baseUrl + (location.startsWith('/') ? location : '/' + location));\n  const appRes = await httpRaw.call(this, {\n    method: 'GET',\n    url: nextUrl,\n    headers: {\n      'User-Agent': UA,\n      'Accept': 'text/html',\n      'Cookie': cookieHeaderFromMap(jar),\n      'Referer': postUrl,\n    },\n  });\n  mergeCookies(jar, appRes.headers);\n  finalStatus = appRes.statusCode || finalStatus;\n  finalBody = appRes.body || finalBody;\n  finalUrl = nextUrl;\n}\n\nconst stillLoginHtml = /name=[\"']edtPass[\"']/i.test(finalBody) || /name=[\"']edtUserName[\"']/i.test(finalBody);\nconst titleM = finalBody.match(/<title>([\\s\\S]*?)<\\/title>/i);\nconst title = titleM ? titleM[1].replace(/\\s+/g, ' ').trim().slice(0, 80) : '';\n\nreturn [{\n  json: {\n    statusCode: finalStatus,\n    headers: postRes.headers,\n    body: finalBody,\n    data: finalBody,\n    session: {\n      baseUrl,\n      supabaseUrl: cfg.supabaseUrl,\n      supabaseServiceRoleKey: cfg.supabaseServiceRoleKey || '',\n            uploadFileField: cfg.uploadFileField || 'file',\n      filterExtraFields: cfg.filterExtraFields || {},\n      company: cfg.company,\n      activeYear: cfg.activeYear,\n      language: cfg.language,\n      reportIds: cfg.reportIds,\n      cookieHeader: cookieHeaderFromMap(jar),\n      cookies: [...jar.entries()].map(([k, v]) => `${k}=${v}`),\n      loginUser: user,\n      loginOk,\n      loginDebug: {\n        user,\n        passLen: pass.length,\n        via: postRes.via,\n        postStatus: statusCode,\n        location: location || '',\n        setCookieNames,\n        hasPanAuth,\n        redirectedToApp,\n        loginOk,\n        stillLoginHtml,\n        finalUrl,\n        title,\n        getCookieKeys: [...parseSetCookie(getRes.headers).keys()],\n        finalCookieKeys: [...jar.keys()],\n        bodyLen: body.length,\n        note: (!loginOk && statusCode === 200)\n          ? 'n8n 200+login form aldi. Ayni sifre host Python ile 302+.PanAuth veriyor. n8n egress IP / Docker F5 tarafinda engelleniyor veya redirect takip ediliyor olabilir.'\n          : '',\n      },\n    },\n    requestDebug: {\n      postUrl,\n      postStatus: statusCode,\n      location: location || '',\n      hasPanAuth,\n      loginOk,\n      via: postRes.via,\n      setCookieNames,\n    },\n  },\n}];\n"
+      },
+      "id": "5af23da1-f73c-4bde-b780-fb8718973b2b",
+      "name": "Login BD2",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        304,
+        3860
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first();\nconst res = item.json;\nconst prev = res.session || {};\nconst dbg = prev.loginDebug || {};\nconst rd = res.requestDebug || {};\n\nif (item.error) {\n  throw new Error(`Login basarisiz: ${item.error.message || JSON.stringify(item.error)}`);\n}\n\nconst cookieHeader = prev.cookieHeader || '';\nconst jarKeys = (prev.cookies || []).map((c) => String(c).split('=')[0]);\nconst hasPanAuth = jarKeys.some((k) => /panauth|\\.panauth/i.test(k)) || !!dbg.hasPanAuth;\nconst loginOk = !!(prev.loginOk || dbg.loginOk || hasPanAuth);\n\nlet body = '';\nif (typeof res.body === 'string') body = res.body;\nelse if (typeof res.data === 'string') body = res.data;\nelse if (res.body != null) body = String(res.body);\nelse if (res.data != null) body = String(res.data);\n\nconst isMac = /Validation of viewstate MAC failed/i.test(body);\nconst stillOnLogin = !loginOk && (/name=[\"']edtPass[\"']/i.test(body) || /name=[\"']edtUserName[\"']/i.test(body));\n\nif (isMac) {\n  throw new Error(`VIEWSTATE MAC failed. cookies=[${jarKeys.join(',')}]`);\n}\n\nif (loginOk) {\n  // ok\n} else if (stillOnLogin) {\n  throw new Error(\n    `Login fail (formda kaldi). postStatus=${dbg.postStatus || rd.postStatus} ` +\n    `location=${dbg.location || rd.location || ''} hasPanAuth=${hasPanAuth} via=${dbg.via || rd.via || '?'}`\n  );\n} else if (!hasPanAuth) {\n  throw new Error(\n    `Login oturum cookie yok (.PanAuth700). keys=[${jarKeys.join(',')}] ` +\n    `postStatus=${dbg.postStatus || rd.postStatus} location=${dbg.location || rd.location || ''}`\n  );\n}\n\nif (!cookieHeader) throw new Error('Login sonrasi cookie yok');\n\nreturn [{\n  json: {\n    baseUrl: prev.baseUrl,\n    supabaseUrl: prev.supabaseUrl,\n    supabaseServiceRoleKey: prev.supabaseServiceRoleKey || '',\n    filterExtraFields: prev.filterExtraFields || {},\n    company: prev.company,\n    activeYear: prev.activeYear,\n    language: prev.language,\n    reportId: 5450,\n    cookieHeader,\n    cookies: prev.cookies || [],\n    loginUser: prev.loginUser || dbg.user || '(ok)',\n    landingTable: 'panorama_belge_detay_raporu',\n    sheetName: 'Data',\n  },\n}];\n"
+      },
+      "id": "31fc30bf-e63d-49fd-bd1c-59840b0f4888",
+      "name": "Validate Session BD2",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        528,
+        3860
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.baseUrl }}/Interface/RaporEkran/ReportFilterDML.Aspx?id={{ $json.reportId }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+            },
+            {
+              "name": "sec-ch-ua",
+              "value": "\"Google Chrome\";v=\"131\", \"Chromium\";v=\"131\", \"Not_A Brand\";v=\"24\""
+            },
+            {
+              "name": "sec-ch-ua-mobile",
+              "value": "?0"
+            },
+            {
+              "name": "sec-ch-ua-platform",
+              "value": "\"Windows\""
+            },
+            {
+              "name": "Accept-Language",
+              "value": "tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7"
+            },
+            {
+              "name": "Accept-Encoding",
+              "value": "gzip, deflate, br, zstd"
+            },
+            {
+              "name": "Accept",
+              "value": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+            },
+            {
+              "name": "Cookie",
+              "value": "={{ $json.cookieHeader }}"
+            },
+            {
+              "name": "Referer",
+              "value": "={{ $json.baseUrl }}/"
+            },
+            {
+              "name": "Sec-Fetch-Dest",
+              "value": "document"
+            },
+            {
+              "name": "Sec-Fetch-Mode",
+              "value": "navigate"
+            },
+            {
+              "name": "Sec-Fetch-Site",
+              "value": "same-origin"
+            },
+            {
+              "name": "Upgrade-Insecure-Requests",
+              "value": "1"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "6b8bc033-3ed7-4dc3-a7af-b4002a594601",
+      "name": "GET Report Filter BD2",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        752,
+        3860
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx = $('Validate Session BD2').first().json;\nconst item = $input.first();\nconst res = item.json;\nconst reportId = ctx.reportId;\n\nif (item.error || (res.statusCode && res.statusCode >= 400)) {\n  throw new Error(`Rapor filtre sayfasi alinamadi (id=${reportId}, HTTP ${res.statusCode || 'n/a'}).`);\n}\n\nconst html = typeof res.body === 'string'\n  ? res.body\n  : String(res.body || res.data || '');\n\nif (!html || html.length < 50) {\n  throw new Error(`Rapor id=${reportId}: filtre HTML bos.`);\n}\n\nif (/edtUserName|edtPass|btnLogin/i.test(html) && !/MainNvg|reportGrid|ExcelAktar/i.test(html)) {\n  throw new Error(`Rapor id=${reportId}: filtre yerine login sayfasi dondu. Oturum gecersiz.`);\n}\n\nfunction pickAttr(tag, attr) {\n  const key = String(attr).toLowerCase() + '=';\n  const lower = tag.toLowerCase();\n  let i = lower.indexOf(key);\n  while (i !== -1) {\n    const q = tag.charAt(i + key.length);\n    if (q === '\"' || q === \"'\") {\n      const end = tag.indexOf(q, i + key.length + 1);\n      if (end !== -1) return tag.slice(i + key.length + 1, end);\n    }\n    i = lower.indexOf(key, i + 1);\n  }\n  return '';\n}\n\nconst fields = {};\n\nconst inputRe = /<input\\b[^>]*>/gi;\nlet hm;\nwhile ((hm = inputRe.exec(html)) !== null) {\n  const tag = hm[0];\n  const type = (pickAttr(tag, 'type') || 'text').toLowerCase();\n  const name = pickAttr(tag, 'name');\n  if (!name) continue;\n  if (type === 'checkbox' || type === 'radio' || type === 'submit' || type === 'image' || type === 'button') continue;\n  fields[name] = pickAttr(tag, 'value');\n}\n\nconst selectRe = /<select\\b[^>]*name=[\"']([^\"']+)[\"'][^>]*>([\\s\\S]*?)<\\/select>/gi;\nlet sm;\nwhile ((sm = selectRe.exec(html)) !== null) {\n  const name = sm[1];\n  const inner = sm[2];\n  let selected = inner.match(/<option\\b[^>]*\\bselected\\b[^>]*\\bvalue=[\"']([^\"']*)[\"']/i);\n  if (!selected) selected = inner.match(/<option\\b[^>]*\\bvalue=[\"']([^\"']*)[\"'][^>]*\\bselected\\b/i);\n  if (selected) fields[name] = selected[1];\n  else {\n    const first = inner.match(/<option\\b[^>]*\\bvalue=[\"']([^\"']*)[\"']/i);\n    if (first) fields[name] = first[1];\n  }\n}\n\nconst xhrVs = fields['XHRMng$VS'] || '';\nconst eventValidation = fields.__EVENTVALIDATION || '';\nconst reqId = fields.__ReqID || '';\nconst viewState = fields.__VIEWSTATE || '';\n\nif (!xhrVs && !eventValidation) {\n  throw new Error(\n    `Rapor id=${reportId}: XHRMng$VS / EVENTVALIDATION yok. Sayfa yapisi beklenenden farkli.`\n  );\n}\n\nif (!/ExcelAktar|MainNvg|reportGrid/i.test(html)) {\n  throw new Error(`Rapor id=${reportId}: rapor toolbar/Excel butonu bulunamadi.`);\n}\n\nconst headers = res.headers || {};\nconst setCookie = headers['set-cookie'] || headers['Set-Cookie'] || [];\nconst jar = new Map();\nfor (const part of (ctx.cookieHeader || '').split(';').map((s) => s.trim()).filter(Boolean)) {\n  const eq = part.indexOf('=');\n  if (eq > -1) jar.set(part.slice(0, eq), part.slice(eq + 1));\n}\nfor (const c of (Array.isArray(setCookie) ? setCookie : [setCookie]).filter(Boolean)) {\n  const part = String(c).split(';')[0].trim();\n  const eq = part.indexOf('=');\n  if (eq > -1) jar.set(part.slice(0, eq), part.slice(eq + 1));\n}\nconst cookieHeader = [...jar.entries()].map(([k, v]) => `${k}=${v}`).join('; ');\n\nconst titleM = html.match(/WebOrtakTitleYaz\\([\"']([^\"']+)[\"']\\)/);\n\nreturn [{\n  json: {\n    ...ctx,\n    cookieHeader,\n    viewState,\n    eventValidation,\n    reqId,\n    xhrVs,\n    formFields: fields,\n    hasExcelButton: true,\n    reportTitleHint: titleM ? titleM[1] : '',\n  }\n}];\n"
+      },
+      "id": "8d1bceb6-8849-4e4a-9667-3825d205b901",
+      "name": "Parse Filter Form BD2",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        976,
+        3860
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst ctx = $('Parse Filter Form BD2').first().json;\nconst prevCookie = ctx.cookieHeader;\nconst baseUrl = String(ctx.baseUrl || '').replace(/\\/$/, '');\nconst reportId = 5450;\nconst reqId = ctx.reqId || (ctx.formFields || {}).__ReqID || '';\nif (!reqId) throw new Error('Rapor id=5450: __ReqID yok');\n\nfunction enc(v) { return encodeURIComponent(v == null ? '' : String(v)); }\nfunction mergeCookieHeader(prevHeader, resHeaders) {\n  const jar = new Map();\n  for (const part of String(prevHeader || '').split(';').map((s) => s.trim()).filter(Boolean)) {\n    const eq = part.indexOf('=');\n    if (eq > -1) jar.set(part.slice(0, eq), part.slice(eq + 1));\n  }\n  const setCookie = (resHeaders && (resHeaders['set-cookie'] || resHeaders['Set-Cookie'])) || [];\n  for (const c of (Array.isArray(setCookie) ? setCookie : [setCookie]).filter(Boolean)) {\n    const part = String(c).split(';')[0].trim();\n    const eq = part.indexOf('=');\n    if (eq > -1) jar.set(part.slice(0, eq), part.slice(eq + 1));\n  }\n  return [...jar.entries()].map(([k, v]) => `${k}=${v}`).join('; ');\n}\n\nconst filterStep = \"belge_durumu\";\nconst xhrEvnKey = \"reportGrid_Edt_R2_C1_122,sChange\";\nconst reqSender = \"reportGrid_Edt_R2_C1_122\";\nconst payload = {\"RespJS\": [], \"VS\": \"\", \"FMT\": \"\", \"ResponseText\": \"\", \"RT\": \"\", \"JSONList\": [{\"AllowSet\": false, \"Idx\": 0, \"Getter\": \"getXHRData\", \"Setter\": \"setXHRData\", \"Value\": \"\", \"DefaultProperty\": 1, \"InfoType\": \"JSMTD\", \"ControlID\": \"htmlReportInfo\", \"ClientID\": \"dlgReportInfo_DlgWin_htmlReportInfo\", \"InitialID\": \"dlgReportInfo_DlgWin_htmlReportInfo\"}, {\"AllowSet\": false, \"Idx\": 28, \"Getter\": \"getValue\", \"Setter\": \"setValue\", \"Value\": \"0\", \"DefaultProperty\": 1, \"InfoType\": \"JSMTD\", \"ControlID\": \"Edt_R2_C1_122\", \"ClientID\": \"reportGrid_Edt_R2_C1_122\", \"InitialID\": \"reportGrid_Edt_R2_C1_122\"}, {\"AllowSet\": false, \"Idx\": 49, \"Getter\": \"getValue\", \"Setter\": \"setValue\", \"Value\": \"-\", \"DefaultProperty\": 1, \"InfoType\": \"JSMTD\", \"ControlID\": \"Edt_R3_C4_160\", \"ClientID\": \"reportGrid_Edt_R3_C4_160\", \"InitialID\": \"reportGrid_Edt_R3_C4_160\"}, {\"AllowSet\": false, \"Idx\": 55, \"Getter\": \"getValue\", \"Setter\": \"setValue\", \"Value\": \"-\", \"DefaultProperty\": 1, \"InfoType\": \"JSMTD\", \"ControlID\": \"Edt_R3_C5_160\", \"ClientID\": \"reportGrid_Edt_R3_C5_160\", \"InitialID\": \"reportGrid_Edt_R3_C5_160\"}, {\"AllowSet\": false, \"Idx\": 80, \"Getter\": \"getValue\", \"Setter\": \"setValue\", \"Value\": \"-\", \"DefaultProperty\": 1, \"InfoType\": \"JSMTD\", \"ControlID\": \"Edt_R8_C1_187\", \"ClientID\": \"reportGrid_Edt_R8_C1_187\", \"InitialID\": \"reportGrid_Edt_R8_C1_187\"}, {\"AllowSet\": false, \"Idx\": 100, \"Getter\": \"getValue\", \"Setter\": \"setValue\", \"Value\": \"-\", \"DefaultProperty\": 1, \"InfoType\": \"JSMTD\", \"ControlID\": \"Edt_R13_C1_163\", \"ClientID\": \"reportGrid_Edt_R13_C1_163\", \"InitialID\": \"reportGrid_Edt_R13_C1_163\"}, {\"AllowSet\": false, \"Idx\": 118, \"Getter\": \"getValue\", \"Setter\": \"setValue\", \"Value\": \"-\", \"DefaultProperty\": 1, \"InfoType\": \"JSMTD\", \"ControlID\": \"Edt_R17_C1_131\", \"ClientID\": \"reportGrid_Edt_R17_C1_131\", \"InitialID\": \"reportGrid_Edt_R17_C1_131\"}]};\nconst cookieHeader = prevCookie;\n\n\nconst qs =\n  '__XHROwnerID=' + enc('XHRObj') +\n  '&__UwfXHROwnerID=' + enc('XHRObj') +\n  '&__DMLType=' + enc('New') +\n  '&__XHREvnKey=' + enc(xhrEvnKey) +\n  '&reqSender=' + enc(reqSender);\n\nconst postUrl = `${baseUrl}/Interface/RaporEkran/ReportFilterDML.Aspx?id=${reportId}&${qs}`;\nconst jsonBody = JSON.stringify(payload);\n\nreturn [{\n  json: {\n    ...ctx,\n    cookieHeader,\n    reqId,\n    reportId,\n    excelPostUrl: postUrl,\n    excelJsonBody: jsonBody,\n    filterStep,\n  }\n}];\n"
+      },
+      "id": "80f257b8-eb25-41e6-9466-722ad0bbfa4a",
+      "name": "Build Belge Durumu BD2",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        3860
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.excelPostUrl }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+            },
+            {
+              "name": "sec-ch-ua",
+              "value": "\"Google Chrome\";v=\"131\", \"Chromium\";v=\"131\", \"Not_A Brand\";v=\"24\""
+            },
+            {
+              "name": "sec-ch-ua-mobile",
+              "value": "?0"
+            },
+            {
+              "name": "sec-ch-ua-platform",
+              "value": "\"Windows\""
+            },
+            {
+              "name": "Accept-Language",
+              "value": "tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7"
+            },
+            {
+              "name": "Accept-Encoding",
+              "value": "gzip, deflate, br, zstd"
+            },
+            {
+              "name": "Content-Type",
+              "value": "text/x-json; charset=utf-8"
+            },
+            {
+              "name": "Origin",
+              "value": "={{ $json.baseUrl }}"
+            },
+            {
+              "name": "Referer",
+              "value": "={{ $json.baseUrl }}/Interface/RaporEkran/ReportFilterDML.Aspx?id=5450"
+            },
+            {
+              "name": "Cookie",
+              "value": "={{ $json.cookieHeader }}"
+            },
+            {
+              "name": "Accept",
+              "value": "*/*"
+            },
+            {
+              "name": "X-Requested-With",
+              "value": "XMLHttpRequest"
+            },
+            {
+              "name": "__reqid",
+              "value": "={{ $json.reqId }}"
+            },
+            {
+              "name": "Sec-Fetch-Dest",
+              "value": "empty"
+            },
+            {
+              "name": "Sec-Fetch-Mode",
+              "value": "cors"
+            },
+            {
+              "name": "Sec-Fetch-Site",
+              "value": "same-origin"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "text/x-json; charset=utf-8",
+        "body": "={{ $json.excelJsonBody }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "3003a389-bea8-48a9-911b-f0ab9882161e",
+      "name": "POST Belge Durumu BD2",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1424,
+        3860
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst ctx = $('Parse Filter Form BD2').first().json;\nconst prevCookie = ctx.cookieHeader;\nconst baseUrl = String(ctx.baseUrl || '').replace(/\\/$/, '');\nconst reportId = 5450;\nconst reqId = ctx.reqId || (ctx.formFields || {}).__ReqID || '';\nif (!reqId) throw new Error('Rapor id=5450: __ReqID yok');\n\nfunction enc(v) { return encodeURIComponent(v == null ? '' : String(v)); }\nfunction mergeCookieHeader(prevHeader, resHeaders) {\n  const jar = new Map();\n  for (const part of String(prevHeader || '').split(';').map((s) => s.trim()).filter(Boolean)) {\n    const eq = part.indexOf('=');\n    if (eq > -1) jar.set(part.slice(0, eq), part.slice(eq + 1));\n  }\n  const setCookie = (resHeaders && (resHeaders['set-cookie'] || resHeaders['Set-Cookie'])) || [];\n  for (const c of (Array.isArray(setCookie) ? setCookie : [setCookie]).filter(Boolean)) {\n    const part = String(c).split(';')[0].trim();\n    const eq = part.indexOf('=');\n    if (eq > -1) jar.set(part.slice(0, eq), part.slice(eq + 1));\n  }\n  return [...jar.entries()].map(([k, v]) => `${k}=${v}`).join('; ');\n}\n\nconst filterStep = \"tarih_start\";\nconst xhrEvnKey = \"reportGrid_Edt_R3_C4_160,sChange\";\nconst reqSender = \"reportGrid_Edt_R3_C4_160\";\nconst payload = {\"RespJS\": [], \"VS\": \"\", \"FMT\": \"\", \"ResponseText\": \"\", \"RT\": \"\", \"JSONList\": [{\"AllowSet\": false, \"Idx\": 0, \"Getter\": \"getXHRData\", \"Setter\": \"setXHRData\", \"Value\": \"\", \"DefaultProperty\": 1, \"InfoType\": \"JSMTD\", \"ControlID\": \"htmlReportInfo\", \"ClientID\": \"dlgReportInfo_DlgWin_htmlReportInfo\", \"InitialID\": \"dlgReportInfo_DlgWin_htmlReportInfo\"}, {\"AllowSet\": false, \"Idx\": 37, \"Getter\": \"getVisible\", \"Setter\": \"setVisible\", \"Value\": false, \"DefaultProperty\": 2, \"InfoType\": \"JSMTD\", \"ControlID\": \"Edt_R3_C2_160\", \"ClientID\": \"reportGrid_Edt_R3_C2_160\", \"InitialID\": \"reportGrid_Edt_R3_C2_160\"}, {\"AllowSet\": false, \"Idx\": 43, \"Getter\": \"getVisible\", \"Setter\": \"setVisible\", \"Value\": false, \"DefaultProperty\": 2, \"InfoType\": \"JSMTD\", \"ControlID\": \"Edt_R3_C3_160\", \"ClientID\": \"reportGrid_Edt_R3_C3_160\", \"InitialID\": \"reportGrid_Edt_R3_C3_160\"}, {\"AllowSet\": false, \"Idx\": 49, \"Getter\": \"getValue\", \"Setter\": \"setValue\", \"Value\": \"5\", \"DefaultProperty\": 1, \"InfoType\": \"JSMTD\", \"ControlID\": \"Edt_R3_C4_160\", \"ClientID\": \"reportGrid_Edt_R3_C4_160\", \"InitialID\": \"reportGrid_Edt_R3_C4_160\"}, {\"AllowSet\": false, \"Idx\": 50, \"Getter\": \"getVisible\", \"Setter\": \"setVisible\", \"Value\": true, \"DefaultProperty\": 2, \"InfoType\": \"JSMTD\", \"ControlID\": \"Edt_R3_C4_160\", \"ClientID\": \"reportGrid_Edt_R3_C4_160\", \"InitialID\": \"reportGrid_Edt_R3_C4_160\"}, {\"AllowSet\": false, \"Idx\": 55, \"Getter\": \"getValue\", \"Setter\": \"setValue\", \"Value\": \"-\", \"DefaultProperty\": 1, \"InfoType\": \"JSMTD\", \"ControlID\": \"Edt_R3_C5_160\", \"ClientID\": \"reportGrid_Edt_R3_C5_160\", \"InitialID\": \"reportGrid_Edt_R3_C5_160\"}, {\"AllowSet\": false, \"Idx\": 56, \"Getter\": \"getVisible\", \"Setter\": \"setVisible\", \"Value\": true, \"DefaultProperty\": 2, \"InfoType\": \"JSMTD\", \"ControlID\": \"Edt_R3_C5_160\", \"ClientID\": \"reportGrid_Edt_R3_C5_160\", \"InitialID\": \"reportGrid_Edt_R3_C5_160\"}, {\"AllowSet\": false, \"Idx\": 58, \"Getter\": \"getXHRValue\", \"Setter\": \"setXHRValue\", \"Value\": 1, \"DefaultProperty\": 9, \"InfoType\": \"JSMTD\", \"ControlID\": \"Edt_R3_C6_160\", \"ClientID\": \"reportGrid_Edt_R3_C6_160\", \"InitialID\": \"reportGrid_Edt_R3_C6_160\"}, {\"AllowSet\": false, \"Idx\": 80, \"Getter\": \"getValue\", \"Setter\": \"setValue\", \"Value\": \"-\", \"DefaultProperty\": 1, \"InfoType\": \"JSMTD\", \"ControlID\": \"Edt_R8_C1_187\", \"ClientID\": \"reportGrid_Edt_R8_C1_187\", \"InitialID\": \"reportGrid_Edt_R8_C1_187\"}, {\"AllowSet\": false, \"Idx\": 100, \"Getter\": \"getValue\", \"Setter\": \"setValue\", \"Value\": \"-\", \"DefaultProperty\": 1, \"InfoType\": \"JSMTD\", \"ControlID\": \"Edt_R13_C1_163\", \"ClientID\": \"reportGrid_Edt_R13_C1_163\", \"InitialID\": \"reportGrid_Edt_R13_C1_163\"}, {\"AllowSet\": false, \"Idx\": 118, \"Getter\": \"getValue\", \"Setter\": \"setValue\", \"Value\": \"-\", \"DefaultProperty\": 1, \"InfoType\": \"JSMTD\", \"ControlID\": \"Edt_R17_C1_131\", \"ClientID\": \"reportGrid_Edt_R17_C1_131\", \"InitialID\": \"reportGrid_Edt_R17_C1_131\"}]};\nconst prevRes = $('POST Belge Durumu BD2').first().json;\nconst cookieHeader = mergeCookieHeader(prevCookie, prevRes.headers || {});\n\n\nconst qs =\n  '__XHROwnerID=' + enc('XHRObj') +\n  '&__UwfXHROwnerID=' + enc('XHRObj') +\n  '&__DMLType=' + enc('New') +\n  '&__XHREvnKey=' + enc(xhrEvnKey) +\n  '&reqSender=' + enc(reqSender);\n\nconst postUrl = `${baseUrl}/Interface/RaporEkran/ReportFilterDML.Aspx?id=${reportId}&${qs}`;\nconst jsonBody = JSON.stringify(payload);\n\nreturn [{\n  json: {\n    ...ctx,\n    cookieHeader,\n    reqId,\n    reportId,\n    excelPostUrl: postUrl,\n    excelJsonBody: jsonBody,\n    filterStep,\n  }\n}];\n"
+      },
+      "id": "e81fe61c-1a4b-4d3e-bec0-41e75848fe9b",
+      "name": "Build Tarih Start BD2",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1648,
+        3860
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.excelPostUrl }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+            },
+            {
+              "name": "sec-ch-ua",
+              "value": "\"Google Chrome\";v=\"131\", \"Chromium\";v=\"131\", \"Not_A Brand\";v=\"24\""
+            },
+            {
+              "name": "sec-ch-ua-mobile",
+              "value": "?0"
+            },
+            {
+              "name": "sec-ch-ua-platform",
+              "value": "\"Windows\""
+            },
+            {
+              "name": "Accept-Language",
+              "value": "tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7"
+            },
+            {
+              "name": "Accept-Encoding",
+              "value": "gzip, deflate, br, zstd"
+            },
+            {
+              "name": "Content-Type",
+              "value": "text/x-json; charset=utf-8"
+            },
+            {
+              "name": "Origin",
+              "value": "={{ $json.baseUrl }}"
+            },
+            {
+              "name": "Referer",
+              "value": "={{ $json.baseUrl }}/Interface/RaporEkran/ReportFilterDML.Aspx?id=5450"
+            },
+            {
+              "name": "Cookie",
+              "value": "={{ $json.cookieHeader }}"
+            },
+            {
+              "name": "Accept",
+              "value": "*/*"
+            },
+            {
+              "name": "X-Requested-With",
+              "value": "XMLHttpRequest"
+            },
+            {
+              "name": "__reqid",
+              "value": "={{ $json.reqId }}"
+            },
+            {
+              "name": "Sec-Fetch-Dest",
+              "value": "empty"
+            },
+            {
+              "name": "Sec-Fetch-Mode",
+              "value": "cors"
+            },
+            {
+              "name": "Sec-Fetch-Site",
+              "value": "same-origin"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "text/x-json; charset=utf-8",
+        "body": "={{ $json.excelJsonBody }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "0cfce87a-ecf2-4706-8efd-2a847f69662f",
+      "name": "POST Tarih Start BD2",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1872,
+        3860
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst ctx = $('Parse Filter Form BD2').first().json;\nconst prevCookie = ctx.cookieHeader;\nconst baseUrl = String(ctx.baseUrl || '').replace(/\\/$/, '');\nconst reportId = 5450;\nconst reqId = ctx.reqId || (ctx.formFields || {}).__ReqID || '';\nif (!reqId) throw new Error('Rapor id=5450: __ReqID yok');\n\nfunction enc(v) { return encodeURIComponent(v == null ? '' : String(v)); }\nfunction mergeCookieHeader(prevHeader, resHeaders) {\n  const jar = new Map();\n  for (const part of String(prevHeader || '').split(';').map((s) => s.trim()).filter(Boolean)) {\n    const eq = part.indexOf('=');\n    if (eq > -1) jar.set(part.slice(0, eq), part.slice(eq + 1));\n  }\n  const setCookie = (resHeaders && (resHeaders['set-cookie'] || resHeaders['Set-Cookie'])) || [];\n  for (const c of (Array.isArray(setCookie) ? setCookie : [setCookie]).filter(Boolean)) {\n    const part = String(c).split(';')[0].trim();\n    const eq = part.indexOf('=');\n    if (eq > -1) jar.set(part.slice(0, eq), part.slice(eq + 1));\n  }\n  return [...jar.entries()].map(([k, v]) => `${k}=${v}`).join('; ');\n}\n\nconst filterStep = \"tarih_end\";\nconst xhrEvnKey = \"reportGrid_Edt_R3_C5_160,sChange\";\nconst reqSender = \"reportGrid_Edt_R3_C5_160\";\nconst payload = {\"RespJS\": [], \"VS\": \"\", \"FMT\": \"\", \"ResponseText\": \"\", \"RT\": \"\", \"JSONList\": [{\"AllowSet\": false, \"Idx\": 0, \"Getter\": \"getXHRData\", \"Setter\": \"setXHRData\", \"Value\": \"\", \"DefaultProperty\": 1, \"InfoType\": \"JSMTD\", \"ControlID\": \"htmlReportInfo\", \"ClientID\": \"dlgReportInfo_DlgWin_htmlReportInfo\", \"InitialID\": \"dlgReportInfo_DlgWin_htmlReportInfo\"}, {\"AllowSet\": false, \"Idx\": 55, \"Getter\": \"getValue\", \"Setter\": \"setValue\", \"Value\": \"0\", \"DefaultProperty\": 1, \"InfoType\": \"JSMTD\", \"ControlID\": \"Edt_R3_C5_160\", \"ClientID\": \"reportGrid_Edt_R3_C5_160\", \"InitialID\": \"reportGrid_Edt_R3_C5_160\"}, {\"AllowSet\": false, \"Idx\": 80, \"Getter\": \"getValue\", \"Setter\": \"setValue\", \"Value\": \"-\", \"DefaultProperty\": 1, \"InfoType\": \"JSMTD\", \"ControlID\": \"Edt_R8_C1_187\", \"ClientID\": \"reportGrid_Edt_R8_C1_187\", \"InitialID\": \"reportGrid_Edt_R8_C1_187\"}, {\"AllowSet\": false, \"Idx\": 100, \"Getter\": \"getValue\", \"Setter\": \"setValue\", \"Value\": \"-\", \"DefaultProperty\": 1, \"InfoType\": \"JSMTD\", \"ControlID\": \"Edt_R13_C1_163\", \"ClientID\": \"reportGrid_Edt_R13_C1_163\", \"InitialID\": \"reportGrid_Edt_R13_C1_163\"}, {\"AllowSet\": false, \"Idx\": 118, \"Getter\": \"getValue\", \"Setter\": \"setValue\", \"Value\": \"-\", \"DefaultProperty\": 1, \"InfoType\": \"JSMTD\", \"ControlID\": \"Edt_R17_C1_131\", \"ClientID\": \"reportGrid_Edt_R17_C1_131\", \"InitialID\": \"reportGrid_Edt_R17_C1_131\"}]};\nconst prevRes = $('POST Tarih Start BD2').first().json;\nconst cookieHeader = mergeCookieHeader(prevCookie, prevRes.headers || {});\n\n\nconst qs =\n  '__XHROwnerID=' + enc('XHRObj') +\n  '&__UwfXHROwnerID=' + enc('XHRObj') +\n  '&__DMLType=' + enc('New') +\n  '&__XHREvnKey=' + enc(xhrEvnKey) +\n  '&reqSender=' + enc(reqSender);\n\nconst postUrl = `${baseUrl}/Interface/RaporEkran/ReportFilterDML.Aspx?id=${reportId}&${qs}`;\nconst jsonBody = JSON.stringify(payload);\n\nreturn [{\n  json: {\n    ...ctx,\n    cookieHeader,\n    reqId,\n    reportId,\n    excelPostUrl: postUrl,\n    excelJsonBody: jsonBody,\n    filterStep,\n  }\n}];\n"
+      },
+      "id": "c0d06997-52cb-4976-866e-e638684529ac",
+      "name": "Build Tarih End BD2",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2096,
+        3860
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.excelPostUrl }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+            },
+            {
+              "name": "sec-ch-ua",
+              "value": "\"Google Chrome\";v=\"131\", \"Chromium\";v=\"131\", \"Not_A Brand\";v=\"24\""
+            },
+            {
+              "name": "sec-ch-ua-mobile",
+              "value": "?0"
+            },
+            {
+              "name": "sec-ch-ua-platform",
+              "value": "\"Windows\""
+            },
+            {
+              "name": "Accept-Language",
+              "value": "tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7"
+            },
+            {
+              "name": "Accept-Encoding",
+              "value": "gzip, deflate, br, zstd"
+            },
+            {
+              "name": "Content-Type",
+              "value": "text/x-json; charset=utf-8"
+            },
+            {
+              "name": "Origin",
+              "value": "={{ $json.baseUrl }}"
+            },
+            {
+              "name": "Referer",
+              "value": "={{ $json.baseUrl }}/Interface/RaporEkran/ReportFilterDML.Aspx?id=5450"
+            },
+            {
+              "name": "Cookie",
+              "value": "={{ $json.cookieHeader }}"
+            },
+            {
+              "name": "Accept",
+              "value": "*/*"
+            },
+            {
+              "name": "X-Requested-With",
+              "value": "XMLHttpRequest"
+            },
+            {
+              "name": "__reqid",
+              "value": "={{ $json.reqId }}"
+            },
+            {
+              "name": "Sec-Fetch-Dest",
+              "value": "empty"
+            },
+            {
+              "name": "Sec-Fetch-Mode",
+              "value": "cors"
+            },
+            {
+              "name": "Sec-Fetch-Site",
+              "value": "same-origin"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "text/x-json; charset=utf-8",
+        "body": "={{ $json.excelJsonBody }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "de1f0e0c-33b9-427c-a913-ec9004c7be09",
+      "name": "POST Tarih End BD2",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2320,
+        3860
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst ctx = $('Parse Filter Form BD2').first().json;\nconst prevCookie = ctx.cookieHeader;\nconst baseUrl = String(ctx.baseUrl || '').replace(/\\/$/, '');\nconst reportId = 5450;\nconst reqId = ctx.reqId || (ctx.formFields || {}).__ReqID || '';\nif (!reqId) throw new Error('Rapor id=5450: __ReqID yok');\n\nfunction enc(v) { return encodeURIComponent(v == null ? '' : String(v)); }\nfunction mergeCookieHeader(prevHeader, resHeaders) {\n  const jar = new Map();\n  for (const part of String(prevHeader || '').split(';').map((s) => s.trim()).filter(Boolean)) {\n    const eq = part.indexOf('=');\n    if (eq > -1) jar.set(part.slice(0, eq), part.slice(eq + 1));\n  }\n  const setCookie = (resHeaders && (resHeaders['set-cookie'] || resHeaders['Set-Cookie'])) || [];\n  for (const c of (Array.isArray(setCookie) ? setCookie : [setCookie]).filter(Boolean)) {\n    const part = String(c).split(';')[0].trim();\n    const eq = part.indexOf('=');\n    if (eq > -1) jar.set(part.slice(0, eq), part.slice(eq + 1));\n  }\n  return [...jar.entries()].map(([k, v]) => `${k}=${v}`).join('; ');\n}\n\nconst filterStep = \"excel_aktar\";\nconst xhrEvnKey = \"\";\nconst reqSender = \"MainNvg\";\nconst payload = {\"RespJS\": [], \"VS\": \"\", \"FMT\": \"\", \"ResponseText\": \"\", \"RT\": \"\", \"JSONList\": [{\"AllowSet\": false, \"Idx\": 0, \"Getter\": \"getXHRData\", \"Setter\": \"setXHRData\", \"Value\": \"\", \"DefaultProperty\": 1, \"InfoType\": \"JSMTD\", \"ControlID\": \"htmlReportInfo\", \"ClientID\": \"dlgReportInfo_DlgWin_htmlReportInfo\", \"InitialID\": \"dlgReportInfo_DlgWin_htmlReportInfo\"}, {\"AllowSet\": false, \"Idx\": 61, \"Getter\": \"getValue\", \"Setter\": \"setValue\", \"Value\": \"0\", \"DefaultProperty\": 1, \"InfoType\": \"JSMTD\", \"ControlID\": \"Edt_R4_C1_186\", \"ClientID\": \"reportGrid_Edt_R4_C1_186\", \"InitialID\": \"reportGrid_Edt_R4_C1_186\"}, {\"AllowSet\": false, \"Idx\": 65, \"Getter\": \"getValue\", \"Setter\": \"setValue\", \"Value\": \"99\", \"DefaultProperty\": 1, \"InfoType\": \"JSMTD\", \"ControlID\": \"Edt_R5_C1_175\", \"ClientID\": \"reportGrid_Edt_R5_C1_175\", \"InitialID\": \"reportGrid_Edt_R5_C1_175\"}, {\"AllowSet\": false, \"Idx\": 80, \"Getter\": \"getValue\", \"Setter\": \"setValue\", \"Value\": \"-\", \"DefaultProperty\": 1, \"InfoType\": \"JSMTD\", \"ControlID\": \"Edt_R8_C1_187\", \"ClientID\": \"reportGrid_Edt_R8_C1_187\", \"InitialID\": \"reportGrid_Edt_R8_C1_187\"}, {\"AllowSet\": false, \"Idx\": 100, \"Getter\": \"getValue\", \"Setter\": \"setValue\", \"Value\": \"-\", \"DefaultProperty\": 1, \"InfoType\": \"JSMTD\", \"ControlID\": \"Edt_R13_C1_163\", \"ClientID\": \"reportGrid_Edt_R13_C1_163\", \"InitialID\": \"reportGrid_Edt_R13_C1_163\"}, {\"AllowSet\": false, \"Idx\": 118, \"Getter\": \"getValue\", \"Setter\": \"setValue\", \"Value\": \"-\", \"DefaultProperty\": 1, \"InfoType\": \"JSMTD\", \"ControlID\": \"Edt_R17_C1_131\", \"ClientID\": \"reportGrid_Edt_R17_C1_131\", \"InitialID\": \"reportGrid_Edt_R17_C1_131\"}]};\nconst prevRes = $('POST Tarih End BD2').first().json;\nconst cookieHeader = mergeCookieHeader(prevCookie, prevRes.headers || {});\n\n\nconst qs =\n  '__XHROwnerID=' + enc('XHRObj') +\n  '&__UwfXHROwnerID=' + enc('XHRObj') +\n  '&__DMLType=' + enc('New') +\n  '&__XHREvnKey=' + enc(xhrEvnKey) +\n  '&reqSender=' + enc(reqSender);\n\nconst postUrl = `${baseUrl}/Interface/RaporEkran/ReportFilterDML.Aspx?id=${reportId}&${qs}`;\nconst jsonBody = JSON.stringify(payload);\n\nreturn [{\n  json: {\n    ...ctx,\n    cookieHeader,\n    reqId,\n    reportId,\n    excelPostUrl: postUrl,\n    excelJsonBody: jsonBody,\n    filterStep,\n  }\n}];\n"
+      },
+      "id": "faf2f6c5-dbca-49f5-9159-9f078f326fcb",
+      "name": "Build Excel Aktar BD2",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2544,
+        3860
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.excelPostUrl }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+            },
+            {
+              "name": "sec-ch-ua",
+              "value": "\"Google Chrome\";v=\"131\", \"Chromium\";v=\"131\", \"Not_A Brand\";v=\"24\""
+            },
+            {
+              "name": "sec-ch-ua-mobile",
+              "value": "?0"
+            },
+            {
+              "name": "sec-ch-ua-platform",
+              "value": "\"Windows\""
+            },
+            {
+              "name": "Accept-Language",
+              "value": "tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7"
+            },
+            {
+              "name": "Accept-Encoding",
+              "value": "gzip, deflate, br, zstd"
+            },
+            {
+              "name": "Content-Type",
+              "value": "text/x-json; charset=utf-8"
+            },
+            {
+              "name": "Origin",
+              "value": "={{ $json.baseUrl }}"
+            },
+            {
+              "name": "Referer",
+              "value": "={{ $json.baseUrl }}/Interface/RaporEkran/ReportFilterDML.Aspx?id=5450"
+            },
+            {
+              "name": "Cookie",
+              "value": "={{ $json.cookieHeader }}"
+            },
+            {
+              "name": "Accept",
+              "value": "*/*"
+            },
+            {
+              "name": "X-Requested-With",
+              "value": "XMLHttpRequest"
+            },
+            {
+              "name": "__reqid",
+              "value": "={{ $json.reqId }}"
+            },
+            {
+              "name": "reqSenderData",
+              "value": "ExcelAktar"
+            },
+            {
+              "name": "Sec-Fetch-Dest",
+              "value": "empty"
+            },
+            {
+              "name": "Sec-Fetch-Mode",
+              "value": "cors"
+            },
+            {
+              "name": "Sec-Fetch-Site",
+              "value": "same-origin"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "text/x-json; charset=utf-8",
+        "body": "={{ $json.excelJsonBody }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "b1229552-0195-420a-8408-4d72b886fe48",
+      "name": "POST Excel Aktar BD2",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2768,
+        3860
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.streamUrl }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+            },
+            {
+              "name": "sec-ch-ua",
+              "value": "\"Google Chrome\";v=\"131\", \"Chromium\";v=\"131\", \"Not_A Brand\";v=\"24\""
+            },
+            {
+              "name": "sec-ch-ua-mobile",
+              "value": "?0"
+            },
+            {
+              "name": "sec-ch-ua-platform",
+              "value": "\"Windows\""
+            },
+            {
+              "name": "Accept-Language",
+              "value": "tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7"
+            },
+            {
+              "name": "Accept-Encoding",
+              "value": "gzip, deflate, br, zstd"
+            },
+            {
+              "name": "Accept",
+              "value": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+            },
+            {
+              "name": "Cookie",
+              "value": "={{ $json.cookieHeader }}"
+            },
+            {
+              "name": "Referer",
+              "value": "={{ $json.baseUrl }}/Interface/RaporEkran/ReportFilterDML.Aspx?id=5450"
+            },
+            {
+              "name": "Sec-Fetch-Dest",
+              "value": "document"
+            },
+            {
+              "name": "Sec-Fetch-Mode",
+              "value": "navigate"
+            },
+            {
+              "name": "Sec-Fetch-Site",
+              "value": "same-origin"
+            },
+            {
+              "name": "Upgrade-Insecure-Requests",
+              "value": "1"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "id": "6be0238f-871a-41a5-a4a0-ebf0238682db",
+      "name": "GET XLSX Binary BD2",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3216,
+        3860
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const meta = $('Extract Stream URL BD2').first().json;\nconst item = $input.first();\nconst reportId = meta.reportId;\n\nif (item.error) {\n  throw new Error(`XLSX indirme başarısız (id=${reportId}): ${item.error.message || 'bilinmeyen hata'}`);\n}\n\nif (!item.binary || !item.binary.data) {\n  throw new Error(`Rapor id=${reportId}: binary xlsx gelmedi (boş yanıt). Stream URL veya guId geçersiz olabilir.`);\n}\n\nconst bin = item.binary.data;\nconst sizeNum = Number(bin.fileSize) || 0;\n\nif (sizeNum > 0 && sizeNum < 100) {\n  throw new Error(`Rapor id=${reportId}: indirme çok küçük (${sizeNum} byte). Muhtemelen hata HTML'i.`);\n}\n\nconst mime = (bin.mimeType || '').toLowerCase();\nif (mime.includes('text/html') || mime.includes('text/plain')) {\n  throw new Error(`Rapor id=${reportId}: beklenen xlsx yerine ${mime} geldi.`);\n}\n\nconst LANDING = {\n  5020: 'panorama_musteri_listesi',\n  5500: 'panorama_rut_tanim_listesi',\n  5130: 'panorama_sevkiyat_raporu_kup',\n  5450: 'panorama_belge_detay_raporu',\n};\nconst SHEETS = {\n  5020: 'Data',\n  5500: 'RutTanimListesi',\n  5130: 'Data',\n  5450: 'Data',\n};\nconst landingTable = LANDING[reportId];\nconst sheetName = SHEETS[reportId] || 'Data';\nif (!landingTable) throw new Error(`Rapor id=${reportId}: landing tablo tanimsiz.`);\n\nconst fileName = bin.fileName && !/^file\\./i.test(bin.fileName)\n  ? bin.fileName\n  : `panorama_report_${reportId}.xlsx`;\n\nreturn [{\n  json: {\n    reportId,\n    baseUrl: meta.baseUrl,\n    supabaseUrl: meta.supabaseUrl,\n    supabaseServiceRoleKey: meta.supabaseServiceRoleKey || '',\n    cookieHeader: meta.cookieHeader,\n    streamUrl: meta.streamUrl,\n    fileName,\n    landingTable,\n    sheetName,\n  },\n  binary: {\n    data: {\n      ...bin,\n      fileName,\n      mimeType: bin.mimeType || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',\n    }\n  }\n}];\n"
+      },
+      "id": "e1a7d151-df73-48a0-bb79-e5287da3a2ae",
+      "name": "Validate Binary BD2",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3440,
+        3860
+      ]
+    },
+    {
+      "parameters": {
+        "options": {
+          "headerRow": true,
+          "includeEmptyCells": false,
+          "sheetName": "={{ $json.sheetName || 'Data' }}"
+        }
+      },
+      "id": "2ac32f53-85f0-4cb7-8a22-463ad99f6829",
+      "name": "Read XLSX Sheet BD2",
+      "type": "n8n-nodes-base.spreadsheetFile",
+      "typeVersion": 2,
+      "position": [
+        3664,
+        3860
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const meta = $('Validate Binary BD2').first().json;\nconst reportId = meta.reportId;\nconst landingTable = meta.landingTable;\n\nconst HEADER_MAP_5020 = {\"MusteriKodu\": \"musteri_kodu\", \"DistAd\": \"dist_ad\", \"DistKod\": \"dist_kod\", \"DistUnvan\": \"dist_unvan\", \"DistEkGrup\": \"dist_ek_grup\", \"DistGrup\": \"dist_grup\", \"OzelKod\": \"ozel_kod\", \"MusteriAd\": \"musteri_ad\", \"Musterigrup\": \"musteri_grup\", \"Musteriekgrup\": \"musteri_ek_grup\", \"Adres\": \"adres\", \"Sehir\": \"sehir\", \"Ilce\": \"ilce\", \"Telefon\": \"telefon\", \"vd\": \"vd\", \"MusteriTakipKod\": \"musteri_takip_kod\", \"Merkez\": \"merkez\", \"vn\": \"vn\", \"Mufettis\": \"mufettis\", \"STCalismaTipi\": \"st_calisma_tipi\", \"STKodu\": \"st_kodu\", \"Tip\": \"tip\", \"Hareket\": \"hareket\", \"STKod\": \"st_kod\", \"Durum\": \"durum\", \"MaxIskKontrol\": \"max_isk_kontrol\", \"KoordinatX\": \"koordinat_x\", \"KoordinatY\": \"koordinat_y\", \"DagitimSirasi\": \"dagitim_sirasi\", \"MerkezeFaturala\": \"merkeze_faturala\", \"PostaKodu\": \"posta_kodu\", \"EkSahaSoru\": \"ek_saha_soru\", \"EkSahaCevap\": \"ek_saha_cevap\", \"EkSahaSonuc\": \"ek_saha_sonuc\", \"TCKimlikNo\": \"tc_kimlik_no\", \"MusteriKisaAd\": \"musteri_kisa_ad\", \"CepTelNo\": \"cep_tel_no\", \"GrupKirilimKod\": \"grup_kirilim_kod\", \"IlgiliKisi\": \"ilgili_kisi\", \"IlgiliKisi2\": \"ilgili_kisi2\", \"TekilKod\": \"tekil_kod\", \"RuhsatDaire\": \"ruhsat_daire\", \"RuhsatNo\": \"ruhsat_no\", \"Telefon2\": \"telefon2\", \"SenetRiskOran\": \"senet_risk_oran\", \"CekRiskOran\": \"cek_risk_oran\", \"CekVadeGun\": \"cek_vade_gun\", \"Onay\": \"onay\", \"VergiTipi\": \"vergi_tipi\", \"AsilAliciUnvan\": \"asil_alici_unvan\", \"AsilAliciVergiNo\": \"asil_alici_vergi_no\", \"AsilAliciAdres\": \"asil_alici_adres\", \"AsilAliciVergiDairesi\": \"asil_alici_vergi_dairesi\", \"AsilSaticiUnvan\": \"asil_satici_unvan\", \"AsilSaticiVergiNo\": \"asil_satici_vergi_no\", \"AsilSaticiAdres\": \"asil_satici_adres\", \"AsilSaticiVergiDairesi\": \"asil_satici_vergi_dairesi\", \"OdemeTipi\": \"odeme_tipi\", \"ExtOdemeTipleri\": \"ext_odeme_tipleri\", \"FiyatYetki\": \"fiyat_yetki\", \"Efatura\": \"efatura\", \"EIrsaliyeMust\": \"e_irsaliye_must\", \"CakismaKontrolu\": \"cakisma_kontrolu\", \"FiyatsizIrsBasim\": \"fiyatsiz_irs_basim\", \"GpsIslemMuaf\": \"gps_islem_muaf\", \"Www\": \"www\", \"EMail\": \"email\", \"BolgeKod\": \"bolge_kod\", \"OnayKod\": \"onay_kod\", \"Cinsiyet\": \"cinsiyet\", \"DogumTarihi\": \"dogum_tarihi\", \"Referans\": \"referans\", \"ReferansMusteri\": \"referans_musteri\", \"VadeGun\": \"vade_gun\", \"KrediLimit1\": \"kredi_limit1\", \"KrediLimit2\": \"kredi_limit2\", \"IskontoOran\": \"iskonto_oran\"};\n\n\nconst SPECIAL_SNAKE = {\n  Musterigrup: 'musterigrup',\n  Musteriekgrup: 'musteriekgrup',\n  EMail: 'email',\n  Www: 'www',\n  Nettutar: 'nettutar',\n  Kayittip: 'kayittip',\n  Urunhiyerarsi1: 'urunhiyerarsi1',\n  Urunhiyerarsi2: 'urunhiyerarsi2',\n};\n\nfunction toSnake(s) {\n  return String(s)\n    .replace(/([a-z0-9])([A-Z])/g, '$1_$2')\n    .replace(/([A-Z]+)([A-Z][a-z])/g, '$1_$2')\n    .replace(/[^a-zA-Z0-9]+/g, '_')\n    .replace(/^_|_$/g, '')\n    .toLowerCase();\n}\n\nconst SIGNATURE = {\n  5020: ['MusteriKodu', 'musteri_kodu'],\n  5500: ['RutKod', 'rut_kod'],\n  5130: ['BelgeTarihi', 'belge_tarihi', 'Plaka', 'plaka'],\n  5450: ['BelgeTip', 'belge_tip', 'Nettutar', 'nettutar'],\n};\n\nconst items = $input.all();\nif (!items.length) {\n  throw new Error(`Rapor id=${reportId}: Spreadsheet File satir uretmedi.`);\n}\n\nfunction cellToText(v) {\n  if (v === null || v === undefined) return null;\n  const s = String(v).trim();\n  return s === '' ? null : s;\n}\n\nconst sampleKeys = Object.keys(items[0].json || {});\nconst sig = SIGNATURE[reportId] || [];\nconst hasSig = sig.some((k) => sampleKeys.includes(k));\nif (!hasSig) {\n  throw new Error(\n    `Rapor id=${reportId}: imza kolon yok (beklenen: ${sig.join('/')}). keys=${sampleKeys.slice(0, 25).join(',')}`\n  );\n}\n\nconst rows = [];\nfor (const it of items) {\n  const src = it.json || {};\n  const obj = {};\n  let any = false;\n\n  if (reportId === 5020) {\n    for (const [excelKey, dbKey] of Object.entries(HEADER_MAP_5020)) {\n      let raw;\n      if (Object.prototype.hasOwnProperty.call(src, excelKey)) raw = src[excelKey];\n      else if (Object.prototype.hasOwnProperty.call(src, dbKey)) raw = src[dbKey];\n      else raw = null;\n      const val = cellToText(raw);\n      obj[dbKey] = val;\n      if (val != null) any = true;\n    }\n  } else {\n    // Dinamik: Excel header -> snake_case (ilk satirdan gelen key'ler)\n    for (const [excelKey, raw] of Object.entries(src)) {\n      if (excelKey.startsWith('__')) continue;\n      const dbKey = SPECIAL_SNAKE[excelKey] || toSnake(excelKey);\n      if (!dbKey || dbKey === 'row_number') continue;\n      const val = cellToText(raw);\n      obj[dbKey] = val;\n      if (val != null) any = true;\n    }\n  }\n\n  if (reportId === 5450) {\n    if (obj.iptal_neden != null) continue; // HATALI GIRIS vb. iptal edilmis satirlari hic yazma\n    obj.unified_doc = obj.matbu_no != null ? obj.matbu_no : obj.siparis_no;\n  }\n\n  if (any) rows.push(obj);\n}\n\nif (!rows.length) {\n  throw new Error(`Rapor id=${reportId}: map sonrasi satir yok.`);\n}\n\nreturn [{\n  json: {\n    ...meta,\n    landingTable,\n    sheetName: meta.sheetName || 'Data',\n    rows,\n    rowCount: rows.length,\n    columnCount: Object.keys(rows[0] || {}).length,\n  }\n}];\n"
+      },
+      "id": "39726419-ed52-4bf1-bddd-61d2aa633ca4",
+      "name": "Parse XLSX Rows BD2",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3888,
+        3860
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx = $input.first().json;\nconst reportId = ctx.reportId;\nconst rows = Array.isArray(ctx.rows) ? ctx.rows : [];\nif (!rows.length) {\n  throw new Error(`Rapor id=${reportId}: insert edilecek satir yok.`);\n}\nconst supabaseUrl = String(ctx.supabaseUrl || 'https://pzepnmzxrwnlhixdrgzm.supabase.co').replace(/\\/$/, '');\nconst serviceKey = String(ctx.supabaseServiceRoleKey || '').trim();\nif (!serviceKey || !serviceKey.startsWith('eyJ')) {\n  throw new Error('Config.supabaseServiceRoleKey gerekli: Project Locus service_role JWT (eyJ...).');\n}\nreturn [{\n  json: {\n    ...ctx,\n    supabaseUrl,\n    supabaseServiceRoleKey: serviceKey,\n    rowCount: rows.length,\n    createSyncBody: {\n      report_id: Number(reportId),\n      kaynak: 'panorama',\n      dosya_adi: ctx.fileName || `panorama_report_${reportId}.xlsx`,\n      durum: 'running',\n      satir_sayisi: null,\n    },\n  }\n}];\n"
+      },
+      "id": "565ebb71-8232-4ad6-bf30-3d7a9310adf2",
+      "name": "Prep Sync Payload BD2",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4112,
+        3860
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.supabaseUrl }}/rest/v1/panorama_sync_runs",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $json.supabaseServiceRoleKey }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.supabaseServiceRoleKey }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            },
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.createSyncBody }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "9ffd3cb4-6ab4-4c68-897d-e576d0f47220",
+      "name": "Create Sync Run BD2",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4336,
+        3860
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const prev = $('Prep Sync Payload BD2').first().json;\nconst item = $input.first();\nconst res = item.json;\nconst status = res.statusCode || 0;\nlet body = res.body;\nif (typeof body === 'string') {\n  try { body = JSON.parse(body); } catch (_) {}\n}\nif (status < 200 || status >= 300) {\n  throw new Error(`sync_run create HTTP ${status}: ${JSON.stringify(body).slice(0, 400)}`);\n}\nconst created = Array.isArray(body) ? body[0] : body;\nconst syncId = created && created.id;\nif (!syncId) throw new Error('sync_run id donmedi: ' + JSON.stringify(body).slice(0, 300));\nconst rows = Array.isArray(prev.rows) ? prev.rows : [];\nconst BATCH = 400;\nconst out = [];\nfor (let i = 0; i < rows.length; i += BATCH) {\n  const chunk = rows.slice(i, i + BATCH).map((r) => ({ ...r, sync_id: syncId }));\n  out.push({\n    json: {\n      supabaseUrl: prev.supabaseUrl,\n      supabaseServiceRoleKey: prev.supabaseServiceRoleKey,\n      reportId: prev.reportId,\n      fileName: prev.fileName,\n      landingTable: prev.landingTable,\n      syncId,\n      rowCount: rows.length,\n      batchIndex: Math.floor(i / BATCH),\n      batchRows: chunk,\n      batchSize: chunk.length,\n    }\n  });\n}\nif (!out.length) throw new Error('batch listesi bos');\nreturn out;\n"
+      },
+      "id": "c14624cd-58b5-402a-97ff-260719ddf0aa",
+      "name": "Build Insert Batches BD2",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4560,
+        3860
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.supabaseUrl }}/rest/v1/{{ $json.landingTable }}?on_conflict=unified_doc,sira",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $json.supabaseServiceRoleKey }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.supabaseServiceRoleKey }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates,return=minimal"
+            },
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.batchRows }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "64ee28d6-8acb-4c1e-ba23-0bbffd4b9c2b",
+      "name": "Insert Rows Batch BD2",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4784,
+        3860
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const first = $('Build Insert Batches BD2').first().json;\nfor (const it of $input.all()) {\n  const status = it.json.statusCode || 0;\n  if (status && (status < 200 || status >= 300)) {\n    let body = it.json.body;\n    if (typeof body === 'string') {\n      try { body = JSON.parse(body); } catch (_) {}\n    }\n    throw new Error(`insert batch HTTP ${status}: ${JSON.stringify(body).slice(0, 400)}`);\n  }\n}\nreturn [{\n  json: {\n    supabaseUrl: first.supabaseUrl,\n    supabaseServiceRoleKey: first.supabaseServiceRoleKey,\n    reportId: first.reportId,\n    syncId: first.syncId,\n    rowCount: first.rowCount,\n    fileName: first.fileName,\n    landingTable: first.landingTable,\n    completeBody: {\n      durum: 'completed',\n      satir_sayisi: first.rowCount,\n      tamamlandi_at: new Date().toISOString(),\n    },\n  }\n}];\n"
+      },
+      "id": "a35ee0fe-d276-479a-8fc1-d1b22e1ec5f6",
+      "name": "Prep Complete Sync BD2",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5008,
+        3860
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $json.supabaseUrl }}/rest/v1/panorama_sync_runs?id=eq.{{ $json.syncId }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $json.supabaseServiceRoleKey }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.supabaseServiceRoleKey }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=minimal"
+            },
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.completeBody }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "f7cde124-5db1-4b4b-bc69-35211faebf22",
+      "name": "Complete Sync Run BD2",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        5232,
+        3860
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first();\nconst res = item.json;\nconst prev = $('Prep Complete Sync BD2').first().json;\nconst status = res.statusCode || 0;\nlet body = res.body;\nif (typeof body === 'string') {\n  try { body = JSON.parse(body); } catch (_) {}\n}\nif (status < 200 || status >= 300) {\n  throw new Error(`sync_run complete HTTP ${status}: ${JSON.stringify(body).slice(0, 300)}`);\n}\nreturn [{\n  json: {\n    ok: true,\n    reportId: prev.reportId,\n    syncId: prev.syncId,\n    rowCount: prev.rowCount,\n    fileName: prev.fileName,\n    landingTable: prev.landingTable,\n  }\n}];\n"
+      },
+      "id": "28f04193-ec95-4b80-a116-5bec6f281696",
+      "name": "Confirm Sync BD2",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5456,
+        3860
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx = $('Build Excel Aktar BD2').first().json;\nconst item = $input.first();\nconst res = item.json;\nconst reportId = ctx.reportId;\n\nlet raw = res.body;\nif (raw == null) raw = res.data;\nif (typeof raw === 'object') raw = JSON.stringify(raw);\nraw = String(raw || '');\n\nconst status = res.statusCode || 0;\nif (item.error || (status && status >= 400)) {\n  const preview = raw.slice(0, 350).replace(/\\s+/g, ' ');\n  throw new Error(`Excel XHR basarisiz (id=${reportId}, HTTP ${status || 'n/a'}): ${preview}`);\n}\n\nif (!raw) {\n  throw new Error(`Rapor id=${reportId}: Excel XHR yaniti bos.`);\n}\n\nif (/edtUserName|edtPass|btnLogin/i.test(raw) && !/guId|window\\.open|Excel|RespJS/i.test(raw)) {\n  throw new Error(`Rapor id=${reportId}: Excel XHR oturum dusmus (login HTML).`);\n}\n\nlet text = raw;\nlet respJs = [];\ntry {\n  const parsed = JSON.parse(raw);\n  if (parsed && Array.isArray(parsed.RespJS)) {\n    respJs = parsed.RespJS.map((s) => String(s || ''));\n    text = respJs.join('\\n');\n  } else if (typeof parsed === 'string') {\n    text = parsed;\n  } else if (parsed && typeof parsed.d === 'string') {\n    text = parsed.d;\n  } else {\n    text = JSON.stringify(parsed);\n  }\n} catch (_) {}\n\ntext = text\n  .replace(/\\\\u0026/g, '&')\n  .replace(/\\\\\\//g, '/')\n  .replace(/\\\\\"/g, '\"')\n  .replace(/\\\\'/g, \"'\")\n  .replace(/&amp;/g, '&');\n\nconst patterns = [\n  /window\\.open\\s*\\(\\s*[\"']([^\"']+)[\"']/i,\n  /window\\.open\\s*\\(\\s*`([^`]+)`/i,\n  /[\"'](https?:\\/\\/[^\"']*RaporStream\\.aspx[^\"']*)[\"']/i,\n  /[\"'](https?:\\/\\/[^\"']*guId=[^\"']+)[\"']/i,\n  /[\"']([^\"']*RaporStream\\.aspx[^\"']*)[\"']/i,\n  /[\"']([^\"']*Stream\\.aspx[^\"']*)[\"']/i,\n  /[\"']([^\"']*guId=[^\"']+)[\"']/i,\n];\n\nlet streamPath = null;\nfor (const re of patterns) {\n  const m = text.match(re);\n  if (m && m[1]) {\n    streamPath = m[1].trim();\n    break;\n  }\n}\n\nif (!streamPath) {\n  const preview = text.slice(0, 400).replace(/\\s+/g, ' ');\n  throw new Error(\n    `Rapor id=${reportId}: stream URL bulunamadi (RespJS bos/yanlis protokol?). Yanit onizleme: ${preview}`\n  );\n}\n\nconst baseUrl = ctx.baseUrl.replace(/\\/$/, '');\nlet streamUrl = streamPath;\nif (streamUrl.startsWith('~/')) streamUrl = baseUrl + '/' + streamUrl.slice(2);\nelse if (streamUrl.startsWith('/')) streamUrl = baseUrl + streamUrl;\nelse if (!/^https?:\\/\\//i.test(streamUrl)) streamUrl = baseUrl + '/' + streamUrl;\n\nconst headers = res.headers || {};\nconst setCookie = headers['set-cookie'] || headers['Set-Cookie'] || [];\nconst jar = new Map();\nfor (const part of (ctx.cookieHeader || '').split(';').map((s) => s.trim()).filter(Boolean)) {\n  const eq = part.indexOf('=');\n  if (eq > -1) jar.set(part.slice(0, eq), part.slice(eq + 1));\n}\nfor (const c of (Array.isArray(setCookie) ? setCookie : [setCookie]).filter(Boolean)) {\n  const part = String(c).split(';')[0].trim();\n  const eq = part.indexOf('=');\n  if (eq > -1) jar.set(part.slice(0, eq), part.slice(eq + 1));\n}\nconst cookieHeader = [...jar.entries()].map(([k, v]) => `${k}=${v}`).join('; ');\n\nreturn [{\n  json: {\n    ...ctx,\n    cookieHeader,\n    streamUrl,\n    streamPath,\n    respJsCount: respJs.length,\n  }\n}];\n"
+      },
+      "id": "4cd67255-976c-48f5-95a0-57d32c4e4344",
+      "name": "Extract Stream URL BD2",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2992,
+        3860
+      ]
     }
   ],
   "pinData": {},
@@ -5375,6 +6382,281 @@
         [
           {
             "node": "Confirm Sync STK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Belge Detay BD2 PZT-CAR-CUM-PAZ": {
+      "main": [
+        [
+          {
+            "node": "Config Belge Detay BD2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config Belge Detay BD2": {
+      "main": [
+        [
+          {
+            "node": "Login BD2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Login BD2": {
+      "main": [
+        [
+          {
+            "node": "Validate Session BD2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Session BD2": {
+      "main": [
+        [
+          {
+            "node": "GET Report Filter BD2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GET Report Filter BD2": {
+      "main": [
+        [
+          {
+            "node": "Parse Filter Form BD2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Filter Form BD2": {
+      "main": [
+        [
+          {
+            "node": "Build Belge Durumu BD2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Belge Durumu BD2": {
+      "main": [
+        [
+          {
+            "node": "POST Belge Durumu BD2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "POST Belge Durumu BD2": {
+      "main": [
+        [
+          {
+            "node": "Build Tarih Start BD2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Tarih Start BD2": {
+      "main": [
+        [
+          {
+            "node": "POST Tarih Start BD2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "POST Tarih Start BD2": {
+      "main": [
+        [
+          {
+            "node": "Build Tarih End BD2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Tarih End BD2": {
+      "main": [
+        [
+          {
+            "node": "POST Tarih End BD2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "POST Tarih End BD2": {
+      "main": [
+        [
+          {
+            "node": "Build Excel Aktar BD2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Excel Aktar BD2": {
+      "main": [
+        [
+          {
+            "node": "POST Excel Aktar BD2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "POST Excel Aktar BD2": {
+      "main": [
+        [
+          {
+            "node": "Extract Stream URL BD2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GET XLSX Binary BD2": {
+      "main": [
+        [
+          {
+            "node": "Validate Binary BD2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Binary BD2": {
+      "main": [
+        [
+          {
+            "node": "Read XLSX Sheet BD2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read XLSX Sheet BD2": {
+      "main": [
+        [
+          {
+            "node": "Parse XLSX Rows BD2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse XLSX Rows BD2": {
+      "main": [
+        [
+          {
+            "node": "Prep Sync Payload BD2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prep Sync Payload BD2": {
+      "main": [
+        [
+          {
+            "node": "Create Sync Run BD2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Sync Run BD2": {
+      "main": [
+        [
+          {
+            "node": "Build Insert Batches BD2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Insert Batches BD2": {
+      "main": [
+        [
+          {
+            "node": "Insert Rows Batch BD2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Rows Batch BD2": {
+      "main": [
+        [
+          {
+            "node": "Prep Complete Sync BD2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prep Complete Sync BD2": {
+      "main": [
+        [
+          {
+            "node": "Complete Sync Run BD2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Complete Sync Run BD2": {
+      "main": [
+        [
+          {
+            "node": "Confirm Sync BD2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Stream URL BD2": {
+      "main": [
+        [
+          {
+            "node": "GET XLSX Binary BD2",
             "type": "main",
             "index": 0
           }

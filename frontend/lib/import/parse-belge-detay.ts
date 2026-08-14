@@ -1,8 +1,20 @@
 import type { BelgeOzetUpdateRow } from "./types";
 import { cellStr, metinTemizle, sayiyaCevir } from "./utils";
 
-/** Export filtresinden kaynaklı çift kaydı atmak için yalnızca bu tipler. */
-const KEEP_BELGE_TIP = new Set(["Satış", "Konsinye Satış"]);
+/**
+ * Aggregate'e giren belge tipleri.
+ *
+ * Panorama'nın Belge Tür filtresi değiştiğinden (2026-08) export'lar aynı
+ * satırları artık "Satış" yerine "Satış - İade" etiketiyle veriyor. İkisi de
+ * sayılır; eskiden bu set'in üstlendiği çift-kayıt koruması artık
+ * belgeAnahtari() dedup'una devredildi.
+ */
+const KEEP_BELGE_TIP = new Set([
+  "Satış",
+  "Konsinye Satış",
+  "Satış - İade",
+  "Satış-İade",
+]);
 
 /**
  * IslemTarihi: YYYY.MM.DD | dd.mm.yyyy | Excel serial → ISO date (UTC).
@@ -56,6 +68,35 @@ function toIsoDate(d: Date): string {
 function money(value: unknown): number {
   if (typeof value === "number" && Number.isFinite(value)) return value;
   return sayiyaCevir(value) ?? 0;
+}
+
+/** Türkçe İ/I tuzağına düşmeden küçük harfe indir. */
+function trKucuk(value: string): string {
+  return value.replace(/İ/g, "i").replace(/I/g, "ı").toLowerCase();
+}
+
+/**
+ * Müşteriden iade hareketi mi? (IslemTip ör. "Müşteriden İade (Sağlam)")
+ * İade satırlarında Nettutar/BrutTutar/Iskonto negatif gelir.
+ */
+function iadeSatiriMi(row: Record<string, unknown>): boolean {
+  const islemTip = cellStr(row, "IslemTip", "islem_tip");
+  return islemTip !== "" && trKucuk(islemTip).includes("iade");
+}
+
+/**
+ * Belge satırı kimliği — landing tablosundaki unified_doc ile aynı öncelik
+ * (MatbuNo → SiparisNo → FaturaNo) + Sira. Aynı satır birden fazla BelgeTip
+ * etiketiyle geldiğinde bir kez sayılmasını sağlar. Kimlik üretilemezse ""
+ * döner ve satır dedup'a sokulmaz.
+ */
+function belgeAnahtari(row: Record<string, unknown>): string {
+  const belge =
+    cellStr(row, "MatbuNo", "matbu_no") ||
+    cellStr(row, "SiparisNo", "siparis_no") ||
+    cellStr(row, "FaturaNo", "fatura_no");
+  if (!belge) return "";
+  return `${belge}|${cellStr(row, "Sira", "sira")}`;
 }
 
 function modeKey(counts: Map<string, number>): string | null {
@@ -127,13 +168,19 @@ function emptyAcc(): Acc {
 
 /**
  * BelgeDetayRaporu satırlarını müşteri aggregate'ine çevir.
- * BelgeTip ∈ {Satış, Konsinye Satış} — Satış-İade / Alış çiftlemesi atılır.
+ *
+ * BelgeTip ∈ KEEP_BELGE_TIP; aynı belge satırı belgeAnahtari() ile bir kez sayılır.
+ * İade satırları (IslemTip "…İade…") ciroya negatifleriyle girer — net_ciro,
+ * brut_ciro ve iskonto_toplam böylece netleşir — ama satır sayısı, ürün/ST
+ * frekansları ve son işlem tarihi gibi "satış aktivitesi" alanlarına girmez:
+ * iade bir satış değil, satışın geri alınmasıdır.
  */
 export function parseBelgeDetayRaporu(rows: Record<string, unknown>[]): {
   rows: BelgeOzetUpdateRow[];
   islenenSatir: number;
 } {
   const byKod = new Map<string, Acc>();
+  const gorulenBelge = new Set<string>();
   let islenenSatir = 0;
 
   for (const row of rows) {
@@ -145,14 +192,24 @@ export function parseBelgeDetayRaporu(rows: Record<string, unknown>[]): {
     );
     if (!musteri_kodu) continue;
 
+    const anahtar = belgeAnahtari(row);
+    if (anahtar) {
+      if (gorulenBelge.has(anahtar)) continue;
+      gorulenBelge.add(anahtar);
+    }
+
     islenenSatir += 1;
     const acc = byKod.get(musteri_kodu) ?? emptyAcc();
     byKod.set(musteri_kodu, acc);
 
-    acc.satir_sayisi += 1;
     acc.net_ciro += money(row["Nettutar"]);
     acc.brut_ciro += money(row["BrutTutar"]);
     acc.iskonto_toplam += money(row["Iskonto"]);
+
+    // Buradan sonrası yalnızca satış hareketleri için.
+    if (iadeSatiriMi(row)) continue;
+
+    acc.satir_sayisi += 1;
 
     const kayit = metinTemizle(cellStr(row, "Kayittip"));
     if (kayit === "Genel Promosyon Ürün") acc.promo_satir += 1;
