@@ -1,6 +1,7 @@
 import {
   BanknoteIcon,
   BarChart3Icon,
+  BoxesIcon,
   EyeOffIcon,
   MapIcon,
   RefreshCwIcon,
@@ -61,6 +62,12 @@ export const MAIN_NAV: SidebarNavItem[] = [
         label: "Sevkiyat Raporları",
         icon: TruckIcon,
         href: "/raporlar/sevkiyat",
+      },
+      {
+        id: "raporlar-stok",
+        label: "Stok Raporları",
+        icon: BoxesIcon,
+        href: "/raporlar/stok",
       },
     ],
   },

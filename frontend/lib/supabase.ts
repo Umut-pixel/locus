@@ -27,3 +27,5 @@ export const YUKLEME_LOGLARI_TABLE = "yukleme_loglari";
 export const PANORAMA_SYNC_DOSYA_TIPI = "PanoramaSync";
 export const PANORAMA_ACIK_FATURA_VADE_KUP_VIEW =
   "v_panorama_acik_fatura_vade_kup_guncel";
+export const PANORAMA_DETAYLI_STOK_RAPORU_VIEW =
+  "v_panorama_detayli_stok_raporu_guncel";

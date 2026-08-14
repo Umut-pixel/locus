@@ -95,6 +95,8 @@
   --chart-3: oklch(0.78 0.16 150);
   --chart-4: oklch(0.78 0.12 215);
   --chart-5: oklch(0.65 0.008 260);
+  /* Stok dağılımı barları — tek hue; bkz. StokDagilim.tsx. */
+  --chart-stok: oklch(0.64 0.13 215);
   --radius: 0.8rem;
   --sidebar: oklch(0.175 0.004 260);
   --sidebar-foreground: oklch(0.93 0.003 260);
@@ -131,6 +133,8 @@
   --chart-3: oklch(0.78 0.16 150);
   --chart-4: oklch(0.78 0.12 215);
   --chart-5: oklch(0.65 0.008 260);
+  /* Stok dağılımı barları — tek hue; bkz. StokDagilim.tsx. */
+  --chart-stok: oklch(0.64 0.13 215);
   --sidebar: oklch(0.175 0.004 260);
   --sidebar-foreground: oklch(0.93 0.003 260);
   --sidebar-primary: oklch(0.93 0.003 260);
