@@ -1,5 +1,6 @@
 "use client";
 
+import { Fragment, useState } from "react";
 import { ArrowDownIcon, ArrowUpIcon } from "lucide-react";
 import { Typography } from "@heroui/react";
 
@@ -8,6 +9,9 @@ import type {
   StokSort,
   StokSortField,
 } from "@/hooks/useStokRaporu";
+import { UrunSatisDetayi } from "@/components/stok/UrunSatisDetayi";
+import { ScrollBottomFade } from "@/components/ui/ScrollBottomFade";
+import { useScrollBottomFade } from "@/hooks/useScrollBottomFade";
 import { formatCurrency, formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -36,9 +40,17 @@ export function StokTable({
   sort,
   onSortChange,
 }: StokTableProps) {
+  const [acikUrunKodu, setAcikUrunKodu] = useState<string | null>(null);
+  const { wrapperRef, scrollRef } = useScrollBottomFade<HTMLDivElement, HTMLDivElement>(
+    satirlar.length
+  );
+
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
-      <div className={cn("min-h-0 flex-1 overflow-auto transition-opacity", loading && "opacity-40")}>
+    <div ref={wrapperRef} className="relative flex min-h-0 flex-1 flex-col">
+      <div
+        ref={scrollRef}
+        className={cn("min-h-0 flex-1 overflow-auto transition-opacity", loading && "opacity-40")}
+      >
         <table className="w-full min-w-[52rem] border-collapse text-left">
           <thead className="sticky top-0 z-10 bg-background">
             <tr className="border-b border-border text-muted-foreground">
@@ -84,49 +96,66 @@ export function StokTable({
           <tbody>
             {satirlar.map((s) => {
               const tukendi = s.miktar <= 0;
+              const acik = acikUrunKodu === s.urunKodu;
               return (
-                <tr
-                  key={s.urunKodu}
-                  className="h-[var(--row-h)] border-b border-border/50 transition-colors duration-100 hover:bg-muted/30"
-                >
-                  <td className={cn(TD_BASE, "max-w-0")}>
-                    <div className="flex min-w-0 flex-col">
-                      <span className="truncate text-[13.5px] text-foreground">
-                        {s.urun}
+                <Fragment key={s.urunKodu}>
+                  <tr
+                    className={cn(
+                      "h-[var(--row-h)] cursor-pointer border-b border-border/50 transition-colors duration-100",
+                      acik ? "bg-muted/40" : "hover:bg-muted/30"
+                    )}
+                    onClick={() =>
+                      setAcikUrunKodu((prev) => (prev === s.urunKodu ? null : s.urunKodu))
+                    }
+                    aria-expanded={acik}
+                    title="Bu ürünü hangi petshop'ların satın aldığını görmek için tıklayın"
+                  >
+                    <td className={cn(TD_BASE, "max-w-0")}>
+                      <div className="flex min-w-0 flex-col">
+                        <span className="truncate text-[13.5px] text-foreground">
+                          {s.urun}
+                        </span>
+                        <span className="truncate font-mono text-[11.5px] text-muted-foreground">
+                          {s.urunKodu}
+                          {s.birim ? ` · ${s.birim}` : ""}
+                        </span>
+                      </div>
+                    </td>
+                    <td className={cn(TD_BASE, "text-[13px] whitespace-nowrap text-muted-foreground")}>
+                      {s.marka ?? "—"}
+                    </td>
+                    <td className={cn(TD_BASE, "text-[13px] whitespace-nowrap text-muted-foreground")}>
+                      {s.kategori ?? "—"}
+                    </td>
+                    <td className={cn(TD_BASE, "text-right whitespace-nowrap")}>
+                      {/* Tükenmiş satır durum rengiyle işaretli + "Yok" metni: renk tek başına taşımıyor. */}
+                      <span
+                        className={cn(
+                          "font-mono text-[13.5px] tabular-nums",
+                          tukendi ? "font-medium text-destructive" : "text-foreground"
+                        )}
+                      >
+                        {tukendi ? "Yok" : formatNumber(s.miktar)}
                       </span>
-                      <span className="truncate font-mono text-[11.5px] text-muted-foreground">
-                        {s.urunKodu}
-                        {s.birim ? ` · ${s.birim}` : ""}
-                      </span>
-                    </div>
-                  </td>
-                  <td className={cn(TD_BASE, "text-[13px] whitespace-nowrap text-muted-foreground")}>
-                    {s.marka ?? "—"}
-                  </td>
-                  <td className={cn(TD_BASE, "text-[13px] whitespace-nowrap text-muted-foreground")}>
-                    {s.kategori ?? "—"}
-                  </td>
-                  <td className={cn(TD_BASE, "text-right whitespace-nowrap")}>
-                    {/* Tükenmiş satır durum rengiyle işaretli + "Yok" metni: renk tek başına taşımıyor. */}
-                    <span
-                      className={cn(
-                        "font-mono text-[13.5px] tabular-nums",
-                        tukendi ? "font-medium text-destructive" : "text-foreground"
-                      )}
-                    >
-                      {tukendi ? "Yok" : formatNumber(s.miktar)}
-                    </span>
-                  </td>
-                  <td className={cn(TD_BASE, "text-right font-mono text-[13px] whitespace-nowrap text-muted-foreground tabular-nums")}>
-                    {formatCurrency(s.fiyat)}
-                  </td>
-                  <td className={cn(TD_BASE, "text-right font-mono text-[13.5px] whitespace-nowrap text-foreground tabular-nums")}>
-                    {formatCurrency(s.brutTutar)}
-                  </td>
-                  <td className={cn(TD_BASE, "pr-3.5 text-right font-mono text-[13px] whitespace-nowrap text-muted-foreground tabular-nums")}>
-                    {formatCurrency(s.kdvliTutar)}
-                  </td>
-                </tr>
+                    </td>
+                    <td className={cn(TD_BASE, "text-right font-mono text-[13px] whitespace-nowrap text-muted-foreground tabular-nums")}>
+                      {formatCurrency(s.fiyat)}
+                    </td>
+                    <td className={cn(TD_BASE, "text-right font-mono text-[13.5px] whitespace-nowrap text-foreground tabular-nums")}>
+                      {formatCurrency(s.brutTutar)}
+                    </td>
+                    <td className={cn(TD_BASE, "pr-3.5 text-right font-mono text-[13px] whitespace-nowrap text-muted-foreground tabular-nums")}>
+                      {formatCurrency(s.kdvliTutar)}
+                    </td>
+                  </tr>
+                  {acik ? (
+                    <tr className="border-b border-border bg-muted/20">
+                      <td colSpan={COLUMN_COUNT} className="p-0">
+                        <UrunSatisDetayi urunKodu={s.urunKodu} urun={s.urun} />
+                      </td>
+                    </tr>
+                  ) : null}
+                </Fragment>
               );
             })}
 
@@ -145,6 +174,7 @@ export function StokTable({
           </tbody>
         </table>
       </div>
+      <ScrollBottomFade />
     </div>
   );
 }

@@ -112,8 +112,14 @@ export default function StokRaporlariPage() {
           stoktaYokAktif={filters.sadeceStoktaYok}
         />
 
-        {/* Grafik ve uyarı paneli sabit yükseklikte: eksen/etiket bandı içeride kalsın. */}
-        <div className="grid lg:grid-cols-2 [&>section]:h-[21rem]">
+        {/*
+         * Grafik ve uyarı paneli sabit yükseklikte: eksen/etiket bandı içeride
+         * kalsın. Satırın alt kenarı BURADA çiziliyor, çocuk section'larda
+         * değil — StokDagilim masaüstünde border-b'yi border-r'ye çeviriyor
+         * (dikey ayraç için), StoktaYokPanel'in kendi alt kenarı yok; ikisi de
+         * kendi border-b'sini taşısaydı satırın alt kenarı yarım kalırdı.
+         */}
+        <div className="grid border-b border-border lg:grid-cols-2 [&>section]:h-[21rem]">
           <StokDagilim
             satirlar={satirlar}
             boyut={boyut}

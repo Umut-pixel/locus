@@ -4,6 +4,7 @@ import { AlertTriangleIcon, BoxesIcon, PackageIcon, TagIcon } from "lucide-react
 import type { LucideIcon } from "lucide-react";
 
 import type { StokOzet as StokOzetVerisi } from "@/hooks/useStokRaporu";
+import { useCountUp } from "@/hooks/useCountUp";
 import { formatCurrency, formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -20,6 +21,9 @@ interface StokOzetProps {
  * kutuları. Büyük sayılarda `tabular-nums` YOK — eşit genişlikli rakamlar
  * display boyutunda araları açıp sayıyı dağıtıyor; hizalanması gereken
  * yerler (tablo, bar etiketleri) tabular kalıyor.
+ *
+ * Tüm rakamlar `useCountUp` ile hedefe sayarak gelir — sayfa yüklenince
+ * sıfırdan, sonraki her filtre değişiminde eski değerden yeni değere.
  */
 export function StokOzet({
   ozet,
@@ -27,6 +31,14 @@ export function StokOzet({
   onStoktaYokClick,
   stoktaYokAktif,
 }: StokOzetProps) {
+  const toplamBrut = useCountUp(ozet.toplamBrut);
+  const toplamKdvli = useCountUp(ozet.toplamKdvli);
+  const urunAdet = useCountUp(ozet.urunAdet);
+  const toplamMiktar = useCountUp(ozet.toplamMiktar);
+  const markaAdet = useCountUp(ozet.markaAdet);
+  const kategoriAdet = useCountUp(ozet.kategoriAdet);
+  const stoktaYokAdet = useCountUp(ozet.stoktaYokAdet);
+
   return (
     <div className="grid grid-cols-2 gap-px border-b border-border bg-border lg:grid-cols-4">
       <div className="flex flex-col justify-center gap-1 bg-background px-3.5 py-4">
@@ -39,25 +51,25 @@ export function StokOzet({
             loading && "opacity-40"
           )}
         >
-          {formatCurrency(ozet.toplamBrut)}
+          {formatCurrency(toplamBrut)}
         </span>
         <span className="text-[12px] text-muted-foreground">
-          KDV dahil {formatCurrency(ozet.toplamKdvli)}
+          KDV dahil {formatCurrency(toplamKdvli)}
         </span>
       </div>
 
       <StatKutusu
         icon={PackageIcon}
         etiket="Ürün"
-        deger={formatNumber(ozet.urunAdet)}
-        altBilgi={`${formatNumber(ozet.toplamMiktar)} adet stok`}
+        deger={formatNumber(Math.round(urunAdet))}
+        altBilgi={`${formatNumber(Math.round(toplamMiktar))} adet stok`}
         loading={loading}
       />
 
       <StatKutusu
         icon={TagIcon}
         etiket="Marka / kategori"
-        deger={`${formatNumber(ozet.markaAdet)} / ${formatNumber(ozet.kategoriAdet)}`}
+        deger={`${formatNumber(Math.round(markaAdet))} / ${formatNumber(Math.round(kategoriAdet))}`}
         altBilgi="dağılım grafiğinde kırılıyor"
         loading={loading}
       />
@@ -93,7 +105,7 @@ export function StokOzet({
             loading && "opacity-40"
           )}
         >
-          {formatNumber(ozet.stoktaYokAdet)}
+          {formatNumber(Math.round(stoktaYokAdet))}
         </span>
         <span className="text-[12px] text-muted-foreground">
           {ozet.urunAdet > 0

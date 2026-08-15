@@ -2,7 +2,9 @@
 
 import { AlertTriangleIcon, CheckCircle2Icon } from "lucide-react";
 
+import { ScrollBottomFade } from "@/components/ui/ScrollBottomFade";
 import type { StokSatiri } from "@/hooks/useStokRaporu";
+import { useScrollBottomFade } from "@/hooks/useScrollBottomFade";
 import { formatCurrency, formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -17,12 +19,18 @@ interface StoktaYokPanelProps {
  *
  * Durum rengi (destructive) yalnızca burada ve KPI kutusunda; dağılım
  * grafiğinin hue'suyla karışmasın diye grafik tarafında hiç kullanılmıyor.
+ *
+ * Alt kenar çizgisi bilinçli olarak yok — satır çift sütunun ortak alt
+ * sınırını page.tsx'teki grid sarmalayıcı çiziyor (bkz. o dosyadaki not).
  */
 export function StoktaYokPanel({ satirlar, loading }: StoktaYokPanelProps) {
   const bos = satirlar.length === 0;
+  const { wrapperRef, scrollRef } = useScrollBottomFade<HTMLElement, HTMLDivElement>(
+    satirlar.length
+  );
 
   return (
-    <section className="flex min-w-0 flex-col border-b border-border">
+    <section ref={wrapperRef} className="relative flex min-w-0 flex-col">
       <header className="flex h-11 shrink-0 items-center justify-between gap-3 border-b border-border/60 px-3.5">
         <h2 className="flex items-center gap-1.5 text-[12px] font-medium tracking-[0.06em] text-muted-foreground uppercase">
           <AlertTriangleIcon
@@ -40,6 +48,7 @@ export function StoktaYokPanel({ satirlar, loading }: StoktaYokPanelProps) {
       </header>
 
       <div
+        ref={scrollRef}
         className={cn(
           "min-h-0 flex-1 overflow-y-auto transition-opacity",
           loading && "opacity-40"
@@ -87,6 +96,7 @@ export function StoktaYokPanel({ satirlar, loading }: StoktaYokPanelProps) {
           </ul>
         )}
       </div>
+      <ScrollBottomFade />
     </section>
   );
 }

@@ -9,7 +9,7 @@ import { cellStr, metinTemizle, sayiyaCevir } from "./utils";
  * sayılır; eskiden bu set'in üstlendiği çift-kayıt koruması artık
  * belgeAnahtari() dedup'una devredildi.
  */
-const KEEP_BELGE_TIP = new Set([
+export const KEEP_BELGE_TIP = new Set([
   "Satış",
   "Konsinye Satış",
   "Satış - İade",

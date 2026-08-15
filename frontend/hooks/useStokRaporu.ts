@@ -279,6 +279,39 @@ export function stokDagilimi(
   }));
 }
 
+/**
+ * Pasta grafik için dilim sayısını sınırlar — kalanı tek "Diğer" dilimine
+ * katlar. Doğrulanmış kategorik palet 5 renk taşıyor (bkz. globals.css); bar
+ * grafiğin aksine pasta her dilimi ayırt edilebilir bir renkle gösterdiği
+ * için 5'in üstü aynı renk havuzunu paylaşıp CVD kontrolünü bozardı.
+ */
+export function capForPie(
+  dilimler: DagilimDilimi[],
+  maxDilim = 5
+): DagilimDilimi[] {
+  if (dilimler.length <= maxDilim) return dilimler;
+
+  const on = dilimler.slice(0, maxDilim);
+  const kalan = dilimler.slice(maxDilim);
+  const digerBrutTutar = kalan.reduce((a, d) => a + d.brutTutar, 0);
+  const digerMiktar = kalan.reduce((a, d) => a + d.miktar, 0);
+  const digerUrunAdet = kalan.reduce((a, d) => a + d.urunAdet, 0);
+  const toplam = dilimler.reduce((a, d) => a + d.brutTutar, 0);
+  const enBuyuk = on[0]?.brutTutar ?? digerBrutTutar;
+
+  return [
+    ...on,
+    {
+      ad: "Diğer",
+      brutTutar: digerBrutTutar,
+      miktar: digerMiktar,
+      urunAdet: digerUrunAdet,
+      oran: enBuyuk > 0 ? digerBrutTutar / enBuyuk : 0,
+      pay: toplam > 0 ? digerBrutTutar / toplam : 0,
+    },
+  ];
+}
+
 function tekilSirali(values: (string | null)[]): string[] {
   return [...new Set(values.filter((v): v is string => v != null))].sort((a, b) =>
     a.localeCompare(b, "tr")
