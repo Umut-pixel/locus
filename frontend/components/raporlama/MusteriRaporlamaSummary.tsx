@@ -1,13 +1,18 @@
 "use client";
 
+import { ArrowDownIcon, ArrowUpIcon, MinusIcon } from "lucide-react";
+import { motion } from "motion/react";
+
 import {
   YASLANDIRMA_REPORT_ID,
   gecikmeBandiEtiketi,
+  raporlamaFiltersActive,
+  useNetCiroTrendi,
   useRaporTazeligi,
   type RaporlamaFilters,
   type RaporlamaSummary,
 } from "@/hooks/useMusteriRaporlama";
-import { formatCurrency, formatNumber } from "@/lib/format";
+import { formatCurrency, formatDate, formatNumber } from "@/lib/format";
 import { riskShortLabelsForMode, type RiskMetricMode } from "@/lib/risk-mode";
 import { RISK_COLORS, RISK_ORDER } from "@/lib/risk-style";
 import { cn } from "@/lib/utils";
@@ -77,6 +82,70 @@ function BorcTazeligi() {
   );
 }
 
+/** ±%0.5 içindeki günlük değişim "durgun" sayılır — kuruş oynamalarını gürültü sayar. */
+const NET_CIRO_TREND_ESIK = 0.005;
+
+/**
+ * Toplam net ciro'nun bir önceki güne göre yönü. Yalnızca filtre yokken
+ * gösterilir — musteri_metrik_gecmis segment/şehir/temsilci taşımıyor,
+ * filtreli bir kümeyle karşılaştırma yanıltıcı olur (bkz. useNetCiroTrendi).
+ */
+function NetCiroTrend({
+  guncelToplam,
+  filters,
+}: {
+  guncelToplam: number;
+  filters: RaporlamaFilters;
+}) {
+  const aktif = !raporlamaFiltersActive(filters);
+  const { oncekiTarih, oncekiToplam, loading } = useNetCiroTrendi(aktif);
+
+  if (!aktif || loading || oncekiToplam == null || oncekiTarih == null) return null;
+
+  const degisim =
+    oncekiToplam === 0 ? 0 : (guncelToplam - oncekiToplam) / Math.abs(oncekiToplam);
+  const yon: "yukari" | "asagi" | "durgun" =
+    Math.abs(degisim) < NET_CIRO_TREND_ESIK ? "durgun" : degisim > 0 ? "yukari" : "asagi";
+  const yuzde = `%${Math.abs(degisim * 100).toFixed(1)}`;
+  const baslik =
+    yon === "durgun"
+      ? `${formatDate(oncekiTarih)} toplamına göre neredeyse değişmedi (${yuzde})`
+      : yon === "yukari"
+        ? `${formatDate(oncekiTarih)} toplamına göre ${yuzde} arttı`
+        : `${formatDate(oncekiTarih)} toplamına göre ${yuzde} azaldı`;
+
+  return (
+    <span
+      className={cn(
+        "ml-1 inline-flex items-center",
+        yon === "yukari"
+          ? "text-emerald-400"
+          : yon === "asagi"
+            ? "text-red-400"
+            : "text-muted-foreground"
+      )}
+      title={baslik}
+      aria-label={baslik}
+    >
+      {yon === "durgun" ? (
+        <MinusIcon className="size-3.5" aria-hidden />
+      ) : (
+        <motion.span
+          className="inline-flex"
+          animate={{ y: yon === "yukari" ? [0, -2, 0] : [0, 2, 0] }}
+          transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
+        >
+          {yon === "yukari" ? (
+            <ArrowUpIcon className="size-3.5" aria-hidden />
+          ) : (
+            <ArrowDownIcon className="size-3.5" aria-hidden />
+          )}
+        </motion.span>
+      )}
+    </span>
+  );
+}
+
 /**
  * Alt durum çubuğu — dashboard kartı değil. Filtrelenmiş kümenin tamamını
  * (görünen sayfayı değil) özetler; tek satır. 2026-08-10: ilk yoğun geçişten
@@ -102,8 +171,11 @@ export function MusteriRaporlamaSummary({
 
       <Ayirac />
 
-      <span className="font-mono font-medium text-foreground tabular-nums">
+      <span className="inline-flex items-center font-mono font-medium text-foreground tabular-nums">
         {loading ? "…" : formatCurrency(summary.toplamNetCiro)}
+        {!loading && (
+          <NetCiroTrend guncelToplam={summary.toplamNetCiro} filters={filters} />
+        )}
         <span className="ml-1.5 font-sans text-[12px] font-normal text-muted-foreground">
           net ciro
         </span>

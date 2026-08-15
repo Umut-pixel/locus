@@ -678,6 +678,80 @@ export function useMusteriTrend(musteriKodlari: readonly string[]): {
   return { trendMap, loading };
 }
 
+export interface NetCiroTrendi {
+  /** Bugünden önceki en son snapshot günü (musteri_metrik_gecmis) — yoksa null. */
+  oncekiTarih: string | null;
+  oncekiToplam: number | null;
+  loading: boolean;
+}
+
+/**
+ * Özet çubuğundaki toplam net ciro rakamının bir önceki güne göre yönünü
+ * göstermek için: bugünden önceki en son musteri_metrik_gecmis snapshot'ının
+ * TÜM müşteriler üzerindeki toplamı. `musteri_metrik_gecmis`'te segment/şehir/
+ * temsilci gibi filtre kolonları yok — bu yüzden yalnızca filtre yokken
+ * anlamlı; çağıran taraf `enabled`'ı buna göre kapatmalı (bkz.
+ * MusteriRaporlamaSummary → raporlamaFiltersActive).
+ */
+export function useNetCiroTrendi(enabled: boolean): NetCiroTrendi {
+  const [state, setState] = useState<{
+    oncekiTarih: string | null;
+    oncekiToplam: number | null;
+    loading: boolean;
+  }>({ oncekiTarih: null, oncekiToplam: null, loading: true });
+
+  useEffect(() => {
+    if (!enabled) return;
+    const ac = new AbortController();
+    setState((s) => ({ ...s, loading: true }));
+
+    async function run() {
+      const bugun = new Date().toISOString().slice(0, 10);
+      const { data: oncekiSatir, error: tarihErr } = await supabase
+        .from(MUSTERI_METRIK_GECMIS_TABLE)
+        .select("snapshot_tarihi")
+        .lt("snapshot_tarihi", bugun)
+        .order("snapshot_tarihi", { ascending: false })
+        .limit(1)
+        .abortSignal(ac.signal)
+        .maybeSingle();
+      if (ac.signal.aborted) return;
+      if (tarihErr || !oncekiSatir) {
+        setState({ oncekiTarih: null, oncekiToplam: null, loading: false });
+        return;
+      }
+      const oncekiTarih = (oncekiSatir as { snapshot_tarihi: string }).snapshot_tarihi;
+
+      let toplam = 0;
+      let from = 0;
+      for (let i = 0; i < FETCH_ALL_MAX_BATCHES; i++) {
+        const { data, error } = await supabase
+          .from(MUSTERI_METRIK_GECMIS_TABLE)
+          .select("net_ciro")
+          .eq("snapshot_tarihi", oncekiTarih)
+          .range(from, from + FETCH_ALL_BATCH_SIZE - 1)
+          .abortSignal(ac.signal);
+        if (ac.signal.aborted) return;
+        if (error) {
+          setState({ oncekiTarih: null, oncekiToplam: null, loading: false });
+          return;
+        }
+        const batch = (data ?? []) as { net_ciro: number | null }[];
+        for (const row of batch) toplam += row.net_ciro ?? 0;
+        if (batch.length < FETCH_ALL_BATCH_SIZE) break;
+        from += FETCH_ALL_BATCH_SIZE;
+      }
+
+      if (!ac.signal.aborted) setState({ oncekiTarih, oncekiToplam: toplam, loading: false });
+    }
+
+    void run();
+    return () => ac.abort();
+  }, [enabled]);
+
+  return state;
+}
+
 /**
  * Panorama raporlarının GERÇEK veri yaşı.
  *
