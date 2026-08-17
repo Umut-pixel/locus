@@ -82,8 +82,15 @@ function BorcTazeligi() {
   );
 }
 
-/** ±%0.5 içindeki günlük değişim "durgun" sayılır — kuruş oynamalarını gürültü sayar. */
-const NET_CIRO_TREND_ESIK = 0.005;
+/**
+ * ±%0.05 içindeki günlük değişim "durgun" sayılır — bu sadece kayan nokta
+ * gürültüsüne karşı bir taban, iş kararı değil. musteri_metrik_gecmis günde
+ * bir kez (pg_cron, 08:15 TR) dolduğu için gerçek gün-gün farkları çoğu zaman
+ * %0.1–1 aralığında kalıyor (2026-08-13→17: -%16.7, +%1.0, -%0.07, +%0.41,
+ * %0). Eski %0.5 eşiği bu farkların çoğunu "durgun"a yutuyordu — gösterge
+ * neredeyse hiç ok göstermiyordu. Bkz. useNetCiroTrendi.
+ */
+const NET_CIRO_TREND_ESIK = 0.0005;
 
 /**
  * Toplam net ciro'nun bir önceki güne göre yönü. Yalnızca filtre yokken
@@ -106,7 +113,7 @@ function NetCiroTrend({
     oncekiToplam === 0 ? 0 : (guncelToplam - oncekiToplam) / Math.abs(oncekiToplam);
   const yon: "yukari" | "asagi" | "durgun" =
     Math.abs(degisim) < NET_CIRO_TREND_ESIK ? "durgun" : degisim > 0 ? "yukari" : "asagi";
-  const yuzde = `%${Math.abs(degisim * 100).toFixed(1)}`;
+  const yuzde = `%${Math.abs(degisim * 100).toFixed(2)}`;
   const baslik =
     yon === "durgun"
       ? `${formatDate(oncekiTarih)} toplamına göre neredeyse değişmedi (${yuzde})`

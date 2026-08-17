@@ -678,6 +678,11 @@ export function useMusteriTrend(musteriKodlari: readonly string[]): {
   return { trendMap, loading };
 }
 
+/** Tarayıcı UTC'sinden bağımsız İstanbul takvim günü (YYYY-MM-DD) — bkz. useNetCiroTrendi. */
+function istanbulTarihi(): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Istanbul" }).format(new Date());
+}
+
 export interface NetCiroTrendi {
   /** Bugünden önceki en son snapshot günü (musteri_metrik_gecmis) — yoksa null. */
   oncekiTarih: string | null;
@@ -706,7 +711,11 @@ export function useNetCiroTrendi(enabled: boolean): NetCiroTrendi {
     setState((s) => ({ ...s, loading: true }));
 
     async function run() {
-      const bugun = new Date().toISOString().slice(0, 10);
+      // snapshot_tarihi, current_date'i Postgres'in cron sırasındaki oturumundan
+      // alıyor (pg_cron 08:15 TR'de çalışıyor) — bu yüzden "bugün" tarayıcının
+      // toISOString()'ı (UTC) değil, İstanbul takvim günü olmalı. UTC kullanmak
+      // gece yarısı ile 03:00 arası bir gün geriye kayıp yanlış satırı seçtiriyordu.
+      const bugun = istanbulTarihi();
       const { data: oncekiSatir, error: tarihErr } = await supabase
         .from(MUSTERI_METRIK_GECMIS_TABLE)
         .select("snapshot_tarihi")
