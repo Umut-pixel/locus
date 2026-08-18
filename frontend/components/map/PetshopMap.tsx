@@ -5,8 +5,10 @@ import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { Typography } from "@heroui/react";
 
+import { THEME_STORAGE_KEY, useTheme } from "@/components/theme/ThemeProvider";
 import { DEPOT } from "@/lib/depot";
-import { DEFAULT_MAP_VIEW, MAPBOX_STYLE_URL, MAPBOX_TOKEN } from "@/lib/mapbox-style";
+import { DEFAULT_MAP_VIEW, MAPBOX_STYLE_URL, MAPBOX_TOKEN, MAP_OVERLAY_SLOT } from "@/lib/mapbox-style";
+import { SHIPMENT_OPERATIONS_LIGHT_STYLE } from "@/lib/mapbox-style-light";
 import { clusterConfigForZoom, type ClusterConfig } from "@/lib/map-clusters";
 import {
   CLUSTER_COUNT_LAYER,
@@ -19,7 +21,6 @@ import {
   addCustomerLayers,
   applyClusterDimPaint,
   recreateCustomerSource,
-  setCustomerTipRingVisibility,
 } from "@/lib/map-customer-layers";
 import { snapSegmentsToRoads } from "@/lib/mapbox-directions";
 import {
@@ -43,10 +44,11 @@ import {
   recreatePotansiyelSource,
   setPotansiyelData,
   setPotansiyelSelectedId,
-  setPotansiyelTipRingVisibility,
   setPotansiyelVisibility,
 } from "@/lib/map-potansiyel-layers";
 import type { PotansiyelFeatureCollection } from "@/lib/potansiyel-geojson";
+import { RISK_COLORS, RISK_SHORT_LABELS } from "@/lib/risk-style";
+import { TIP_LABELS, TIP_STROKE_COLORS } from "@/lib/tip-style";
 import type { MusteriHarita, PotansiyelHarita } from "@/lib/types";
 import {
   GEOLOCATE_FIT_OPTIONS,
@@ -64,7 +66,7 @@ const ROUTE_ORDER_LAYER = "route-order-labels";
 /** Google Maps directions mavi */
 const ROUTE_HIGHLIGHT_COLOR = "#4285F4";
 const ROUTE_LINE_COLOR = "#4285F4";
-const ROUTE_LINE_CASING_COLOR = "#1A73E8";
+const ROUTE_LINE_CASING_COLOR = "#7667F8";
 const EMPTY_FEATURE_COLLECTION: MusteriFeatureCollection = {
   type: "FeatureCollection",
   features: [],
@@ -130,7 +132,6 @@ export const PetshopMap = memo(function PetshopMap({
   potansiyelData = EMPTY_POTANSIYEL_COLLECTION,
   potansiyelVisible = false,
   selectedPotansiyelId = null,
-  showTipRing = true,
   onSelectMusteri,
   onSelectPotansiyel,
 }: PetshopMapProps) {
@@ -140,7 +141,9 @@ export const PetshopMap = memo(function PetshopMap({
   const dataRef = useRef(data);
   const potansiyelDataRef = useRef(potansiyelData);
   const potansiyelVisibleRef = useRef(potansiyelVisible);
-  const tipRingVisibleRef = useRef(showTipRing);
+  const hoveredIdRef = useRef<string | number | undefined>(undefined);
+  const closeTimerRef = useRef(0);
+  const lastHoveredPropsRef = useRef<MusteriHarita | null>(null);
   const onSelectRef = useRef(onSelectMusteri);
   const onSelectPotansiyelRef = useRef(onSelectPotansiyel);
   const routeTweenRef = useRef<RouteRevealTween | null>(null);
@@ -152,6 +155,18 @@ export const PetshopMap = memo(function PetshopMap({
   const clusterZoomTimerRef = useRef(0);
   const popupRef = useRef<mapboxgl.Popup | null>(null);
   const depotMarkerRef = useRef<mapboxgl.Marker | null>(null);
+  const mountOverlaysRef = useRef<(() => void) | null>(null);
+  /** setStyle() sonrası hangi basemap yüklü — gereksiz tekrar swap'ı önler. */
+  const currentMapThemeRef = useRef<"light" | "dark" | null>(null);
+  /**
+   * ThemeProvider ilk mount'ta her zaman "light" ile başlar (SSR-safe),
+   * gerçek DOM class'ını bir tık sonra effect'te senkronlar. Bu yüzden bu
+   * effect'in İLK çalışması context'ten gelen bayat değeri taşıyabilir —
+   * atlanır; kurulum effect'i DOM'dan doğrudan okuyup zaten doğru stille
+   * başlatmıştı.
+   */
+  const skipFirstThemeSyncRef = useRef(true);
+  const { theme } = useTheme();
 
   useEffect(() => {
     dataRef.current = data;
@@ -165,9 +180,6 @@ export const PetshopMap = memo(function PetshopMap({
     potansiyelVisibleRef.current = potansiyelVisible;
   }, [potansiyelVisible]);
 
-  useEffect(() => {
-    tipRingVisibleRef.current = showTipRing;
-  }, [showTipRing]);
 
   useEffect(() => {
     onSelectRef.current = onSelectMusteri;
@@ -285,9 +297,21 @@ export const PetshopMap = memo(function PetshopMap({
 
     mapboxgl.accessToken = MAPBOX_TOKEN;
     const startView = initialMapViewFromUserLocation(DEFAULT_MAP_VIEW);
+    // Context henüz "light" varsayılanından senkronlanmamış olabilir, DOM class'ı
+    // da hydration'ın server (temasız) değerine geri aldığı an olabilir —
+    // ikisi de güvenilmez; doğrudan localStorage'a (aynı kaynak ThemeProvider'ın
+    // kullandığı) bak.
+    let storedTheme: string | null = null;
+    try {
+      storedTheme = window.localStorage.getItem(THEME_STORAGE_KEY);
+    } catch {
+      // localStorage erişilemez — light varsayılan kalır.
+    }
+    const initialIsDark = storedTheme === "dark";
+    currentMapThemeRef.current = initialIsDark ? "dark" : "light";
     const map = new mapboxgl.Map({
       container: containerRef.current,
-      style: MAPBOX_STYLE_URL,
+      style: initialIsDark ? MAPBOX_STYLE_URL : SHIPMENT_OPERATIONS_LIGHT_STYLE,
       center: startView.center,
       zoom: startView.zoom,
       attributionControl: true,
@@ -332,6 +356,7 @@ export const PetshopMap = memo(function PetshopMap({
           cluster: true,
           clusterMaxZoom: initialCfg.maxZoom,
           clusterRadius: initialCfg.radius,
+          promoteId: "musteri_kodu",
         });
       }
 
@@ -349,15 +374,12 @@ export const PetshopMap = memo(function PetshopMap({
       }
 
       if (!map.getLayer(CLUSTER_LAYER)) {
-        addCustomerLayers(map, clustersDimmedRef.current, undefined, {
-          tipRingVisible: tipRingVisibleRef.current,
-        });
+        addCustomerLayers(map, clustersDimmedRef.current, undefined);
       }
 
       // Prospect katmanı — müşterilerden sonra, rota katmanlarından önce
       addPotansiyelLayers(map, initialCfg, {
         visible: potansiyelVisibleRef.current,
-        tipRingVisible: tipRingVisibleRef.current,
       });
       setPotansiyelData(map, potansiyelDataRef.current);
       setPotansiyelSelectedId(map, selectedPotansiyelIdRef.current);
@@ -366,6 +388,7 @@ export const PetshopMap = memo(function PetshopMap({
         map.addLayer({
           id: ROUTE_LINE_CASING_LAYER,
           type: "line",
+          slot: MAP_OVERLAY_SLOT,
           source: ROUTE_LINE_SOURCE_ID,
           layout: {
             "line-join": "round",
@@ -382,6 +405,7 @@ export const PetshopMap = memo(function PetshopMap({
         map.addLayer({
           id: ROUTE_LINE_LAYER,
           type: "line",
+          slot: MAP_OVERLAY_SLOT,
           source: ROUTE_LINE_SOURCE_ID,
           layout: {
             "line-join": "round",
@@ -399,6 +423,7 @@ export const PetshopMap = memo(function PetshopMap({
         map.addLayer({
           id: ROUTE_GLOW_LAYER,
           type: "circle",
+          slot: MAP_OVERLAY_SLOT,
           source: ROUTE_SOURCE_ID,
           paint: {
             "circle-radius": 16,
@@ -413,6 +438,7 @@ export const PetshopMap = memo(function PetshopMap({
         map.addLayer({
           id: ROUTE_LAYER,
           type: "circle",
+          slot: MAP_OVERLAY_SLOT,
           source: ROUTE_SOURCE_ID,
           paint: {
             "circle-radius": 11,
@@ -428,6 +454,7 @@ export const PetshopMap = memo(function PetshopMap({
         map.addLayer({
           id: ROUTE_ORDER_LAYER,
           type: "symbol",
+          slot: MAP_OVERLAY_SLOT,
           source: ROUTE_SOURCE_ID,
           filter: ["has", "ziyaret_sira"],
           minzoom: 8,
@@ -475,7 +502,11 @@ export const PetshopMap = memo(function PetshopMap({
 
       loadedRef.current = true;
       dataSignatureRef.current = "";
+    };
+    mountOverlaysRef.current = mountOverlays;
 
+    map.on("load", () => {
+      mountOverlays();
       // İzin bir kez verildiyse tarayıcı tekrar sormaz; her girişte nokta + merkez.
       requestAnimationFrame(() => {
         try {
@@ -484,35 +515,108 @@ export const PetshopMap = memo(function PetshopMap({
           // Geolocation API yok / insecure context
         }
       });
-    };
-
-    map.on("load", mountOverlays);
+    });
 
     const coarsePointer = window.matchMedia("(hover: none)").matches;
 
-    map.on("mouseenter", POINT_HIT_LAYER, (e) => {
-      // Dokunmatikte hover popup gereksiz maliyeti önle.
+    /** Hover state + popup'u temizler, gecikme ile. */
+    const scheduleClose = (delay: number) => {
+      window.clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = window.setTimeout(() => {
+        if (hoveredIdRef.current !== undefined) {
+          map.setFeatureState(
+            { source: SOURCE_ID, id: hoveredIdRef.current },
+            { hover: false }
+          );
+          hoveredIdRef.current = undefined;
+        }
+        popup.remove();
+      }, delay);
+    };
+
+    /** Popup DOM hazır olunca bir kez hover listener ekler. */
+    let popupListenersAttached = false;
+    const attachPopupListeners = () => {
+      if (popupListenersAttached) return;
+      const popupEl = popup.getElement();
+      if (!popupEl) return;
+      popupEl.addEventListener("mouseenter", () =>
+        window.clearTimeout(closeTimerRef.current)
+      );
+      popupEl.addEventListener("mouseleave", () => scheduleClose(320));
+      popupListenersAttached = true;
+    };
+
+    map.on("mousemove", POINT_HIT_LAYER, (e) => {
+      // Dokunmatikte hover gereksiz maliyeti önle.
       if (coarsePointer) return;
+      // Bekleyen kapanma timer'ını iptal et (pin→popup geçişinde kapanma yok).
+      window.clearTimeout(closeTimerRef.current);
       map.getCanvas().style.cursor = "pointer";
+
       const feature = e.features?.[0];
+      const newId = feature?.id as string | number | undefined;
+
+      // Feature state hover tracking
+      if (hoveredIdRef.current !== newId) {
+        if (hoveredIdRef.current !== undefined) {
+          map.setFeatureState(
+            { source: SOURCE_ID, id: hoveredIdRef.current },
+            { hover: false }
+          );
+        }
+        hoveredIdRef.current = newId;
+        if (newId !== undefined) {
+          map.setFeatureState(
+            { source: SOURCE_ID, id: newId },
+            { hover: true }
+          );
+        }
+      }
+
       if (!feature || feature.geometry.type !== "Point") return;
       const props = feature.properties as MusteriHarita;
+      lastHoveredPropsRef.current = props;
       const [lon, lat] = feature.geometry.coordinates as [number, number];
-      popup
-        .setLngLat([lon, lat])
-        .setHTML(
-          `<div style="line-height:1.45">
-              <div style="font-family:var(--font-geist-sans),system-ui,sans-serif;font-size:12px;font-weight:500">${escapeHtml(props.unvan)}</div>
-              <div style="font-family:var(--font-geist-mono),ui-monospace,monospace;font-size:10px;letter-spacing:0.06em;text-transform:uppercase;opacity:0.6;margin-top:3px">${escapeHtml(props.sehir ?? "")}${props.ilce ? " / " + escapeHtml(props.ilce) : ""}</div>
-            </div>`
-        )
-        .addTo(map);
+      popup.setLngLat([lon, lat]).setHTML(buildMusteriPopupHTML(props)).addTo(map);
+      attachPopupListeners();
     });
 
     map.on("mouseleave", POINT_HIT_LAYER, () => {
       map.getCanvas().style.cursor = "";
-      popup.remove();
+      // 220 ms gecikme: kullanıcı popup'a geçiyorsa kapanmayı önler.
+      scheduleClose(220);
     });
+
+    // Popup içindeki butonlar için event delegation
+    const container = containerRef.current;
+    const onContainerClick = (ev: MouseEvent) => {
+      const btn = (ev.target as HTMLElement).closest<HTMLElement>(
+        "[data-locus-action]"
+      );
+      if (!btn) return;
+      ev.stopPropagation();
+      const action = btn.getAttribute("data-locus-action");
+      const props = lastHoveredPropsRef.current;
+      if (!props) return;
+      window.clearTimeout(closeTimerRef.current);
+      if (hoveredIdRef.current !== undefined) {
+        map.setFeatureState(
+          { source: SOURCE_ID, id: hoveredIdRef.current },
+          { hover: false }
+        );
+        hoveredIdRef.current = undefined;
+      }
+      popup.remove();
+      if (action === "select") {
+        onSelectRef.current(props, undefined);
+      }
+      // "route": gelecekte highlightedRutKod bağlanabilir — şimdi detay açar.
+      if (action === "route") {
+        onSelectRef.current(props, undefined);
+      }
+    };
+    container?.addEventListener("click", onContainerClick);
 
     const syncClustersToZoom = () => {
       const cfg = clusterConfigForZoom(map.getZoom());
@@ -526,14 +630,12 @@ export const PetshopMap = memo(function PetshopMap({
         dimmed: clustersDimmedRef.current,
         selectedKod: selectedKodRef.current,
         beforeLayerId: potansiyelBefore,
-        tipRingVisible: tipRingVisibleRef.current,
       });
       if (map.getSource(POTANSIYEL_SOURCE_ID)) {
         recreatePotansiyelSource(map, potansiyelDataRef.current, cfg, {
           visible: potansiyelVisibleRef.current,
           selectedId: selectedPotansiyelIdRef.current,
           beforeLayerId: ROUTE_LINE_CASING_LAYER,
-          tipRingVisible: tipRingVisibleRef.current,
         });
       }
     };
@@ -658,6 +760,8 @@ export const PetshopMap = memo(function PetshopMap({
 
     return () => {
       window.clearTimeout(clusterZoomTimerRef.current);
+      window.clearTimeout(closeTimerRef.current);
+      container?.removeEventListener("click", onContainerClick);
       loadedRef.current = false;
       depotMarkerRef.current?.remove();
       depotMarkerRef.current = null;
@@ -667,6 +771,22 @@ export const PetshopMap = memo(function PetshopMap({
       mapRef.current = null;
     };
   }, []);
+
+  // Sidebar'daki tema toggle'ı — basemap'i light/dark Studio stili arasında değiştirir.
+  useEffect(() => {
+    if (skipFirstThemeSyncRef.current) {
+      skipFirstThemeSyncRef.current = false;
+      return;
+    }
+    const map = mapRef.current;
+    if (!map || !loadedRef.current) return;
+    if (currentMapThemeRef.current === theme) return;
+    currentMapThemeRef.current = theme;
+    map.setStyle(theme === "dark" ? MAPBOX_STYLE_URL : SHIPMENT_OPERATIONS_LIGHT_STYLE);
+    map.once("style.load", () => {
+      mountOverlaysRef.current?.();
+    });
+  }, [theme]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -713,21 +833,7 @@ export const PetshopMap = memo(function PetshopMap({
     const map = mapRef.current;
     if (!map || !loadedRef.current) return;
     setPotansiyelVisibility(map, potansiyelVisible);
-    setPotansiyelTipRingVisibility(
-      map,
-      potansiyelVisible && tipRingVisibleRef.current
-    );
   }, [potansiyelVisible]);
-
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map || !loadedRef.current) return;
-    setCustomerTipRingVisibility(map, showTipRing);
-    setPotansiyelTipRingVisibility(
-      map,
-      potansiyelVisibleRef.current && showTipRing
-    );
-  }, [showTipRing]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -932,6 +1038,139 @@ function escapeHtml(value: string): string {
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;");
+}
+
+// ── SVG icon strings (Lucide uyumlu, 12×12) ─────────────────────────────────
+const ICON_PIN = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="3"/></svg>`;
+const ICON_ROUTE = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="19" r="3"/><path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15"/><circle cx="18" cy="5" r="3"/></svg>`;
+const ICON_DEBT = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>`;
+
+function fmtTutar(val: number): string {
+  if (val >= 1_000_000) return `₺${(val / 1_000_000).toFixed(1)}M`;
+  if (val >= 1_000) return `₺${(val / 1_000).toFixed(1)}K`;
+  return `₺${val.toFixed(0)}`;
+}
+
+function fmtKg(val: number): string {
+  if (val >= 1_000) return `${(val / 1_000).toFixed(1)} T`;
+  return `${Math.round(val)} kg`;
+}
+
+function fmtDate(dateStr: string | null | undefined): string {
+  if (!dateStr) return "—";
+  try {
+    return new Date(dateStr).toLocaleDateString("tr-TR", {
+      day: "numeric",
+      month: "short",
+    });
+  } catch {
+    return "—";
+  }
+}
+
+function debtStatus(props: MusteriHarita): { label: string; color: string } {
+  if (props.borc_riskli === true || props.borc_riskli === ("true" as unknown)) {
+    return { label: "Riskli (56+ hf)", color: RISK_COLORS.riskli };
+  }
+  const riskli = Number(props.yas_riskli_tutar ?? 0);
+  if (riskli > 0) {
+    return { label: "Borçlu", color: RISK_COLORS.izlenmeli };
+  }
+  return { label: "Temiz", color: RISK_COLORS.saglikli };
+}
+
+function buildMusteriPopupHTML(props: MusteriHarita): string {
+  // ── Risk / kanal ──────────────────────────────────────────────────────────
+  const risk = props.risk_durumu ?? "hic_teslimat_yok";
+  const riskColor = RISK_COLORS[risk] ?? "#94a3b8";
+  const riskLabel = RISK_SHORT_LABELS[risk] ?? risk;
+
+  const tipKanal = props.tip_kanal ?? "diger";
+  const chColor = TIP_STROKE_COLORS[tipKanal] ?? "#8A8A9A";
+  const chLabel = TIP_LABELS[tipKanal] ?? "Diğer";
+
+  // ── Lokasyon ─────────────────────────────────────────────────────────────
+  const loc = [props.ilce, props.sehir].filter(Boolean).join(" / ");
+  const adres = props.adres ?? loc;
+
+  // ── Rut / ST ──────────────────────────────────────────────────────────────
+  const rutKod = props.rut_kod ?? null;
+  const rutAciklama = props.rut_aciklama ?? (rutKod ? `Rut ${rutKod}` : null);
+  const stAdi = props.belge_st_adi ?? null;
+  const routeText = stAdi ?? rutAciklama;
+
+  // ── Borç ─────────────────────────────────────────────────────────────────
+  const debt = debtStatus(props);
+
+  // ── Metrikler ─────────────────────────────────────────────────────────────
+  const sonTeslTarih = fmtDate(props.son_teslimat_tarihi);
+  const ciro = fmtTutar(props.toplam_tutar ?? 0);
+  const agirlik = fmtKg(props.toplam_agirlik ?? 0);
+  const gecikmeGun = props.son_teslimattan_gecen_gun ?? null;
+  const gecikmeStr = gecikmeGun !== null ? `${gecikmeGun} gün` : "—";
+
+  return `<div class="lc-card">
+
+  <div class="lc-head">
+    <span class="lc-hdot" style="background:${riskColor};box-shadow:0 0 6px ${riskColor}"></span>
+    <span class="lc-hname">${escapeHtml(props.unvan)}</span>
+    <span class="lc-risk-badge" style="--rc:${riskColor}">${escapeHtml(riskLabel)}</span>
+  </div>
+
+  <div class="lc-sep"></div>
+
+  <div class="lc-channel-row">
+    <span class="lc-ch-pill" style="--ch:${chColor}">${escapeHtml(chLabel)}</span>
+  </div>
+
+  ${adres ? `<div class="lc-row">
+    <span class="lc-ico">${ICON_PIN}</span>
+    <span class="lc-rt">${escapeHtml(adres)}</span>
+  </div>` : ""}
+
+  ${routeText ? `<div class="lc-row">
+    <span class="lc-ico">${ICON_ROUTE}</span>
+    <span class="lc-rt">${escapeHtml(routeText)}</span>
+    ${rutKod ? `<span class="lc-chip">${escapeHtml(rutKod)}</span>` : ""}
+  </div>` : ""}
+
+  <div class="lc-row">
+    <span class="lc-ico">${ICON_DEBT}</span>
+    <span class="lc-rt">Borç</span>
+    <span class="lc-dbadge" style="--dc:${debt.color}">${escapeHtml(debt.label)}</span>
+  </div>
+
+  <div class="lc-sep lc-sep--gap"></div>
+
+  <div class="lc-grid">
+    <div class="lc-metric">
+      <span class="lc-mlbl">Son Teslimat</span>
+      <span class="lc-mval">${sonTeslTarih}</span>
+    </div>
+    <div class="lc-metric">
+      <span class="lc-mlbl">Ciro</span>
+      <span class="lc-mval">${ciro}</span>
+    </div>
+    <div class="lc-metric">
+      <span class="lc-mlbl">Ağırlık</span>
+      <span class="lc-mval">${agirlik}</span>
+    </div>
+    <div class="lc-metric">
+      <span class="lc-mlbl">Gecikme</span>
+      <span class="lc-mval ${gecikmeGun !== null && gecikmeGun > 90 ? "lc-mval--warn" : ""}">${gecikmeStr}</span>
+    </div>
+  </div>
+
+  <div class="lc-actions">
+    <button class="lc-btn lc-btn--primary" data-locus-action="select" data-kod="${escapeHtml(props.musteri_kodu)}">
+      Detayı Gör
+    </button>
+    <button class="lc-btn lc-btn--ghost" data-locus-action="route" data-rut="${rutKod ? escapeHtml(rutKod) : ""}">
+      Rotada Göster
+    </button>
+  </div>
+
+</div>`;
 }
 
 function createDepotMarker(): mapboxgl.Marker {

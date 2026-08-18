@@ -7,6 +7,7 @@ import {
   clusterStrokeOpacityExpr,
   type ClusterConfig,
 } from "@/lib/map-clusters";
+import { MAP_OVERLAY_SLOT } from "@/lib/mapbox-style";
 import { RISK_COLORS } from "@/lib/risk-style";
 import { tipStrokeColorExpr } from "@/lib/tip-style";
 import type { MusteriFeatureCollection } from "@/lib/geojson";
@@ -16,23 +17,23 @@ export const CLUSTER_LAYER = "clusters";
 export const CLUSTER_COUNT_LAYER = "cluster-count";
 /** Güncellenen noktanın etrafındaki dış halka (point'in altında). */
 export const UPDATED_RING_LAYER = "updated-point-ring";
-/** Petshop / veteriner — risk noktasının çevresinde renkli halka. */
-export const TIP_RING_LAYER = "tip-point-ring";
+/** Kanal renginde bulanık hale — unclustered-point'in altında. */
+export const MARKER_HALO_LAYER = "marker-halo";
 export const POINT_LAYER = "unclustered-point";
 /** Görünmez dokunma alanı — görsel noktadan büyük. */
 export const POINT_HIT_LAYER = "unclustered-point-hit";
 export const SELECTED_LAYER = "selected-point";
 
-/** Son yüklemede güncellenen müşteri — açık, net dış halka. */
-export const UPDATED_RING_COLOR = "#f4f4f5";
+/** Son yüklemede güncellenen müşteri — koyu, net dış halka. */
+export const UPDATED_RING_COLOR = "#1c1d20";
 /** "Sonra bak" favori — nokta üzerinde Airbnb Rausch halka. */
 export const MUSTERI_FAVORI_STROKE = "#ff385c";
 
 /** Dokunma hedefi (~36–44px); görsel yarıçap ayrı kalır. */
 export const POINT_HIT_RADIUS = 18;
 export const POINT_VISUAL_RADIUS = 7;
-/** Tip halkası — point ile updated ring arasında. */
-export const TIP_RING_RADIUS = 10;
+export const POINT_SELECTED_RADIUS = 9;
+export const HALO_BASE_RADIUS = 13;
 
 export function applyClusterDimPaint(map: MapboxMap, dimmed: boolean) {
   if (map.getLayer(CLUSTER_LAYER)) {
@@ -60,25 +61,24 @@ export function applyClusterDimPaint(map: MapboxMap, dimmed: boolean) {
 export function addCustomerLayers(
   map: MapboxMap,
   dimmed: boolean,
-  beforeId?: string,
-  opts?: { tipRingVisible?: boolean }
+  beforeId?: string
 ) {
   const before =
     beforeId && map.getLayer(beforeId) ? beforeId : undefined;
-  const tipVisible = opts?.tipRingVisible !== false ? "visible" : "none";
 
   map.addLayer(
     {
       id: CLUSTER_LAYER,
       type: "circle",
+      slot: MAP_OVERLAY_SLOT,
       source: SOURCE_ID,
       filter: ["has", "point_count"],
       paint: {
-        "circle-color": "#e9eaec",
+        "circle-color": "#FFFFFF",
         "circle-radius": clusterRadiusExpr(),
         "circle-opacity": clusterCircleOpacityExpr(dimmed),
         "circle-stroke-width": 5,
-        "circle-stroke-color": "rgba(233,234,236,0.22)",
+        "circle-stroke-color": "rgba(28,29,32,0.16)",
         "circle-stroke-opacity": clusterStrokeOpacityExpr(dimmed),
       },
     },
@@ -89,6 +89,7 @@ export function addCustomerLayers(
     {
       id: CLUSTER_COUNT_LAYER,
       type: "symbol",
+      slot: MAP_OVERLAY_SLOT,
       source: SOURCE_ID,
       filter: ["has", "point_count"],
       layout: {
@@ -109,6 +110,7 @@ export function addCustomerLayers(
     {
       id: UPDATED_RING_LAYER,
       type: "circle",
+      slot: MAP_OVERLAY_SLOT,
       source: SOURCE_ID,
       filter: [
         "all",
@@ -127,29 +129,29 @@ export function addCustomerLayers(
     before
   );
 
-  // Tip halkası — petshop (cyan) / veteriner (fuchsia); risk fill bozulmaz
+  // Kanal renginde bulanık hale — unclustered-point'in altında
   map.addLayer(
     {
-      id: TIP_RING_LAYER,
+      id: MARKER_HALO_LAYER,
       type: "circle",
+      slot: MAP_OVERLAY_SLOT,
       source: SOURCE_ID,
-      filter: [
-        "all",
-        ["!", ["has", "point_count"]],
-        [
-          "any",
-          ["==", ["get", "tip_kanal"], "petshop"],
-          ["==", ["get", "tip_kanal"], "veteriner"],
-        ],
-      ],
-      layout: { visibility: tipVisible },
+      filter: ["!", ["has", "point_count"]],
       paint: {
-        "circle-radius": TIP_RING_RADIUS,
-        "circle-color": "rgba(0,0,0,0)",
-        "circle-stroke-width": 2.5,
-        "circle-stroke-color": tipStrokeColorExpr(),
-        "circle-stroke-opacity": 0.95,
-        "circle-opacity": 1,
+        "circle-radius": [
+          "case",
+          ["boolean", ["feature-state", "hover"], false],
+          15,
+          HALO_BASE_RADIUS,
+        ],
+        "circle-color": tipStrokeColorExpr("#8A8A9A"),
+        "circle-blur": 0.8,
+        "circle-opacity": [
+          "case",
+          ["boolean", ["feature-state", "hover"], false],
+          0.18,
+          0.12,
+        ],
       },
     },
     before
@@ -159,9 +161,11 @@ export function addCustomerLayers(
     {
       id: POINT_LAYER,
       type: "circle",
+      slot: MAP_OVERLAY_SLOT,
       source: SOURCE_ID,
       filter: ["!", ["has", "point_count"]],
       paint: {
+        // Fill = risk durumu — anında okunabilir birincil gösterge
         "circle-color": [
           "match",
           ["get", "risk_durumu"],
@@ -175,30 +179,33 @@ export function addCustomerLayers(
           RISK_COLORS.hic_teslimat_yok,
           RISK_COLORS.hic_teslimat_yok,
         ],
+        // Düşük geocode hassasiyeti → hafif solma (renk okunabilirliği korunur)
         "circle-opacity": [
           "match",
           ["get", "geocode_hassasiyet"],
           "saha_gps",
           1,
           "mahalle_merkezi",
-          0.75,
+          0.9,
           "ilce_merkezi",
-          0.45,
-          0.6,
+          0.75,
+          0.8,
         ],
-        "circle-radius": POINT_VISUAL_RADIUS,
-        "circle-stroke-width": [
+        "circle-radius": [
           "case",
-          ["boolean", ["get", "favori"], false],
-          2.75,
-          1.25,
+          ["boolean", ["feature-state", "hover"], false],
+          8,
+          POINT_VISUAL_RADIUS,
         ],
+        // Stroke = kanal tipi (petshop mor / veteriner mor-lila); favori = kırmızı
+        "circle-stroke-width": 2.5,
         "circle-stroke-color": [
           "case",
           ["boolean", ["get", "favori"], false],
           MUSTERI_FAVORI_STROKE,
-          "rgba(255,255,255,0.85)",
+          tipStrokeColorExpr("#8A8A9A"),
         ],
+        "circle-stroke-opacity": 1,
       },
     },
     before
@@ -209,6 +216,7 @@ export function addCustomerLayers(
     {
       id: POINT_HIT_LAYER,
       type: "circle",
+      slot: MAP_OVERLAY_SLOT,
       source: SOURCE_ID,
       filter: ["!", ["has", "point_count"]],
       paint: {
@@ -235,13 +243,14 @@ export function addCustomerLayers(
     {
       id: SELECTED_LAYER,
       type: "circle",
+      slot: MAP_OVERLAY_SLOT,
       source: SOURCE_ID,
       filter: ["==", ["get", "musteri_kodu"], "__none__"],
       paint: {
-        "circle-radius": 11,
+        "circle-radius": POINT_SELECTED_RADIUS,
         "circle-color": "rgba(0,0,0,0)",
-        "circle-stroke-width": 2.5,
-        "circle-stroke-color": "#f4f4f5",
+        "circle-stroke-width": 3,
+        "circle-stroke-color": tipStrokeColorExpr("#6C63FF"),
       },
     },
     before
@@ -256,7 +265,6 @@ export function recreateCustomerSource(
     dimmed: boolean;
     selectedKod: string | null;
     beforeLayerId: string;
-    tipRingVisible?: boolean;
   }
 ) {
   if (!map.getSource(SOURCE_ID)) return;
@@ -269,7 +277,7 @@ export function recreateCustomerSource(
     SELECTED_LAYER,
     POINT_HIT_LAYER,
     POINT_LAYER,
-    TIP_RING_LAYER,
+    MARKER_HALO_LAYER,
     UPDATED_RING_LAYER,
     CLUSTER_COUNT_LAYER,
     CLUSTER_LAYER,
@@ -284,11 +292,10 @@ export function recreateCustomerSource(
     cluster: true,
     clusterMaxZoom: cfg.maxZoom,
     clusterRadius: cfg.radius,
+    promoteId: "musteri_kodu",
   });
 
-  addCustomerLayers(map, opts.dimmed, before, {
-    tipRingVisible: opts.tipRingVisible,
-  });
+  addCustomerLayers(map, opts.dimmed, before);
 
   if (map.getLayer(SELECTED_LAYER)) {
     map.setFilter(SELECTED_LAYER, [
@@ -297,16 +304,4 @@ export function recreateCustomerSource(
       opts.selectedKod ?? "__none__",
     ]);
   }
-}
-
-export function setCustomerTipRingVisibility(
-  map: MapboxMap,
-  visible: boolean
-) {
-  if (!map.getLayer(TIP_RING_LAYER)) return;
-  map.setLayoutProperty(
-    TIP_RING_LAYER,
-    "visibility",
-    visible ? "visible" : "none"
-  );
 }

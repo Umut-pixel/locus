@@ -5,6 +5,7 @@ import { MenuIcon, PanelLeftCloseIcon, PanelLeftIcon } from "lucide-react";
 
 import { AppSidebarNavItem } from "@/components/sidebar/AppSidebarNavItem";
 import { LogoutButton } from "@/components/auth/LogoutButton";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { CelixionMark } from "@/components/brand/CelixionMark";
 import { Button } from "@/components/ui/button";
 import {
@@ -152,7 +153,10 @@ function SidebarBody({
         )}
       >
         {collapsed ? (
-          <LogoutButton className="text-muted-foreground" />
+          <div className="flex flex-col items-center gap-1">
+            <ThemeToggle className="text-muted-foreground" />
+            <LogoutButton className="text-muted-foreground" />
+          </div>
         ) : (
           <>
             <div className="mb-1.5 px-1">
@@ -162,7 +166,7 @@ function SidebarBody({
                   {HARITA_KAPSAMI.konumlanan}/{HARITA_KAPSAMI.toplam}
                 </span>
               </div>
-              <div className="h-[3px] overflow-hidden rounded-full bg-white/10">
+              <div className="h-[3px] overflow-hidden rounded-full bg-foreground/10">
                 <div
                   className="h-full rounded-full"
                   style={{
@@ -182,7 +186,10 @@ function SidebarBody({
                   Patigo
                 </span>
               </div>
-              <LogoutButton className="shrink-0 text-muted-foreground" />
+              <div className="flex shrink-0 items-center gap-0.5">
+                <ThemeToggle className="text-muted-foreground" />
+                <LogoutButton className="text-muted-foreground" />
+              </div>
             </div>
           </>
         )}

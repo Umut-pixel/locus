@@ -1,11 +1,11 @@
 import type { GeocodeHassasiyet, RiskDurumu } from "./types";
 
-/** Charcoal zeminde okunur, neon'a kaçmayan risk renkleri. */
+/** Koyu basemap'te vivid, ayırt edilebilir risk renkleri. */
 export const RISK_COLORS: Record<RiskDurumu, string> = {
   saglikli: "#4ade80",
   izlenmeli: "#fbbf24",
-  riskli: "#ef4444",
-  hic_teslimat_yok: "#8b8f98",
+  riskli: "#f87171",
+  hic_teslimat_yok: "#94a3b8",
 };
 
 export const RISK_LABELS: Record<RiskDurumu, string> = {

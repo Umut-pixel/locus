@@ -2,6 +2,13 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, Inter } from "next/font/google";
 import "./globals.css";
 
+import { ThemeProvider, THEME_STORAGE_KEY } from "@/components/theme/ThemeProvider";
+
+/** Hydration öncesi .dark class'ı uygulanır — FOUC (yanlış tema flaşı) yok. */
+const THEME_INIT_SCRIPT = `(function(){try{var t=localStorage.getItem(${JSON.stringify(
+  THEME_STORAGE_KEY
+)});var d=t==="dark";document.documentElement.classList.toggle("dark",d);document.documentElement.setAttribute("data-theme",d?"dark":"light");}catch(e){}})();`;
+
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -28,8 +35,8 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: "#1a1b1f",
-  colorScheme: "dark",
+  themeColor: "#F8F8FA",
+  colorScheme: "light",
 };
 
 export default function RootLayout({
@@ -40,11 +47,16 @@ export default function RootLayout({
   return (
     <html
       lang="tr"
-      data-theme="dark"
-      className={`dark ${geistSans.variable} ${geistMono.variable} ${inter.variable} h-full antialiased`}
+      data-theme="light"
+      // Blocking script hydration öncesi .dark class'ını/data-theme'i değiştirebilir;
+      // React bu tek attribute mismatch'ini görmezden gelsin, kendi (temasız)
+      // değerine geri almasın.
+      suppressHydrationWarning
+      className={`${geistSans.variable} ${geistMono.variable} ${inter.variable} h-full antialiased`}
     >
       <body className="flex h-dvh min-h-dvh flex-col overflow-hidden overscroll-none">
-        {children}
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+        <ThemeProvider>{children}</ThemeProvider>
       </body>
     </html>
   );

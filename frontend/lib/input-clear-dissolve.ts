@@ -48,7 +48,7 @@ export function cubicBezier(str: string): (t: number) => number {
   };
 }
 
-/** Per-word radial-gradient streak stack (dark UI → white / screen). */
+/** Per-word radial-gradient streak stack (light UI → charcoal/multiply, dark UI → white/screen). */
 export function buildClearGlow(
   text: string,
   font: string,
@@ -59,7 +59,8 @@ export function buildClearGlow(
   const canvas = document.createElement("canvas").getContext("2d");
   if (!canvas) return "";
   canvas.font = font;
-  const rgb = "255,255,255";
+  const isDark = document.documentElement.classList.contains("dark");
+  const rgb = isDark ? "255,255,255" : "28,29,32";
   const w = wrapWidth || 280;
   const spread = readCssNum("--glow-spread", 1.5);
   const layers: string[] = [];

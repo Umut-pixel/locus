@@ -66,58 +66,56 @@
   --row-h-head: 2.625rem; /* 42px — tablo başlık satırı */
 
   /*
-   * Koyu charcoal tema — tüm dashboard'un tek renk kaynağı.
-   * Saf siyah yerine kömür grisi yüzeyler, katmanlar arasında küçük
-   * parlaklık adımları (background → sidebar → card → popover) ve
-   * düşük kontrastlı 1px sınırlar. Vurgu: kırık beyaz primary,
-   * renk yalnızca risk/veri anlamı taşıyan yerlerde.
+   * Açık tema — varsayılan (2026-08-18). Düz/pale gri değil: zemin hafif
+   * soğuk beyaz (haritanın #F8F8FA'sıyla aynı aile), kartlar/popover'lar
+   * bunun üstünde belirgin şekilde daha temiz beyazla "yükselir", sidebar
+   * kendi ayrı tonunda. Koyu temadaki katman mantığı ile aynı: background →
+   * sidebar → card → popover arasında küçük ama fark edilir adımlar.
+   * Kenarlıklar artık beyaz değil siyah-tint (dark temanın tersi).
    */
-  --background: oklch(0.16 0.004 260);
-  --foreground: oklch(0.93 0.003 260);
-  --card: oklch(0.195 0.005 260);
-  --card-foreground: oklch(0.93 0.003 260);
-  --popover: oklch(0.215 0.005 260);
-  --popover-foreground: oklch(0.93 0.003 260);
-  --primary: oklch(0.93 0.003 260);
-  --primary-foreground: oklch(0.18 0.005 260);
-  --secondary: oklch(0.26 0.006 260);
-  --secondary-foreground: oklch(0.93 0.003 260);
-  --muted: oklch(0.23 0.005 260);
-  --muted-foreground: oklch(0.65 0.008 260);
-  --accent: oklch(0.27 0.006 260);
-  --accent-foreground: oklch(0.93 0.003 260);
-  --destructive: oklch(0.62 0.19 25);
-  --border: oklch(1 0 0 / 9%);
-  --input: oklch(1 0 0 / 12%);
-  --ring: oklch(0.93 0.003 260 / 35%);
-  /*
-   * Kategorik seri paleti (pasta/donut dilimleri). Şablonun varsayılan
-   * chart-1..5'i hiçbir yerde kullanılmıyordu ve koyu yüzey için
-   * doğrulanmamıştı (L bandı + komşu ayrım testi FAIL veriyordu). Bu 5 renk
-   * dataviz doğrulayıcısından geçti: mavi/turuncu/turkuaz/sarı/eflatun,
-   * komşu-çift CVD ΔE 8.4 (deutan), normal görüşte ΔE 19.3 — koyu yüzey
-   * #141517'ye karşı. Sabit sırayla kullan (chart-1 her zaman ilk dilim).
-   */
+  --background: oklch(0.965 0.009 258);
+  --foreground: oklch(0.21 0.008 260);
+  --card: oklch(0.995 0.003 260);
+  --card-foreground: oklch(0.21 0.008 260);
+  --popover: oklch(0.995 0.003 260);
+  --popover-foreground: oklch(0.21 0.008 260);
+  --primary: oklch(0.21 0.008 260);
+  --primary-foreground: oklch(0.98 0.004 260);
+  --secondary: oklch(0.915 0.013 258);
+  --secondary-foreground: oklch(0.21 0.008 260);
+  --muted: oklch(0.93 0.011 258);
+  --muted-foreground: oklch(0.47 0.014 258);
+  --accent: oklch(0.895 0.016 256);
+  --accent-foreground: oklch(0.21 0.008 260);
+  --destructive: oklch(0.56 0.2 25);
+  --border: oklch(0 0 0 / 9%);
+  --input: oklch(0 0 0 / 11%);
+  --ring: oklch(0.21 0.008 260 / 30%);
+  /* Chart renkleri her iki temada aynı — koyu yüzey için doğrulanmıştı, açık zeminde de doygun/orta L bandı sayesinde okunur kalıyor. */
   --chart-1: oklch(0.622 0.161 255.1); /* mavi */
   --chart-2: oklch(0.622 0.173 40.1); /* turuncu */
   --chart-3: oklch(0.621 0.128 163.1); /* turkuaz */
   --chart-4: oklch(0.67 0.143 73.2); /* sarı */
   --chart-5: oklch(0.622 0.171 0.8); /* eflatun */
-  /* Stok dağılımı barları (tek seri, sıralı liste) — bkz. UrunSatisDetayi.tsx. */
   --chart-stok: oklch(0.64 0.13 215);
   --radius: 0.8rem;
-  --sidebar: oklch(0.175 0.004 260);
-  --sidebar-foreground: oklch(0.93 0.003 260);
-  --sidebar-primary: oklch(0.93 0.003 260);
-  --sidebar-primary-foreground: oklch(0.18 0.005 260);
-  --sidebar-accent: oklch(0.26 0.006 260);
-  --sidebar-accent-foreground: oklch(0.93 0.003 260);
-  --sidebar-border: oklch(1 0 0 / 8%);
-  --sidebar-ring: oklch(0.93 0.003 260 / 35%);
+  --sidebar: oklch(0.93 0.015 258);
+  --sidebar-foreground: oklch(0.21 0.008 260);
+  --sidebar-primary: oklch(0.21 0.008 260);
+  --sidebar-primary-foreground: oklch(0.98 0.004 260);
+  --sidebar-accent: oklch(0.87 0.018 256);
+  --sidebar-accent-foreground: oklch(0.21 0.008 260);
+  --sidebar-border: oklch(0 0 0 / 9%);
+  --sidebar-ring: oklch(0.21 0.008 260 / 30%);
 }
 
 .dark {
-  /* Dashboard her zaman koyu; .dark sınıfı kullanıldığında aynı token'lar. */
+  /*
+   * Eski koyu charcoal tema — artık varsayılan değil, sidebar'daki
+   * toggle ile opsiyonel geri dönüş. Saf siyah yerine kömür grisi
+   * yüzeyler, katmanlar arası küçük parlaklık adımları, düşük kontrastlı
+   * beyaz-tint sınırlar.
+   */
   --background: oklch(0.16 0.004 260);
   --foreground: oklch(0.93 0.003 260);
   --card: oklch(0.195 0.005 260);
@@ -223,21 +221,278 @@
   }
 }
 
-/* Mapbox hover popup — floating panel katmanıyla aynı yüzey dili */
+/* ── Popup appear — spring easing (motion.dev linear() pattern) ── */
+@keyframes locus-popup-in {
+  from {
+    opacity: 0;
+    transform: scale(0.91) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* ── Popup container — warm glassmorphism ── */
 .petshop-popup .mapboxgl-popup-content {
-  background: oklch(0.215 0.005 260) !important;
-  color: oklch(0.93 0.003 260) !important;
-  border-radius: 10px !important;
-  padding: 8px 12px !important;
-  box-shadow: 0 12px 32px -8px rgba(0, 0, 0, 0.55) !important;
-  border: 1px solid oklch(1 0 0 / 10%);
+  background: rgba(15, 10, 6, 0.95) !important;
+  backdrop-filter: blur(28px) saturate(160%) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(160%) !important;
+  border: 1px solid rgba(255, 200, 130, 0.1) !important;
+  border-radius: 18px !important;
+  padding: 0 !important;
+  box-shadow:
+    0 24px 48px -8px rgba(0, 0, 0, 0.85),
+    0 0 0 1px rgba(255, 255, 255, 0.04) inset,
+    0 1px 0 rgba(255, 210, 120, 0.07) inset !important;
+  color: #fff !important;
+  min-width: 230px;
+  max-width: 290px;
+  overflow: hidden;
+  /* spring-like appear: visual-duration ≈ 0.22s, bounce ≈ 0.35 */
+  animation: locus-popup-in 220ms linear(
+    0, 0.009, 0.036, 0.084, 0.157, 0.255, 0.378, 0.522,
+    0.679, 0.832, 0.954, 1.029, 1.052, 1.038, 1.011,
+    0.990, 0.984, 0.991, 1.001, 1.005, 1
+  ) both !important;
 }
 
 .petshop-popup .mapboxgl-popup-tip {
-  border-top-color: oklch(0.215 0.005 260) !important;
-  border-bottom-color: oklch(0.215 0.005 260) !important;
-  border-left-color: oklch(0.215 0.005 260) !important;
-  border-right-color: oklch(0.215 0.005 260) !important;
+  display: none !important;
+}
+
+/* Warm gradient overlay — derinlik */
+.petshop-popup .mapboxgl-popup-content::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    145deg,
+    rgba(255, 170, 60, 0.035) 0%,
+    rgba(130, 90, 255, 0.025) 100%
+  );
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   .lc-card  — iki katmanlı müşteri hover kartı
+   ═══════════════════════════════════════════════════════════════ */
+
+.lc-card {
+  padding: 12px 14px 14px;
+  position: relative;
+  z-index: 1;
+  font-family: var(--font-geist-sans, system-ui, sans-serif);
+}
+
+/* ── ① Özet satırı: glow dot + isim + risk badge ── */
+.lc-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 9px;
+}
+
+.lc-hdot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.lc-hname {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lc-risk-badge {
+  flex-shrink: 0;
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--rc) 16%, transparent);
+  color: var(--rc);
+  border: 1px solid color-mix(in srgb, var(--rc) 28%, transparent);
+  white-space: nowrap;
+}
+
+/* ── Separator ── */
+.lc-sep {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.07);
+  margin: 0 -14px;
+}
+
+.lc-sep--gap {
+  margin-top: 9px;
+  margin-bottom: 9px;
+}
+
+/* ── Kanal pill satırı ── */
+.lc-channel-row {
+  display: flex;
+  align-items: center;
+  margin: 8px 0;
+}
+
+.lc-ch-pill {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ch) 18%, transparent);
+  color: var(--ch);
+  border: 1px solid color-mix(in srgb, var(--ch) 30%, transparent);
+}
+
+/* ── İkon + metin satırları ── */
+.lc-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 5px;
+}
+
+.lc-row:last-of-type {
+  margin-bottom: 0;
+}
+
+.lc-ico {
+  width: 18px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.lc-rt {
+  flex: 1;
+  min-width: 0;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.5);
+  line-height: 1.4;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+/* Rut kodu chip */
+.lc-chip {
+  flex-shrink: 0;
+  font-size: 9px;
+  font-weight: 600;
+  font-family: var(--font-geist-mono, ui-monospace, monospace);
+  letter-spacing: 0.05em;
+  padding: 1.5px 6px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Borç durumu badge */
+.lc-dbadge {
+  flex-shrink: 0;
+  font-size: 9.5px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--dc) 14%, transparent);
+  color: var(--dc);
+  border: 1px solid color-mix(in srgb, var(--dc) 25%, transparent);
+}
+
+/* ── ⑥ Metrik grid (2 sütun) ── */
+.lc-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-bottom: 11px;
+}
+
+.lc-metric {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 7px 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.lc-mlbl {
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  color: rgba(255, 255, 255, 0.35);
+  text-transform: uppercase;
+}
+
+.lc-mval {
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.88);
+  letter-spacing: -0.01em;
+}
+
+.lc-mval--warn {
+  color: #f87171;
+}
+
+/* ── ⑦ Aksiyon butonları ── */
+.lc-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.lc-btn {
+  flex: 1;
+  border: none;
+  border-radius: 9px;
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 7.5px 10px;
+  cursor: pointer;
+  font-family: inherit;
+  line-height: 1;
+  transition: opacity 0.12s, transform 0.1s;
+  white-space: nowrap;
+}
+
+.lc-btn:hover {
+  opacity: 0.82;
+}
+
+.lc-btn:active {
+  transform: scale(0.97);
+}
+
+.lc-btn--primary {
+  background: rgba(108, 99, 255, 0.85);
+  color: #fff;
+  border: 1px solid rgba(108, 99, 255, 0.6);
+  backdrop-filter: blur(8px);
+}
+
+.lc-btn--ghost {
+  background: rgba(255, 255, 255, 0.07);
+  color: rgba(255, 255, 255, 0.68);
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 /*
@@ -332,9 +587,13 @@
   --clear-blur: 2px;
   --glow-delay: 50ms;
   --glow-peak-at: 0.15;
-  /* Dark charcoal UI — screen + higher opacity */
-  --glow-opacity: 0.85;
+  --glow-opacity: 0.55;
   --glow-spread: 1.5;
+}
+
+.dark {
+  /* Koyu charcoal — multiply yerine screen kullandığı için daha yüksek opacity gerekir. */
+  --glow-opacity: 0.85;
 }
 
 .t-clear {
@@ -367,7 +626,7 @@
 .t-clear.has-value > .t-clear-field,
 .t-clear.is-clearing > .t-clear-field {
   -webkit-text-fill-color: transparent;
-  caret-color: oklch(0.93 0.003 260);
+  caret-color: var(--foreground);
 }
 
 .t-clear.has-value .t-clear-placeholder {
@@ -380,7 +639,12 @@
   pointer-events: none;
   opacity: 0;
   z-index: 3;
-  /* Dark surface: lighten streaks instead of multiply-away */
+  /* Açık zeminde koyulaştırarak "eriyor" hissi; .dark'ta tersi (aşağıda). */
+  mix-blend-mode: multiply;
+}
+
+.dark .t-clear-glow {
+  /* Koyu zeminde parlaklaştırarak eriyor hissi. */
   mix-blend-mode: screen;
 }
 
