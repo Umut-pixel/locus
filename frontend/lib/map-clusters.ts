@@ -1,10 +1,10 @@
 import type { ExpressionSpecification } from "mapbox-gl";
 
 /**
- * Müşteri küme baloncukları — zoom’a göre dinamik yarıçap / kırılma.
- * Mapbox `clusterRadius` / `clusterMaxZoom` yalnızca source oluşturulurken
- * sayısal verilebilir; bu yüzden zoom bandı değişince source yenilenir.
- * Görünürlük ayrıca paint `["zoom"]` interpolate ile yumuşak söner.
+ * Müşteri küme baloncukları.
+ * clusterRadius / clusterMaxZoom source oluşturulurken kilitlenir — zoom’da
+ * source yenilemek kare kare pop-in yapar. Tek sabit config; küme boyutu
+ * paint interpolate ile küçülür, opaklık zoom’da sönmez.
  */
 
 export type ClusterConfig = {
@@ -18,6 +18,16 @@ export type ClusterConfig = {
 
 /** Küme baloncuklarının tamamen söndüğü / kırıldığı zoom. */
 export const CLUSTER_DISSOLVE_ZOOM = 12;
+
+/**
+ * Tek kaynak config — zoom bandına göre recreate yok.
+ * Paint ifadeleri küme yarıçapını zoom ile yumuşatır.
+ */
+export const STABLE_CLUSTER_CONFIG: ClusterConfig = {
+  radius: 52,
+  maxZoom: 12,
+  band: "stable",
+};
 
 /**
  * Mevcut kamera zoom’una göre küme parametreleri.
@@ -39,64 +49,17 @@ export function clusterConfigForZoom(zoom: number): ClusterConfig {
   return { radius: 22, maxZoom: 12, band: "street" };
 }
 
-/** Küme dairesi opacity — zoom ile kaybolur (dimmed: rota vurgusu). */
-export function clusterCircleOpacityExpr(
-  dimmed: boolean
-): ExpressionSpecification {
-  const peak = dimmed ? 0.16 : 1;
-  return [
-    "interpolate",
-    ["linear"],
-    ["zoom"],
-    7,
-    peak,
-    9,
-    peak,
-    10.5,
-    peak * 0.75,
-    11.4,
-    peak * 0.28,
-    CLUSTER_DISSOLVE_ZOOM,
-    0,
-  ];
+/** Küme dairesi opacity — zoom'da sönmez; kırılana kadar okunur kalır. */
+export function clusterCircleOpacityExpr(dimmed: boolean): number {
+  return dimmed ? 0.16 : 1;
 }
 
-export function clusterStrokeOpacityExpr(
-  dimmed: boolean
-): ExpressionSpecification {
-  const peak = dimmed ? 0.1 : 1;
-  return [
-    "interpolate",
-    ["linear"],
-    ["zoom"],
-    7,
-    peak * 0.22,
-    10.5,
-    peak * 0.18,
-    11.4,
-    peak * 0.06,
-    CLUSTER_DISSOLVE_ZOOM,
-    0,
-  ];
+export function clusterStrokeOpacityExpr(dimmed: boolean): number {
+  return dimmed ? 0.1 : 0.55;
 }
 
-export function clusterCountOpacityExpr(
-  dimmed: boolean
-): ExpressionSpecification {
-  const peak = dimmed ? 0.18 : 1;
-  return [
-    "interpolate",
-    ["linear"],
-    ["zoom"],
-    7,
-    peak,
-    10.5,
-    peak * 0.7,
-    11.4,
-    peak * 0.2,
-    CLUSTER_DISSOLVE_ZOOM,
-    0,
-  ];
+export function clusterCountOpacityExpr(dimmed: boolean): number {
+  return dimmed ? 0.18 : 1;
 }
 
 /** Küme yarıçapı da zoom ile küçülür (görsel yumuşatma). */
@@ -105,6 +68,8 @@ export function clusterRadiusExpr(): ExpressionSpecification {
     "interpolate",
     ["linear"],
     ["zoom"],
+    5,
+    ["step", ["get", "point_count"], 20, 10, 26, 30, 32],
     6,
     ["step", ["get", "point_count"], 18, 10, 24, 30, 30],
     9,

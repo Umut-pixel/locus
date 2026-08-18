@@ -1,0 +1,89 @@
+import mapboxgl from "mapbox-gl";
+import type { Map as MapboxMap, MapOptions } from "mapbox-gl";
+
+import { MAPBOX_STYLE_URL } from "@/lib/mapbox-style";
+
+if (typeof window !== "undefined") {
+  mapboxgl.prewarm();
+}
+
+/**
+ * Ortak Mapbox render ayarları — tile pop-in'i keser, pan/zoom'u akıcı tutar.
+ *
+ * Globe + 3D objeler kare kare yüklenir. Operasyon haritası mercator;
+ * basemap tile'ları bellek cache'inde tutulur, süre dolmuş tile yeniden
+ * çekilmez (oturum boyunca aynı basemap).
+ */
+export const MAP_RENDER_OPTIONS: Omit<MapOptions, "container" | "center" | "zoom"> =
+  {
+    style: MAPBOX_STYLE_URL,
+    projection: "mercator",
+    antialias: true,
+    fadeDuration: 400,
+    renderWorldCopies: false,
+    minTileCacheSize: 128,
+    maxTileCacheSize: 750,
+    refreshExpiredTiles: false,
+    trackResize: true,
+    maxPitch: 45,
+    config: {
+      basemap: {
+        show3dObjects: false,
+      },
+    },
+  };
+
+/** Stil yüklendikten sonra da zorla — Studio globe import'u constructor'ı ezer. */
+export function applyMapRuntimeTuning(map: MapboxMap): boolean {
+  let projectionChanged = false;
+  try {
+    const name = map.getProjection()?.name;
+    if (name !== "mercator") {
+      map.setProjection("mercator");
+      projectionChanged = true;
+    }
+  } catch {
+    map.setProjection("mercator");
+    projectionChanged = true;
+  }
+  try {
+    map.setConfigProperty("basemap", "show3dObjects", false);
+  } catch {
+    // Import id `basemap` değilse Standard config yok sayılır.
+  }
+  return projectionChanged;
+}
+
+/**
+ * Sidebar genişliği gibi kapsayıcı boyutu değişince canvas'ı senkronlar.
+ * İlk gözlem (map zaten o ölçüde kuruldu) ve aynı ölçü tekrarları atlanır.
+ */
+export function observeMapContainer(
+  map: MapboxMap,
+  el: HTMLElement
+): () => void {
+  let lastW = 0;
+  let lastH = 0;
+  const ro = new ResizeObserver((entries) => {
+    const cr = entries[0]?.contentRect;
+    if (!cr) return;
+    const w = Math.round(cr.width);
+    const h = Math.round(cr.height);
+    if (w === lastW && h === lastH) return;
+    if (lastW === 0 && lastH === 0) {
+      lastW = w;
+      lastH = h;
+      return;
+    }
+    lastW = w;
+    lastH = h;
+    try {
+      if (!map.getStyle()) return;
+      map.resize();
+    } catch {
+      // Stil yenilenirken resize paint hatası üretebiliyor.
+    }
+  });
+  ro.observe(el);
+  return () => ro.disconnect();
+}

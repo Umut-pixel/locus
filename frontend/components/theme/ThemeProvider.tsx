@@ -26,35 +26,20 @@ function applyTheme(theme: Theme) {
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setTheme] = useState<Theme>("light");
+  // Light mode şimdilik kapalı — her zaman koyu tema.
+  const [theme] = useState<Theme>("dark");
 
-  // DOM class'ına değil doğrudan localStorage'a bakar: React hydration,
-  // blocking script'in hydration öncesi uyguladığı .dark class'ını kendi
-  // (temasız) server değeriyle değiştirebiliyor — DOM'dan okumak o anda
-  // zaten bozulmuş olan class'ı "doğru" sanıp onaylamış olurdu.
   useEffect(() => {
-    let stored: string | null = null;
+    applyTheme("dark");
     try {
-      stored = window.localStorage.getItem(THEME_STORAGE_KEY);
+      window.localStorage.setItem(THEME_STORAGE_KEY, "dark");
     } catch {
-      // localStorage erişilemez (gizli mod / devre dışı) — light varsayılan kalır.
+      // localStorage erişilemez (gizli mod / devre dışı)
     }
-    setTheme(stored === "dark" ? "dark" : "light");
   }, []);
 
-  // theme state'i her değiştiğinde DOM'u senkron tutar — hydration'ın class'ı
-  // geri aldığı durumda da bu effect (yukarıdakinin tetiklediği state
-  // güncellemesiyle) doğru değeri zorla uygular.
-  useEffect(() => {
-    applyTheme(theme);
-  }, [theme]);
-
   const toggleTheme = useCallback(() => {
-    setTheme((prev) => {
-      const next: Theme = prev === "dark" ? "light" : "dark";
-      window.localStorage.setItem(THEME_STORAGE_KEY, next);
-      return next;
-    });
+    // Light mode geri gelene kadar no-op.
   }, []);
 
   return (

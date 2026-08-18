@@ -4,10 +4,10 @@ import "./globals.css";
 
 import { ThemeProvider, THEME_STORAGE_KEY } from "@/components/theme/ThemeProvider";
 
-/** Hydration öncesi .dark class'ı uygulanır — FOUC (yanlış tema flaşı) yok. */
-const THEME_INIT_SCRIPT = `(function(){try{var t=localStorage.getItem(${JSON.stringify(
+/** Hydration öncesi .dark class'ı uygulanır — FOUC (yanlış tema flaşı) yok. Light mode şimdilik kapalı. */
+const THEME_INIT_SCRIPT = `(function(){try{document.documentElement.classList.add("dark");document.documentElement.setAttribute("data-theme","dark");localStorage.setItem(${JSON.stringify(
   THEME_STORAGE_KEY
-)});var d=t==="dark";document.documentElement.classList.toggle("dark",d);document.documentElement.setAttribute("data-theme",d?"dark":"light");}catch(e){}})();`;
+)},"dark");}catch(e){}})();`;
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -35,8 +35,8 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: "#F8F8FA",
-  colorScheme: "light",
+  themeColor: "#141517",
+  colorScheme: "dark",
 };
 
 export default function RootLayout({
@@ -47,12 +47,12 @@ export default function RootLayout({
   return (
     <html
       lang="tr"
-      data-theme="light"
+      data-theme="dark"
       // Blocking script hydration öncesi .dark class'ını/data-theme'i değiştirebilir;
       // React bu tek attribute mismatch'ini görmezden gelsin, kendi (temasız)
       // değerine geri almasın.
       suppressHydrationWarning
-      className={`${geistSans.variable} ${geistMono.variable} ${inter.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${inter.variable} dark h-full antialiased`}
     >
       <body className="flex h-dvh min-h-dvh flex-col overflow-hidden overscroll-none">
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />

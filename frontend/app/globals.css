@@ -59,8 +59,8 @@
    * Böylece sidebar daraldığında/genişlediğinde içerik tek başına takip eder,
    * iki ayrı yerde senkron tutulması gereken sabit sayı kalmaz.
    */
-  --sidebar-w: 11.5rem; /* 184px — ikon + etiket (varsayılan) */
-  --sidebar-w-rail: 3.25rem; /* 52px — yalnız ikon rayı */
+  --sidebar-w: 16rem; /* 256px — ikon + etiket, TR etiketler kesilmeden */
+  --sidebar-w-rail: 3.5rem; /* 56px — yalnız ikon rayı */
   /* 2026-08-10: ilk yoğun geçişten (%36/34px) sonra "çok dar" geri bildirimiyle ~%20 büyütüldü. */
   --row-h: 2.75rem; /* 44px — yoğun tablo veri satırı */
   --row-h-head: 2.625rem; /* 42px — tablo başlık satırı */
@@ -111,8 +111,7 @@
 
 .dark {
   /*
-   * Eski koyu charcoal tema — artık varsayılan değil, sidebar'daki
-   * toggle ile opsiyonel geri dönüş. Saf siyah yerine kömür grisi
+   * Koyu charcoal — şu an tek tema. Saf siyah yerine kömür grisi
    * yüzeyler, katmanlar arası küçük parlaklık adımları, düşük kontrastlı
    * beyaz-tint sınırlar.
    */
@@ -186,22 +185,24 @@
 }
 
 /* Mapbox kontrolleri — notch / home indicator ve üst toolbar ile çakışmasın */
+.mapboxgl-map {
+  background: transparent;
+}
+
+/*
+ * Dark-mode CSS filter / mix-blend (ör. glow, heroui) canvas'a sızmasın.
+ * Mapbox Standard dusk ışığı daireleri ayrıca circle-emissive-strength ile
+ * bypass edilir; burada yalnızca CSS katmanını izole ediyoruz.
+ */
+.dark .mapboxgl-canvas-container,
+.dark .mapboxgl-canvas {
+  filter: none !important;
+  mix-blend-mode: normal !important;
+}
+
 .mapboxgl-ctrl-top-right {
   top: max(0.5rem, env(safe-area-inset-top, 0px));
   right: max(0.5rem, env(safe-area-inset-right, 0px));
-}
-
-/* Sevkiyat / Borç seçici — zoom (+/−) solunda */
-.risk-mode-toggle-anchor {
-  pointer-events: none;
-  position: absolute;
-  z-index: 5;
-  top: max(0.5rem, env(safe-area-inset-top, 0px));
-  right: max(calc(0.5rem + 42px), calc(env(safe-area-inset-right, 0px) + 42px));
-}
-
-.risk-mode-toggle-anchor > * {
-  pointer-events: auto;
 }
 
 .mapboxgl-ctrl-bottom-right,
@@ -210,11 +211,6 @@
 }
 
 @media (max-width: 1023px) {
-  .mapboxgl-ctrl-top-right {
-    /* İki satır mobil toolbar (menü+yükle, sonra sevkiyat/potansiyel) */
-    top: max(5.75rem, calc(env(safe-area-inset-top, 0px) + 5.25rem));
-  }
-
   .mapboxgl-ctrl-attrib {
     font-size: 9px !important;
     max-width: 40vw;
@@ -274,225 +270,6 @@
   border-radius: inherit;
   pointer-events: none;
   z-index: 0;
-}
-
-/* ═══════════════════════════════════════════════════════════════
-   .lc-card  — iki katmanlı müşteri hover kartı
-   ═══════════════════════════════════════════════════════════════ */
-
-.lc-card {
-  padding: 12px 14px 14px;
-  position: relative;
-  z-index: 1;
-  font-family: var(--font-geist-sans, system-ui, sans-serif);
-}
-
-/* ── ① Özet satırı: glow dot + isim + risk badge ── */
-.lc-head {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  margin-bottom: 9px;
-}
-
-.lc-hdot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
-.lc-hname {
-  flex: 1;
-  min-width: 0;
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  color: #fff;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.lc-risk-badge {
-  flex-shrink: 0;
-  font-size: 9.5px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  padding: 2px 7px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--rc) 16%, transparent);
-  color: var(--rc);
-  border: 1px solid color-mix(in srgb, var(--rc) 28%, transparent);
-  white-space: nowrap;
-}
-
-/* ── Separator ── */
-.lc-sep {
-  height: 1px;
-  background: rgba(255, 255, 255, 0.07);
-  margin: 0 -14px;
-}
-
-.lc-sep--gap {
-  margin-top: 9px;
-  margin-bottom: 9px;
-}
-
-/* ── Kanal pill satırı ── */
-.lc-channel-row {
-  display: flex;
-  align-items: center;
-  margin: 8px 0;
-}
-
-.lc-ch-pill {
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--ch) 18%, transparent);
-  color: var(--ch);
-  border: 1px solid color-mix(in srgb, var(--ch) 30%, transparent);
-}
-
-/* ── İkon + metin satırları ── */
-.lc-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 5px;
-}
-
-.lc-row:last-of-type {
-  margin-bottom: 0;
-}
-
-.lc-ico {
-  width: 18px;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: rgba(255, 255, 255, 0.4);
-}
-
-.lc-rt {
-  flex: 1;
-  min-width: 0;
-  font-size: 11px;
-  color: rgba(255, 255, 255, 0.5);
-  line-height: 1.4;
-  overflow: hidden;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-}
-
-/* Rut kodu chip */
-.lc-chip {
-  flex-shrink: 0;
-  font-size: 9px;
-  font-weight: 600;
-  font-family: var(--font-geist-mono, ui-monospace, monospace);
-  letter-spacing: 0.05em;
-  padding: 1.5px 6px;
-  border-radius: 5px;
-  background: rgba(255, 255, 255, 0.08);
-  color: rgba(255, 255, 255, 0.55);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-/* Borç durumu badge */
-.lc-dbadge {
-  flex-shrink: 0;
-  font-size: 9.5px;
-  font-weight: 600;
-  padding: 2px 7px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--dc) 14%, transparent);
-  color: var(--dc);
-  border: 1px solid color-mix(in srgb, var(--dc) 25%, transparent);
-}
-
-/* ── ⑥ Metrik grid (2 sütun) ── */
-.lc-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px;
-  margin-bottom: 11px;
-}
-
-.lc-metric {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 7px 8px;
-  background: rgba(255, 255, 255, 0.04);
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-}
-
-.lc-mlbl {
-  font-size: 9px;
-  font-weight: 500;
-  letter-spacing: 0.03em;
-  color: rgba(255, 255, 255, 0.35);
-  text-transform: uppercase;
-}
-
-.lc-mval {
-  font-size: 12px;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.88);
-  letter-spacing: -0.01em;
-}
-
-.lc-mval--warn {
-  color: #f87171;
-}
-
-/* ── ⑦ Aksiyon butonları ── */
-.lc-actions {
-  display: flex;
-  gap: 6px;
-}
-
-.lc-btn {
-  flex: 1;
-  border: none;
-  border-radius: 9px;
-  font-size: 11.5px;
-  font-weight: 600;
-  padding: 7.5px 10px;
-  cursor: pointer;
-  font-family: inherit;
-  line-height: 1;
-  transition: opacity 0.12s, transform 0.1s;
-  white-space: nowrap;
-}
-
-.lc-btn:hover {
-  opacity: 0.82;
-}
-
-.lc-btn:active {
-  transform: scale(0.97);
-}
-
-.lc-btn--primary {
-  background: rgba(108, 99, 255, 0.85);
-  color: #fff;
-  border: 1px solid rgba(108, 99, 255, 0.6);
-  backdrop-filter: blur(8px);
-}
-
-.lc-btn--ghost {
-  background: rgba(255, 255, 255, 0.07);
-  color: rgba(255, 255, 255, 0.68);
-  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 /*

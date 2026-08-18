@@ -96,9 +96,9 @@ export function tipRingVisible(filter: TipKanalFilter): boolean {
 }
 
 export const TIP_STROKE_COLORS: Record<TipKanal, string> = {
-  petshop: "#6C63FF",
-  veteriner: "#B06CFF",
-  diger: "#8A8A9A",
+  petshop: "#a5b4fc",
+  veteriner: "#d8b4fe",
+  diger: "#d4d4d8",
 };
 
 /** Mapbox paint — tip_kanal property’sine göre stroke. */

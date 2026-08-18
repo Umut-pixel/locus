@@ -7,7 +7,6 @@ import {
   clusterStrokeOpacityExpr,
   type ClusterConfig,
 } from "@/lib/map-clusters";
-import { MAP_OVERLAY_SLOT } from "@/lib/mapbox-style";
 import { RISK_COLORS } from "@/lib/risk-style";
 import { tipStrokeColorExpr } from "@/lib/tip-style";
 import type { MusteriFeatureCollection } from "@/lib/geojson";
@@ -24,8 +23,8 @@ export const POINT_LAYER = "unclustered-point";
 export const POINT_HIT_LAYER = "unclustered-point-hit";
 export const SELECTED_LAYER = "selected-point";
 
-/** Son yüklemede güncellenen müşteri — koyu, net dış halka. */
-export const UPDATED_RING_COLOR = "#1c1d20";
+/** Son yüklemede güncellenen müşteri — koyu basemap'te net açık halka. */
+export const UPDATED_RING_COLOR = "#f4f4f5";
 /** "Sonra bak" favori — nokta üzerinde Airbnb Rausch halka. */
 export const MUSTERI_FAVORI_STROKE = "#ff385c";
 
@@ -70,16 +69,16 @@ export function addCustomerLayers(
     {
       id: CLUSTER_LAYER,
       type: "circle",
-      slot: MAP_OVERLAY_SLOT,
       source: SOURCE_ID,
       filter: ["has", "point_count"],
       paint: {
         "circle-color": "#FFFFFF",
         "circle-radius": clusterRadiusExpr(),
         "circle-opacity": clusterCircleOpacityExpr(dimmed),
-        "circle-stroke-width": 5,
-        "circle-stroke-color": "rgba(28,29,32,0.16)",
+        "circle-stroke-width": 2,
+        "circle-stroke-color": "rgba(28,29,32,0.42)",
         "circle-stroke-opacity": clusterStrokeOpacityExpr(dimmed),
+        "circle-emissive-strength": 1,
       },
     },
     before
@@ -89,7 +88,6 @@ export function addCustomerLayers(
     {
       id: CLUSTER_COUNT_LAYER,
       type: "symbol",
-      slot: MAP_OVERLAY_SLOT,
       source: SOURCE_ID,
       filter: ["has", "point_count"],
       layout: {
@@ -100,6 +98,7 @@ export function addCustomerLayers(
       paint: {
         "text-color": "#1c1d20",
         "text-opacity": clusterCountOpacityExpr(dimmed),
+        "text-emissive-strength": 1,
       },
     },
     before
@@ -110,7 +109,6 @@ export function addCustomerLayers(
     {
       id: UPDATED_RING_LAYER,
       type: "circle",
-      slot: MAP_OVERLAY_SLOT,
       source: SOURCE_ID,
       filter: [
         "all",
@@ -124,6 +122,7 @@ export function addCustomerLayers(
         "circle-stroke-color": UPDATED_RING_COLOR,
         "circle-stroke-opacity": 0.95,
         "circle-opacity": 1,
+        "circle-emissive-strength": 1,
       },
     },
     before
@@ -134,7 +133,6 @@ export function addCustomerLayers(
     {
       id: MARKER_HALO_LAYER,
       type: "circle",
-      slot: MAP_OVERLAY_SLOT,
       source: SOURCE_ID,
       filter: ["!", ["has", "point_count"]],
       paint: {
@@ -144,14 +142,15 @@ export function addCustomerLayers(
           15,
           HALO_BASE_RADIUS,
         ],
-        "circle-color": tipStrokeColorExpr("#8A8A9A"),
+        "circle-color": tipStrokeColorExpr("#d4d4d8"),
         "circle-blur": 0.8,
         "circle-opacity": [
           "case",
           ["boolean", ["feature-state", "hover"], false],
-          0.18,
-          0.12,
+          0.28,
+          0.2,
         ],
+        "circle-emissive-strength": 1,
       },
     },
     before
@@ -161,7 +160,6 @@ export function addCustomerLayers(
     {
       id: POINT_LAYER,
       type: "circle",
-      slot: MAP_OVERLAY_SLOT,
       source: SOURCE_ID,
       filter: ["!", ["has", "point_count"]],
       paint: {
@@ -186,26 +184,32 @@ export function addCustomerLayers(
           "saha_gps",
           1,
           "mahalle_merkezi",
-          0.9,
+          0.95,
           "ilce_merkezi",
-          0.75,
-          0.8,
+          0.88,
+          0.92,
         ],
         "circle-radius": [
-          "case",
-          ["boolean", ["feature-state", "hover"], false],
+          "interpolate",
+          ["linear"],
+          ["zoom"],
+          5,
+          ["case", ["boolean", ["feature-state", "hover"], false], 7, 6],
           8,
-          POINT_VISUAL_RADIUS,
+          ["case", ["boolean", ["feature-state", "hover"], false], 8, POINT_VISUAL_RADIUS],
+          12,
+          ["case", ["boolean", ["feature-state", "hover"], false], 8, POINT_VISUAL_RADIUS],
         ],
-        // Stroke = kanal tipi (petshop mor / veteriner mor-lila); favori = kırmızı
+        // Stroke = kanal tipi (petshop / veteriner); favori = kırmızı
         "circle-stroke-width": 2.5,
         "circle-stroke-color": [
           "case",
           ["boolean", ["get", "favori"], false],
           MUSTERI_FAVORI_STROKE,
-          tipStrokeColorExpr("#8A8A9A"),
+          tipStrokeColorExpr("#d4d4d8"),
         ],
         "circle-stroke-opacity": 1,
+        "circle-emissive-strength": 1,
       },
     },
     before
@@ -216,7 +220,6 @@ export function addCustomerLayers(
     {
       id: POINT_HIT_LAYER,
       type: "circle",
-      slot: MAP_OVERLAY_SLOT,
       source: SOURCE_ID,
       filter: ["!", ["has", "point_count"]],
       paint: {
@@ -234,6 +237,7 @@ export function addCustomerLayers(
         "circle-color": "#000000",
         "circle-opacity": 0,
         "circle-stroke-width": 0,
+        "circle-emissive-strength": 0,
       },
     },
     before
@@ -243,14 +247,14 @@ export function addCustomerLayers(
     {
       id: SELECTED_LAYER,
       type: "circle",
-      slot: MAP_OVERLAY_SLOT,
       source: SOURCE_ID,
       filter: ["==", ["get", "musteri_kodu"], "__none__"],
       paint: {
         "circle-radius": POINT_SELECTED_RADIUS,
         "circle-color": "rgba(0,0,0,0)",
         "circle-stroke-width": 3,
-        "circle-stroke-color": tipStrokeColorExpr("#6C63FF"),
+        "circle-stroke-color": tipStrokeColorExpr("#a5b4fc"),
+        "circle-emissive-strength": 1,
       },
     },
     before

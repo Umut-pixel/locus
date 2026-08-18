@@ -2,7 +2,6 @@
 
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { UploadIcon } from "lucide-react";
 import { AnimatePresence } from "motion/react";
 import { Typography } from "@heroui/react";
 
@@ -12,13 +11,9 @@ import {
   type PanelAnchor,
 } from "@/components/map/CustomerDetailPanel";
 import { FilterPanel } from "@/components/sidebar/FilterPanel";
-import { MobileFilterSheet } from "@/components/sidebar/MobileFilterSheet";
+import { MapLayersControl } from "@/components/map/MapLayersControl";
 import { RiskLegend } from "@/components/map/RiskLegend";
-import { RiskModeToggle } from "@/components/map/RiskModeToggle";
-import { TipKanalToggle } from "@/components/map/TipKanalToggle";
 import { PotansiyelDetailCard } from "@/components/map/PotansiyelDetailCard";
-import { PotansiyelLayerToggle } from "@/components/map/PotansiyelLayerToggle";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { ImportStage } from "@/components/import/DataImportFlow";
@@ -822,6 +817,11 @@ export default function Home() {
       onlyGizlenen,
       onOnlyGizlenenChange: handleOnlyGizlenenChange,
       onGizlenenSelect: handleGizlenenSelect,
+      overlayAction: {
+        pressed: importOpen,
+        onClick: handleToggleImport,
+        label: "Veri yükle",
+      },
     }),
     [
       cities,
@@ -852,6 +852,8 @@ export default function Home() {
       onlyGizlenen,
       handleOnlyGizlenenChange,
       handleGizlenenSelect,
+      importOpen,
+      handleToggleImport,
     ]
   );
 
@@ -863,13 +865,7 @@ export default function Home() {
 
   return (
     <>
-      {!isMobileLayout ? (
-        <aside className="hidden w-80 shrink-0 border-r border-sidebar-border bg-sidebar lg:block xl:w-[22.5rem]">
-          <FilterPanel {...filterProps} />
-        </aside>
-      ) : null}
-
-      <div ref={mapAreaRef} className="relative min-w-0 flex-1">
+      <div ref={mapAreaRef} className="relative isolate min-h-0 min-w-0 flex-1 overflow-hidden">
         <PetshopMap
           data={geojson}
           selectedMusteriKodu={selectedMusteri?.musteri_kodu ?? null}
@@ -885,95 +881,62 @@ export default function Home() {
           onSelectPotansiyel={handleSelectPotansiyel}
         />
 
-        {/* Masaüstü: zoom solunda. Mobilde üst toolbar'a taşındı. */}
-        <div className="risk-mode-toggle-anchor hidden lg:flex lg:flex-col lg:items-end lg:gap-1.5">
-          <RiskModeToggle value={riskMode} onChange={handleRiskModeChange} />
-          <TipKanalToggle
-            value={tipFilter}
-            onChange={handleTipFilterChange}
-          />
-          <PotansiyelLayerToggle
-            active={showPotansiyel}
-            onChange={handleShowPotansiyelChange}
-            count={showPotansiyel ? potansiyelRows.length : null}
-            loading={showPotansiyel && potansiyelLoading}
-          />
-        </div>
-
         <div
-          className="pointer-events-none absolute inset-0 z-10 flex flex-col justify-between gap-2 p-2 sm:gap-3 sm:p-3 md:p-4"
+          className="pointer-events-none absolute inset-0 z-10 flex flex-col gap-2 bg-transparent p-2 sm:gap-3 sm:p-3 md:p-4"
           style={MAP_OVERLAY_SAFE_PAD}
         >
-          <div className="flex min-h-0 w-full max-w-full flex-col items-stretch gap-1.5 sm:max-w-[22rem] sm:items-start">
-            <div className="flex items-center gap-2">
-              <AppSidebarMobileTrigger />
-              {isMobileLayout ? (
-                <div className="pointer-events-auto">
-                  <MobileFilterSheet {...filterProps} />
-                </div>
-              ) : null}
-              <Button
-                variant="secondary"
-                onClick={handleToggleImport}
-                className="pointer-events-auto h-10 gap-1.5 rounded-full border px-3 shadow-md lg:h-8 lg:px-2.5"
-              >
-                <UploadIcon className="size-4 lg:size-3.5" />
-                <span className="text-[13px] lg:text-xs">Veri yükle</span>
-              </Button>
-              {refreshing && (
-                <span className="pointer-events-none rounded-full border bg-popover/90 px-2 py-0.5 font-mono text-[10px] tracking-wide text-muted-foreground uppercase shadow-md">
-                  Yenileniyor…
-                </span>
-              )}
-              {!refreshing && syncLabel ? (
-                <span
-                  className={`pointer-events-none max-w-[14rem] truncate rounded-full border px-2 py-0.5 font-mono text-[10px] tracking-wide shadow-md sm:max-w-none ${
-                    syncStatus.syncError
-                      ? "border-destructive/40 bg-destructive/10 text-destructive"
-                      : syncStatus.transformPending
-                        ? "border-amber-500/40 bg-amber-500/10 text-amber-800 dark:text-amber-200"
-                        : "bg-popover/90 text-muted-foreground"
-                  }`}
-                  title={syncLabel}
-                >
-                  {syncLabel}
-                </span>
-              ) : null}
+          <div className="flex min-h-0 flex-1 flex-wrap items-start gap-2 overflow-x-visible overflow-y-auto">
+            <div className="pointer-events-auto min-h-0 min-w-0 w-full lg:max-w-[22.5rem]">
+              <FilterPanel
+                {...filterProps}
+                variant="overlay"
+                overlayLeading={<AppSidebarMobileTrigger embedded />}
+              />
+              <AnimatePresence>
+                {importOpen && (
+                  <div className="mt-2">
+                    <DataImportFlow
+                      onClose={handleCloseImport}
+                      onComplete={refresh}
+                      onStageChange={setImportActivity}
+                      onResult={handleUploadResult}
+                    />
+                  </div>
+                )}
+              </AnimatePresence>
             </div>
-            {/* Ayrı satır: dar ekranda menü/yükle arasına sıkışıp kaybolmasın */}
-            {isMobileLayout ? (
-              <div className="pointer-events-auto flex w-fit flex-col items-start gap-1.5">
-                <RiskModeToggle
-                  value={riskMode}
-                  onChange={handleRiskModeChange}
-                  className="shadow-md"
-                />
-                <TipKanalToggle
-                  value={tipFilter}
-                  onChange={handleTipFilterChange}
-                  className="shadow-md"
-                />
-                <PotansiyelLayerToggle
-                  active={showPotansiyel}
-                  onChange={handleShowPotansiyelChange}
-                  count={showPotansiyel ? potansiyelRows.length : null}
-                  loading={showPotansiyel && potansiyelLoading}
-                />
-              </div>
+            {refreshing && (
+              <span className="pointer-events-none mt-1.5 rounded-full border bg-popover/90 px-2 py-0.5 font-mono text-[10px] tracking-wide text-muted-foreground uppercase shadow-md">
+                Yenileniyor…
+              </span>
+            )}
+            {!refreshing && syncLabel ? (
+              <span
+                className={`pointer-events-none mt-1.5 max-w-[14rem] truncate rounded-full border px-2 py-0.5 font-mono text-[10px] tracking-wide shadow-md sm:max-w-none ${
+                  syncStatus.syncError
+                    ? "border-destructive/40 bg-destructive/10 text-destructive"
+                    : syncStatus.transformPending
+                      ? "border-amber-500/40 bg-amber-500/10 text-amber-800 dark:text-amber-200"
+                      : "bg-popover/90 text-muted-foreground"
+                }`}
+                title={syncLabel}
+              >
+                {syncLabel}
+              </span>
             ) : null}
-            <AnimatePresence>
-              {importOpen && (
-                <DataImportFlow
-                  onClose={handleCloseImport}
-                  onComplete={refresh}
-                  onStageChange={setImportActivity}
-                  onResult={handleUploadResult}
-                />
-              )}
-            </AnimatePresence>
           </div>
 
-          <div className="mb-[max(0.5rem,env(safe-area-inset-bottom))] flex items-end justify-end gap-2 sm:mb-0">
+          <div className="mb-[max(2.25rem,env(safe-area-inset-bottom))] flex shrink-0 items-end justify-between gap-2 sm:mb-8">
+            <MapLayersControl
+              riskMode={riskMode}
+              onRiskModeChange={handleRiskModeChange}
+              tipFilter={tipFilter}
+              onTipFilterChange={handleTipFilterChange}
+              potansiyelActive={showPotansiyel}
+              onPotansiyelChange={handleShowPotansiyelChange}
+              potansiyelCount={showPotansiyel ? potansiyelRows.length : null}
+              potansiyelLoading={showPotansiyel && potansiyelLoading}
+            />
             {showLegend && (
               <RiskLegend
                 showUpdatedRing={hasUpdatedMarkers}
@@ -985,7 +948,7 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="pointer-events-none absolute inset-0">
           <AnimatePresence>
             {selectedMusteri && panelAnchor && (
               <CustomerDetailPanel

@@ -805,7 +805,7 @@ export const CustomerDetailPanel = memo(function CustomerDetailPanel({
           : { x: posX, y: posY, width, left: 0, top: 0 }
       }
       className={cn(
-        "pointer-events-auto absolute flex max-h-[min(85dvh,calc(100%-1.5rem))] flex-col overflow-hidden rounded-2xl border bg-popover text-popover-foreground shadow-[0_16px_48px_-12px_rgba(0,0,0,0.6)]",
+        "pointer-events-auto absolute flex max-h-[min(85dvh,calc(100%-1.5rem))] flex-col overflow-hidden rounded-2xl border bg-popover/55 text-popover-foreground shadow-[0_16px_48px_-12px_rgba(0,0,0,0.6)] backdrop-blur-[28px] backdrop-saturate-150",
         isCompact && "cursor-grab touch-pan-y",
         (dragging || sheetDragging) && "cursor-grabbing select-none touch-none"
       )}
