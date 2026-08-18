@@ -7,6 +7,7 @@ import {
   YASLANDIRMA_REPORT_ID,
   gecikmeBandiEtiketi,
   raporlamaFiltersActive,
+  useBolgeDisiOzet,
   useNetCiroTrendi,
   useRaporTazeligi,
   type RaporlamaFilters,
@@ -154,6 +155,41 @@ function NetCiroTrend({
 }
 
 /**
+ * 8-il filtresi dışında kaldığı için bu tabloda HİÇ görünmeyen ciro.
+ *
+ * BelgeDetayRaporu (5450) bayi bölgesinin tamamını kapsıyor; müşteri master'ı
+ * 8 Ege iliyle sınırlı. Aradaki fark hiçbir ekranda yoktu ve ekrandaki toplam
+ * Panorama'nınkiyle tutmuyordu — okuyan kişi rakamın eksik olduğunu bilmiyordu.
+ *
+ * Yalnızca filtre yokken gösterilir: bu rakam tüm veri üzerinden sabittir,
+ * filtrelenmiş bir toplamın yanında durursa yanıltır (NetCiroTrend ile aynı kural).
+ */
+function BolgeDisiCiro({ filters }: { filters: RaporlamaFilters }) {
+  const aktif = !raporlamaFiltersActive(filters);
+  const { musteriSayisi, netCiro, loading } = useBolgeDisiOzet(aktif);
+
+  if (!aktif || loading || !netCiro || !musteriSayisi) return null;
+
+  return (
+    <span
+      className="flex shrink-0 items-center gap-1.5 text-muted-foreground"
+      title={
+        `Panorama'nın belge raporu tüm bayi bölgesini kapsıyor; bu harita ve rapor ` +
+        `8 Ege iliyle sınırlı. ${formatNumber(musteriSayisi)} müşteri ` +
+        `(${formatCurrency(netCiro)}) bu 8 il dışında olduğu için yukarıdaki ` +
+        `toplama dahil değil. Panorama ile karşılaştırırken bu farkı ekleyin.`
+      }
+    >
+      <span className="text-[12px]">bölge dışı</span>
+      <span className="font-mono font-medium tabular-nums">
+        {formatCurrency(netCiro)}
+      </span>
+      <span className="text-[12px]">/ {formatNumber(musteriSayisi)} müşteri</span>
+    </span>
+  );
+}
+
+/**
  * Alt durum çubuğu — dashboard kartı değil. Filtrelenmiş kümenin tamamını
  * (görünen sayfayı değil) özetler; tek satır. 2026-08-10: ilk yoğun geçişten
  * (44px) sonra "çok dar" geri bildirimiyle ~%20 büyütüldü (~52px).
@@ -229,6 +265,7 @@ export function MusteriRaporlamaSummary({
       </div>
 
       <div className="ml-auto flex items-center gap-x-5 pl-5">
+        <BolgeDisiCiro filters={filters} />
         <BorcTazeligi />
       </div>
     </div>

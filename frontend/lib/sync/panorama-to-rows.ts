@@ -61,10 +61,13 @@ export function panoramaBelgeDetayToExcelRows(
 ): Record<string, unknown>[] {
   return rows.map((r) => ({
     BelgeTip: r.belge_tip,
-    // İade ayrımı ve belge bazlı dedup parseBelgeDetayRaporu'da bu üç alana bakar.
+    // İade ayrımı ve belge bazlı dedup parseBelgeDetayRaporu'da bu alanlara bakar.
+    // UrunKodu dedup anahtarının parçası (bkz. belgeAnahtari) — eksik olursa
+    // aynı belge+sıradaki farklı ürün satırları tek satır sanılıp atılır.
     IslemTip: r.islem_tip,
     MatbuNo: r.matbu_no,
     Sira: r.sira,
+    UrunKodu: r.urun_kodu,
     MusteriKod: r.musteri_kod,
     MusteriKodu: r.musteri_kod,
     Nettutar: r.nettutar,

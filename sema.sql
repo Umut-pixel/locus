@@ -105,10 +105,19 @@ do $$ begin
 exception when duplicate_object then null;
 end $$;
 
--- Haritada sadece konumu olan aktif musteriler
+-- Musteri govdesi: risk + net ciro TEK yerde hesaplanir (koordinat filtresi YOK).
+-- musteriler_harita bunun uzerine kurulu ince bir filtre katmanidir (asagida).
 -- Not: kolon eklerken CREATE OR REPLACE yetmez; drop + create gerekir.
+--
+-- DIKKAT: musteriler_harita'ya bagimli, bu dosyada TANIMLI OLMAYAN view'lar var
+-- (ornegin musteri_favoriler_liste — sadece canli DB'de). Asagidaki drop onlar
+-- yuzunden hata verir. Bu bilerek boyle: sessizce CASCADE ile silmektense
+-- gurultulu patlamasi iyidir. Canli DB'de bu yapiyi kurmak icin bu dosyayi
+-- degil, bagimli view'i de geri kuran su dosyayi calistir:
+--     sql/raporlama_view_koordinatsiz.sql
 drop view if exists public.musteriler_harita;
-create view public.musteriler_harita
+drop view if exists public.musteriler_rapor;
+create view public.musteriler_rapor
 with (security_invoker = true) as
 select m.musteri_kodu, m.unvan, m.adres, m.sehir, m.ilce, m.lat, m.lon, m.rut_kod, m.rut_aciklama,
        m.ziyaret_sira, m.son_teslimat_tarihi, m.ilk_teslimat_tarihi, m.toplam_teslimat_sayisi,
@@ -161,9 +170,17 @@ select m.musteri_kodu, m.unvan, m.adres, m.sehir, m.ilce, m.lat, m.lon, m.rut_ko
        b.net_ciro as belge_net_ciro_kdv_dahil
 from public.musteriler m
 left join public.musteri_yaslandirma y on y.musteri_kodu = m.musteri_kodu
-left join public.musteri_belge_ozet b on b.musteri_kodu = m.musteri_kodu
-where m.lat is not null and m.lon is not null;
+left join public.musteri_belge_ozet b on b.musteri_kodu = m.musteri_kodu;
 
+-- Haritada sadece konumu olan musteriler. Rapor ekrani BU view'i DEGIL,
+-- filtresiz musteriler_rapor'u okur (bkz. sql/raporlama_view_koordinatsiz.sql):
+-- koordinati olmayan musterinin cirosu rapordan dusmemeli.
+create view public.musteriler_harita
+with (security_invoker = true) as
+select * from public.musteriler_rapor
+where lat is not null and lon is not null;
+
+grant select on public.musteriler_rapor  to anon, authenticated;
 grant select on public.musteriler_harita to anon, authenticated;
 
 alter table public.musteriler enable row level security;

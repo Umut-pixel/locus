@@ -29,10 +29,10 @@ anon key** kullanır (service_role yok, RLS ile korunur — bkz. §6).
 
 | Sabit | Gerçek tablo/view | Bu sayfada kullanımı |
 |---|---|---|
-| `MUSTERILER_HARITA_VIEW` | `musteriler_harita` (view) | Satırlar, filtreler, özet — **tek kaynak** |
+| `MUSTERILER_RAPOR_VIEW` | `musteriler_rapor` (view) | Satırlar, filtreler, özet — **tek kaynak** |
 | `MUSTERI_METRIK_GECMIS_TABLE` | `musteri_metrik_gecmis` (tablo) | Her satırdaki 14 günlük ciro sparkline'ı |
 
-### 2.1 `musteriler_harita` view'ının kökeni
+### 2.1 `musteriler_rapor` view'ının kökeni
 
 Rapor sayfası bu view'ı tek bir tablo gibi okur, ama view aslında üç tabloyu
 birleştirir (tanım: `sema.sql`):
@@ -41,8 +41,21 @@ birleştirir (tanım: `sema.sql`):
 musteriler  (temel müşteri master — Panorama'dan ETL ile beslenir)
   left join musteri_yaslandirma   (ST yaşlandırma / açık bakiye — her yüklemede tam snapshot)
   left join musteri_belge_ozet    (BelgeDetayRaporu — dönemsel ciro/sipariş özeti)
-  where lat is not null and lon is not null
 ```
+
+**2026-08-18: rapor artık harita view'ını okumuyor.** Önceden `musteriler_harita`
+okunuyordu; o view harita için yazılmış ve `where lat is not null and lon is not
+null` koşulu taşıyor. Rapor bu koşulu istemeden miras alıyordu — belge özeti olan
+ama koordinatı olmayan 12 müşteri toplam net ciroya hiç girmiyordu (240.626,08 TL).
+Yapı artık iki katmanlı (`sql/raporlama_view_koordinatsiz.sql`):
+
+```
+musteriler_rapor    ← gövde: risk + net ciro burada. Koordinat şartı YOK. (rapor)
+  └─ musteriler_harita = musteriler_rapor WHERE lat/lon dolu           (harita)
+```
+
+Risk ve ciro mantığı hâlâ tek yerde — harita ve rapor aynı tanımı paylaşmaya
+devam ediyor.
 
 `risk_durumu` **view içinde `CASE WHEN` ile hesaplanır** (`son_teslimattan_gecen_gun`
 ve `toplam_teslimat_sayisi`'a göre); frontend risk'i asla yeniden hesaplamaz,
@@ -57,9 +70,10 @@ case
 end as risk_durumu
 ```
 
-View `security_invoker = true` ile tanımlı ve `anon, authenticated`'a `grant select`
-verilmiş; harita sayfası (`/`) da aynı view'ı okur — rapor ve harita **aynı
-risk tanımını** paylaşır, iki ayrı hesaplama yok.
+Her iki view de `security_invoker = true` ile tanımlı ve `anon, authenticated`'a
+`grant select` verilmiş; harita sayfası (`/`) `musteriler_harita`yı, rapor
+`musteriler_rapor`u okur — ikisi de aynı gövdeden türediği için **aynı risk
+tanımını** paylaşır, iki ayrı hesaplama yok.
 
 **2026-08-13 düzeltmesi (`sql/net_ciro_kdv_haric.sql`):** Panorama'nın
 BelgeDetayRaporu'ndaki "Nettutar" alanı KDV dahil tutar olduğu tespit edildi
@@ -106,7 +120,7 @@ Tablodaki sütunlarla ilişkisi:
 Her filtre/sayfa değişiminde tek bir Supabase sorgusu çalışır:
 
 ```
-supabase.from('musteriler_harita')
+supabase.from('musteriler_rapor')
   .select(ROW_SELECT, { count: 'exact' })
   .<applyFilters>
   .order('son_teslimattan_gecen_gun', { ascending: false, nullsFirst: false })
@@ -181,7 +195,7 @@ yaşamaz çünkü zaten kendi `.range()`'ini kullanır.
 ## 5. Ciro trendi (sparkline)
 
 `MusteriRaporlamaTable`, görünen 25 satırın `musteri_kodu`'larını
-`useMusteriTrend()`'e verir. Bu hook **ayrı bir tablodan**, `musteriler_harita`
+`useMusteriTrend()`'e verir. Bu hook **ayrı bir tablodan**, `musteriler_rapor`
 view'ından değil, ham `musteri_metrik_gecmis` tablosundan okur:
 
 ```
@@ -220,9 +234,10 @@ supabase.from('musteri_metrik_gecmis')
 
 - Frontend Supabase client'ı (`lib/supabase.ts`) yalnızca `NEXT_PUBLIC_SUPABASE_ANON_KEY`
   kullanır; `persistSession: false`.
-- `musteriler_harita` view'ı `security_invoker = true` ile tanımlı ve altındaki
-  üç tabloda (`musteriler`, `musteri_yaslandirma`, `musteri_belge_ozet`) RLS
-  açık, `anon, authenticated` rollerine `select` politikası var (bkz. `sema.sql`).
+- `musteriler_rapor` ve `musteriler_harita` view'ları `security_invoker = true`
+  ile tanımlı ve altındaki üç tabloda (`musteriler`, `musteri_yaslandirma`,
+  `musteri_belge_ozet`) RLS açık, `anon, authenticated` rollerine `select`
+  politikası var (bkz. `sema.sql`).
 - `musteri_metrik_gecmis` için ayrı bir RLS/politika tanımı bu repoda yok —
   Supabase projesinde (proje id: `pzepnmzxrwnlhixdrgzm`) doğrudan kontrol edilmeli.
 
@@ -234,7 +249,7 @@ supabase.from('musteri_metrik_gecmis')
 |---|---|
 | Filtre alanı eklemek/çıkarmak | `hooks/useMusteriRaporlama.ts` (`RaporlamaFilters`, `applyFilters`) + `components/raporlama/MusteriRaporlamaFilters.tsx` |
 | Tabloya kolon eklemek | `ROW_SELECT` + `MusteriRaporSatiri` (`useMusteriRaporlama.ts`) + `MusteriRaporlamaTable.tsx` |
-| Risk hesaplama mantığı | `sema.sql` → `musteriler_harita` view tanımı (frontend'de değil, DB'de) |
+| Risk hesaplama mantığı | `sema.sql` → `musteriler_rapor` view tanımı (frontend'de değil, DB'de) |
 | Segment/durum renk paleti | `lib/raporlama-style.ts` |
 | Trend/sparkline penceresi (14 gün) | `hooks/useMusteriRaporlama.ts` → `TREND_GUN_SAYISI` |
 | Dışa aktarma kolonları | `lib/raporlama-export.ts` |

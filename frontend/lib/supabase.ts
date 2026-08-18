@@ -18,7 +18,22 @@ export const supabase = createClient(url, anonKey, {
   auth: { persistSession: false },
 });
 
+/** Harita katmani — yalnizca koordinati olan musteriler (lat/lon dolu). */
 export const MUSTERILER_HARITA_VIEW = "musteriler_harita";
+/**
+ * Raporlama katmani — TUM musteriler, koordinat sarti yok.
+ * `musteriler_harita` bunun uzerine kurulu filtreli bir view; risk ve net ciro
+ * mantigi tek yerde (bkz. sql/raporlama_view_koordinatsiz.sql). Rapor ekrani
+ * harita view'ini okudugunda koordinatsiz musterilerin cirosu toplama
+ * girmiyordu (2026-08-18'de 12 musteri / 240.626,08 TL).
+ */
+export const MUSTERILER_RAPOR_VIEW = "musteriler_rapor";
+/**
+ * 8-il filtresi dışında kaldığı için hiçbir ekrana girmeyen cironun mutabakat
+ * satırı (agregat: müşteri adedi + tutar). Kapsamı değiştirmez, farkı görünür
+ * kılar — bkz. sql/rapor_bolge_disi_ozet.sql.
+ */
+export const RAPOR_BOLGE_DISI_OZET_VIEW = "rapor_bolge_disi_ozet";
 export const MUSTERI_METRIK_GECMIS_TABLE = "musteri_metrik_gecmis";
 export const POTANSIYEL_MUSTERILER_HARITA_VIEW = "potansiyel_musteriler_harita";
 export const MUSTERI_SNAPSHOTLARI_TABLE = "musteri_snapshotlari";

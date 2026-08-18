@@ -8,9 +8,10 @@ import {
   type RiskMetricMode,
 } from "@/lib/risk-mode";
 import {
-  MUSTERILER_HARITA_VIEW,
+  MUSTERILER_RAPOR_VIEW,
   MUSTERI_METRIK_GECMIS_TABLE,
   PANORAMA_SYNC_RUNS_TABLE,
+  RAPOR_BOLGE_DISI_OZET_VIEW,
   supabase,
 } from "@/lib/supabase";
 import type { RiskDurumu } from "@/lib/types";
@@ -233,7 +234,7 @@ async function fetchAllFiltered<T>(
   for (let i = 0; i < FETCH_ALL_MAX_BATCHES; i++) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let query: any = applyFilters(
-      supabase.from(MUSTERILER_HARITA_VIEW).select(select),
+      supabase.from(MUSTERILER_RAPOR_VIEW).select(select),
       filters,
       riskMode
     );
@@ -330,7 +331,7 @@ export function useMusteriRaporlama(
       const from = page * RAPORLAMA_PAGE_SIZE;
       const to = from + RAPORLAMA_PAGE_SIZE - 1;
       let query = applyFilters(
-        supabase.from(MUSTERILER_HARITA_VIEW).select(ROW_SELECT, { count: "exact" }),
+        supabase.from(MUSTERILER_RAPOR_VIEW).select(ROW_SELECT, { count: "exact" }),
         effectiveFilters,
         riskMode
       );
@@ -468,7 +469,7 @@ async function fetchDistinctColumn(
 
   for (let i = 0; i < FETCH_ALL_MAX_BATCHES; i++) {
     let query = supabase
-      .from(MUSTERILER_HARITA_VIEW)
+      .from(MUSTERILER_RAPOR_VIEW)
       .select(column)
       .not(column, "is", null)
       .range(from, from + FETCH_ALL_BATCH_SIZE - 1);
@@ -602,7 +603,7 @@ export function useMusteriDetay(musteriKodu: string | null): {
     setLoading(true);
 
     supabase
-      .from(MUSTERILER_HARITA_VIEW)
+      .from(MUSTERILER_RAPOR_VIEW)
       .select(DETAY_SELECT)
       .eq("musteri_kodu", musteriKodu)
       .single()
@@ -752,6 +753,65 @@ export function useNetCiroTrendi(enabled: boolean): NetCiroTrendi {
       }
 
       if (!ac.signal.aborted) setState({ oncekiTarih, oncekiToplam: toplam, loading: false });
+    }
+
+    void run();
+    return () => ac.abort();
+  }, [enabled]);
+
+  return state;
+}
+
+export interface BolgeDisiOzet {
+  musteriSayisi: number | null;
+  netCiro: number | null;
+  loading: boolean;
+}
+
+/**
+ * 8-il filtresi dışında kalan ciro — mutabakat satırı.
+ *
+ * BelgeDetayRaporu (5450) bayi bölgesinin tamamını kapsıyor, müşteri master'ı
+ * ise `SEHIR_HEDEF` ile 8 Ege iline daraltılıyor (bilinçli ürün kararı, bkz.
+ * lib/import/cities.ts). Aradaki müşteriler hiçbir ekranda görünmüyordu ve
+ * toplam Panorama'yla tutmuyordu. Bu hook farkı okunur kılar; kapsamı
+ * değiştirmez.
+ *
+ * `useNetCiroTrendi` ile aynı kısıt: bu rakam TÜM veri üzerinden hesaplanır,
+ * filtreye duyarlı değildir — çağıran taraf filtre varken kapatmalı.
+ */
+export function useBolgeDisiOzet(enabled: boolean): BolgeDisiOzet {
+  const [state, setState] = useState<BolgeDisiOzet>({
+    musteriSayisi: null,
+    netCiro: null,
+    loading: true,
+  });
+
+  useEffect(() => {
+    if (!enabled) return;
+    const ac = new AbortController();
+    // Baslangic state'i zaten loading:true. Burada tekrar set etmiyoruz:
+    // rakam filtreden bagimsiz sabit oldugu icin yeniden etkinlesildiginde
+    // onceki (ayni) degeri gostermek dogru — ve effect icinde senkron setState
+    // cascading render'a yol aciyor (react-hooks/set-state-in-effect).
+
+    async function run() {
+      const { data, error } = await supabase
+        .from(RAPOR_BOLGE_DISI_OZET_VIEW)
+        .select("musteri_sayisi,net_ciro")
+        .abortSignal(ac.signal)
+        .maybeSingle();
+      if (ac.signal.aborted) return;
+      if (error || !data) {
+        setState({ musteriSayisi: null, netCiro: null, loading: false });
+        return;
+      }
+      const row = data as { musteri_sayisi: number | null; net_ciro: number | null };
+      setState({
+        musteriSayisi: row.musteri_sayisi ?? 0,
+        netCiro: row.net_ciro ?? 0,
+        loading: false,
+      });
     }
 
     void run();

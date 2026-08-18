@@ -89,6 +89,16 @@ function iadeSatiriMi(row: Record<string, unknown>): boolean {
  * (MatbuNo → SiparisNo → FaturaNo) + Sira. Aynı satır birden fazla BelgeTip
  * etiketiyle geldiğinde bir kez sayılmasını sağlar. Kimlik üretilemezse ""
  * döner ve satır dedup'a sokulmaz.
+ *
+ * Anahtara MusteriKod ve UrunKodu DAHİL (2026-08-18 denetimi). Belge numarası
+ * global değil, belge serisi bazında artıyor: GIB/BEF ön ekli iade belgelerinde
+ * aynı MatbuNo+Sira farklı müşterilerde tekrar ediyor (ör. GIB2026000000002|5
+ * dört ayrı müşteride). Yalnız `belge|sira` kullanıldığında bu satırlar
+ * "aynı satır" sanılıp atılıyordu — hepsi NEGATİF iade satırı olduğu için
+ * ciro olduğundan yüksek çıkıyordu (8826 satırlık koşuda +121.673,37 TL).
+ *
+ * Canlı veride doğrulandı: `belge|sira` → 8791 eşsiz (35 satır kaybı),
+ * `musteri|belge|sira` → 8824, `musteri|belge|sira|urun` → 8826 (kayıpsız).
  */
 function belgeAnahtari(row: Record<string, unknown>): string {
   const belge =
@@ -96,7 +106,9 @@ function belgeAnahtari(row: Record<string, unknown>): string {
     cellStr(row, "SiparisNo", "siparis_no") ||
     cellStr(row, "FaturaNo", "fatura_no");
   if (!belge) return "";
-  return `${belge}|${cellStr(row, "Sira", "sira")}`;
+  const musteri = cellStr(row, "MusteriKod", "MusteriKodu", "musteri_kodu");
+  const urun = cellStr(row, "UrunKodu", "urun_kodu");
+  return `${musteri}|${belge}|${cellStr(row, "Sira", "sira")}|${urun}`;
 }
 
 function modeKey(counts: Map<string, number>): string | null {
