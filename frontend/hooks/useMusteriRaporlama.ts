@@ -130,6 +130,12 @@ export interface MusteriRaporSatiri {
   /** Sevkiyat (teslimat gecikmesi) bazlı — raporlamada risk GÖSTERİMİ için kullanılmaz, bkz. debtRiskDurumu. */
   risk_durumu: RiskDurumu;
   belge_net_ciro: number | null;
+  /**
+   * Panorama'nin "Nettutar"i — KDV DAHIL tutar, yani musteriden tahsil edilen
+   * para. `belge_net_ciro` (KDV haric) ciro konusurken, bu alan TAHSILAT
+   * konusurken dogru olan. Ikisi ayni sey degil; bkz. melih-not-ciro-mutabakat.md.
+   */
+  belge_net_ciro_kdv_dahil: number | null;
   belge_siparis_sayisi: number | null;
   belge_fatura_sayisi: number | null;
   belge_son_islem_tarihi: string | null;
@@ -155,7 +161,8 @@ export interface MusteriRaporSatiri {
 
 const ROW_SELECT =
   "musteri_kodu,unvan,sehir,ilce,musteri_grubu,durum,belge_st_adi,risk_durumu," +
-  "belge_net_ciro,belge_siparis_sayisi,belge_fatura_sayisi,belge_son_islem_tarihi," +
+  "belge_net_ciro,belge_net_ciro_kdv_dahil,belge_siparis_sayisi,belge_fatura_sayisi," +
+  "belge_son_islem_tarihi," +
   "yas_toplam,yas_riskli_tutar,borc_riskli,son_teslimat_tarihi,toplam_teslimat_sayisi," +
   "hf_01_06,hf_07_13,hf_14_20,hf_21_27,hf_28_34,hf_35_41,hf_42_48," +
   "hf_49_55,hf_56_62,hf_63_69,hf_70_ustu";
@@ -255,6 +262,8 @@ async function fetchAllFiltered<T>(
 
 export interface RaporlamaSummary {
   toplamNetCiro: number;
+  /** Ayni kumenin KDV DAHIL toplami — tahsilat tarafi (bkz. belge_net_ciro_kdv_dahil). */
+  toplamNetCiroKdvDahil: number;
   /**
    * Filtreye uyan TÜM satırların açık bakiye toplamı (görünen sayfa değil).
    * Gecikme bandı seçiliyse yalnızca o bandın tutarı toplanır — tabloda
@@ -266,6 +275,7 @@ export interface RaporlamaSummary {
 
 const EMPTY_SUMMARY: RaporlamaSummary = {
   toplamNetCiro: 0,
+  toplamNetCiroKdvDahil: 0,
   toplamAcikBakiye: 0,
   riskDagilimi: { saglikli: 0, izlenmeli: 0, riskli: 0, hic_teslimat_yok: 0 },
 };
@@ -390,6 +400,7 @@ export function useMusteriRaporlama(
           hic_teslimat_yok: 0,
         };
         let toplam = 0;
+        let toplamKdvDahil = 0;
         let bakiyeToplam = 0;
 
         // Açık bakiye toplamı ekrandaki kolonla aynı alandan gelsin: bant
@@ -401,6 +412,7 @@ export function useMusteriRaporlama(
           const select = [
             ...new Set([
               "belge_net_ciro",
+              "belge_net_ciro_kdv_dahil",
               "yas_toplam",
               "yas_riskli_tutar",
               bakiyeKolon,
@@ -412,12 +424,18 @@ export function useMusteriRaporlama(
           if (ac.signal.aborted) return;
           for (const row of data) {
             toplam += row.belge_net_ciro ?? 0;
+            toplamKdvDahil += row.belge_net_ciro_kdv_dahil ?? 0;
             bakiyeToplam += row[bakiyeKolon] ?? 0;
             dagilim[debtRiskDurumu(row)] += 1;
           }
         } else {
           const select = [
-            ...new Set(["belge_net_ciro", "risk_durumu", bakiyeKolon]),
+            ...new Set([
+              "belge_net_ciro",
+              "belge_net_ciro_kdv_dahil",
+              "risk_durumu",
+              bakiyeKolon,
+            ]),
           ].join(",");
           const data = await fetchAllFiltered<
             Record<string, number | RiskDurumu | null>
@@ -425,6 +443,8 @@ export function useMusteriRaporlama(
           if (ac.signal.aborted) return;
           for (const row of data) {
             toplam += (row.belge_net_ciro as number | null) ?? 0;
+            toplamKdvDahil +=
+              (row.belge_net_ciro_kdv_dahil as number | null) ?? 0;
             bakiyeToplam += (row[bakiyeKolon] as number | null) ?? 0;
             dagilim[row.risk_durumu as RiskDurumu] += 1;
           }
@@ -432,6 +452,7 @@ export function useMusteriRaporlama(
 
         setSummary({
           toplamNetCiro: toplam,
+          toplamNetCiroKdvDahil: Math.round(toplamKdvDahil * 100) / 100,
           toplamAcikBakiye: Math.round(bakiyeToplam * 100) / 100,
           riskDagilimi: dagilim,
         });
@@ -575,6 +596,7 @@ export interface MusteriDetay {
   yas_toplam: number | null;
   yas_riskli_tutar: number | null;
   belge_net_ciro: number | null;
+  belge_net_ciro_kdv_dahil: number | null;
   belge_son_islem_tarihi: string | null;
 }
 
@@ -584,7 +606,7 @@ const DETAY_SELECT =
   "belge_top_urun,belge_son_urun,belge_vade_gunu,borc_riskli,yas_st,yas_inserted_at," +
   "hf_01_06,hf_07_13,hf_14_20,hf_21_27,hf_28_34,hf_35_41,hf_42_48," +
   "hf_49_55,hf_56_62,hf_63_69,hf_70_ustu,yas_toplam,yas_riskli_tutar," +
-  "belge_net_ciro,belge_son_islem_tarihi";
+  "belge_net_ciro,belge_net_ciro_kdv_dahil,belge_son_islem_tarihi";
 
 /** Satıra tıklanınca tek müşteri için ek detay çeker. */
 export function useMusteriDetay(musteriKodu: string | null): {

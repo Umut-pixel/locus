@@ -214,13 +214,32 @@ export function MusteriRaporlamaSummary({
 
       <Ayirac />
 
-      <span className="inline-flex items-center font-mono font-medium text-foreground tabular-nums">
+      <span
+        className="inline-flex items-center font-mono font-medium text-foreground tabular-nums"
+        title="KDV hariç net satış geliri (Brüt − İskonto). Muhasebe anlamında ciro budur."
+      >
         {loading ? "…" : formatCurrency(summary.toplamNetCiro)}
         {!loading && (
           <NetCiroTrend guncelToplam={summary.toplamNetCiro} filters={filters} />
         )}
         <span className="ml-1.5 font-sans text-[12px] font-normal text-muted-foreground">
           net ciro
+        </span>
+      </span>
+
+      {/*
+        Aynı kümenin KDV dahil hâli — müşteriden tahsil edilen tutar. Panorama'nın
+        "Net Tutar" kolonu bu; ciro ile karıştırılıp "rakam tutmuyor" denen yer
+        burasıydı (bkz. melih-not-ciro-mutabakat.md). İkisi yan yana durunca
+        fark KDV olarak okunuyor.
+      */}
+      <span
+        className="inline-flex shrink-0 items-center font-mono tabular-nums text-muted-foreground"
+        title="Müşteriden tahsil edilen toplam (KDV dahil). Panorama'nın belge raporundaki 'Net Tutar' kolonu bu rakamdır — tahsilat/borç konuşurken bunu kullanın."
+      >
+        {loading ? "…" : formatCurrency(summary.toplamNetCiroKdvDahil)}
+        <span className="ml-1.5 font-sans text-[12px] font-normal">
+          KDV dahil
         </span>
       </span>
 

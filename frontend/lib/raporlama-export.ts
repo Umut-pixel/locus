@@ -40,6 +40,10 @@ function rowsToSheet(
     // null = veri yok → boş hücre. `?? 0` yazılırsa Excel'de "cirosu sıfır"
     // gibi okunuyor ve toplam/ortalama formülleri bunu gerçek 0 sayıyor.
     "Net Ciro (TL)": r.belge_net_ciro,
+    // Panorama'nın belge raporundaki "Net Tutar" kolonunun karşılığı — KDV
+    // dahil, yani tahsil edilen tutar. Excel'de yan yana durunca fark KDV
+    // olarak okunuyor; ayrı ayrı bakıldığında "rakam tutmuyor" sanılıyordu.
+    "Ciro · KDV Dahil (TL)": r.belge_net_ciro_kdv_dahil,
     "Sipariş Sayısı": r.belge_siparis_sayisi,
     "Fatura Sayısı": r.belge_fatura_sayisi,
     [bakiyeBaslik]: acikBakiyeDegeri(r, filters),

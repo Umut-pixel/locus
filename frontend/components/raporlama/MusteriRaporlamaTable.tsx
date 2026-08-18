@@ -607,6 +607,15 @@ function OzetTabIcerik({
         }
         strong
       />
+      {/* Tahsilat tarafı: müşterinin ödediği KDV'li tutar (Panorama "Net Tutar"). */}
+      <MetricRow
+        label="Ciro (KDV dahil)"
+        value={
+          detay.belge_net_ciro_kdv_dahil != null
+            ? formatCurrency(detay.belge_net_ciro_kdv_dahil)
+            : "—"
+        }
+      />
       <MetricRow
         label="Açık bakiye"
         value={detay.yas_toplam != null ? formatCurrency(detay.yas_toplam) : "—"}
