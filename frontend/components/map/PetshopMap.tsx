@@ -438,7 +438,11 @@ export const PetshopMap = memo(function PetshopMap({
         });
       } else {
         // HMR / yeniden mount: stil sabitleri güncellensin
-        const paintIf = (id: string, prop: string, value: unknown) => {
+        const paintIf = (
+          id: string,
+          prop: Parameters<mapboxgl.Map["setPaintProperty"]>[1],
+          value: Parameters<mapboxgl.Map["setPaintProperty"]>[2],
+        ) => {
           if (map.getLayer(id)) map.setPaintProperty(id, prop, value);
         };
         paintIf(ROUTE_LINE_CASING_LAYER, "line-color", ROUTE_LINE_CASING_COLOR);
