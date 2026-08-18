@@ -1,9 +1,14 @@
 "use client";
 
-import { HeartIcon } from "lucide-react";
+import { ChevronRightIcon, HeartIcon } from "lucide-react";
 import { Typography } from "@heroui/react";
 
 import { FAVORI_HEART_COLOR } from "@/components/map/FavoriHeartButton";
+import {
+  Collapsible,
+  CollapsiblePanel,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import type { MusteriFavori, PotansiyelFavori } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -29,14 +34,15 @@ export function SonraBakList({
   className,
 }: SonraBakListProps) {
   return (
-    <div className={cn("space-y-2", className)}>
+    <Collapsible defaultOpen={false} className={cn("space-y-2", className)}>
       <div className="flex items-center justify-between gap-2">
-        <p className="font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
+        <CollapsibleTrigger className="group flex items-center gap-1 font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase outline-none hover:text-foreground">
+          <ChevronRightIcon className="size-3 shrink-0 transition-transform duration-200 group-data-[panel-open]:rotate-90" />
           Sonra bak
           {items.length > 0 ? (
-            <span className="ml-1.5 tabular-nums opacity-80">{items.length}</span>
+            <span className="tabular-nums opacity-80">{items.length}</span>
           ) : null}
-        </p>
+        </CollapsibleTrigger>
         {onOnlyFavorilerChange && items.length > 0 ? (
           <button
             type="button"
@@ -54,6 +60,7 @@ export function SonraBakList({
         ) : null}
       </div>
 
+      <CollapsiblePanel>
       {loading && items.length === 0 ? (
         <p className="text-[11px] text-muted-foreground">Yükleniyor…</p>
       ) : items.length === 0 ? (
@@ -127,7 +134,8 @@ export function SonraBakList({
           })}
         </ul>
       )}
-    </div>
+      </CollapsiblePanel>
+    </Collapsible>
   );
 }
 
