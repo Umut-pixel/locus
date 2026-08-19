@@ -4,12 +4,17 @@ import type { CSSProperties, ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
+import { motion } from "motion/react";
 
 import type { SidebarNavItem } from "@/lib/app-sidebar-nav";
 import { isNavItemActive } from "@/lib/app-sidebar-nav";
 import {
   ICON_RAIL_WIDTH,
+  RAIL_PILL_INSET,
+  RAIL_PILL_SIZE,
+  SIDEBAR_EXPANDED_WIDTH,
   SIDEBAR_ROW,
+  sidebarTween,
 } from "@/lib/sidebar-layout";
 import { cn } from "@/lib/utils";
 
@@ -25,7 +30,7 @@ export function SidebarLabel({
   return (
     <span
       className={cn(
-        "min-w-0 select-none overflow-hidden whitespace-nowrap transition-opacity duration-200 ease-out",
+        "min-w-0 select-none overflow-hidden whitespace-nowrap transition-opacity duration-[400ms] ease-[cubic-bezier(0.16,1,0.3,1)]",
         visible ? "opacity-100" : "pointer-events-none opacity-0",
         className
       )}
@@ -45,7 +50,7 @@ export function SidebarIconCell({
 }) {
   return (
     <span
-      className={cn("flex shrink-0 items-center justify-center", className)}
+      className={cn("relative z-[1] flex shrink-0 items-center justify-center", className)}
       style={{ width: ICON_RAIL_WIDTH } as CSSProperties}
     >
       {children}
@@ -54,9 +59,8 @@ export function SidebarIconCell({
 }
 
 /**
- * Satır düzeni kapanışta değişmez. İkon ray sütununda sabit kalır;
- * etiket 2. sütunda clip + fade ile kaybolur. Nested çocuklar da 2. sütunda
- * — rayda görünmez, dikey reflow yok.
+ * İkonlar ray sütununda sabit. Subpage'ler yükseklik animasyonuyla yer açar /
+ * kapanır — kapalıyken yer kaplamaz.
  */
 export function AppSidebarNavItem({
   item,
@@ -83,28 +87,30 @@ export function AppSidebarNavItem({
         live={live}
       />
       {item.children && item.children.length > 0 ? (
-        <div className={SIDEBAR_ROW}>
-          <span aria-hidden />
-          <div
-            className={cn(
-              "mt-0.5 mb-1 border-l border-sidebar-border/80 pl-3 transition-opacity duration-200 ease-out",
-              open ? "opacity-100 delay-75" : "pointer-events-none opacity-0"
-            )}
-            inert={!open}
-          >
-            <div className="flex flex-col gap-0.5">
-              {item.children.map((child) => (
-                <NestedRow
-                  key={child.id}
-                  label={child.label}
-                  icon={child.icon}
-                  href={child.href}
-                  active={isNavItemActive(pathname, child.href)}
-                />
-              ))}
+        <motion.div
+          initial={false}
+          animate={open ? { height: "auto", opacity: 1 } : { height: 0, opacity: 0 }}
+          transition={sidebarTween(open)}
+          className="overflow-hidden"
+          inert={!open}
+        >
+          <div className={SIDEBAR_ROW}>
+            <span aria-hidden />
+            <div className="mt-0.5 mb-1 border-l border-sidebar-border/80 pl-3">
+              <div className="flex flex-col gap-0.5">
+                {item.children.map((child) => (
+                  <NestedRow
+                    key={child.id}
+                    label={child.label}
+                    icon={child.icon}
+                    href={child.href}
+                    active={isNavItemActive(pathname, child.href)}
+                  />
+                ))}
+              </div>
             </div>
           </div>
-        </div>
+        </motion.div>
       ) : null}
     </div>
   );
@@ -127,22 +133,41 @@ function NavRow({
 }) {
   const className = cn(
     SIDEBAR_ROW,
-    "relative h-8 rounded-md text-left outline-none transition-colors duration-150",
+    "group relative h-8 text-left outline-none transition-colors duration-150",
     "focus-visible:ring-2 focus-visible:ring-sidebar-ring/60",
     active
-      ? "bg-black/[0.06] text-sidebar-foreground dark:bg-white/[0.08]"
-      : "text-muted-foreground hover:bg-black/[0.04] hover:text-sidebar-foreground dark:hover:bg-white/[0.04]"
+      ? "text-sidebar-foreground"
+      : "text-muted-foreground hover:text-sidebar-foreground",
+    open && !active && "hover:bg-black/[0.04] dark:hover:bg-white/[0.04]",
+    open && "rounded-md"
   );
 
   const content = (
     <>
       {active ? (
-        <span
+        <motion.span
           aria-hidden
-          className="absolute top-1/2 left-0 z-10 h-3.5 w-[2px] -translate-y-1/2 rounded-r-full bg-sidebar-foreground/70"
+          className="pointer-events-none absolute top-0 z-0 h-8 rounded-md bg-black/[0.06] dark:bg-white/[0.08]"
+          initial={false}
+          animate={{
+            left: open ? 8 : RAIL_PILL_INSET,
+            width: open ? SIDEBAR_EXPANDED_WIDTH - 16 : RAIL_PILL_SIZE,
+          }}
+          transition={sidebarTween(open)}
         />
       ) : null}
-      <SidebarIconCell className="relative h-8">
+      {active && open ? (
+        <span
+          aria-hidden
+          className="absolute top-1/2 left-0 z-[1] h-3.5 w-[2px] -translate-y-1/2 rounded-r-full bg-sidebar-foreground/70"
+        />
+      ) : null}
+      <SidebarIconCell
+        className={cn(
+          "h-8 rounded-md",
+          !open && !active && "group-hover:bg-black/[0.04] dark:group-hover:bg-white/[0.04]"
+        )}
+      >
         <Icon
           className={cn(
             "size-4",
@@ -161,7 +186,7 @@ function NavRow({
       <SidebarLabel
         visible={open}
         className={cn(
-          "pr-3 text-[13px]",
+          "relative z-[1] pr-3 text-[13px]",
           active ? "font-medium text-sidebar-foreground" : "font-medium"
         )}
       >
@@ -176,7 +201,7 @@ function NavRow({
         href={href}
         aria-current={active ? "page" : undefined}
         title={open ? undefined : label}
-        className={cn("group", className)}
+        className={className}
       >
         {content}
       </Link>
@@ -184,7 +209,7 @@ function NavRow({
   }
 
   return (
-    <button type="button" title={open ? undefined : label} className={cn("group", className)}>
+    <button type="button" title={open ? undefined : label} className={className}>
       {content}
     </button>
   );

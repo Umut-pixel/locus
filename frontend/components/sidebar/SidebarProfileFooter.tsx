@@ -10,8 +10,9 @@ import {
   SidebarLabel,
 } from "@/components/sidebar/AppSidebarNavItem";
 import { useTheme } from "@/components/theme/ThemeProvider";
-import { SIDEBAR_ROW } from "@/lib/sidebar-layout";
+import { SIDEBAR_ROW, sidebarTween } from "@/lib/sidebar-layout";
 import { cn } from "@/lib/utils";
+import { motion } from "motion/react";
 
 export function SidebarProfileFooter({ open }: { open: boolean }) {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -147,31 +148,33 @@ export function SidebarCoverage({
 }) {
   const pct = Math.round((located / total) * 100);
   return (
-    <div className={SIDEBAR_ROW}>
-      <span aria-hidden />
-      <div
-        className={cn(
-          "px-3 pb-2 transition-opacity duration-200 ease-out",
-          open ? "opacity-100" : "pointer-events-none opacity-0"
-        )}
-        aria-hidden={!open}
-      >
-        <div className="mb-1.5 flex items-center justify-between text-[10px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
-          <span>Kapsam</span>
-          <span className="font-mono font-medium tracking-normal tabular-nums">
-            {located}/{total}
-          </span>
-        </div>
-        <div className="h-1 overflow-hidden rounded-full bg-foreground/10">
-          <div
-            className="h-full rounded-full"
-            style={{
-              width: `${pct}%`,
-              backgroundColor: "var(--metric-chart-bar)",
-            }}
-          />
+    <motion.div
+      initial={false}
+      animate={open ? { height: "auto", opacity: 1 } : { height: 0, opacity: 0 }}
+      transition={sidebarTween(open)}
+      className="overflow-hidden"
+      aria-hidden={!open}
+    >
+      <div className={SIDEBAR_ROW}>
+        <span aria-hidden />
+        <div className="flex flex-col justify-center pr-3 pt-1.5 pb-2">
+          <div className="mb-1.5 flex items-center justify-between gap-3 text-[10px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
+            <span>Kapsam</span>
+            <span className="font-mono font-medium tracking-normal tabular-nums">
+              {located}/{total}
+            </span>
+          </div>
+          <div className="h-1 w-full overflow-hidden rounded-full bg-foreground/10">
+            <div
+              className="h-full rounded-full"
+              style={{
+                width: `${pct}%`,
+                backgroundColor: "var(--metric-chart-bar)",
+              }}
+            />
+          </div>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }

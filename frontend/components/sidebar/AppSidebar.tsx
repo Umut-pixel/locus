@@ -35,7 +35,7 @@ import {
   ICON_RAIL_WIDTH,
   SIDEBAR_EXPANDED_WIDTH,
   SIDEBAR_ROW,
-  SIDEBAR_WIDTH_TRANSITION,
+  sidebarTween,
 } from "@/lib/sidebar-layout";
 import {
   useCollapsedSections,
@@ -43,8 +43,8 @@ import {
 } from "@/lib/sidebar-preference";
 import { cn } from "@/lib/utils";
 
-const HOVER_OPEN_DELAY_MS = 10;
-const HOVER_CLOSE_DELAY_MS = 80;
+const HOVER_OPEN_DELAY_MS = 50;
+const HOVER_CLOSE_DELAY_MS = 160;
 
 function SidebarSectionLabel({
   open,
@@ -60,39 +60,40 @@ function SidebarSectionLabel({
   children: React.ReactNode;
 }) {
   return (
-    <div
-      className={cn(
-        SIDEBAR_ROW,
-        "mb-1 h-7 transition-opacity duration-150",
-        open ? "opacity-100 delay-75" : "pointer-events-none opacity-0"
-      )}
+    <motion.div
+      initial={false}
+      animate={open ? { height: 28, opacity: 1, marginBottom: 4 } : { height: 0, opacity: 0, marginBottom: 0 }}
+      transition={sidebarTween(open)}
+      className="overflow-hidden"
       aria-hidden={!open}
     >
-      <span aria-hidden style={{ width: ICON_RAIL_WIDTH }} />
-      {collapsible ? (
-        <button
-          type="button"
-          onClick={onToggle}
-          className="flex min-w-0 items-center justify-between pr-3 text-left outline-none hover:text-sidebar-foreground focus-visible:ring-2 focus-visible:ring-sidebar-ring/60"
-          aria-expanded={!collapsed}
-          tabIndex={open ? 0 : -1}
-        >
-          <span className="text-[10px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
+      <div className={cn(SIDEBAR_ROW, "h-7")}>
+        <span aria-hidden style={{ width: ICON_RAIL_WIDTH }} />
+        {collapsible ? (
+          <button
+            type="button"
+            onClick={onToggle}
+            className="flex min-w-0 items-center justify-between pr-3 text-left outline-none hover:text-sidebar-foreground focus-visible:ring-2 focus-visible:ring-sidebar-ring/60"
+            aria-expanded={!collapsed}
+            tabIndex={open ? 0 : -1}
+          >
+            <span className="text-[10px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
+              {children}
+            </span>
+            <ChevronDownIcon
+              className={cn(
+                "size-3.5 shrink-0 text-muted-foreground transition-transform duration-200",
+                collapsed && "-rotate-90"
+              )}
+            />
+          </button>
+        ) : (
+          <span className="pr-3 text-[10px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
             {children}
           </span>
-          <ChevronDownIcon
-            className={cn(
-              "size-3.5 shrink-0 text-muted-foreground transition-transform duration-200",
-              collapsed && "-rotate-90"
-            )}
-          />
-        </button>
-      ) : (
-        <span className="pr-3 text-[10px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
-          {children}
-        </span>
-      )}
-    </div>
+        )}
+      </div>
+    </motion.div>
   );
 }
 
@@ -161,7 +162,7 @@ function SidebarBody({
               "mr-2 flex size-7 shrink-0 items-center justify-center rounded-md outline-none",
               "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
               "focus-visible:ring-2 focus-visible:ring-sidebar-ring/60",
-              "transition-opacity duration-200 ease-out",
+              "transition-opacity duration-[400ms] ease-[cubic-bezier(0.16,1,0.3,1)]",
               pinned ? "text-sidebar-foreground" : "text-muted-foreground",
               open ? "opacity-100" : "pointer-events-none opacity-0"
             )}
@@ -183,7 +184,13 @@ function SidebarBody({
               : false;
 
           return (
-            <div key={section.id} className={cn(sectionIndex > 0 && "mt-3")}>
+            <div
+              key={section.id}
+              className={cn(
+                "transition-[margin] duration-[400ms] ease-[cubic-bezier(0.16,1,0.3,1)]",
+                sectionIndex > 0 && (open ? "mt-3" : "mt-0.5")
+              )}
+            >
               <SidebarSectionLabel
                 open={open}
                 collapsible={section.collapsible}
@@ -199,7 +206,7 @@ function SidebarBody({
                     ? { height: 0, opacity: 0 }
                     : { height: "auto", opacity: 1 }
                 }
-                transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                transition={sidebarTween(open && !sectionCollapsed)}
                 className="overflow-hidden"
                 inert={sectionCollapsed}
               >
@@ -220,16 +227,16 @@ function SidebarBody({
       </nav>
 
       <div className="shrink-0">
-        <div className="pb-1">
+        <div className="px-0">
           {FOOTER_NAV.map((item) => (
             <AppSidebarNavItem key={item.id} item={item} open={open} />
           ))}
+          <SidebarCoverage
+            open={open}
+            located={HARITA_KAPSAMI.konumlanan}
+            total={HARITA_KAPSAMI.toplam}
+          />
         </div>
-        <SidebarCoverage
-          open={open}
-          located={HARITA_KAPSAMI.konumlanan}
-          total={HARITA_KAPSAMI.toplam}
-        />
         <SidebarProfileFooter open={open} />
       </div>
     </div>
@@ -250,7 +257,7 @@ export function AppSidebar({ className }: { className?: string }) {
   const open = pinned || peek;
   const railWidth = pinned ? SIDEBAR_EXPANDED_WIDTH : ICON_RAIL_WIDTH;
   const panelWidth = open ? SIDEBAR_EXPANDED_WIDTH : ICON_RAIL_WIDTH;
-  const tween = reduceMotion ? { duration: 0 } : SIDEBAR_WIDTH_TRANSITION;
+  const tween = reduceMotion ? { duration: 0 } : sidebarTween(open);
 
   const clearHoverTimers = useCallback(() => {
     if (openTimeoutRef.current !== null) {
