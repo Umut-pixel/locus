@@ -59,8 +59,8 @@
    * Böylece sidebar daraldığında/genişlediğinde içerik tek başına takip eder,
    * iki ayrı yerde senkron tutulması gereken sabit sayı kalmaz.
    */
-  --sidebar-w: 15.5rem; /* 248px — ikon + etiket */
-  --sidebar-w-rail: 3.25rem; /* 52px — yalnız ikon rayı */
+  --sidebar-w: 15.5rem; /* 248px — sidebar-layout.ts ile aynı */
+  --sidebar-w-rail: 3.25rem; /* 52px */
   /* 2026-08-10: ilk yoğun geçişten (%36/34px) sonra "çok dar" geri bildirimiyle ~%20 büyütüldü. */
   --row-h: 2.75rem; /* 44px — yoğun tablo veri satırı */
   --row-h-head: 2.625rem; /* 42px — tablo başlık satırı */

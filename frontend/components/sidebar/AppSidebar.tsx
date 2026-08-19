@@ -1,11 +1,17 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import gsap from "gsap";
-import { ChevronDownIcon, MenuIcon, PanelLeftCloseIcon, PinIcon } from "lucide-react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
+import { ChevronDownIcon, MenuIcon, PanelLeftCloseIcon, PanelLeftOpenIcon } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 
-import { AppSidebarNavItem } from "@/components/sidebar/AppSidebarNavItem";
+import { AppSidebarNavItem, SidebarIconCell, SidebarLabel } from "@/components/sidebar/AppSidebarNavItem";
 import {
   SidebarCoverage,
   SidebarProfileFooter,
@@ -26,20 +32,19 @@ import {
 } from "@/lib/app-sidebar-nav";
 import { usePanoramaSyncStatus } from "@/hooks/usePanoramaSyncStatus";
 import {
+  ICON_RAIL_WIDTH,
+  SIDEBAR_EXPANDED_WIDTH,
+  SIDEBAR_ROW,
+  SIDEBAR_WIDTH_TRANSITION,
+} from "@/lib/sidebar-layout";
+import {
   useCollapsedSections,
   usePinnedPreference,
 } from "@/lib/sidebar-preference";
 import { cn } from "@/lib/utils";
 
-const EXPANDED_WIDTH = "var(--sidebar-w)";
-const RAIL_WIDTH = "var(--sidebar-w-rail)";
-
-const OPEN_EASE = "power3.out";
-const CLOSE_EASE = "power3.out";
-const OPEN_DURATION = 0.42;
-const CLOSE_DURATION = 0.34;
-const OPEN_DELAY = 0.09;
-const CLOSE_DELAY = 0.16;
+const HOVER_OPEN_DELAY_MS = 10;
+const HOVER_CLOSE_DELAY_MS = 80;
 
 function SidebarSectionLabel({
   open,
@@ -54,58 +59,52 @@ function SidebarSectionLabel({
   onToggle?: () => void;
   children: React.ReactNode;
 }) {
-  const label = (
-    <span className="px-2.5 pt-4 pb-1.5 text-[10px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
-      {children}
-    </span>
-  );
-
   return (
     <div
       className={cn(
-        "grid overflow-hidden",
-        open
-          ? "grid-rows-[1fr] opacity-100 transition-[grid-template-rows,opacity] delay-75 duration-300 ease-out"
-          : "grid-rows-[0fr] opacity-0 duration-0"
+        SIDEBAR_ROW,
+        "mb-1 h-7 transition-opacity duration-150",
+        open ? "opacity-100 delay-75" : "pointer-events-none opacity-0"
       )}
+      aria-hidden={!open}
     >
-      <div className="overflow-hidden">
-        {collapsible ? (
-          <button
-            type="button"
-            onClick={onToggle}
-            className="flex w-full items-end justify-between pb-1 text-left outline-none hover:text-sidebar-foreground focus-visible:ring-2 focus-visible:ring-sidebar-ring/60"
-            aria-expanded={!collapsed}
-          >
-            {label}
-            <ChevronDownIcon
-              className={cn(
-                "mb-1.5 mr-2 size-3.5 shrink-0 text-muted-foreground transition-transform duration-200",
-                collapsed && "-rotate-90"
-              )}
-            />
-          </button>
-        ) : (
-          <p className="overflow-hidden px-2.5 pt-4 pb-1.5 text-[10px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
+      <span aria-hidden style={{ width: ICON_RAIL_WIDTH }} />
+      {collapsible ? (
+        <button
+          type="button"
+          onClick={onToggle}
+          className="flex min-w-0 items-center justify-between pr-3 text-left outline-none hover:text-sidebar-foreground focus-visible:ring-2 focus-visible:ring-sidebar-ring/60"
+          aria-expanded={!collapsed}
+          tabIndex={open ? 0 : -1}
+        >
+          <span className="text-[10px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
             {children}
-          </p>
-        )}
-      </div>
+          </span>
+          <ChevronDownIcon
+            className={cn(
+              "size-3.5 shrink-0 text-muted-foreground transition-transform duration-200",
+              collapsed && "-rotate-90"
+            )}
+          />
+        </button>
+      ) : (
+        <span className="pr-3 text-[10px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
+          {children}
+        </span>
+      )}
     </div>
   );
 }
 
 interface SidebarBodyProps {
-  /** İçerik henüz ray moduna düşmedi (kapanış clip'i bitene kadar true). */
-  revealed?: boolean;
+  open?: boolean;
   pinned?: boolean;
   onTogglePin?: () => void;
   showExpandToggle?: boolean;
 }
 
-/** Masaüstü rayı ve mobil sheet aynı gövdeyi kullanır. */
 function SidebarBody({
-  revealed = true,
+  open = true,
   pinned = true,
   onTogglePin,
   showExpandToggle = true,
@@ -124,30 +123,32 @@ function SidebarBody({
 
   return (
     <div
-      className="flex h-full min-h-0 w-full flex-col bg-sidebar text-sidebar-foreground"
-      style={{ fontFamily: "var(--font-inter)" }}
+      className="flex h-full min-h-0 flex-col bg-sidebar text-sidebar-foreground"
+      style={
+        {
+          width: SIDEBAR_EXPANDED_WIDTH,
+          minWidth: SIDEBAR_EXPANDED_WIDTH,
+          ["--sidebar-rail" as string]: `${ICON_RAIL_WIDTH}px`,
+          fontFamily: "var(--font-inter)",
+        } as CSSProperties
+      }
     >
-      <div
-        className="flex h-12 min-w-[var(--sidebar-w)] shrink-0 items-center gap-2.5 border-b border-sidebar-border px-3"
-        style={{ width: EXPANDED_WIDTH }}
-      >
-        <CelixionMark size={18} className="ml-1.5 shrink-0 text-sidebar-foreground" />
-        <span
-          className={cn(
-            "min-w-0 flex-1 overflow-hidden whitespace-nowrap",
-            revealed
-              ? "opacity-100 transition-opacity delay-75 duration-150 ease-out"
-              : "pointer-events-none opacity-0"
-          )}
-          aria-hidden={!revealed}
-        >
-          <span className="block truncate text-[13.5px] font-semibold tracking-tight text-sidebar-foreground">
-            Locus
-          </span>
-          <span className="block truncate text-[11px] text-muted-foreground">
-            Peritas ekibi
-          </span>
-        </span>
+      <div className="flex h-12 shrink-0 items-center border-b border-sidebar-border">
+        <div className="min-w-0 flex-1">
+          <div className={cn(SIDEBAR_ROW, "h-12")}>
+            <SidebarIconCell className="h-12">
+              <CelixionMark size={18} className="text-sidebar-foreground" />
+            </SidebarIconCell>
+            <SidebarLabel visible={open} className="min-w-0 pr-1">
+              <span className="block truncate text-[13.5px] font-semibold tracking-tight text-sidebar-foreground">
+                Locus
+              </span>
+              <span className="block truncate text-[11px] font-normal text-muted-foreground">
+                Peritas ekibi
+              </span>
+            </SidebarLabel>
+          </div>
+        </div>
         {showExpandToggle ? (
           <button
             type="button"
@@ -155,166 +156,118 @@ function SidebarBody({
             title={pinned ? "Sabitlemeyi kaldır" : "Kenar çubuğunu sabitle"}
             aria-label={pinned ? "Sabitlemeyi kaldır" : "Kenar çubuğunu sabitle"}
             aria-pressed={pinned}
-            tabIndex={revealed ? 0 : -1}
+            tabIndex={open ? 0 : -1}
             className={cn(
-              "flex size-7 shrink-0 items-center justify-center rounded-md outline-none",
+              "mr-2 flex size-7 shrink-0 items-center justify-center rounded-md outline-none",
               "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
               "focus-visible:ring-2 focus-visible:ring-sidebar-ring/60",
-              "transition-opacity ease-out",
+              "transition-opacity duration-200 ease-out",
               pinned ? "text-sidebar-foreground" : "text-muted-foreground",
-              revealed
-                ? "opacity-100 delay-100 duration-200"
-                : "pointer-events-none opacity-0 duration-0"
+              open ? "opacity-100" : "pointer-events-none opacity-0"
             )}
           >
             {pinned ? (
               <PanelLeftCloseIcon className="size-3.5" />
             ) : (
-              <PinIcon className="size-3.5" />
+              <PanelLeftOpenIcon className="size-3.5" />
             )}
           </button>
         ) : null}
       </div>
 
-      <div
-        className="flex min-h-0 min-w-[var(--sidebar-w)] flex-1 flex-col"
-        style={{ width: EXPANDED_WIDTH }}
-      >
-        <nav className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-2 pb-3">
-          {NAV_SECTIONS.map((section, sectionIndex) => {
-            const sectionCollapsed =
-              revealed && section.collapsible
-                ? Boolean(collapsedSections[section.id])
-                : false;
+      <nav className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain pt-2 pb-3">
+        {NAV_SECTIONS.map((section, sectionIndex) => {
+          const sectionCollapsed =
+            open && section.collapsible
+              ? Boolean(collapsedSections[section.id])
+              : false;
 
-            return (
-              <div key={section.id} className={cn(sectionIndex > 0 && "mt-1")}>
-                <SidebarSectionLabel
-                  open={revealed}
-                  collapsible={section.collapsible}
-                  collapsed={sectionCollapsed}
-                  onToggle={() => toggleSection(section.id)}
-                >
-                  {section.label}
-                </SidebarSectionLabel>
-                {revealed ? null : sectionIndex > 0 ? (
-                  <div className="mx-2 my-2.5 border-t border-sidebar-border" />
-                ) : null}
-                <motion.div
-                  initial={false}
-                  animate={
-                    sectionCollapsed
-                      ? { height: 0, opacity: 0 }
-                      : { height: "auto", opacity: 1 }
-                  }
-                  transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
-                  className="overflow-hidden"
-                  inert={sectionCollapsed}
-                >
-                  <div className="flex flex-col gap-0.5">
-                    {section.items.map((item) => (
-                      <AppSidebarNavItem
-                        key={item.id}
-                        item={item}
-                        open={revealed}
-                        live={item.liveKey === "panorama" ? panoramaLive : false}
-                      />
-                    ))}
-                  </div>
-                </motion.div>
-              </div>
-            );
-          })}
-        </nav>
+          return (
+            <div key={section.id} className={cn(sectionIndex > 0 && "mt-3")}>
+              <SidebarSectionLabel
+                open={open}
+                collapsible={section.collapsible}
+                collapsed={sectionCollapsed}
+                onToggle={() => toggleSection(section.id)}
+              >
+                {section.label}
+              </SidebarSectionLabel>
+              <motion.div
+                initial={false}
+                animate={
+                  sectionCollapsed
+                    ? { height: 0, opacity: 0 }
+                    : { height: "auto", opacity: 1 }
+                }
+                transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                className="overflow-hidden"
+                inert={sectionCollapsed}
+              >
+                <div className="flex flex-col gap-0.5 pb-1">
+                  {section.items.map((item) => (
+                    <AppSidebarNavItem
+                      key={item.id}
+                      item={item}
+                      open={open}
+                      live={item.liveKey === "panorama" ? panoramaLive : false}
+                    />
+                  ))}
+                </div>
+              </motion.div>
+            </div>
+          );
+        })}
+      </nav>
 
-        <div className="shrink-0">
-          <div className="px-2 pb-1">
-            {FOOTER_NAV.map((item) => (
-              <AppSidebarNavItem key={item.id} item={item} open={revealed} />
-            ))}
-          </div>
-          <SidebarCoverage
-            revealed={revealed}
-            located={HARITA_KAPSAMI.konumlanan}
-            total={HARITA_KAPSAMI.toplam}
-          />
-          <SidebarProfileFooter revealed={revealed} />
+      <div className="shrink-0">
+        <div className="pb-1">
+          {FOOTER_NAV.map((item) => (
+            <AppSidebarNavItem key={item.id} item={item} open={open} />
+          ))}
         </div>
+        <SidebarCoverage
+          open={open}
+          located={HARITA_KAPSAMI.konumlanan}
+          total={HARITA_KAPSAMI.toplam}
+        />
+        <SidebarProfileFooter open={open} />
       </div>
     </div>
   );
 }
 
 /**
- * Masaüstü sol ray.
- *
- *   • Unpinned: yerleşim ray genişliğinde kalır. Hover, paneli overlay olarak
- *     GSAP ile açar/kapar — genişliği yalnızca GSAP yazar (React style snap yok).
- *   • Pinned: overlay kilitlenir, yerleşim --sidebar-w'ye geçer.
- *
- * Açılışta `revealed` hemen true olur: etiketler ve nested alt öğeler
- * clip + yükseklik animasyonuyla konum değiştirir (kapanış anında gizlenir).
+ * Sabit overlay + yerleşim spacer.
+ * İç kabuk her zaman expanded genişlikte; dış `motion` genişliği kırpar.
+ * Kapanışta satır düzeni değişmez — ikonlar yerinde kalır.
  */
 export function AppSidebar({ className }: { className?: string }) {
   const [pinned, setPinned, hydrated] = usePinnedPreference();
   const [peek, setPeek] = useState(false);
-  const [revealed, setRevealed] = useState(false);
   const reduceMotion = useReducedMotion();
-  const panelRef = useRef<HTMLDivElement>(null);
-  const delayTween = useRef<gsap.core.Tween | null>(null);
-  const didInit = useRef(false);
-  const openRef = useRef(false);
+  const openTimeoutRef = useRef<number | null>(null);
+  const closeTimeoutRef = useRef<number | null>(null);
   const open = pinned || peek;
-  openRef.current = open;
+  const railWidth = pinned ? SIDEBAR_EXPANDED_WIDTH : ICON_RAIL_WIDTH;
+  const panelWidth = open ? SIDEBAR_EXPANDED_WIDTH : ICON_RAIL_WIDTH;
+  const tween = reduceMotion ? { duration: 0 } : SIDEBAR_WIDTH_TRANSITION;
 
-  useLayoutEffect(() => {
-    const panel = panelRef.current;
-    if (!panel || !hydrated) return;
-
-    const nextWidth = open ? EXPANDED_WIDTH : RAIL_WIDTH;
-    const nextShadow =
-      !pinned && open
-        ? "8px 0 28px -8px rgba(20, 24, 36, 0.18)"
-        : "0px 0px 24px 0px rgba(20, 24, 36, 0)";
-
-    if (open) setRevealed(true);
-    else setRevealed(false);
-
-    if (!didInit.current) {
-      gsap.set(panel, { width: nextWidth, boxShadow: nextShadow });
-      setRevealed(open);
-      didInit.current = true;
-      return;
+  const clearHoverTimers = useCallback(() => {
+    if (openTimeoutRef.current !== null) {
+      window.clearTimeout(openTimeoutRef.current);
+      openTimeoutRef.current = null;
     }
-
-    if (reduceMotion) {
-      gsap.set(panel, { width: nextWidth, boxShadow: nextShadow });
-      setRevealed(open);
-      return;
+    if (closeTimeoutRef.current !== null) {
+      window.clearTimeout(closeTimeoutRef.current);
+      closeTimeoutRef.current = null;
     }
+  }, []);
 
-    gsap.to(panel, {
-      width: nextWidth,
-      boxShadow: nextShadow,
-      duration: open ? OPEN_DURATION : CLOSE_DURATION,
-      ease: open ? OPEN_EASE : CLOSE_EASE,
-      overwrite: "auto",
-      onStart() {
-        panel.style.willChange = "width, box-shadow";
-      },
-      onComplete() {
-        panel.style.willChange = "auto";
-        if (!openRef.current) setRevealed(false);
-      },
-    });
-  }, [open, pinned, reduceMotion, hydrated]);
+  useEffect(() => () => clearHoverTimers(), [clearHoverTimers]);
 
   useEffect(() => {
-    return () => {
-      delayTween.current?.kill();
-      if (panelRef.current) gsap.killTweensOf(panelRef.current);
-    };
-  }, []);
+    if (pinned) setPeek(true);
+  }, [pinned]);
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
@@ -332,61 +285,76 @@ export function AppSidebar({ className }: { className?: string }) {
   }, [pinned, setPinned]);
 
   function schedulePeek(next: boolean) {
-    delayTween.current?.kill();
-    if (pinned || reduceMotion) {
+    if (pinned) return;
+    clearHoverTimers();
+    if (reduceMotion) {
       setPeek(next);
       return;
     }
-    delayTween.current = gsap.delayedCall(
-      next ? OPEN_DELAY : CLOSE_DELAY,
-      () => setPeek(next)
-    );
+    const delay = next ? HOVER_OPEN_DELAY_MS : HOVER_CLOSE_DELAY_MS;
+    const id = window.setTimeout(() => {
+      setPeek(next);
+      openTimeoutRef.current = null;
+      closeTimeoutRef.current = null;
+    }, delay);
+    if (next) openTimeoutRef.current = id;
+    else closeTimeoutRef.current = id;
+  }
+
+  if (!hydrated) {
+    return <div className="hidden w-[52px] shrink-0 lg:block" aria-hidden />;
   }
 
   return (
-    <aside
-      className={cn(
-        "relative z-30 hidden shrink-0 transition-[width] duration-[420ms] ease-[cubic-bezier(0.16,1,0.3,1)] lg:block",
-        pinned ? "overflow-hidden" : "overflow-visible",
-        className
-      )}
-      style={{
-        width: pinned ? EXPANDED_WIDTH : RAIL_WIDTH,
-      }}
-      onPointerEnter={() => schedulePeek(true)}
-      onPointerLeave={() => schedulePeek(false)}
-      onFocusCapture={() => schedulePeek(true)}
-      onBlurCapture={(event) => {
-        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
-          schedulePeek(false);
-        }
-      }}
-      aria-expanded={open}
-    >
-      <div
-        ref={panelRef}
-        className="absolute inset-y-0 left-0 h-full w-[var(--sidebar-w-rail)] overflow-hidden border-r border-sidebar-border bg-sidebar"
+    <>
+      <motion.div
+        aria-hidden
+        className="hidden shrink-0 lg:block"
+        initial={false}
+        animate={{ width: railWidth }}
+        transition={tween}
+      />
+      <motion.aside
+        className={cn(
+          "fixed inset-y-0 left-0 hidden h-full max-h-dvh overflow-hidden lg:block",
+          open ? "z-[80]" : "z-[60]",
+          "border-r border-sidebar-border bg-sidebar",
+          open && !pinned
+            ? "shadow-[4px_0_32px_-8px_rgba(0,0,0,0.18)] dark:shadow-[6px_0_40px_-12px_rgba(0,0,0,0.55)]"
+            : "shadow-none",
+          className
+        )}
+        initial={false}
+        animate={{ width: panelWidth }}
+        transition={tween}
+        onPointerEnter={() => schedulePeek(true)}
+        onPointerLeave={() => schedulePeek(false)}
+        onFocusCapture={() => schedulePeek(true)}
+        onBlurCapture={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+            schedulePeek(false);
+          }
+        }}
+        aria-expanded={open}
       >
         <SidebarBody
-          revealed={revealed}
+          open={open}
           pinned={pinned}
           onTogglePin={() => {
             if (pinned) setPeek(true);
             setPinned(!pinned);
           }}
         />
-      </div>
-    </aside>
+      </motion.aside>
+    </>
   );
 }
 
-/** Mobil — lg altında görünen tetikleyici + soldan açılan sheet. Her zaman tam genişlik. */
 export function AppSidebarMobileTrigger({
   className,
   embedded = false,
 }: {
   className?: string;
-  /** Arama çubuğu içi — kenarlık/gölge yok. */
   embedded?: boolean;
 }) {
   const [open, setOpen] = useState(false);

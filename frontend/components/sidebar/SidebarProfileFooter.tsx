@@ -3,13 +3,17 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ChevronDownIcon, MoonIcon, SunIcon } from "lucide-react";
-import { motion } from "motion/react";
 
 import { LogoutButton } from "@/components/auth/LogoutButton";
+import {
+  SidebarIconCell,
+  SidebarLabel,
+} from "@/components/sidebar/AppSidebarNavItem";
 import { useTheme } from "@/components/theme/ThemeProvider";
+import { SIDEBAR_ROW } from "@/lib/sidebar-layout";
 import { cn } from "@/lib/utils";
 
-export function SidebarProfileFooter({ revealed }: { revealed: boolean }) {
+export function SidebarProfileFooter({ open }: { open: boolean }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -17,21 +21,21 @@ export function SidebarProfileFooter({ revealed }: { revealed: boolean }) {
   const [coords, setCoords] = useState({ left: 0, bottom: 0, width: 192 });
   const { theme, toggleTheme } = useTheme();
   const isDark = theme === "dark";
-  const wasRevealed = useRef(revealed);
+  const wasOpen = useRef(open);
 
   useEffect(() => {
-    if (wasRevealed.current && !revealed) setMenuOpen(false);
-    wasRevealed.current = revealed;
-  }, [revealed]);
+    if (wasOpen.current && !open) setMenuOpen(false);
+    wasOpen.current = open;
+  }, [open]);
 
   useEffect(() => {
     if (!menuOpen) return;
     const rect = buttonRef.current?.getBoundingClientRect();
     if (rect) {
       setCoords({
-        left: revealed ? rect.left : rect.right + 8,
+        left: open ? rect.left : rect.right + 8,
         bottom: window.innerHeight - rect.top + 6,
-        width: revealed ? rect.width : 192,
+        width: open ? Math.max(rect.width, 180) : 192,
       });
     }
     function onPointer(event: PointerEvent) {
@@ -48,45 +52,36 @@ export function SidebarProfileFooter({ revealed }: { revealed: boolean }) {
       document.removeEventListener("pointerdown", onPointer);
       document.removeEventListener("keydown", onKey);
     };
-  }, [menuOpen, revealed]);
+  }, [menuOpen, open]);
 
   return (
-    <div ref={wrapRef} className="relative shrink-0 border-t border-sidebar-border px-2 py-2">
+    <div ref={wrapRef} className="shrink-0 border-t border-sidebar-border py-2">
       <button
         ref={buttonRef}
         type="button"
         onClick={() => setMenuOpen((v) => !v)}
         aria-expanded={menuOpen}
         aria-haspopup="menu"
-        title="Hesap"
+        title={open ? undefined : "Hesap"}
         className={cn(
-          "flex w-full items-center rounded-md text-left outline-none transition-colors duration-150",
+          SIDEBAR_ROW,
+          "h-9 rounded-md text-left outline-none transition-colors duration-150",
           "hover:bg-black/[0.04] dark:hover:bg-white/[0.04]",
-          "focus-visible:ring-2 focus-visible:ring-sidebar-ring/60",
-          revealed ? "h-9 gap-2.5 px-2" : "size-8 justify-center px-0"
+          "focus-visible:ring-2 focus-visible:ring-sidebar-ring/60"
         )}
       >
-        <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-sidebar-accent text-[10px] font-semibold tracking-wide text-sidebar-accent-foreground">
-          PE
-        </span>
-        <motion.span
-          initial={false}
-          animate={
-            revealed
-              ? { opacity: 1, width: "auto" }
-              : { opacity: 0, width: 0 }
-          }
-          transition={{
-            duration: revealed ? 0.22 : 0,
-            ease: [0.16, 1, 0.3, 1],
-          }}
-          className="flex min-w-0 flex-1 items-center justify-between gap-1 overflow-hidden"
+        <SidebarIconCell className="h-9">
+          <span className="flex size-7 items-center justify-center rounded-md bg-sidebar-accent text-[10px] font-semibold tracking-wide text-sidebar-accent-foreground">
+            PE
+          </span>
+        </SidebarIconCell>
+        <SidebarLabel
+          visible={open}
+          className="flex items-center justify-between gap-1 pr-3 text-[13px] font-medium text-sidebar-foreground"
         >
-          <span className="min-w-0">
-            <span className="block truncate text-[13px] font-medium text-sidebar-foreground">
-              Peritas ekibi
-            </span>
-            <span className="block truncate text-[11px] text-muted-foreground">
+          <span className="min-w-0 truncate">
+            Peritas ekibi
+            <span className="mt-0 block truncate text-[11px] font-normal text-muted-foreground">
               Patigo
             </span>
           </span>
@@ -96,7 +91,7 @@ export function SidebarProfileFooter({ revealed }: { revealed: boolean }) {
               menuOpen && "rotate-180"
             )}
           />
-        </motion.span>
+        </SidebarLabel>
       </button>
 
       {menuOpen && typeof document !== "undefined"
@@ -142,41 +137,41 @@ export function SidebarProfileFooter({ revealed }: { revealed: boolean }) {
 }
 
 export function SidebarCoverage({
-  revealed,
+  open,
   located,
   total,
 }: {
-  revealed: boolean;
+  open: boolean;
   located: number;
   total: number;
 }) {
   const pct = Math.round((located / total) * 100);
   return (
-    <motion.div
-      initial={false}
-      animate={
-        revealed
-          ? { height: "auto", opacity: 1, marginBottom: 4 }
-          : { height: 0, opacity: 0, marginBottom: 0 }
-      }
-      transition={{ duration: revealed ? 0.28 : 0, ease: [0.16, 1, 0.3, 1] }}
-      className="overflow-hidden px-3"
-    >
-      <div className="mb-1.5 flex items-center justify-between text-[10px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
-        <span>Kapsam</span>
-        <span className="font-mono font-medium tracking-normal tabular-nums">
-          {located}/{total}
-        </span>
+    <div className={SIDEBAR_ROW}>
+      <span aria-hidden />
+      <div
+        className={cn(
+          "px-3 pb-2 transition-opacity duration-200 ease-out",
+          open ? "opacity-100" : "pointer-events-none opacity-0"
+        )}
+        aria-hidden={!open}
+      >
+        <div className="mb-1.5 flex items-center justify-between text-[10px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
+          <span>Kapsam</span>
+          <span className="font-mono font-medium tracking-normal tabular-nums">
+            {located}/{total}
+          </span>
+        </div>
+        <div className="h-1 overflow-hidden rounded-full bg-foreground/10">
+          <div
+            className="h-full rounded-full"
+            style={{
+              width: `${pct}%`,
+              backgroundColor: "var(--metric-chart-bar)",
+            }}
+          />
+        </div>
       </div>
-      <div className="h-1 overflow-hidden rounded-full bg-foreground/10">
-        <div
-          className="h-full rounded-full"
-          style={{
-            width: `${pct}%`,
-            backgroundColor: "var(--metric-chart-bar)",
-          }}
-        />
-      </div>
-    </motion.div>
+    </div>
   );
 }
