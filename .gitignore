@@ -4,6 +4,11 @@ __pycache__/
 *.pyc
 .venv/
 venv/
+.DS_Store
+
+# backend (Python ETL)
+backend/__pycache__/
+backend/cikti/etl_log.txt
 
 # frontend (Next.js)
 frontend/node_modules/

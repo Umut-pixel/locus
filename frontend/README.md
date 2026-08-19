@@ -32,7 +32,7 @@ Vercel Cron kaldırıldı — tetik `panorama_sync_runs` → `completed` Databas
 (`pg_net`). Ana zincirde tazelik kapısı (5020/5500/5130 son 5 dk) vardır.
 
 > **Tech debt:** 2026-08-06 akşam cron’u düşmedi — landing geldi, transform yok.  
-> Takip: [`tech-debt.md`](../tech-debt.md#panorama-transform-cron-güvenilir-değil-2026-08-06).
+> Takip: [`docs/tech-debt.md`](../docs/tech-debt.md#panorama-transform-cron-güvenilir-değil-2026-08-06).
 
 ## Kurulum
 

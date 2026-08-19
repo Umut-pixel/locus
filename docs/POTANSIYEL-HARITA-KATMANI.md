@@ -36,7 +36,7 @@ görev yalnızca frontend'de `potansiyel_musteriler_harita` katmanını açmakt�
 | Supabase proje | `pzepnmzxrwnlhixdrgzm` (Project Locus, eu-central-1) |
 | Browser client | `frontend/lib/supabase.ts` — **yalnızca anon key** |
 | Mevcut müşteri haritası | View `musteriler_harita` → `useMusteriHarita` → `PetshopMap` |
-| n8n prospecting | Desktop: `google-places-prospecting.workflow.json` (aylık/haftalık tarama) |
+| n8n prospecting | `backend/n8n/google-places-prospecting.json` (aylık/haftalık tarama) |
 
 Önemli dosyalar (mevcut müşteri deseni — kopyala, karıştırma):
 - `frontend/lib/supabase.ts` — `MUSTERILER_HARITA_VIEW`
@@ -214,7 +214,7 @@ export interface PotansiyelHarita {
 ## 7. Güvenlik / tech-debt (agent notu)
 
 - `potansiyel_musteriler` RLS şu an kapalı (pipeline dönemi). View public read.
-  Pipeline stabil olunca: RLS + authenticated-only policy; `tech-debt.md` / Panorama
+  Pipeline stabil olunca: RLS + authenticated-only policy; `docs/tech-debt.md` / Panorama
   credential workaround ile aynı aile.
 - Fuzzy eşikler (85/60) ve yoğun liste kalibrasyonu n8n tarafında TODO.
 

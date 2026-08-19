@@ -31,7 +31,7 @@ Jenerik bir CRM/BI aracı değil — Panorama'nın gerçek export şekline (77
 kolonlu MusteriListesi, gram cinsinden ağırlık, `KoordinatX`=enlem gibi
 yanıltıcı isimlendirmeler, %77 dolu `Ilce` kolonu, geocode hassasiyet
 katmanları) özel olarak inşa edilmiş; bu veri tuhaflıklarını ETL/view
-katmanında (bkz. `sema.sql`, `README.md`) belgeleyerek ve saklayarak çözüyor.
+katmanında (bkz. `sql/sema.sql`, `backend/README.md`) belgeleyerek ve saklayarak çözüyor.
 Komşu bir genel-amaçlı CRM bu domain-özel veri temizliğini kopyalayamaz.
 
 ## Operating Context

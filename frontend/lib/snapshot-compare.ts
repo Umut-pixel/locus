@@ -1,6 +1,6 @@
 import type { RiskDurumu } from "./types";
 
-/** View / form ile paylaşılan eşikler (sema.sql risk case). */
+/** View / form ile paylaşılan eşikler (sql/sema.sql risk case). */
 export const IZLE_GUN = 45;
 export const AKSIYON_GUN = 90;
 

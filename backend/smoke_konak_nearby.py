@@ -8,7 +8,7 @@ Ortam:
 
 Kullanim:
   set GOOGLE_PLACES_API_KEY=AIza...
-  python smoke_konak_nearby.py
+  python backend/smoke_konak_nearby.py
 """
 from __future__ import annotations
 
@@ -22,7 +22,9 @@ from pathlib import Path
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
-PROJE = Path(__file__).resolve().parent
+BACKEND = Path(__file__).resolve().parent
+REPO_KOK = BACKEND.parent
+PROJE = BACKEND
 FALLBACK_LAT, FALLBACK_LON = 38.4187168, 27.1282675
 
 
@@ -90,13 +92,13 @@ def nearby(api_key: str, lat: float, lon: float, radius: float = 3000) -> dict:
 
 
 def main() -> int:
-    load_dotenv(PROJE / ".env")
+    load_dotenv(REPO_KOK / ".env")
     api_key = (os.environ.get("GOOGLE_PLACES_API_KEY") or "").strip()
     if not api_key:
         print(
             "GOOGLE_PLACES_API_KEY yok. Ornek:\n"
             "  $env:GOOGLE_PLACES_API_KEY='AIza...'\n"
-            "  python smoke_konak_nearby.py",
+            "  python backend/smoke_konak_nearby.py",
             file=sys.stderr,
         )
         return 1

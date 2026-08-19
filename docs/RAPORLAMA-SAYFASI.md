@@ -35,7 +35,7 @@ anon key** kullanır (service_role yok, RLS ile korunur — bkz. §6).
 ### 2.1 `musteriler_rapor` view'ının kökeni
 
 Rapor sayfası bu view'ı tek bir tablo gibi okur, ama view aslında üç tabloyu
-birleştirir (tanım: `sema.sql`):
+birleştirir (tanım: `sql/sema.sql`):
 
 ```
 musteriler  (temel müşteri master — Panorama'dan ETL ile beslenir)
@@ -239,7 +239,7 @@ supabase.from('musteri_metrik_gecmis')
 - `musteriler_rapor` ve `musteriler_harita` view'ları `security_invoker = true`
   ile tanımlı ve altındaki üç tabloda (`musteriler`, `musteri_yaslandirma`,
   `musteri_belge_ozet`) RLS açık, `anon, authenticated` rollerine `select`
-  politikası var (bkz. `sema.sql`).
+  politikası var (bkz. `sql/sema.sql`).
 - `musteri_metrik_gecmis` için ayrı bir RLS/politika tanımı bu repoda yok —
   Supabase projesinde (proje id: `pzepnmzxrwnlhixdrgzm`) doğrudan kontrol edilmeli.
 
@@ -251,7 +251,7 @@ supabase.from('musteri_metrik_gecmis')
 |---|---|
 | Filtre alanı eklemek/çıkarmak | `hooks/useMusteriRaporlama.ts` (`RaporlamaFilters`, `applyFilters`) + `components/raporlama/MusteriRaporlamaFilters.tsx` |
 | Tabloya kolon eklemek | `ROW_SELECT` + `MusteriRaporSatiri` (`useMusteriRaporlama.ts`) + `MusteriRaporlamaTable.tsx` |
-| Risk hesaplama mantığı | `sema.sql` → `musteriler_rapor` view tanımı (frontend'de değil, DB'de) |
+| Risk hesaplama mantığı | `sql/sema.sql` → `musteriler_rapor` view tanımı (frontend'de değil, DB'de) |
 | Segment/durum renk paleti | `lib/raporlama-style.ts` |
 | Trend/sparkline penceresi (14 gün) | `hooks/useMusteriRaporlama.ts` → `TREND_GUN_SAYISI` |
 | Dışa aktarma kolonları | `lib/raporlama-export.ts` |

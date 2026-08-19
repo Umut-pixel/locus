@@ -9,11 +9,11 @@ Kimlik bilgileri SADECE ortam degiskeninden okunur - kod icine gomulmez:
     SUPABASE_URL          https://<proje-ref>.supabase.co
     SUPABASE_SERVICE_KEY  service_role anahtari (RLS'i bypass eder, gizli tut)
 
-Kullanim:
-    python supabase_yukle.py --sema-yaz       # once tabloyu olustur (SQL basar)
-    python supabase_yukle.py --dogrula        # baglanti + CSV kontrolu, yazma yok
-    python supabase_yukle.py                  # gercek upsert
-    python supabase_yukle.py --parca 200      # parca boyutunu degistir
+Kullanim (repo kokunden):
+    python backend/supabase_yukle.py --sema-yaz
+    python backend/supabase_yukle.py --dogrula
+    python backend/supabase_yukle.py
+    python backend/supabase_yukle.py --parca 200
 """
 from __future__ import annotations
 
@@ -32,8 +32,11 @@ from pathlib import Path
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
-PROJE_DIZIN = Path(__file__).resolve().parent
-GIRDI_CSV = PROJE_DIZIN / "cikti" / "musteriler_temiz.csv"
+BACKEND_DIZIN = Path(__file__).resolve().parent
+REPO_KOK = BACKEND_DIZIN.parent
+PROJE_DIZIN = BACKEND_DIZIN
+GIRDI_CSV = BACKEND_DIZIN / "cikti" / "musteriler_temiz.csv"
+SEMA_DOSYA = REPO_KOK / "sql" / "sema.sql"
 TABLO = "musteriler"
 PARCA_VARSAYILAN = 500
 
@@ -83,11 +86,11 @@ create index if not exists {TABLO}_konum_idx        on public.{TABLO} (lat, lon)
 -- Asagidaki view tanimi ESKI Python-ETL donemine ait ve GUNCEL DEGIL.
 -- Uretimdeki musteriler_harita cok daha genis (yaslandirma + belge ozet
 -- kolonlari) ve risk_durumu artik current_date'ten turetiliyor.
--- TEK KAYNAK: sema.sql + sql/risk_durumu_current_date.sql
+-- TEK KAYNAK: sql/sema.sql + sql/risk_durumu_current_date.sql
 --
 -- `--sema-yaz` bu blogu calistirirsa uretimdeki view'i BOZAR (kolonlar
 -- eksildigi icin create or replace hata verir; drop edilirse uygulama coker).
--- Sema kurulumunu artik sema.sql uzerinden yapin.
+-- Sema kurulumunu artik sql/sema.sql uzerinden yapin.
 create or replace view public.{TABLO}_harita
 with (security_invoker = true) as
 select musteri_kodu, unvan, sehir, ilce, lat, lon, rut_kod, rut_aciklama,
@@ -118,7 +121,7 @@ end $$;
 
 def ortam_oku() -> tuple[str, str]:
     from dotenv import load_dotenv
-    load_dotenv(PROJE_DIZIN / ".env")
+    load_dotenv(REPO_KOK / ".env")
     # Tek .env: SUPABASE_URL veya NEXT_PUBLIC_SUPABASE_URL
     url = (
         os.environ.get("SUPABASE_URL", "").strip()
@@ -190,7 +193,7 @@ def satir_donustur(ham: dict) -> dict:
 def csv_oku() -> list[dict]:
     if not GIRDI_CSV.exists():
         raise SystemExit(f"HATA: girdi bulunamadi -> {GIRDI_CSV}\n"
-                         f"Once 'python etl_musteri.py' calistirin.")
+                         f"Once 'python backend/etl_musteri.py' calistirin.")
     with GIRDI_CSV.open(encoding="utf-8-sig", newline="") as f:
         kayitlar = [satir_donustur(r) for r in csv.DictReader(f)]
     if not kayitlar:
@@ -220,11 +223,13 @@ def main() -> None:
     args = ap.parse_args()
 
     if args.sema_yaz:
-        cikti = PROJE_DIZIN / "sema.sql"
+        cikti = BACKEND_DIZIN / "cikti" / "sema_etl_dump.sql"
+        cikti.parent.mkdir(parents=True, exist_ok=True)
         cikti.write_text(SEMA_SQL, encoding="utf-8")
         print(SEMA_SQL)
-        print(f"-- Bu SQL '{cikti}' dosyasina da yazildi.")
-        print("-- Supabase Studio > SQL Editor'de calistirin, sonra bu scripti tekrar cagirin.")
+        print(f"-- UYARI: bu ESKI ETL dump'idir; uretim semasini BOZAR.")
+        print(f"-- Kanonik sema: {SEMA_DOSYA}")
+        print(f"-- Dump '{cikti}' dosyasina yazildi (sql/sema.sql uzerine yazilmadi).")
         return
 
     kayitlar = csv_oku()
@@ -234,7 +239,7 @@ def main() -> None:
     durum, govde = istek(url, key, f"/rest/v1/{TABLO}?select=musteri_kodu&limit=1")
     if durum == 404 or (durum >= 400 and "does not exist" in govde):
         raise SystemExit(f"HATA: '{TABLO}' tablosu yok (HTTP {durum}).\n"
-                         f"Once: python supabase_yukle.py --sema-yaz")
+                         f"Once: python backend/supabase_yukle.py --sema-yaz")
     if durum >= 400:
         raise SystemExit(f"HATA: baglanti/yetki sorunu (HTTP {durum}): {govde[:300]}")
     print(f"Baglanti OK (HTTP {durum})")

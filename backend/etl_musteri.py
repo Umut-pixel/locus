@@ -8,10 +8,10 @@ koordinatlari Nominatim ile geocode eder.
 
 Tek seferlik statik ETL. Her adimda satir sayisi raporlanir.
 
-Kullanim:
-    python etl_musteri.py                  # tam calistirma (geocode dahil)
-    python etl_musteri.py --skip-geocode   # geocode'u atla (hizli test)
-    python etl_musteri.py --geocode-limit 50   # sadece 50 kayit geocode et
+Kullanim (repo kokunden):
+    python backend/etl_musteri.py
+    python backend/etl_musteri.py --skip-geocode
+    python backend/etl_musteri.py --geocode-limit 50
 """
 from __future__ import annotations
 

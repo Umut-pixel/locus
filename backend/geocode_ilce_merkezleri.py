@@ -3,8 +3,8 @@
 CSV -> Nominatim geocode -> ilce_merkezleri upsert (tek seferlik seed).
 
 Kullanim:
-    python geocode_ilce_merkezleri.py
-    python geocode_ilce_merkezleri.py --csv path/to/ilce_merkezleri_referans.csv
+    python backend/geocode_ilce_merkezleri.py
+    python backend/geocode_ilce_merkezleri.py --csv path/to/ilce_merkezleri_referans.csv
 
 Ortam:
     SUPABASE_URL, SUPABASE_SERVICE_KEY  (.env veya shell)
@@ -24,8 +24,10 @@ from pathlib import Path
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
-PROJE = Path(__file__).resolve().parent
-CSV_DEFAULT = PROJE / "ilce_merkezleri_referans.csv"
+BACKEND = Path(__file__).resolve().parent
+REPO_KOK = BACKEND.parent
+PROJE = BACKEND
+CSV_DEFAULT = BACKEND / "ilce_merkezleri_referans.csv"
 NOMINATIM = "https://nominatim.openstreetmap.org/search"
 UA = "locus-ilce-geocode/1.0 (umut@celixion.com)"
 BEKLEME_S = 1.05
@@ -144,7 +146,7 @@ def upsert_rows(url: str, key: str, rows: list[dict]) -> None:
 
 
 def main() -> int:
-    load_dotenv(PROJE / ".env")
+    load_dotenv(REPO_KOK / ".env")
     csv_path = CSV_DEFAULT
     if len(sys.argv) >= 3 and sys.argv[1] == "--csv":
         csv_path = Path(sys.argv[2])

@@ -4,7 +4,7 @@ export type RiskDurumu = "saglikli" | "izlenmeli" | "riskli" | "hic_teslimat_yok
 
 export type GeocodeHassasiyet = "saha_gps" | "mahalle_merkezi" | "ilce_merkezi";
 
-/** `public.musteriler_harita` view satırı (bkz. sema.sql). */
+/** `public.musteriler_harita` view satırı (bkz. sql/sema.sql). */
 export interface MusteriHarita {
   musteri_kodu: string;
   unvan: string;

@@ -10,7 +10,7 @@
 --
 --   Iki sonucu var:
 --     (a) Sync/transform durursa yaslandirma TAMAMEN donuyor — gunler gecse de
---         kimse "riskli" banda gecmiyor. 2026-08-06'da yasandi (tech-debt.md).
+--         kimse "riskli" banda gecmiyor. 2026-08-06'da yasandi (docs/tech-debt.md).
 --     (b) En son sevkiyat alan musteri tanimi geregi hep 0. gun; dagilim
 --         takvimle degil, dosyanin kendisiyle kayiyor.
 --

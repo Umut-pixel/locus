@@ -125,7 +125,7 @@ select m.musteri_kodu, m.unvan, m.adres, m.sehir, m.ilce, m.lat, m.lon, m.rut_ko
        -- Takvime gore yasananan gun sayisi. m.son_teslimattan_gecen_gun ETL
        -- sirasinda "dosyadaki EN YENI sevkiyat" referansiyla yaziliyor
        -- (bkz. lib/import/parse-sevkiyat.ts) — yani sync durursa donuyor ve
-       -- kimse riskli banda gecmiyor (2026-08-06 olayi, tech-debt.md).
+       -- kimse riskli banda gecmiyor (2026-08-06 olayi, docs/tech-debt.md).
        -- Burada current_date'ten turetince gorunum kendi kendini duzeltiyor.
        case
          when m.son_teslimat_tarihi is null then m.son_teslimattan_gecen_gun

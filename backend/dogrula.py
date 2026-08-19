@@ -5,7 +5,7 @@ Bagimsiz dogrulama: cikti CSV'yi HAM Excel dosyalarina karsi yeniden hesaplar.
 etl_musteri.py'nin kendi loguna guvenmez - her sayiyi kaynaktan bagimsiz
 turetip karsilastirir. Herhangi bir kontrol duserse cikis kodu 1 olur.
 
-    python dogrula.py
+    python backend/dogrula.py
 """
 from __future__ import annotations
 
@@ -34,7 +34,7 @@ def kontrol(ad: str, gecti: bool, detay: str = "") -> None:
 
 def main() -> int:
     if not CSV.exists():
-        print(f"HATA: {CSV} yok. Once etl_musteri.py calistirin.")
+        print(f"HATA: {CSV} yok. Once backend/etl_musteri.py calistirin.")
         return 1
 
     out = pd.read_csv(CSV, dtype=str)

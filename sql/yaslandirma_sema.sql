@@ -41,12 +41,12 @@ end $$;
 -- musteriler_harita VIEW tanimi BILEREK BURADAN KALDIRILDI (2026-08-11, K7).
 --
 -- Bu dosya daha once view'in tam bir kopyasini icierdi. Ayni tanimin 4 ayri
--- kopyasi vardi (sema.sql, sql/yaslandirma_sema.sql, sql/belge_ozet_sema.sql,
--- supabase_yukle.py) ve migration sirasi olmadigi icin "en son calistirilan"
+-- kopyasi vardi (sql/sema.sql, sql/yaslandirma_sema.sql, sql/belge_ozet_sema.sql,
+-- backend/supabase_yukle.py) ve migration sirasi olmadigi icin "en son calistirilan"
 -- prod'u tanimliyordu. Pratikte bu, sema.sql'de yapilan bir duzeltmenin bu
 -- dosyanin yeniden calistirilmasiyla sessizce geri alinmasi demekti.
 --
--- TEK KAYNAK:  sema.sql  (ve son degisiklik: sql/risk_durumu_current_date.sql)
+-- TEK KAYNAK:  sql/sema.sql  (ve son degisiklik: sql/risk_durumu_current_date.sql)
 --
 -- Bu dosyadaki tablo/policy degisikliklerini uyguladiktan SONRA view'i
 -- tazelemek icin sunu calistir:

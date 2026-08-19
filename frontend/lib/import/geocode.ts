@@ -34,8 +34,8 @@ const HASSASIYET: Record<string, string> = {
 type CacheEntry = { lat: number; lon: number; tip?: string; display?: string } | Record<string, never>;
 
 function cachePath(): string {
-  // repo kökü / geocode_cache.json (ETL ile paylaşılır)
-  return path.resolve(process.cwd(), "..", "geocode_cache.json");
+  // backend/geocode_cache.json (ETL ile paylaşılır)
+  return path.resolve(process.cwd(), "..", "backend", "geocode_cache.json");
 }
 
 function slug(q: string): string {
