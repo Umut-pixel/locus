@@ -1,0 +1,182 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { ChevronDownIcon, MoonIcon, SunIcon } from "lucide-react";
+import { motion } from "motion/react";
+
+import { LogoutButton } from "@/components/auth/LogoutButton";
+import { useTheme } from "@/components/theme/ThemeProvider";
+import { cn } from "@/lib/utils";
+
+export function SidebarProfileFooter({ revealed }: { revealed: boolean }) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const [coords, setCoords] = useState({ left: 0, bottom: 0, width: 192 });
+  const { theme, toggleTheme } = useTheme();
+  const isDark = theme === "dark";
+  const wasRevealed = useRef(revealed);
+
+  useEffect(() => {
+    if (wasRevealed.current && !revealed) setMenuOpen(false);
+    wasRevealed.current = revealed;
+  }, [revealed]);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const rect = buttonRef.current?.getBoundingClientRect();
+    if (rect) {
+      setCoords({
+        left: revealed ? rect.left : rect.right + 8,
+        bottom: window.innerHeight - rect.top + 6,
+        width: revealed ? rect.width : 192,
+      });
+    }
+    function onPointer(event: PointerEvent) {
+      const t = event.target as Node;
+      if (wrapRef.current?.contains(t) || menuRef.current?.contains(t)) return;
+      setMenuOpen(false);
+    }
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "Escape") setMenuOpen(false);
+    }
+    document.addEventListener("pointerdown", onPointer);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onPointer);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [menuOpen, revealed]);
+
+  return (
+    <div ref={wrapRef} className="relative shrink-0 border-t border-sidebar-border px-2 py-2">
+      <button
+        ref={buttonRef}
+        type="button"
+        onClick={() => setMenuOpen((v) => !v)}
+        aria-expanded={menuOpen}
+        aria-haspopup="menu"
+        title="Hesap"
+        className={cn(
+          "flex w-full items-center rounded-md text-left outline-none transition-colors duration-150",
+          "hover:bg-black/[0.04] dark:hover:bg-white/[0.04]",
+          "focus-visible:ring-2 focus-visible:ring-sidebar-ring/60",
+          revealed ? "h-9 gap-2.5 px-2" : "size-8 justify-center px-0"
+        )}
+      >
+        <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-sidebar-accent text-[10px] font-semibold tracking-wide text-sidebar-accent-foreground">
+          PE
+        </span>
+        <motion.span
+          initial={false}
+          animate={
+            revealed
+              ? { opacity: 1, width: "auto" }
+              : { opacity: 0, width: 0 }
+          }
+          transition={{
+            duration: revealed ? 0.22 : 0,
+            ease: [0.16, 1, 0.3, 1],
+          }}
+          className="flex min-w-0 flex-1 items-center justify-between gap-1 overflow-hidden"
+        >
+          <span className="min-w-0">
+            <span className="block truncate text-[13px] font-medium text-sidebar-foreground">
+              Peritas ekibi
+            </span>
+            <span className="block truncate text-[11px] text-muted-foreground">
+              Patigo
+            </span>
+          </span>
+          <ChevronDownIcon
+            className={cn(
+              "size-3.5 shrink-0 text-muted-foreground transition-transform duration-200",
+              menuOpen && "rotate-180"
+            )}
+          />
+        </motion.span>
+      </button>
+
+      {menuOpen && typeof document !== "undefined"
+        ? createPortal(
+            <div
+              ref={menuRef}
+              role="menu"
+              style={{
+                position: "fixed",
+                left: coords.left,
+                bottom: coords.bottom,
+                width: coords.width,
+              }}
+              className="z-[200] overflow-hidden rounded-lg border border-sidebar-border bg-popover py-1 shadow-lg"
+            >
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  toggleTheme();
+                  setMenuOpen(false);
+                }}
+                className="flex w-full items-center gap-2.5 px-3 py-2 text-[13px] text-popover-foreground hover:bg-muted"
+              >
+                {isDark ? (
+                  <SunIcon className="size-3.5" />
+                ) : (
+                  <MoonIcon className="size-3.5" />
+                )}
+                {isDark ? "Açık moda geç" : "Koyu moda geç"}
+              </button>
+              <div className="mx-2 my-1 h-px bg-border" />
+              <LogoutButton
+                showLabel
+                className="h-9 w-full justify-start rounded-none px-3 text-[13px] text-muted-foreground hover:text-foreground"
+              />
+            </div>,
+            document.body
+          )
+        : null}
+    </div>
+  );
+}
+
+export function SidebarCoverage({
+  revealed,
+  located,
+  total,
+}: {
+  revealed: boolean;
+  located: number;
+  total: number;
+}) {
+  const pct = Math.round((located / total) * 100);
+  return (
+    <motion.div
+      initial={false}
+      animate={
+        revealed
+          ? { height: "auto", opacity: 1, marginBottom: 4 }
+          : { height: 0, opacity: 0, marginBottom: 0 }
+      }
+      transition={{ duration: revealed ? 0.28 : 0, ease: [0.16, 1, 0.3, 1] }}
+      className="overflow-hidden px-3"
+    >
+      <div className="mb-1.5 flex items-center justify-between text-[10px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
+        <span>Kapsam</span>
+        <span className="font-mono font-medium tracking-normal tabular-nums">
+          {located}/{total}
+        </span>
+      </div>
+      <div className="h-1 overflow-hidden rounded-full bg-foreground/10">
+        <div
+          className="h-full rounded-full"
+          style={{
+            width: `${pct}%`,
+            backgroundColor: "var(--metric-chart-bar)",
+          }}
+        />
+      </div>
+    </motion.div>
+  );
+}
