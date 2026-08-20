@@ -14,14 +14,12 @@ import {
   RAPOR_BOLGE_DISI_OZET_VIEW,
   supabase,
 } from "@/lib/supabase";
+import { fetchAllRows } from "@/lib/supabase-fetch-all";
 import type { RiskDurumu } from "@/lib/types";
 
 export const RAPORLAMA_PAGE_SIZE = 50;
 const SEARCH_DEBOUNCE_MS = 300;
 const TREND_GUN_SAYISI = 14;
-/** PostgREST varsayılan olarak .range()/.limit() verilmezse yanıtı sessizce 1000 satırda keser. */
-const FETCH_ALL_BATCH_SIZE = 1000;
-const FETCH_ALL_MAX_BATCHES = 5;
 
 /** musteri_yaslandirma gün bandı kolonları — Excel'deki "01 - 06" … "70 Üstü" başlıklarının DB karşılığı. */
 export const BORC_GECIKME_BANTLARI: { value: string; label: string }[] = [
@@ -226,7 +224,7 @@ function applyFilters(
 
 /**
  * Filtreye uyan TÜM satırları (sayfalanmadan) toplar. PostgREST .range() verilmezse
- * yanıtı sessizce 1000 satırda kesiyor (bu projede ölçüldü — bkz. FETCH_ALL_BATCH_SIZE) —
+ * yanıtı sessizce 1000 satırda kesiyor (bu projede ölçüldü — bkz. lib/supabase-fetch-all.ts) —
  * bu yüzden aralık belirtmemek yerine dolana kadar 1000'lik turlarla çekiyoruz.
  */
 async function fetchAllFiltered<T>(
@@ -235,10 +233,7 @@ async function fetchAllFiltered<T>(
   riskMode: RiskMetricMode,
   options?: { signal?: AbortSignal; orderBy?: string }
 ): Promise<T[]> {
-  const results: T[] = [];
-  let from = 0;
-
-  for (let i = 0; i < FETCH_ALL_MAX_BATCHES; i++) {
+  return fetchAllRows<T>((from, to) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let query: any = applyFilters(
       supabase.from(MUSTERILER_RAPOR_VIEW).select(select),
@@ -246,18 +241,10 @@ async function fetchAllFiltered<T>(
       riskMode
     );
     if (options?.orderBy) query = query.order(options.orderBy, { ascending: true });
-    query = query.range(from, from + FETCH_ALL_BATCH_SIZE - 1);
+    query = query.range(from, to);
     if (options?.signal) query = query.abortSignal(options.signal);
-
-    const { data, error } = await query;
-    if (error) throw new Error(error.message);
-    const batch = (data ?? []) as T[];
-    results.push(...batch);
-    if (batch.length < FETCH_ALL_BATCH_SIZE) break;
-    from += FETCH_ALL_BATCH_SIZE;
-  }
-
-  return results;
+    return query;
+  });
 }
 
 export interface RaporlamaSummary {
@@ -486,25 +473,23 @@ async function fetchDistinctColumn(
   eqFilter?: { column: string; value: string }
 ): Promise<string[]> {
   const set = new Set<string>();
-  let from = 0;
 
-  for (let i = 0; i < FETCH_ALL_MAX_BATCHES; i++) {
+  const rows = await fetchAllRows<Record<string, string | null>>((from, to) => {
     let query = supabase
       .from(MUSTERILER_RAPOR_VIEW)
       .select(column)
       .not(column, "is", null)
-      .range(from, from + FETCH_ALL_BATCH_SIZE - 1);
+      .range(from, to);
     if (eqFilter) query = query.eq(eqFilter.column, eqFilter.value);
+    return query as unknown as PromiseLike<{
+      data: Record<string, string | null>[] | null;
+      error: { message: string } | null;
+    }>;
+  }).catch(() => []);
 
-    const { data, error } = await query;
-    if (error) break;
-    const batch = (data ?? []) as unknown as Record<string, string | null>[];
-    for (const row of batch) {
-      const value = row[column];
-      if (value) set.add(value);
-    }
-    if (batch.length < FETCH_ALL_BATCH_SIZE) break;
-    from += FETCH_ALL_BATCH_SIZE;
+  for (const row of rows) {
+    const value = row[column];
+    if (value) set.add(value);
   }
 
   return Array.from(set).sort((a, b) => a.localeCompare(b, "tr"));
@@ -755,23 +740,22 @@ export function useNetCiroTrendi(enabled: boolean): NetCiroTrendi {
       const oncekiTarih = (oncekiSatir as { snapshot_tarihi: string }).snapshot_tarihi;
 
       let toplam = 0;
-      let from = 0;
-      for (let i = 0; i < FETCH_ALL_MAX_BATCHES; i++) {
-        const { data, error } = await supabase
-          .from(MUSTERI_METRIK_GECMIS_TABLE)
-          .select("net_ciro")
-          .eq("snapshot_tarihi", oncekiTarih)
-          .range(from, from + FETCH_ALL_BATCH_SIZE - 1)
-          .abortSignal(ac.signal);
+      try {
+        const rows = await fetchAllRows<{ net_ciro: number | null }>((from, to) =>
+          supabase
+            .from(MUSTERI_METRIK_GECMIS_TABLE)
+            .select("net_ciro")
+            .eq("snapshot_tarihi", oncekiTarih)
+            .range(from, to)
+            .abortSignal(ac.signal)
+        );
         if (ac.signal.aborted) return;
-        if (error) {
+        for (const row of rows) toplam += row.net_ciro ?? 0;
+      } catch {
+        if (!ac.signal.aborted) {
           setState({ oncekiTarih: null, oncekiToplam: null, loading: false });
-          return;
         }
-        const batch = (data ?? []) as { net_ciro: number | null }[];
-        for (const row of batch) toplam += row.net_ciro ?? 0;
-        if (batch.length < FETCH_ALL_BATCH_SIZE) break;
-        from += FETCH_ALL_BATCH_SIZE;
+        return;
       }
 
       if (!ac.signal.aborted) setState({ oncekiTarih, oncekiToplam: toplam, loading: false });

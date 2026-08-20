@@ -44,3 +44,7 @@ export const PANORAMA_ACIK_FATURA_VADE_KUP_VIEW =
   "v_panorama_acik_fatura_vade_kup_guncel";
 export const PANORAMA_DETAYLI_STOK_RAPORU_VIEW =
   "v_panorama_detayli_stok_raporu_guncel";
+/** BelgeDetayRaporu (5450) satır bazlı — ciro trendi, temsilci/ürün grubu kırılımı. */
+export const PANORAMA_BELGE_DETAY_VIEW = "v_panorama_belge_detay_raporu_guncel";
+/** SevkiyatRaporuKup (5130) satır bazlı — plaka/araç ve ödeme tipi kırılımı. */
+export const PANORAMA_SEVKIYAT_VIEW = "v_panorama_sevkiyat_raporu_kup_guncel";

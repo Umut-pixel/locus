@@ -1,0 +1,106 @@
+"use client";
+
+import { useMemo } from "react";
+
+import { Donut, type DonutDilim } from "@/components/stok/Donut";
+import type { DagilimDilimi } from "@/hooks/useFinansalRaporu";
+import { formatCurrency } from "@/lib/format";
+
+interface TemsilciUrunDagilimiProps {
+  temsilciDagilimi: DagilimDilimi[];
+  urunGrubuDagilimi: DagilimDilimi[];
+  loading: boolean;
+  seciliTemsilci: string | null;
+  onTemsilciSec: (ad: string) => void;
+}
+
+/** Sabit sırayla 5 doğrulanmış kategorik renk + "Diğer" için nötr gri — StokDagilim.tsx ile aynı palet. */
+const DILIM_RENKLERI = [
+  "var(--chart-1)",
+  "var(--chart-2)",
+  "var(--chart-3)",
+  "var(--chart-4)",
+  "var(--chart-5)",
+];
+const DIGER_RENGI = "var(--muted-foreground)";
+
+/** En büyük 5 dilim + "Diğer" — Donut 5 dilimden fazlasında CVD ayrımını kaybediyor (bkz. Donut.tsx). */
+function capForDonut(dilimler: DagilimDilimi[], maxDilim = 5): DonutDilim[] {
+  const sirali = [...dilimler].sort((a, b) => b.tutar - a.tutar);
+  const on = sirali.slice(0, maxDilim);
+  const kalan = sirali.slice(maxDilim);
+  const toplam = sirali.reduce((a, d) => a + d.tutar, 0);
+  const digerTutar = kalan.reduce((a, d) => a + d.tutar, 0);
+
+  const renkli: DonutDilim[] = on.map((d, i) => ({
+    ad: d.ad,
+    deger: d.tutar,
+    pay: toplam > 0 ? d.tutar / toplam : 0,
+    renk: DILIM_RENKLERI[i]!,
+  }));
+  if (digerTutar > 0) {
+    renkli.push({
+      ad: "Diğer",
+      deger: digerTutar,
+      pay: toplam > 0 ? digerTutar / toplam : 0,
+      renk: DIGER_RENGI,
+    });
+  }
+  return renkli;
+}
+
+/** Temsilci ve ürün grubu bazlı ciro dağılımı — yan yana iki Donut, aynı bileşen (components/stok/Donut.tsx) reuse edilir. */
+export function TemsilciUrunDagilimi({
+  temsilciDagilimi,
+  urunGrubuDagilimi,
+  loading,
+  seciliTemsilci,
+  onTemsilciSec,
+}: TemsilciUrunDagilimiProps) {
+  const temsilciDilimler = useMemo(
+    () => capForDonut(temsilciDagilimi),
+    [temsilciDagilimi]
+  );
+  const urunDilimler = useMemo(() => capForDonut(urunGrubuDagilimi), [urunGrubuDagilimi]);
+
+  const temsilciToplam = temsilciDagilimi.reduce((a, d) => a + d.tutar, 0);
+  const urunToplam = urunGrubuDagilimi.reduce((a, d) => a + d.tutar, 0);
+
+  return (
+    <div className="grid border-b border-border lg:grid-cols-2 [&>section]:h-[19rem]">
+      <section className="flex min-w-0 flex-col border-b border-border lg:border-r lg:border-b-0">
+        <header className="flex h-11 shrink-0 items-center px-3.5">
+          <h2 className="text-[12px] font-medium tracking-[0.06em] text-muted-foreground uppercase">
+            Temsilci bazlı ciro
+          </h2>
+        </header>
+        <div className="min-h-0 flex-1 px-3.5 pb-4">
+          <Donut
+            dilimler={temsilciDilimler}
+            merkezEtiket="Toplam"
+            merkezDeger={formatCurrency(temsilciToplam)}
+            seciliAd={seciliTemsilci}
+            onDilimSec={onTemsilciSec}
+            loading={loading}
+          />
+        </div>
+      </section>
+
+      <section className="flex min-w-0 flex-col">
+        <header className="flex h-11 shrink-0 items-center px-3.5">
+          <h2 className="text-[12px] font-medium tracking-[0.06em] text-muted-foreground uppercase">
+            Ürün grubu bazlı ciro
+          </h2>
+        </header>
+        <div className="min-h-0 flex-1 px-3.5 pb-4">
+          <Donut
+            dilimler={urunDilimler}
+            merkezEtiket="Toplam"
+            merkezDeger={formatCurrency(urunToplam)}
+            loading={loading}
+          />
+        </div>
+      </section>
+    </div>
+  );
+}

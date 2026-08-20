@@ -4,9 +4,8 @@ import { useEffect, useState } from "react";
 
 import { KEEP_BELGE_TIP } from "@/lib/import/parse-belge-detay";
 import { sayiyaCevir } from "@/lib/import/utils";
-import { supabase } from "@/lib/supabase";
+import { PANORAMA_BELGE_DETAY_VIEW, supabase } from "@/lib/supabase";
 
-const BELGE_DETAY_VIEW = "v_panorama_belge_detay_raporu_guncel";
 const BELGE_TIPLERI = [...KEEP_BELGE_TIP];
 
 function sayi(value: unknown): number {
@@ -59,7 +58,7 @@ export function useUrunSatisDagilimi(
     let cancelled = false;
 
     supabase
-      .from(BELGE_DETAY_VIEW)
+      .from(PANORAMA_BELGE_DETAY_VIEW)
       .select("musteri_kod,musteri_unvan,musteri_kisa_ad,nettutar,miktar")
       .eq("urun_kodu", urunKodu)
       .in("belge_tip", BELGE_TIPLERI)
