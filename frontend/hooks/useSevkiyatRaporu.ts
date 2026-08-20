@@ -2,12 +2,14 @@
 
 import { useEffect, useMemo, useState } from "react";
 
+import { parseIslemTarihi } from "@/lib/import/parse-belge-detay";
 import { parseBelgeTarihi } from "@/lib/import/parse-sevkiyat";
 import { sayiyaCevir } from "@/lib/import/utils";
 import {
   MUSTERILER_RAPOR_VIEW,
   MUSTERI_METRIK_GECMIS_TABLE,
   PANORAMA_SEVKIYAT_VIEW,
+  PANORAMA_SIPARIS_DURUM_VIEW,
   supabase,
 } from "@/lib/supabase";
 import { fetchAllRows } from "@/lib/supabase-fetch-all";
@@ -17,6 +19,8 @@ import type { RiskDurumu } from "@/lib/types";
 export const SEVKIYAT_TREND_GUN_SAYISI = 30;
 /** SevkiyatRaporuKup — tazelik rozeti bu rapor id'sine bakar (bkz. useMusteriRaporlama.ts→useRaporTazeligi). */
 export const SEVKIYAT_REPORT_ID = 5130;
+/** Sipariş Durum Raporu — bekleyen siparişler paneli bu rapor id'sine bakar. */
+export const SIPARIS_DURUM_REPORT_ID = 5140;
 
 function sayi(value: unknown): number {
   return sayiyaCevir(value) ?? 0;
@@ -116,10 +120,72 @@ export interface OdemeTipiDilimi {
   pay: number;
 }
 
+// ---------------------------------------------------------------------------
+// v_panorama_siparis_durum_raporu_guncel — satır bazlı, fulfillment pipeline
+// ---------------------------------------------------------------------------
+
+interface SiparisDurumSatirRaw {
+  musteri_kod: string | null;
+  musteri_unvan: string | null;
+  belge_kod: string | null;
+  islem_tarihi: string | null;
+  sevk_tarihi: string | null;
+  bekleyen_siparis: string | null;
+  genel_toplam: string | null;
+  satis_temsilcisi: string | null;
+}
+
+export type SiparisDurumu = "bekleyen" | "irsaliyeli";
+
+/**
+ * Panorama'nın `bekleyen_siparis` alanındaki 3 durumdan yalnızca henüz
+ * tamamlanmamış ikisi — "Faturalaştırıldı" (tamamlandı) bilinçli olarak
+ * dışlanıyor, panel yalnızca aksiyon gerektiren siparişleri gösteriyor.
+ */
+const SIPARIS_DURUM_ETIKETLERI: Record<string, SiparisDurumu> = {
+  "Bekleyen Sipariş": "bekleyen",
+  "İrsaliyeleştirildi": "irsaliyeli",
+};
+
+export interface BekleyenSiparisSatiri {
+  belgeKod: string;
+  musteriKod: string;
+  musteriAd: string | null;
+  temsilci: string | null;
+  islemTarihi: string | null;
+  /**
+   * Panorama'nın verdiği tarih — bekleyen siparişlerde tutarlı biçimde
+   * islemTarihi+1 gözlemlendi (2026-08-20 keşfi), yani muhtemelen
+   * PLANLANAN sevk tarihi, gerçekleşmiş sevkiyat değil. Kesin anlamı
+   * doğrulanmadı, UI'da "gerçekleşti" gibi sunulmamalı.
+   */
+  sevkTarihi: string | null;
+  durum: SiparisDurumu;
+  kalemSayisi: number;
+  toplamTutar: number;
+  gecenGun: number | null;
+}
+
+export interface BekleyenSiparisOzet {
+  bekleyenSayisi: number;
+  irsaliyeliSayisi: number;
+  enEskiGun: number | null;
+}
+
+function gunFarki(isoTarih: string | null): number | null {
+  if (!isoTarih) return null;
+  const bugunIso = new Date().toISOString().slice(0, 10);
+  const a = Date.parse(`${bugunIso}T00:00:00Z`);
+  const b = Date.parse(`${isoTarih}T00:00:00Z`);
+  if (Number.isNaN(a) || Number.isNaN(b)) return null;
+  return Math.round((a - b) / 86400000);
+}
+
 interface SevkiyatRaporuState {
   musteriler: MusteriSevkiyatRaw[];
   metrikGecmis: { snapshot_tarihi: string; toplam_teslimat_sayisi: number | null }[];
   sevkiyatSatirlari: SevkiyatSatirRaw[];
+  siparisDurumSatirlari: SiparisDurumSatirRaw[];
   loading: boolean;
   error: string | null;
 }
@@ -138,6 +204,7 @@ export function useSevkiyatRaporu() {
     musteriler: [],
     metrikGecmis: [],
     sevkiyatSatirlari: [],
+    siparisDurumSatirlari: [],
     loading: true,
     error: null,
   });
@@ -151,7 +218,7 @@ export function useSevkiyatRaporu() {
         cutoff.setDate(cutoff.getDate() - SEVKIYAT_TREND_GUN_SAYISI);
         const cutoffStr = cutoff.toISOString().slice(0, 10);
 
-        const [musteriRows, metrikRows, sevkiyatRows] = await Promise.all([
+        const [musteriRows, metrikRows, sevkiyatRows, siparisDurumRows] = await Promise.all([
           fetchAllRows<MusteriSevkiyatRaw>((from, to) =>
             supabase
               .from(MUSTERILER_RAPOR_VIEW)
@@ -183,6 +250,20 @@ export function useSevkiyatRaporu() {
               error: { message: string } | null;
             }>
           ).catch(() => []),
+          // Yalnızca henüz tamamlanmamış siparişler — "Faturalaştırıldı" (çoğunluk,
+          // ~8400 satır) sunucuya hiç indirilmiyor.
+          fetchAllRows<SiparisDurumSatirRaw>((from, to) =>
+            supabase
+              .from(PANORAMA_SIPARIS_DURUM_VIEW)
+              .select(
+                "musteri_kod,musteri_unvan,belge_kod,islem_tarihi,sevk_tarihi,bekleyen_siparis,genel_toplam,satis_temsilcisi"
+              )
+              .in("bekleyen_siparis", Object.keys(SIPARIS_DURUM_ETIKETLERI))
+              .range(from, to) as unknown as Promise<{
+              data: SiparisDurumSatirRaw[] | null;
+              error: { message: string } | null;
+            }>
+          ).catch(() => []),
         ]);
 
         if (cancelled) return;
@@ -190,6 +271,7 @@ export function useSevkiyatRaporu() {
           musteriler: musteriRows,
           metrikGecmis: metrikRows,
           sevkiyatSatirlari: sevkiyatRows,
+          siparisDurumSatirlari: siparisDurumRows,
           loading: false,
           error: null,
         });
@@ -199,6 +281,7 @@ export function useSevkiyatRaporu() {
           musteriler: [],
           metrikGecmis: [],
           sevkiyatSatirlari: [],
+          siparisDurumSatirlari: [],
           loading: false,
           error:
             err instanceof Error
@@ -214,7 +297,8 @@ export function useSevkiyatRaporu() {
     };
   }, []);
 
-  const { musteriler, metrikGecmis, sevkiyatSatirlari, loading, error } = state;
+  const { musteriler, metrikGecmis, sevkiyatSatirlari, siparisDurumSatirlari, loading, error } =
+    state;
 
   const ozet = useMemo<SevkiyatOzet>(() => {
     const dagilim: Record<RiskDurumu, number> = {
@@ -378,6 +462,68 @@ export function useSevkiyatRaporu() {
     return { plakalar, odemeTipleri, sonSyncTarihi: sonTarih };
   }, [sevkiyatSatirlari]);
 
+  const { bekleyenSiparisler, bekleyenOzet } = useMemo(() => {
+    const map = new Map<
+      string,
+      {
+        musteriKod: string;
+        musteriAd: string | null;
+        temsilci: string | null;
+        islemTarihi: string | null;
+        sevkTarihi: string | null;
+        durum: SiparisDurumu;
+        kalemSayisi: number;
+        toplamTutar: number;
+      }
+    >();
+
+    for (const r of siparisDurumSatirlari) {
+      const belgeKod = metin(r.belge_kod);
+      const durum = r.bekleyen_siparis ? SIPARIS_DURUM_ETIKETLERI[r.bekleyen_siparis] : undefined;
+      if (!belgeKod || !durum) continue;
+
+      const acc = map.get(belgeKod) ?? {
+        musteriKod: metin(r.musteri_kod) ?? "",
+        musteriAd: metin(r.musteri_unvan),
+        temsilci: metin(r.satis_temsilcisi),
+        islemTarihi: parseIslemTarihi(r.islem_tarihi),
+        sevkTarihi: parseIslemTarihi(r.sevk_tarihi),
+        durum,
+        kalemSayisi: 0,
+        toplamTutar: 0,
+      };
+      acc.kalemSayisi += 1;
+      acc.toplamTutar += sayi(r.genel_toplam);
+      map.set(belgeKod, acc);
+    }
+
+    const bekleyenSiparisler: BekleyenSiparisSatiri[] = [...map.entries()]
+      .map(([belgeKod, v]) => ({
+        belgeKod,
+        musteriKod: v.musteriKod,
+        musteriAd: v.musteriAd,
+        temsilci: v.temsilci,
+        islemTarihi: v.islemTarihi,
+        sevkTarihi: v.sevkTarihi,
+        durum: v.durum,
+        kalemSayisi: v.kalemSayisi,
+        toplamTutar: Math.round(v.toplamTutar * 100) / 100,
+        gecenGun: gunFarki(v.islemTarihi),
+      }))
+      .sort((a, b) => (b.gecenGun ?? 0) - (a.gecenGun ?? 0));
+
+    const bekleyenOzet: BekleyenSiparisOzet = {
+      bekleyenSayisi: bekleyenSiparisler.filter((s) => s.durum === "bekleyen").length,
+      irsaliyeliSayisi: bekleyenSiparisler.filter((s) => s.durum === "irsaliyeli").length,
+      enEskiGun:
+        bekleyenSiparisler.length > 0
+          ? Math.max(...bekleyenSiparisler.map((s) => s.gecenGun ?? 0))
+          : null,
+    };
+
+    return { bekleyenSiparisler, bekleyenOzet };
+  }, [siparisDurumSatirlari]);
+
   return {
     loading,
     error,
@@ -388,5 +534,7 @@ export function useSevkiyatRaporu() {
     plakalar,
     odemeTipleri,
     sonSyncTarihi,
+    bekleyenSiparisler,
+    bekleyenOzet,
   };
 }

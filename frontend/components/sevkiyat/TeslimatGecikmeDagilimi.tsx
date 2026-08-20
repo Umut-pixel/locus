@@ -22,7 +22,7 @@ export function TeslimatGecikmeDagilimi({
   const toplam = RISK_ORDER.reduce((a, r) => a + riskDagilimi[r], 0) || 1;
 
   return (
-    <section className="flex min-w-0 flex-col">
+    <section className="flex min-w-0 flex-col border-b border-border lg:border-r lg:border-b-0">
       <header className="flex h-11 shrink-0 items-center justify-between gap-3 border-b border-border/60 px-3.5">
         <h2 className="text-[12px] font-medium tracking-[0.06em] text-muted-foreground uppercase">
           Teslimat gecikmesi dağılımı

@@ -48,3 +48,11 @@ export const PANORAMA_DETAYLI_STOK_RAPORU_VIEW =
 export const PANORAMA_BELGE_DETAY_VIEW = "v_panorama_belge_detay_raporu_guncel";
 /** SevkiyatRaporuKup (5130) satır bazlı — plaka/araç ve ödeme tipi kırılımı. */
 export const PANORAMA_SEVKIYAT_VIEW = "v_panorama_sevkiyat_raporu_kup_guncel";
+/**
+ * Sipariş Durum Raporu (5140) satır bazlı — sipariş kalemi + fulfillment
+ * durumu (`bekleyen_siparis`: "Bekleyen Sipariş" / "İrsaliyeleştirildi" /
+ * "Faturalaştırıldı"). Günlük çekiliyor ama hiçbir view sabitine/UI'a bağlı
+ * değildi (2026-08-20 keşfi) — bkz. Sevkiyat Raporları "Bekleyen Siparişler" paneli.
+ */
+export const PANORAMA_SIPARIS_DURUM_VIEW =
+  "v_panorama_siparis_durum_raporu_guncel";

@@ -2,6 +2,7 @@
 
 import { Typography } from "@heroui/react";
 
+import { BekleyenSiparislerPanel } from "@/components/sevkiyat/BekleyenSiparislerPanel";
 import { EnRiskliMusterilerPanel } from "@/components/sevkiyat/EnRiskliMusterilerPanel";
 import { PlakaOdemeDagilimi } from "@/components/sevkiyat/PlakaOdemeDagilimi";
 import { RutPerformansTablosu } from "@/components/sevkiyat/RutPerformansTablosu";
@@ -10,7 +11,11 @@ import { SevkiyatSikligiTrendi } from "@/components/sevkiyat/SevkiyatSikligiTren
 import { TeslimatGecikmeDagilimi } from "@/components/sevkiyat/TeslimatGecikmeDagilimi";
 import { AppSidebarMobileTrigger } from "@/components/sidebar/AppSidebar";
 import { useRaporTazeligi } from "@/hooks/useMusteriRaporlama";
-import { SEVKIYAT_REPORT_ID, useSevkiyatRaporu } from "@/hooks/useSevkiyatRaporu";
+import {
+  SEVKIYAT_REPORT_ID,
+  SIPARIS_DURUM_REPORT_ID,
+  useSevkiyatRaporu,
+} from "@/hooks/useSevkiyatRaporu";
 import { formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -24,6 +29,7 @@ export default function SevkiyatRaporlariPage() {
     sikligiTrendi,
     plakalar,
     odemeTipleri,
+    bekleyenSiparisler,
   } = useSevkiyatRaporu();
 
   return (
@@ -62,8 +68,9 @@ export default function SevkiyatRaporlariPage() {
       <div className="min-h-0 flex-1 overflow-y-auto">
         <SevkiyatOzet ozet={ozet} loading={loading} />
 
-        <div className="grid border-b border-border lg:grid-cols-2 [&>section]:h-[22rem]">
+        <div className="grid border-b border-border lg:grid-cols-3 [&>section]:h-[22rem]">
           <TeslimatGecikmeDagilimi riskDagilimi={ozet.riskDagilimi} loading={loading} />
+          <BekleyenSiparislerPanel satirlar={bekleyenSiparisler} loading={loading} />
           <EnRiskliMusterilerPanel satirlar={enRiskliMusteriler} loading={loading} />
         </div>
 
@@ -79,11 +86,17 @@ export default function SevkiyatRaporlariPage() {
   );
 }
 
-/** SevkiyatRaporuKup (5130) — rut/teslimat rakamları bu çekime dayanıyor. */
+/** SevkiyatRaporuKup (5130) ve Sipariş Durum Raporu (5140) — ikisinin en eskisi gösterilir. */
 function VeriTazeligi() {
-  const { saatOnce, loading } = useRaporTazeligi(SEVKIYAT_REPORT_ID);
+  const sevkiyat = useRaporTazeligi(SEVKIYAT_REPORT_ID);
+  const siparisDurum = useRaporTazeligi(SIPARIS_DURUM_REPORT_ID);
 
-  if (loading || saatOnce == null) return null;
+  const enEski = [sevkiyat, siparisDurum]
+    .filter((t) => t.saatOnce != null)
+    .sort((a, b) => (b.saatOnce ?? 0) - (a.saatOnce ?? 0))[0];
+
+  if (!enEski || enEski.saatOnce == null) return null;
+  const saatOnce = enEski.saatOnce;
 
   const kritik = saatOnce >= 48;
   const uyari = saatOnce >= 24;
@@ -93,7 +106,7 @@ function VeriTazeligi() {
   return (
     <span
       className="hidden shrink-0 items-center gap-1.5 md:flex"
-      title="SevkiyatRaporuKup (5130) Panorama'dan en son ne zaman çekildi."
+      title="SevkiyatRaporuKup (5130) ve Sipariş Durum Raporu (5140) — en eski çekimin zamanı."
     >
       <span
         className={cn(
