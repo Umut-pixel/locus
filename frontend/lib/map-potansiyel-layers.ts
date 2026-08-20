@@ -18,14 +18,14 @@ export const POTANSIYEL_POINT_LAYER = "potansiyel-point";
 export const POTANSIYEL_POINT_HIT_LAYER = "potansiyel-point-hit";
 export const POTANSIYEL_SELECTED_LAYER = "potansiyel-selected";
 
-/** Müşteri risk paletine karışmayan nötr teal — potansiyel stroke rengi. */
-export const POTANSIYEL_COLOR = "#5eead4";
-export const POTANSIYEL_STROKE = "#2dd4bf";
-/** "Sonra bak" favori — teal nokta üzerinde Airbnb Rausch halka. */
+/** Müşteri risk paletine karışmayan nötr sarı — potansiyel stroke rengi. */
+export const POTANSIYEL_COLOR = "#facc15";
+export const POTANSIYEL_STROKE = "#eab308";
+/** "Sonra bak" favori — sarı nokta üzerinde Airbnb Rausch halka. */
 export const POTANSIYEL_FAVORI_STROKE = "#ff385c";
-/** Küme balonu — müşteri gri'sinden ayrılan teal-gri */
-export const POTANSIYEL_CLUSTER_FILL = "#99f6e4";
-export const POTANSIYEL_CLUSTER_TEXT = "#134e4a";
+/** Küme balonu — müşteri gri'sinden ayrılan sarı-gri */
+export const POTANSIYEL_CLUSTER_FILL = "#fef08a";
+export const POTANSIYEL_CLUSTER_TEXT = "#713f12";
 
 const EMPTY: PotansiyelFeatureCollection = {
   type: "FeatureCollection",
@@ -73,7 +73,7 @@ export function addPotansiyelLayers(
           "circle-radius": clusterRadiusExpr(),
           "circle-opacity": clusterCircleOpacityExpr(false),
           "circle-stroke-width": 2,
-          "circle-stroke-color": "rgba(19,78,74,0.45)",
+          "circle-stroke-color": "rgba(113,63,18,0.45)",
           "circle-stroke-opacity": clusterStrokeOpacityExpr(false),
           "circle-emissive-strength": 1,
         },
@@ -92,7 +92,7 @@ export function addPotansiyelLayers(
         layout: {
           visibility,
           "text-field": ["get", "point_count_abbreviated"],
-          "text-font": ["Arial Unicode MS Bold"],
+          "text-font": ["Open Sans Bold"],
           "text-size": 12,
         },
         paint: {

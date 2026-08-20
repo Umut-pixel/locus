@@ -134,6 +134,8 @@ export interface MusteriRaporSatiri {
    * konusurken dogru olan. Ikisi ayni sey degil; bkz. melih-not-ciro-mutabakat.md.
    */
   belge_net_ciro_kdv_dahil: number | null;
+  /** Iskonto oncesi brut satis tutari — bkz. sql/raporlama_view_koordinatsiz.sql. */
+  belge_brut_ciro: number | null;
   belge_siparis_sayisi: number | null;
   belge_fatura_sayisi: number | null;
   belge_son_islem_tarihi: string | null;

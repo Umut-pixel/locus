@@ -92,7 +92,7 @@ export function addCustomerLayers(
       filter: ["has", "point_count"],
       layout: {
         "text-field": ["get", "point_count_abbreviated"],
-        "text-font": ["Arial Unicode MS Bold"],
+        "text-font": ["Open Sans Bold"],
         "text-size": 12,
       },
       paint: {

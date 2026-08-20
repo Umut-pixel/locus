@@ -1,6 +1,12 @@
 "use client";
 
-import { AlertTriangleIcon, BanknoteIcon, ReceiptTextIcon, WalletIcon } from "lucide-react";
+import {
+  AlertTriangleIcon,
+  BanknoteIcon,
+  CircleDollarSignIcon,
+  ReceiptTextIcon,
+  WalletIcon,
+} from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 import type { FinansalOzet as FinansalOzetVerisi } from "@/hooks/useFinansalRaporu";
@@ -20,11 +26,12 @@ interface FinansalOzetProps {
 export function FinansalOzet({ ozet, loading }: FinansalOzetProps) {
   const toplamAcikBakiye = useCountUp(ozet.toplamAcikBakiye);
   const toplamRiskliTutar = useCountUp(ozet.toplamRiskliTutar);
+  const toplamBrutCiro = useCountUp(ozet.toplamBrutCiro);
   const toplamNetCiro = useCountUp(ozet.toplamNetCiro);
-  const toplamTahsilat = useCountUp(ozet.toplamTahsilat);
+  const toplamNetCiroKdvDahil = useCountUp(ozet.toplamNetCiroKdvDahil);
 
   return (
-    <div className="grid grid-cols-2 gap-px border-b border-border bg-border lg:grid-cols-4">
+    <div className="grid grid-cols-2 gap-px border-b border-border bg-border lg:grid-cols-5">
       <div className="flex flex-col justify-center gap-1 bg-background px-3.5 py-4">
         <span className="text-[12px] tracking-[0.06em] text-muted-foreground uppercase">
           Toplam açık bakiye
@@ -52,6 +59,14 @@ export function FinansalOzet({ ozet, loading }: FinansalOzetProps) {
       />
 
       <StatKutusu
+        icon={CircleDollarSignIcon}
+        etiket="Brüt ciro"
+        deger={formatCurrency(toplamBrutCiro)}
+        altBilgi="İskonto öncesi, güncel senkron"
+        loading={loading}
+      />
+
+      <StatKutusu
         icon={BanknoteIcon}
         etiket="Net ciro"
         deger={formatCurrency(toplamNetCiro)}
@@ -61,9 +76,9 @@ export function FinansalOzet({ ozet, loading }: FinansalOzetProps) {
 
       <StatKutusu
         icon={WalletIcon}
-        etiket="Tahsilat"
-        deger={formatCurrency(toplamTahsilat)}
-        altBilgi="KDV dahil, müşteriden tahsil edilen"
+        etiket="Net ciro (KDV dahil)"
+        deger={formatCurrency(toplamNetCiroKdvDahil)}
+        altBilgi="KDV dahil, güncel senkron"
         loading={loading}
       />
     </div>

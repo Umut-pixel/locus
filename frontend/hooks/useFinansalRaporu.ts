@@ -47,7 +47,7 @@ function iadeMi(islemTip: string | null): boolean {
 
 const MUSTERI_SELECT =
   "musteri_kodu,unvan,sehir,ilce,yas_toplam,yas_riskli_tutar,belge_net_ciro," +
-  "belge_net_ciro_kdv_dahil,hf_01_06,hf_07_13,hf_14_20,hf_21_27,hf_28_34," +
+  "belge_net_ciro_kdv_dahil,belge_brut_ciro,hf_01_06,hf_07_13,hf_14_20,hf_21_27,hf_28_34," +
   "hf_35_41,hf_42_48,hf_49_55,hf_56_62,hf_63_69,hf_70_ustu";
 
 type MusteriFinansalRow = Pick<
@@ -60,6 +60,7 @@ type MusteriFinansalRow = Pick<
   | "yas_riskli_tutar"
   | "belge_net_ciro"
   | "belge_net_ciro_kdv_dahil"
+  | "belge_brut_ciro"
   | "hf_01_06"
   | "hf_07_13"
   | "hf_14_20"
@@ -76,8 +77,9 @@ type MusteriFinansalRow = Pick<
 export interface FinansalOzet {
   toplamAcikBakiye: number;
   toplamRiskliTutar: number;
+  toplamBrutCiro: number;
   toplamNetCiro: number;
-  toplamTahsilat: number;
+  toplamNetCiroKdvDahil: number;
   borcluMusteriSayisi: number;
 }
 
@@ -259,21 +261,24 @@ export function useFinansalRaporu() {
   const ozet = useMemo<FinansalOzet>(() => {
     let toplamAcikBakiye = 0;
     let toplamRiskliTutar = 0;
+    let toplamBrutCiro = 0;
     let toplamNetCiro = 0;
-    let toplamTahsilat = 0;
+    let toplamNetCiroKdvDahil = 0;
     let borcluMusteriSayisi = 0;
     for (const m of musteriler) {
       toplamAcikBakiye += m.yas_toplam ?? 0;
       toplamRiskliTutar += m.yas_riskli_tutar ?? 0;
+      toplamBrutCiro += m.belge_brut_ciro ?? 0;
       toplamNetCiro += m.belge_net_ciro ?? 0;
-      toplamTahsilat += m.belge_net_ciro_kdv_dahil ?? 0;
+      toplamNetCiroKdvDahil += m.belge_net_ciro_kdv_dahil ?? 0;
       if ((m.yas_toplam ?? 0) > 0) borcluMusteriSayisi += 1;
     }
     return {
       toplamAcikBakiye: Math.round(toplamAcikBakiye * 100) / 100,
       toplamRiskliTutar: Math.round(toplamRiskliTutar * 100) / 100,
+      toplamBrutCiro: Math.round(toplamBrutCiro * 100) / 100,
       toplamNetCiro: Math.round(toplamNetCiro * 100) / 100,
-      toplamTahsilat: Math.round(toplamTahsilat * 100) / 100,
+      toplamNetCiroKdvDahil: Math.round(toplamNetCiroKdvDahil * 100) / 100,
       borcluMusteriSayisi,
     };
   }, [musteriler]);

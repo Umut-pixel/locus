@@ -424,7 +424,7 @@ export const PetshopMap = memo(function PetshopMap({
           layout: {
             "text-field": ["to-string", ["get", "ziyaret_sira"]],
             "text-size": 11,
-            "text-font": ["Arial Unicode MS Bold"],
+            "text-font": ["Open Sans Bold"],
             "text-allow-overlap": true,
             "text-ignore-placement": true,
             "text-offset": [0, -1.6],
