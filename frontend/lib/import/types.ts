@@ -5,7 +5,9 @@ export type DosyaTipi =
   | "RutTanimListesi"
   | "SevkiyatRaporuKup"
   | "StYaslandirma"
-  | "BelgeDetayRaporu";
+  | "BelgeDetayRaporu"
+  /** Panorama'dan değil, fabrikadan (ARMA İlaç) 15 günde bir e-posta ile gelir. */
+  | "FabrikaSktRaporu";
 
 export interface UploadResult {
   tip: DosyaTipi;
@@ -85,6 +87,24 @@ export interface YaslandirmaUpdateRow {
   toplam: number;
   riskli_tutar: number;
   borc_riskli: boolean;
+}
+
+/**
+ * Fabrika alış raporu — ürün SKT / parti kaydı.
+ * Grain: bir alım kalemi × bir SKT hücresi (bkz. sql/urun_skt_sema.sql).
+ */
+export interface UrunSktUpdateRow {
+  /** Parse sırasında null; katalog eşleştirmesinden sonra API route dolduruyor. */
+  urun_kodu: string | null;
+  urun_adi: string;
+  matbu_no: string | null;
+  islem_tarihi: string | null;
+  /** Alım KALEMİNİN toplam miktarı — çok partili kalemlerde partiye bölünemez. */
+  satir_miktar: number | null;
+  parti_no: string | null;
+  skt_tarihi: string | null;
+  durum: "tarihli" | "cozulemedi" | "devir" | "kayit_yok";
+  tek_parti: boolean;
 }
 
 /** BelgeDetayRaporu — müşteri bazlı ticari dönem özeti. */

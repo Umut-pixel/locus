@@ -69,17 +69,47 @@ function scoreSheet(sheet: XLSX.WorkSheet): {
   return { score, headerRow, headers };
 }
 
+export interface ReadWorkbookOptions {
+  /**
+   * Tarih hücrelerini Date nesnesine çevir (varsayılan true — mevcut çağıranlar
+   * bu davranışa bağlı).
+   *
+   * `false` verildiğinde hücreler ham Excel seri numarası olarak gelir.
+   * DİKKAT: SheetJS `cellDates: true` ile ürettiği Date'i çalıştığı ortamın
+   * saat dilimine göre kuruyor ve tarih GÜN KAYABİLİYOR — 2026-08-21'de
+   * ölçüldü: dosyada "10/31/26" yazan hücre (seri 46326) Date olarak
+   * 2026-10-30 çıkıyor, yani bir gün geri. Takvim gününün birebir doğru olması
+   * gereken yerlerde (SKT) seri numarasını okuyup UTC ile çevirin.
+   */
+  cellDates?: boolean;
+  /**
+   * Hücre değerlerini biçimlendirilmiş metin yerine ham değer olarak al.
+   * Verilmezse başlıklara bakılarak otomatik seçilir (ST Yaşlandırma → raw).
+   */
+  raw?: boolean;
+}
+
 /**
  * Excel buffer'dan satır + başlık çıkar.
  * ST Yaşlandırma: doğru sheet + header satırı (Hafta satırını atla), raw sayılar.
  * Diğer tipler: tercih edilen sheet adları veya en yüksek skorlu sayfa.
+ *
+ * Not: aynı başlık birden fazla kez geçerse SheetJS anahtarlara `_1`, `_2` …
+ * ekler (fabrika SKT dosyasındaki 5 adet "SKT TARİH / PARTİ / ADET" kolonu
+ * böyle ayrışıyor) — çakışma olmaz.
  */
-export function readWorkbook(buffer: ArrayBuffer): {
+export function readWorkbook(
+  buffer: ArrayBuffer,
+  options: ReadWorkbookOptions = {}
+): {
   headers: string[];
   rows: Record<string, unknown>[];
   sheetName: string;
 } {
-  const wb = XLSX.read(buffer, { type: "array", cellDates: true });
+  const wb = XLSX.read(buffer, {
+    type: "array",
+    cellDates: options.cellDates ?? true,
+  });
   if (!wb.SheetNames.length) {
     throw new Error("Excel dosyasında sayfa bulunamadı.");
   }
@@ -108,7 +138,7 @@ export function readWorkbook(buffer: ArrayBuffer): {
 
   const sheet = wb.Sheets[bestName];
   const headerRow = best.headerRow;
-  const useRaw = looksLikeYaslandirmaHeaders(best.headers);
+  const useRaw = options.raw ?? looksLikeYaslandirmaHeaders(best.headers);
 
   const json = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, {
     defval: null,

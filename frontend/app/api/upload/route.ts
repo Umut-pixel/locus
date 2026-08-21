@@ -5,6 +5,7 @@ import {
   detectDosyaTipi,
   geocodeEksikler,
   parseBelgeDetayRaporu,
+  parseFabrikaSktRaporu,
   parseMusteriListesi,
   parseRutTanimListesi,
   parseSevkiyatRaporuKup,
@@ -13,6 +14,11 @@ import {
   type DosyaTipi,
   type UploadResult,
 } from "@/lib/import";
+import {
+  fetchUrunKatalogu,
+  normalizeUrunAdi,
+  replaceUrunSkt,
+} from "@/lib/sync/write-urun-skt";
 import {
   buildPortfolioForm,
   computeRiskDurumu,
@@ -463,6 +469,60 @@ export async function POST(request: Request) {
         eslesmeyenMusteriKodlari: eslesmeyen,
         etkilenenMusteriKodlari: eslesen.map((r) => r.musteri_kodu),
         uyarilar: uyarilar.length ? uyarilar : undefined,
+      };
+    } else if (tip === "FabrikaSktRaporu") {
+      // SKT hücreleri ham Excel seri numarası olarak yeniden okunuyor:
+      // cellDates ile gelen Date bir gün geri kayıyor (bkz. read-workbook.ts).
+      // Dosya küçük (~560 satır), ikinci okumanın maliyeti ihmal edilebilir.
+      const sktWorkbook = readWorkbook(buffer, { cellDates: false, raw: true });
+      const parsed = parseFabrikaSktRaporu(sktWorkbook.rows);
+
+      const katalog = await fetchUrunKatalogu(admin);
+      const eslesmeyenAdlar = new Set<string>();
+      const cozulmus = parsed.rows.map((r) => {
+        const kod = katalog.get(normalizeUrunAdi(r.urun_adi)) ?? null;
+        if (!kod) eslesmeyenAdlar.add(r.urun_adi);
+        return { ...r, urun_kodu: kod };
+      });
+
+      // Kodu çözülemeyen satır yazılmıyor: SKT rozeti stok tablosuna
+      // urun_kodu ile bağlanıyor, kodsuz kayıt hiçbir yerde görünmez.
+      const yazilacak = cozulmus.filter((r) => r.urun_kodu != null);
+      const yazilan = yazilacak.length > 0 ? await replaceUrunSkt(admin, yazilacak) : 0;
+
+      const eslesenUrun = new Set(yazilacak.map((r) => r.urun_kodu)).size;
+      uyarilar.push(
+        `SKT snapshot: ${eslesenUrun} ürün, ${yazilan} kayıt ` +
+          `(${parsed.sayimlar.tarihli} tarihli, ${parsed.sayimlar.cozulemedi} parti kodu, ` +
+          `${parsed.sayimlar.devir} devir, ${parsed.sayimlar.kayit_yok} kayıtsız).`
+      );
+      if (parsed.donemBas && parsed.donemBit) {
+        uyarilar.push(
+          `Kapsanan alım aralığı: ${parsed.donemBas} → ${parsed.donemBit}.`
+        );
+      }
+      if (parsed.cokPartiliSatir > 0) {
+        uyarilar.push(
+          `${parsed.cokPartiliSatir} alım kaleminde birden fazla parti var — ` +
+            "bu kalemlerde miktar partiye bölünemiyor."
+        );
+      }
+      if (eslesmeyenAdlar.size > 0) {
+        uyarilar.push(
+          `${eslesmeyenAdlar.size} ürün adı stok kataloğunda bulunamadı — bu satırlar atlandı.`
+        );
+      }
+
+      result = {
+        tip,
+        islenenSatir: parsed.islenenSatir,
+        yeniMusteri: 0,
+        guncellenenMusteri: 0,
+        geocodeBasarisiz: 0,
+        // Bu dosyada müşteri yok; alan "eşleşmeyen kayıt" listesi olarak
+        // kullanılıyor (UI zaten bu listeyi gösteriyor).
+        eslesmeyenMusteriKodlari: [...eslesmeyenAdlar],
+        uyarilar,
       };
     } else if (tip === "BelgeDetayRaporu") {
       const parsed = parseBelgeDetayRaporu(workbook.rows);

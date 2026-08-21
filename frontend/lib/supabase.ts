@@ -56,3 +56,10 @@ export const PANORAMA_SEVKIYAT_VIEW = "v_panorama_sevkiyat_raporu_kup_guncel";
  */
 export const PANORAMA_SIPARIS_DURUM_VIEW =
   "v_panorama_siparis_durum_raporu_guncel";
+/**
+ * Ürün SKT / parti kayıtları — Panorama'dan DEĞİL, fabrikanın 15 günde bir
+ * gönderdiği alış raporundan (Veri Yükle akışı). Otomatik tazelenmez;
+ * ekranda kapsanan tarih aralığı bu yüzden açıkça gösteriliyor.
+ * bkz. sql/urun_skt_sema.sql
+ */
+export const URUN_SKT_TABLE = "urun_skt";
