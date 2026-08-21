@@ -52,6 +52,7 @@ const TIP_LABEL: Record<UploadResult["tip"], string> = {
   SevkiyatRaporuKup: "SevkiyatRaporuKup",
   StYaslandirma: "ST Yaşlandırma",
   BelgeDetayRaporu: "BelgeDetayRaporu",
+  FabrikaSktRaporu: "Fabrika SKT",
 };
 
 interface DataImportFlowProps {
@@ -60,13 +61,22 @@ interface DataImportFlowProps {
   onStageChange?: (stage: ImportStage) => void;
   /** Başarılı yükleme sonucu — asistan analizi için. */
   onResult?: (result: UploadResult) => void;
+  /**
+   * Panel başlığı. Dosya tipi yine içerikten tespit edildiği için bu yalnızca
+   * bağlam etiketi — stok sayfasında "SKT / fabrika verisi yükle" gibi.
+   */
+  baslik?: string;
 }
+
+/** Müşteri sayacı taşımayan tipler — detay satırları bunlarda gizlenir. */
+const MUSTERISIZ_TIPLER = new Set<UploadResult["tip"]>(["FabrikaSktRaporu"]);
 
 export function DataImportFlow({
   onClose,
   onComplete,
   onStageChange,
   onResult,
+  baslik = "Müşteri verisi yükle",
 }: DataImportFlowProps) {
   const [stage, setStage] = useState<Stage>("idle");
   const [file, setFile] = useState<{ name: string; size: number } | null>(null);
@@ -232,7 +242,7 @@ export function DataImportFlow({
         <div className={cn("px-3", isComplete ? "pt-2.5 pb-2" : "py-2.5")}>
           <div className="flex items-center gap-1.5">
             <Typography.Heading level={6} className="min-w-0 flex-1 truncate">
-              Müşteri verisi yükle
+              {baslik}
             </Typography.Heading>
             <AnimatePresence>
               {(stage === "uploaded" ||
@@ -422,14 +432,18 @@ export function DataImportFlow({
                 label="İşlenen"
                 value={`${formatNumber(result.islenenSatir)} satır`}
               />
-              <DetailRow
-                label="Yeni"
-                value={`${formatNumber(result.yeniMusteri)} müşteri`}
-              />
-              <DetailRow
-                label="Güncellenen"
-                value={`${formatNumber(result.guncellenenMusteri)} müşteri`}
-              />
+              {!MUSTERISIZ_TIPLER.has(result.tip) && (
+                <>
+                  <DetailRow
+                    label="Yeni"
+                    value={`${formatNumber(result.yeniMusteri)} müşteri`}
+                  />
+                  <DetailRow
+                    label="Güncellenen"
+                    value={`${formatNumber(result.guncellenenMusteri)} müşteri`}
+                  />
+                </>
+              )}
               {result.tip === "MusteriListesi" && (
                 <DetailRow
                   label="Geocode yok"
@@ -439,7 +453,9 @@ export function DataImportFlow({
               {result.eslesmeyenMusteriKodlari.length > 0 && (
                 <DetailRow
                   label="Eşleşmeyen"
-                  value={`${formatNumber(result.eslesmeyenMusteriKodlari.length)} kod`}
+                  value={`${formatNumber(result.eslesmeyenMusteriKodlari.length)} ${
+                    MUSTERISIZ_TIPLER.has(result.tip) ? "ürün" : "kod"
+                  }`}
                 />
               )}
             </dl>

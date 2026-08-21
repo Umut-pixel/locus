@@ -9,8 +9,10 @@ import type {
   StokSort,
   StokSortField,
 } from "@/hooks/useStokRaporu";
+import { SktRozeti } from "@/components/stok/SktRozeti";
 import { UrunSatisDetayi } from "@/components/stok/UrunSatisDetayi";
 import { ScrollBottomFade } from "@/components/ui/ScrollBottomFade";
+import { sktOzetiBul, type UrunSktOzeti } from "@/hooks/useUrunSkt";
 import { useScrollBottomFade } from "@/hooks/useScrollBottomFade";
 import { formatCurrency, formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -21,12 +23,15 @@ interface StokTableProps {
   error: string | null;
   sort: StokSort;
   onSortChange: (sort: StokSort) => void;
+  /** Fabrika alış dosyasından gelen SKT özetleri — tablo kaynağı bilmiyor. */
+  sktOzetleri: Map<string, UrunSktOzeti>;
+  sktLoading: boolean;
 }
 
 const TH_BASE =
   "h-[var(--row-h-head)] px-3 text-[12px] font-medium tracking-[0.06em] whitespace-nowrap uppercase";
 const TD_BASE = "px-3 align-middle";
-const COLUMN_COUNT = 7;
+const COLUMN_COUNT = 8;
 
 /**
  * Envanter tablosu — aynı zamanda dağılım grafiğinin "tablo görünümü" ikizi:
@@ -39,6 +44,8 @@ export function StokTable({
   error,
   sort,
   onSortChange,
+  sktOzetleri,
+  sktLoading,
 }: StokTableProps) {
   const [acikUrunKodu, setAcikUrunKodu] = useState<string | null>(null);
   const { wrapperRef, scrollRef } = useScrollBottomFade<HTMLDivElement, HTMLDivElement>(
@@ -51,7 +58,7 @@ export function StokTable({
         ref={scrollRef}
         className={cn("min-h-0 flex-1 overflow-auto transition-opacity", loading && "opacity-40")}
       >
-        <table className="w-full min-w-[52rem] border-collapse text-left">
+        <table className="w-full min-w-[62rem] border-collapse text-left">
           <thead className="sticky top-0 z-10 bg-background">
             <tr className="border-b border-border text-muted-foreground">
               <SiralanabilirBaslik
@@ -66,6 +73,13 @@ export function StokTable({
               </th>
               <th scope="col" className={TH_BASE}>
                 Kategori
+              </th>
+              <th
+                scope="col"
+                className={cn(TH_BASE, "cursor-help")}
+                title="Fabrika alış raporundan gelen en yakın son kullanma tarihi. Panorama'dan gelmez — Veri Yükle ile tazelenir."
+              >
+                En yakın SKT
               </th>
               <SiralanabilirBaslik
                 alan="miktar"
@@ -126,6 +140,12 @@ export function StokTable({
                     </td>
                     <td className={cn(TD_BASE, "text-[13px] whitespace-nowrap text-muted-foreground")}>
                       {s.kategori ?? "—"}
+                    </td>
+                    <td className={cn(TD_BASE, "whitespace-nowrap")}>
+                      <SktRozeti
+                        ozet={sktOzetiBul(sktOzetleri, s.urunKodu, s.urun)}
+                        loading={sktLoading}
+                      />
                     </td>
                     <td className={cn(TD_BASE, "text-right whitespace-nowrap")}>
                       {/* Tükenmiş satır durum rengiyle işaretli + "Yok" metni: renk tek başına taşımıyor. */}
