@@ -6,6 +6,11 @@ import { parseIslemTarihi } from "@/lib/import/parse-belge-detay";
 import { parseBelgeTarihi } from "@/lib/import/parse-sevkiyat";
 import { sayiyaCevir } from "@/lib/import/utils";
 import {
+  getReportCache,
+  isReportCacheFresh,
+  setReportCache,
+} from "@/lib/report-cache";
+import {
   MUSTERILER_RAPOR_VIEW,
   MUSTERI_METRIK_GECMIS_TABLE,
   PANORAMA_SEVKIYAT_VIEW,
@@ -190,6 +195,15 @@ interface SevkiyatRaporuState {
   error: string | null;
 }
 
+interface SevkiyatRaporuCache {
+  musteriler: MusteriSevkiyatRaw[];
+  metrikGecmis: { snapshot_tarihi: string; toplam_teslimat_sayisi: number | null }[];
+  sevkiyatSatirlari: SevkiyatSatirRaw[];
+  siparisDurumSatirlari: SiparisDurumSatirRaw[];
+}
+
+const CACHE_KEY = "sevkiyat-raporu";
+
 /**
  * Sevkiyat Raporları sayfası — üç kaynak, tek seferde çekilir (Stok
  * Raporları'nın deseni). Kaynaklar:
@@ -200,19 +214,25 @@ interface SevkiyatRaporuState {
  *     mevcut sync penceresi — çoklu-sync trend için değil, bkz. #2)
  */
 export function useSevkiyatRaporu() {
-  const [state, setState] = useState<SevkiyatRaporuState>({
-    musteriler: [],
-    metrikGecmis: [],
-    sevkiyatSatirlari: [],
-    siparisDurumSatirlari: [],
-    loading: true,
+  const cached = getReportCache<SevkiyatRaporuCache>(CACHE_KEY);
+  const [state, setState] = useState<SevkiyatRaporuState>(() => ({
+    musteriler: cached?.musteriler ?? [],
+    metrikGecmis: cached?.metrikGecmis ?? [],
+    sevkiyatSatirlari: cached?.sevkiyatSatirlari ?? [],
+    siparisDurumSatirlari: cached?.siparisDurumSatirlari ?? [],
+    loading: !cached,
     error: null,
-  });
+  }));
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
+    const hasCache = Boolean(getReportCache<SevkiyatRaporuCache>(CACHE_KEY));
+    if (hasCache && isReportCacheFresh(CACHE_KEY)) return;
+
     let cancelled = false;
 
     async function run() {
+      if (hasCache) setRefreshing(true);
       try {
         const cutoff = new Date();
         cutoff.setDate(cutoff.getDate() - SEVKIYAT_TREND_GUN_SAYISI);
@@ -267,16 +287,19 @@ export function useSevkiyatRaporu() {
         ]);
 
         if (cancelled) return;
-        setState({
+        const next: SevkiyatRaporuCache = {
           musteriler: musteriRows,
           metrikGecmis: metrikRows,
           sevkiyatSatirlari: sevkiyatRows,
           siparisDurumSatirlari: siparisDurumRows,
-          loading: false,
-          error: null,
-        });
+        };
+        setReportCache(CACHE_KEY, next);
+        setState({ ...next, loading: false, error: null });
+        setRefreshing(false);
       } catch (err) {
         if (cancelled) return;
+        setRefreshing(false);
+        if (hasCache) return;
         setState({
           musteriler: [],
           metrikGecmis: [],
@@ -526,6 +549,7 @@ export function useSevkiyatRaporu() {
 
   return {
     loading,
+    refreshing,
     error,
     ozet,
     rutlar,

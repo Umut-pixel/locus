@@ -4,6 +4,11 @@ import { useEffect, useMemo, useState } from "react";
 
 import { sayiyaCevir } from "@/lib/import/utils";
 import {
+  getReportCache,
+  isReportCacheFresh,
+  setReportCache,
+} from "@/lib/report-cache";
+import {
   PANORAMA_DETAYLI_STOK_RAPORU_VIEW,
   supabase,
 } from "@/lib/supabase";
@@ -105,6 +110,8 @@ interface StokRaporuState {
   error: string | null;
 }
 
+const CACHE_KEY = "stok-raporu";
+
 // urun_hiyerarsi2 bilinçli olarak yok: 5430'un tüm satırlarında boş geliyor.
 const SELECT_KOLONLARI =
   "urun_kodu,urun,depo_ad,grup,urun_hiyerarsi1," +
@@ -117,48 +124,59 @@ const SELECT_KOLONLARI =
  * tutmayı zorlaştırırdı — tek slice, tüm görseller aynı veriden.
  */
 export function useStokRaporu(filters: StokFilters, sort: StokSort) {
-  const [state, setState] = useState<StokRaporuState>({
-    tumSatirlar: [],
-    loading: true,
+  const cached = getReportCache<StokSatiri[]>(CACHE_KEY);
+  const [state, setState] = useState<StokRaporuState>(() => ({
+    tumSatirlar: cached ?? [],
+    loading: !cached,
     error: null,
-  });
+  }));
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
+    const hasCache = Boolean(getReportCache<StokSatiri[]>(CACHE_KEY));
+    if (hasCache && isReportCacheFresh(CACHE_KEY)) return;
+
     let cancelled = false;
 
-    supabase
-      .from(PANORAMA_DETAYLI_STOK_RAPORU_VIEW)
-      .select(SELECT_KOLONLARI)
-      .then(({ data, error }) => {
-        if (cancelled) return;
-        if (error) {
-          setState({
-            tumSatirlar: [],
-            loading: false,
-            error: `Stok verisi yüklenemedi: ${error.message}`,
-          });
-          return;
-        }
-        // supabase-js seçim string'ini çözemediğinde `data`yı hata tipiyle
-        // birleştiriyor; satırlar zaten aşağıda alan alan doğrulanıyor.
-        const ham = (data ?? []) as unknown as Record<string, unknown>[];
-        const satirlar: StokSatiri[] = ham.map((row) => {
-          return {
-            urunKodu: metin(row.urun_kodu) ?? "",
-            urun: metin(row.urun) ?? "—",
-            depoAd: metin(row.depo_ad),
-            marka: metin(row.grup),
-            kategori: metin(row.urun_hiyerarsi1),
-            birim: metin(row.birim),
-            kdvOran: sayi(row.kdv),
-            fiyat: sayi(row.fiyat),
-            miktar: sayi(row.miktar),
-            brutTutar: sayi(row.brut_tutar),
-            kdvliTutar: sayi(row.kdvli_tutar),
-          };
+    function run() {
+      if (hasCache) setRefreshing(true);
+      return supabase.from(PANORAMA_DETAYLI_STOK_RAPORU_VIEW).select(SELECT_KOLONLARI);
+    }
+
+    run().then(({ data, error }) => {
+      if (cancelled) return;
+      if (error) {
+        setRefreshing(false);
+        if (hasCache) return;
+        setState({
+          tumSatirlar: [],
+          loading: false,
+          error: `Stok verisi yüklenemedi: ${error.message}`,
         });
-        setState({ tumSatirlar: satirlar, loading: false, error: null });
+        return;
+      }
+      // supabase-js seçim string'ini çözemediğinde `data`yı hata tipiyle
+      // birleştiriyor; satırlar zaten aşağıda alan alan doğrulanıyor.
+      const ham = (data ?? []) as unknown as Record<string, unknown>[];
+      const satirlar: StokSatiri[] = ham.map((row) => {
+        return {
+          urunKodu: metin(row.urun_kodu) ?? "",
+          urun: metin(row.urun) ?? "—",
+          depoAd: metin(row.depo_ad),
+          marka: metin(row.grup),
+          kategori: metin(row.urun_hiyerarsi1),
+          birim: metin(row.birim),
+          kdvOran: sayi(row.kdv),
+          fiyat: sayi(row.fiyat),
+          miktar: sayi(row.miktar),
+          brutTutar: sayi(row.brut_tutar),
+          kdvliTutar: sayi(row.kdvli_tutar),
+        };
       });
+      setReportCache(CACHE_KEY, satirlar);
+      setState({ tumSatirlar: satirlar, loading: false, error: null });
+      setRefreshing(false);
+    });
 
     return () => {
       cancelled = true;
@@ -248,6 +266,7 @@ export function useStokRaporu(filters: StokFilters, sort: StokSort) {
     markaSecenekleri,
     kategoriSecenekleri,
     loading,
+    refreshing,
     error,
   };
 }

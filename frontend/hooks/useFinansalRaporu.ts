@@ -9,6 +9,11 @@ import {
 import { KEEP_BELGE_TIP, parseIslemTarihi } from "@/lib/import/parse-belge-detay";
 import { sayiyaCevir } from "@/lib/import/utils";
 import {
+  getReportCache,
+  isReportCacheFresh,
+  setReportCache,
+} from "@/lib/report-cache";
+import {
   MUSTERILER_RAPOR_VIEW,
   PANORAMA_ACIK_FATURA_VADE_KUP_VIEW,
   PANORAMA_BELGE_DETAY_VIEW,
@@ -156,6 +161,14 @@ interface FinansalRaporuState {
   error: string | null;
 }
 
+interface FinansalRaporuCache {
+  musteriler: MusteriFinansalRow[];
+  acikFaturalar: AcikFaturaSatiri[];
+  belgeSatirlari: BelgeDetayRaw[];
+}
+
+const CACHE_KEY = "finansal-raporu";
+
 /**
  * Finansal Raporlar sayfası — tek seferde üç kaynağı çeker (Stok Raporları'nın
  * "single-fetch, client'ta türet" deseni), filtre/kırılım hesapları
@@ -163,20 +176,30 @@ interface FinansalRaporuState {
  *  1. musteriler_rapor  — müşteri bazlı borç/ciro (şirket geneli KPI + bantlar)
  *  2. acik_fatura_vade_kup_guncel — satır bazlı açık fatura (drill-down tablo)
  *  3. belge_detay_raporu_guncel — satır bazlı ciro (trend + temsilci/ürün kırılımı)
+ *
+ * Sayfalar arası geçişte boş ekran/yeniden fetch olmasın diye harita
+ * sayfasıyla (bkz. musteri-cache.ts) aynı modül-seviyesi cache deseni: cache
+ * varsa anında göster, taze değilse arka planda sessizce tazele.
  */
 export function useFinansalRaporu() {
-  const [state, setState] = useState<FinansalRaporuState>({
-    musteriler: [],
-    acikFaturalar: [],
-    belgeSatirlari: [],
-    loading: true,
+  const cached = getReportCache<FinansalRaporuCache>(CACHE_KEY);
+  const [state, setState] = useState<FinansalRaporuState>(() => ({
+    musteriler: cached?.musteriler ?? [],
+    acikFaturalar: cached?.acikFaturalar ?? [],
+    belgeSatirlari: cached?.belgeSatirlari ?? [],
+    loading: !cached,
     error: null,
-  });
+  }));
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
+    const hasCache = Boolean(getReportCache<FinansalRaporuCache>(CACHE_KEY));
+    if (hasCache && isReportCacheFresh(CACHE_KEY)) return;
+
     let cancelled = false;
 
     async function run() {
+      if (hasCache) setRefreshing(true);
       try {
         const [musteriRows, acikFaturaRows, belgeRows] = await Promise.all([
           fetchAllRows<MusteriFinansalRow>((from, to) =>
@@ -228,15 +251,18 @@ export function useFinansalRaporu() {
           }))
           .filter((r) => r.musteriKod && r.kalanTutar > 0);
 
-        setState({
+        const next: FinansalRaporuCache = {
           musteriler: musteriRows,
           acikFaturalar,
           belgeSatirlari: belgeRows,
-          loading: false,
-          error: null,
-        });
+        };
+        setReportCache(CACHE_KEY, next);
+        setState({ ...next, loading: false, error: null });
+        setRefreshing(false);
       } catch (err) {
         if (cancelled) return;
+        setRefreshing(false);
+        if (hasCache) return; // taze olmayan cache bile boş ekrandan iyi
         setState({
           musteriler: [],
           acikFaturalar: [],
@@ -386,6 +412,7 @@ export function useFinansalRaporu() {
 
   return {
     loading,
+    refreshing,
     error,
     ozet,
     bantlar,
