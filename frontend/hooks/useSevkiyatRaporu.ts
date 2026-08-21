@@ -100,6 +100,8 @@ export interface SiklikGunu {
 
 interface SevkiyatSatirRaw {
   musteri_kodu: string | null;
+  musteri_unvani: string | null;
+  belge_kod: string | null;
   belge_tarihi: string | null;
   net_fiyat: string | null;
   agirlik: string | null;
@@ -112,6 +114,28 @@ export interface PlakaDilimi {
   teslimatSayisi: number;
   toplamAgirlik: number;
   toplamTutar: number;
+}
+
+/**
+ * Gerçekleşmiş tek sevkiyat (bir belge = bir satır; 2026-08-21'de 1856 satır /
+ * 1856 benzersiz belge, yani katlama gerekmiyor).
+ *
+ * Kaynak bilinçli olarak 5130: Sipariş Durum Raporu'nun (5140) `sevk_tarihi`
+ * alanı nominal — aynı belgede 5130 yükleme gününü 11.08 derken 5140 12.08
+ * diyor (fatura_no ↔ belge_kod ile eşleştirilip doğrulandı). 5130 aracın
+ * yüklendiği günü tutuyor, "en son sevk edilen" için doğru olan bu.
+ */
+export interface SevkiyatSatiri {
+  belgeKod: string;
+  musteriKodu: string | null;
+  musteriUnvani: string | null;
+  /** ISO — belge_tarihi (yükleme günü). */
+  tarih: string;
+  gunOnce: number | null;
+  tutar: number;
+  agirlikKg: number;
+  odemeTipi: string | null;
+  plaka: string | null;
 }
 
 export interface OdemeTipiDilimi {
@@ -172,10 +196,15 @@ export interface BekleyenSiparisOzet {
   enEskiGun: number | null;
 }
 
-function gunFarki(isoTarih: string | null): number | null {
+/**
+ * Bugünden kaç gün önce — pozitif = geçmişte.
+ * `bugunIso` dışarıdan verilebiliyor: 1800+ satırlık sevkiyat listesinde
+ * satır başına `new Date()` kurmamak için.
+ */
+function gunFarki(isoTarih: string | null, bugunIso?: string): number | null {
   if (!isoTarih) return null;
-  const bugunIso = new Date().toISOString().slice(0, 10);
-  const a = Date.parse(`${bugunIso}T00:00:00Z`);
+  const bugun = bugunIso ?? new Date().toISOString().slice(0, 10);
+  const a = Date.parse(`${bugun}T00:00:00Z`);
   const b = Date.parse(`${isoTarih}T00:00:00Z`);
   if (Number.isNaN(a) || Number.isNaN(b)) return null;
   return Math.round((a - b) / 86400000);
@@ -244,7 +273,9 @@ export function useSevkiyatRaporu() {
           fetchAllRows<SevkiyatSatirRaw>((from, to) =>
             supabase
               .from(PANORAMA_SEVKIYAT_VIEW)
-              .select("musteri_kodu,belge_tarihi,net_fiyat,agirlik,plaka,odeme_tip")
+              .select(
+                "musteri_kodu,musteri_unvani,belge_kod,belge_tarihi,net_fiyat,agirlik,plaka,odeme_tip"
+              )
               .range(from, to) as unknown as Promise<{
               data: SevkiyatSatirRaw[] | null;
               error: { message: string } | null;
@@ -409,12 +440,14 @@ export function useSevkiyatRaporu() {
       .sort((a, b) => a.tarih.localeCompare(b.tarih));
   }, [metrikGecmis]);
 
-  const { plakalar, odemeTipleri, sonSyncTarihi } = useMemo(() => {
+  const { plakalar, odemeTipleri, sonSyncTarihi, sonSevkiyatlar } = useMemo(() => {
     const plakaMap = new Map<
       string,
       { teslimatSayisi: number; toplamAgirlik: number; toplamTutar: number }
     >();
     const odemeMap = new Map<string, number>();
+    const sevkiyatlar: SevkiyatSatiri[] = [];
+    const bugunIso = new Date().toISOString().slice(0, 10);
     let sonTarih: string | null = null;
 
     for (const r of sevkiyatSatirlari) {
@@ -439,6 +472,21 @@ export function useSevkiyatRaporu() {
       const tarih = parseBelgeTarihi(r.belge_tarihi);
       const tarihStr = tarih ? tarih.toISOString().slice(0, 10) : null;
       if (tarihStr && (!sonTarih || tarihStr > sonTarih)) sonTarih = tarihStr;
+
+      const belgeKod = metin(r.belge_kod);
+      if (belgeKod && tarihStr) {
+        sevkiyatlar.push({
+          belgeKod,
+          musteriKodu: metin(r.musteri_kodu),
+          musteriUnvani: metin(r.musteri_unvani),
+          tarih: tarihStr,
+          gunOnce: gunFarki(tarihStr, bugunIso),
+          tutar: Math.round(tutar * 100) / 100,
+          agirlikKg: Math.round(agirlikKg * 100) / 100,
+          odemeTipi: odemeTip,
+          plaka,
+        });
+      }
     }
 
     const plakalar: PlakaDilimi[] = [...plakaMap.entries()]
@@ -459,7 +507,19 @@ export function useSevkiyatRaporu() {
       }))
       .sort((a, b) => b.tutar - a.tutar);
 
-    return { plakalar, odemeTipleri, sonSyncTarihi: sonTarih };
+    // En yeni sevkiyat üstte; aynı gün içinde belge kodu büyük olan (daha geç
+    // kesilen) önce gelsin ki sıralama render'lar arası kaymasın.
+    sevkiyatlar.sort(
+      (a, b) =>
+        b.tarih.localeCompare(a.tarih) || b.belgeKod.localeCompare(a.belgeKod, "tr")
+    );
+
+    return {
+      plakalar,
+      odemeTipleri,
+      sonSyncTarihi: sonTarih,
+      sonSevkiyatlar: sevkiyatlar,
+    };
   }, [sevkiyatSatirlari]);
 
   const { bekleyenSiparisler, bekleyenOzet } = useMemo(() => {
@@ -534,6 +594,7 @@ export function useSevkiyatRaporu() {
     plakalar,
     odemeTipleri,
     sonSyncTarihi,
+    sonSevkiyatlar,
     bekleyenSiparisler,
     bekleyenOzet,
   };

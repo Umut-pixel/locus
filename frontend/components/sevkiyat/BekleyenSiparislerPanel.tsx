@@ -11,6 +11,9 @@ import { cn } from "@/lib/utils";
 interface BekleyenSiparislerPanelProps {
   satirlar: BekleyenSiparisSatiri[];
   loading: boolean;
+  className?: string;
+  /** Başlığın sağına gömülen kontrol (bekleyen ↔ riskli geçişi). */
+  headerExtra?: React.ReactNode;
 }
 
 const DURUM_ETIKET: Record<BekleyenSiparisSatiri["durum"], string> = {
@@ -25,7 +28,12 @@ const DURUM_ETIKET: Record<BekleyenSiparisSatiri["durum"], string> = {
  * hook seviyesinde zaten filtreleniyor. StoktaYokPanel.tsx'in ranked-list
  * deseniyle aynı — 3'lü grid'de orta sütun, bkz. page.tsx'teki border notu.
  */
-export function BekleyenSiparislerPanel({ satirlar, loading }: BekleyenSiparislerPanelProps) {
+export function BekleyenSiparislerPanel({
+  satirlar,
+  loading,
+  className,
+  headerExtra,
+}: BekleyenSiparislerPanelProps) {
   const bos = satirlar.length === 0;
   const { wrapperRef, scrollRef } = useScrollBottomFade<HTMLElement, HTMLDivElement>(
     satirlar.length
@@ -34,22 +42,26 @@ export function BekleyenSiparislerPanel({ satirlar, loading }: BekleyenSiparisle
   return (
     <section
       ref={wrapperRef}
-      className="relative flex min-w-0 flex-col border-b border-border lg:border-r lg:border-b-0"
+      className={cn(
+        "relative flex min-w-0 flex-col border-b border-border lg:border-r lg:border-b-0",
+        className
+      )}
     >
-      <header className="flex h-11 shrink-0 items-center justify-between gap-3 border-b border-border/60 px-3.5">
-        <h2 className="flex items-center gap-1.5 text-[12px] font-medium tracking-[0.06em] text-muted-foreground uppercase">
+      <header className="flex h-11 shrink-0 items-center gap-3 border-b border-border/60 px-3.5">
+        <h2 className="flex min-w-0 items-center gap-1.5 text-[12px] font-medium tracking-[0.06em] text-muted-foreground uppercase">
           <ClipboardListIcon
-            className={cn("size-3.5", !bos && "text-amber-400")}
+            className={cn("size-3.5 shrink-0", !bos && "text-amber-400")}
             strokeWidth={1.75}
             aria-hidden
           />
-          Bekleyen siparişler
+          <span className="truncate">Bekleyen siparişler</span>
         </h2>
         {!bos ? (
-          <span className="font-mono text-[12.5px] font-medium text-amber-400 tabular-nums">
+          <span className="shrink-0 font-mono text-[12.5px] font-medium text-amber-400 tabular-nums">
             {formatNumber(satirlar.length)}
           </span>
         ) : null}
+        {headerExtra ? <div className="ml-auto shrink-0">{headerExtra}</div> : null}
       </header>
 
       <div

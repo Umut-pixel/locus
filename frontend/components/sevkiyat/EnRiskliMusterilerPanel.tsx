@@ -11,31 +11,46 @@ import { cn } from "@/lib/utils";
 interface EnRiskliMusterilerPanelProps {
   satirlar: RiskliMusteriSatiri[];
   loading: boolean;
+  className?: string;
+  /** Başlığın sağına gömülen kontrol (bekleyen ↔ riskli geçişi). */
+  headerExtra?: React.ReactNode;
 }
 
 /** En uzun süredir teslimat almayan 20 müşteri — StoktaYokPanel.tsx'in ranked-list deseniyle aynı. */
-export function EnRiskliMusterilerPanel({ satirlar, loading }: EnRiskliMusterilerPanelProps) {
+export function EnRiskliMusterilerPanel({
+  satirlar,
+  loading,
+  className,
+  headerExtra,
+}: EnRiskliMusterilerPanelProps) {
   const bos = satirlar.length === 0;
   const { wrapperRef, scrollRef } = useScrollBottomFade<HTMLElement, HTMLDivElement>(
     satirlar.length
   );
 
   return (
-    <section ref={wrapperRef} className="relative flex min-w-0 flex-col">
-      <header className="flex h-11 shrink-0 items-center justify-between gap-3 border-b border-border/60 px-3.5">
-        <h2 className="flex items-center gap-1.5 text-[12px] font-medium tracking-[0.06em] text-muted-foreground uppercase">
+    <section
+      ref={wrapperRef}
+      className={cn(
+        "relative flex min-w-0 flex-col border-b border-border lg:border-r lg:border-b-0",
+        className
+      )}
+    >
+      <header className="flex h-11 shrink-0 items-center gap-3 border-b border-border/60 px-3.5">
+        <h2 className="flex min-w-0 items-center gap-1.5 text-[12px] font-medium tracking-[0.06em] text-muted-foreground uppercase">
           <AlertTriangleIcon
-            className={cn("size-3.5", !bos && "text-destructive")}
+            className={cn("size-3.5 shrink-0", !bos && "text-destructive")}
             strokeWidth={1.75}
             aria-hidden
           />
-          En riskli müşteriler
+          <span className="truncate">En riskli müşteriler</span>
         </h2>
         {!bos ? (
-          <span className="font-mono text-[12.5px] font-medium text-destructive tabular-nums">
+          <span className="shrink-0 font-mono text-[12.5px] font-medium text-destructive tabular-nums">
             {formatNumber(satirlar.length)}
           </span>
         ) : null}
+        {headerExtra ? <div className="ml-auto shrink-0">{headerExtra}</div> : null}
       </header>
 
       <div

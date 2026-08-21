@@ -1,13 +1,16 @@
 "use client";
 
+import { useState } from "react";
 import { Typography } from "@heroui/react";
 
 import { BekleyenSiparislerPanel } from "@/components/sevkiyat/BekleyenSiparislerPanel";
 import { EnRiskliMusterilerPanel } from "@/components/sevkiyat/EnRiskliMusterilerPanel";
+import { PanelGecisi, type OperasyonPaneli } from "@/components/sevkiyat/PanelGecisi";
 import { PlakaOdemeDagilimi } from "@/components/sevkiyat/PlakaOdemeDagilimi";
 import { RutPerformansTablosu } from "@/components/sevkiyat/RutPerformansTablosu";
 import { SevkiyatOzet } from "@/components/sevkiyat/SevkiyatOzet";
 import { SevkiyatSikligiTrendi } from "@/components/sevkiyat/SevkiyatSikligiTrendi";
+import { SonSevkiyatlarPanel } from "@/components/sevkiyat/SonSevkiyatlarPanel";
 import { TeslimatGecikmeDagilimi } from "@/components/sevkiyat/TeslimatGecikmeDagilimi";
 import { AppSidebarMobileTrigger } from "@/components/sidebar/AppSidebar";
 import { useRaporTazeligi } from "@/hooks/useMusteriRaporlama";
@@ -30,7 +33,11 @@ export default function SevkiyatRaporlariPage() {
     plakalar,
     odemeTipleri,
     bekleyenSiparisler,
+    sonSevkiyatlar,
   } = useSevkiyatRaporu();
+
+  /** Orta panel iki veri kümesini paylaşıyor — tek tuşla geçiş. */
+  const [ortaPanel, setOrtaPanel] = useState<OperasyonPaneli>("bekleyen");
 
   return (
     <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden bg-background">
@@ -68,10 +75,27 @@ export default function SevkiyatRaporlariPage() {
       <div className="min-h-0 flex-1 overflow-y-auto">
         <SevkiyatOzet ozet={ozet} loading={loading} />
 
+        {/*
+         * Orta sütun iki veri kümesini paylaşıyor (bekleyen siparişler ↔ en
+         * riskli müşteriler); sağ sütun gerçekleşmiş sevkiyatlar. Sıralama
+         * bilinçli: soldan sağa "durum → bekleyen iş → tamamlanan iş".
+         */}
         <div className="grid border-b border-border lg:grid-cols-3 [&>section]:h-[22rem]">
           <TeslimatGecikmeDagilimi riskDagilimi={ozet.riskDagilimi} loading={loading} />
-          <BekleyenSiparislerPanel satirlar={bekleyenSiparisler} loading={loading} />
-          <EnRiskliMusterilerPanel satirlar={enRiskliMusteriler} loading={loading} />
+          {ortaPanel === "bekleyen" ? (
+            <BekleyenSiparislerPanel
+              satirlar={bekleyenSiparisler}
+              loading={loading}
+              headerExtra={<PanelGecisi aktif={ortaPanel} onChange={setOrtaPanel} />}
+            />
+          ) : (
+            <EnRiskliMusterilerPanel
+              satirlar={enRiskliMusteriler}
+              loading={loading}
+              headerExtra={<PanelGecisi aktif={ortaPanel} onChange={setOrtaPanel} />}
+            />
+          )}
+          <SonSevkiyatlarPanel satirlar={sonSevkiyatlar} loading={loading} />
         </div>
 
         <SevkiyatSikligiTrendi gunler={sikligiTrendi} loading={loading} />
