@@ -33,7 +33,8 @@ export const AgentAssistant = memo(function AgentAssistant({
     busy,
     trace,
     revealed,
-    answerId,
+    revealing,
+    revealId,
     send,
     stop,
   } = useAgentSession();
@@ -43,7 +44,7 @@ export const AgentAssistant = memo(function AgentAssistant({
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
-  }, [messages, trace, revealed, working]);
+  }, [messages, trace, revealed, revealing, working]);
 
   const phaseLabel = importPhase
     ? AGENT_ORB[importPhase].label
@@ -88,7 +89,7 @@ export const AgentAssistant = memo(function AgentAssistant({
               </p>
             );
           }
-          const live = m.id === answerId && (m.streaming || busy);
+          const live = m.id === revealId && (m.streaming || revealing);
           const body = live ? revealed : m.text;
           if (!body) return null;
           return (

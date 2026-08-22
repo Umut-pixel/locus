@@ -1,11 +1,10 @@
 #!/usr/bin/env bash
-# Kök .env'den agent/.env üretir. TEK DÜZENLEME YERİ: /Users/umuterol/Desktop/locus/.env
+# Kök .env'den agent/.env üretir. TEK DÜZENLEME YERİ: repo kökündeki .env
 #
 # Neden kopyalıyoruz da symlink kurmuyoruz:
-#   `mda deploy` proje .env'ini LangSmith'e deploy sırrı olarak yükler.
-#   Symlink olsaydı SUPABASE_SERVICE_KEY, AUTH_PASSWORD, CRON_SECRET gibi
-#   agent'ın işi olmayan sırlar da LangSmith'e giderdi. Agent'ın güvenlik
-#   modelinin tamamı, onun service_role'a ASLA sahip olmamasına dayanıyor.
+#   Agent'ın güvenlik modelinin tamamı, onun service_role'a ASLA sahip
+#   olmamasına dayanıyor. Symlink olsaydı SUPABASE_SERVICE_KEY, AUTH_PASSWORD,
+#   CRON_SECRET gibi agent'ın işi olmayan sırlar da agent sürecine girerdi.
 #   Bu script yalnızca aşağıdaki beyaz listeyi taşır.
 set -euo pipefail
 
@@ -18,13 +17,7 @@ HEDEF="$KOK/agent/.env"
 # Agent'ın görmesi gereken TEK anahtarlar.
 BEYAZ_LISTE=(
   ANTHROPIC_API_KEY
-  LANGSMITH_API_KEY
-  # AB bolgesindeki hesaplar icin zorunlu. Yoksa mda varsayilan ABD ucuna
-  # gider ve HER komut "Forbidden (HTTP 403)" verir — anahtar gecerli olsa
-  # bile. 2026-08-23'te olculdu: ayni anahtar api.smith.langchain.com'da 403,
-  # eu.api.smith.langchain.com'da 200.
-  LANGSMITH_ENDPOINT
-  LANGSMITH_WORKSPACE_ID
+  AGENT_INGRESS_SECRET
   AGENT_DB_URL
   LOCUS_API_BASE
   AGENT_API_SECRET

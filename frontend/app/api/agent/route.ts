@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 
 /**
- * AI asistanı proxy'si — tarayıcı ile LangSmith'te barınan Managed Deep Agent
- * arasında durur.
+ * AI asistanı proxy'si — tarayıcı ile kendi sunucumuzdaki LangGraph
+ * agent'ı arasında durur.
  *
  * Neden proxy:
- *  1. `LANGSMITH_API_KEY` sunucuda kalır, tarayıcı bundle'ına asla girmez.
+ *  1. `AGENT_INGRESS_SECRET` sunucuda kalır, tarayıcı bundle'ına asla girmez.
  *  2. Oturum kontrolü middleware.ts'te zaten yapılıyor (bu route korumalı) —
  *     yani yalnız giriş yapmış kullanıcı agent'a ulaşabilir.
  *  3. Agent uç noktası değişirse tek yer güncellenir.
@@ -15,16 +15,16 @@ export const runtime = "nodejs";
 /** Agent turları uzun sürebilir (çok adımlı SQL + analiz). */
 export const maxDuration = 300;
 
-const AGENT_URL_ENV = "LANGSMITH_AGENT_URL";
-const AGENT_KEY_ENV = "LANGSMITH_API_KEY";
+const AGENT_URL_ENV = "AGENT_URL";
+const AGENT_SECRET_ENV = "AGENT_INGRESS_SECRET";
+const AGENT_SECRET_HEADER = "x-agent-secret";
 
 /**
  * LangGraph `/runs/stream` `assistant_id` ZORUNLU ister; olmadan 422 döner.
- * Değer `agent/agent.py` içindeki `name=` ile aynı olmalı — MDA o adı
- * LangGraph assistant id'si olarak kaydediyor. İkisi ayrışırsa istek
- * "assistant not found" ile düşer.
+ * Değer `agent/agent.py` içindeki `name=` ve `agent/langgraph.json` graphs
+ * anahtarı ile aynı olmalı. İkisi ayrışırsa istek "assistant not found" ile düşer.
  */
-const ASSISTANT_ID = process.env.LANGSMITH_ASSISTANT_ID?.trim() || "locus-analyst";
+const ASSISTANT_ID = process.env.ASSISTANT_ID?.trim() || "locus-analyst";
 
 interface AgentRequestBody {
   message?: unknown;
@@ -33,32 +33,31 @@ interface AgentRequestBody {
 
 export async function POST(request: Request) {
   const agentUrl = process.env[AGENT_URL_ENV]?.trim();
-  const apiKey = process.env[AGENT_KEY_ENV]?.trim();
+  const ingressSecret = process.env[AGENT_SECRET_ENV]?.trim();
 
   if (!agentUrl) {
     return NextResponse.json(
       {
         error:
           `${AGENT_URL_ENV} tanımlı değil. Yerel geliştirme için ` +
-          "`mda dev` adresini (örn. http://127.0.0.1:2024/runs/stream), " +
-          "dağıtım sonrası LangSmith URL'ini .env'e ekleyin.",
+          "`langgraph dev` adresini (örn. http://127.0.0.1:2024/runs/stream) .env'e ekleyin.",
       },
       { status: 503 }
     );
   }
 
   /**
-   * Yerel `mda dev` sunucusu kimlik doğrulaması yapmaz; anahtar dayatmak
-   * E2E testini gereksiz yere bloklardı. UZAK bir adrese giderken anahtar
-   * ZORUNLU — aksi halde istek kimliksiz gider ve 401 alır, ya da daha
-   * kötüsü, kimlik doğrulaması kapalı bir uç noktaya açıkta bağlanırız.
+   * Yerel LangGraph sunucusu da paylaşılan sır ister; anahtar yoksa 401 döner.
+   * UZAK bir adrese giderken sır ZORUNLU — aksi halde istek kimliksiz gider
+   * ve 401 alır, ya da daha kötüsü, kimlik doğrulaması kapalı bir uç noktaya
+   * açıkta bağlanırız.
    */
   const isLocal = /^https?:\/\/(127\.0\.0\.1|localhost|\[::1\])(:|\/|$)/.test(
     agentUrl
   );
-  if (!apiKey && !isLocal) {
+  if (!ingressSecret && !isLocal) {
     return NextResponse.json(
-      { error: `${AGENT_KEY_ENV} tanımlı değil (uzak agent için zorunlu).` },
+      { error: `${AGENT_SECRET_ENV} tanımlı değil (uzak agent için zorunlu).` },
       { status: 503 }
     );
   }
@@ -91,7 +90,7 @@ export async function POST(request: Request) {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        ...(apiKey ? { "x-api-key": apiKey } : {}),
+        ...(ingressSecret ? { [AGENT_SECRET_HEADER]: ingressSecret } : {}),
         Accept: "text/event-stream",
       },
       body: JSON.stringify({

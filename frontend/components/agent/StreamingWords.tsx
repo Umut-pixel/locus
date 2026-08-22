@@ -14,20 +14,11 @@ export function StreamingWords({
   return (
     <p className="text-[13px] leading-relaxed text-ink">
       {tokens.map((token, i) => (
-        <span
-          key={`${i}-${token.slice(0, 8)}`}
-          className="agent-word"
-          style={{ animationDelay: `${Math.min(i, 24) * 12}ms` }}
-        >
+        <span key={`${i}-${token.slice(0, 12)}`} className="agent-word">
           {token}
         </span>
       ))}
-      {caret ? (
-        <span
-          className="ml-0.5 inline-block h-3 w-0.5 translate-y-0.5 rounded-full bg-ink"
-          style={{ animation: "fade-in 150ms ease-out both" }}
-        />
-      ) : null}
+      {caret ? <span className="agent-caret" aria-hidden /> : null}
     </p>
   );
 }

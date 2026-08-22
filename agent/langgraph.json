@@ -1,0 +1,11 @@
+{
+  "python_version": "3.11",
+  "dependencies": ["."],
+  "graphs": {
+    "locus-analyst": "./agent.py:agent"
+  },
+  "env": ".env",
+  "auth": {
+    "path": "./auth.py:auth"
+  }
+}

@@ -113,6 +113,8 @@ export function PromptBar({
   busy = false,
   tall = false,
   placeholder = "Veriye bir şey sor…",
+  quote = null,
+  onClearQuote,
 }: {
   value: string;
   onChange: (value: string) => void;
@@ -121,12 +123,13 @@ export function PromptBar({
   busy?: boolean;
   tall?: boolean;
   placeholder?: string;
+  quote?: string | null;
+  onClearQuote?: () => void;
 }) {
   const [dismissed, setDismissed] = useState(false);
   const [plusOpen, setPlusOpen] = useState(false);
   const [active, setActive] = useState(0);
   const [engaged, setEngaged] = useState(false);
-  const [listening, setListening] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [rowBox, setRowBox] = useState<{ top: number; height: number } | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -160,7 +163,7 @@ export function PromptBar({
     const controls = controlsRef.current;
     const measure = measureRef.current;
     if (!input || !controls || !measure) return;
-    const inlineInputWidth = controls.clientWidth - 28 * 3 - 16;
+    const inlineInputWidth = controls.clientWidth - 28 * 2 - 16;
     const needsFull = value.includes("\n") || measure.offsetWidth + 8 > inlineInputWidth;
     if (needsFull !== expanded) setExpanded(needsFull);
     input.style.height = "0px";
@@ -178,37 +181,6 @@ export function PromptBar({
     return () => document.removeEventListener("pointerdown", close);
   }, [plusOpen]);
 
-  useEffect(() => {
-    if (!listening) return;
-    const Speech = (
-      window as unknown as {
-        webkitSpeechRecognition?: new () => {
-          lang: string;
-          onresult: ((e: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void) | null;
-          onend: (() => void) | null;
-          start: () => void;
-          stop: () => void;
-        };
-      }
-    ).webkitSpeechRecognition;
-    if (!Speech) {
-      setListening(false);
-      return;
-    }
-    const rec = new Speech();
-    rec.lang = "tr-TR";
-    rec.onresult = (e) => {
-      const t = e.results[0]?.[0]?.transcript ?? "";
-      if (t) onChange(value ? `${value.trimEnd()} ${t}` : t);
-      setListening(false);
-      inputRef.current?.focus();
-    };
-    rec.onend = () => setListening(false);
-    rec.start();
-    return () => rec.stop();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [listening]);
-
   const pick = (row: { key: string; name: string }) => {
     const source = SOURCES.find((s) => s.key === row.key);
     const cmd = COMMANDS.find((c) => c.key === row.key);
@@ -222,7 +194,11 @@ export function PromptBar({
     inputRef.current?.focus();
   };
 
-  const canSend = value.trim().length > 0;
+  useEffect(() => {
+    if (quote) inputRef.current?.focus();
+  }, [quote]);
+
+  const canSend = value.trim().length > 0 || Boolean(quote?.trim());
   const send = () => {
     if (!canSend || busy) return;
     onSend(value.trim());
@@ -298,6 +274,35 @@ export function PromptBar({
             tall ? "gap-2.5 rounded-[22px] p-3.5" : "gap-1.5 rounded-[14px] p-1.5"
           )}
         >
+          {quote ? (
+            <div className="flex items-start gap-2 px-1 pt-0.5">
+              <svg
+                width="13"
+                height="13"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="mt-0.5 shrink-0 text-ink-3"
+                aria-hidden
+              >
+                <path d="M9 17H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-5l-5 5z" />
+              </svg>
+              <p className="min-w-0 flex-1 line-clamp-2 text-[12px] leading-snug text-ink-3">{quote}</p>
+              <button
+                type="button"
+                aria-label="Alıntıyı kaldır"
+                onClick={onClearQuote}
+                className="flex size-6 shrink-0 items-center justify-center rounded-[6px] text-ink-3 transition-colors hover:bg-hover hover:text-ink"
+              >
+                <Icon size={13} strokeWidth={2.2}>
+                  <path d="M18 6 6 18M6 6l12 12" />
+                </Icon>
+              </button>
+            </div>
+          ) : null}
           <span
             ref={measureRef}
             aria-hidden
@@ -307,12 +312,7 @@ export function PromptBar({
           </span>
           <div
             ref={controlsRef}
-            className={cn(
-              "grid items-end gap-x-1 gap-y-1.5",
-              wide
-                ? "grid-cols-[28px_minmax(0,1fr)_28px_28px]"
-                : "grid-cols-[28px_minmax(0,1fr)_28px_28px]"
-            )}
+            className="grid grid-cols-[28px_minmax(0,1fr)_28px] items-end gap-x-1 gap-y-1.5"
           >
             <button
               type="button"
@@ -370,7 +370,7 @@ export function PromptBar({
                   send();
                 }
               }}
-              placeholder={listening ? "Dinleniyor…" : placeholder}
+              placeholder={placeholder}
               aria-label="Prompt"
               className={cn(
                 "min-w-0 w-full resize-none bg-transparent text-ink outline-none [overflow-wrap:anywhere] placeholder:text-ink-3",
@@ -381,40 +381,6 @@ export function PromptBar({
               )}
             />
 
-            <button
-              type="button"
-              aria-label={listening ? "Dikteyi durdur" : "Dikte"}
-              aria-pressed={listening}
-              onClick={() => setListening((c) => !c)}
-              className={cn(
-                "flex size-7 shrink-0 items-center justify-center rounded-[8px] transition-[background-color,color,transform] duration-150 active:scale-[0.94]",
-                listening ? "bg-accent-tint text-accent-ink" : "text-ink-3 hover:bg-hover hover:text-ink",
-                wide ? "col-start-3 row-start-2" : "col-start-3 row-start-1"
-              )}
-            >
-              {listening ? (
-                <span className="flex h-3.5 items-center gap-[2.5px]">
-                  {[0, 1, 2].map((i) => (
-                    <span
-                      key={i}
-                      className="w-[2.5px] rounded-full bg-current"
-                      style={{
-                        height: "100%",
-                        animation: `eq-bounce 900ms ease-in-out ${i * 150}ms infinite`,
-                      }}
-                    />
-                  ))}
-                </span>
-              ) : (
-                <Icon size={15} strokeWidth={2}>
-                  <g>
-                    <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z" />
-                    <path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v3" />
-                  </g>
-                </Icon>
-              )}
-            </button>
-
             {busy ? (
               <button
                 type="button"
@@ -422,7 +388,7 @@ export function PromptBar({
                 onClick={onStop}
                 className={cn(
                   "flex size-7 shrink-0 items-center justify-center rounded-[8px] bg-ink text-[var(--card)] transition-transform duration-150 active:scale-[0.94]",
-                  wide ? "col-start-4 row-start-2" : "col-start-4 row-start-1"
+                  wide ? "col-start-3 row-start-2" : "col-start-3 row-start-1"
                 )}
               >
                 <span className="size-2.5 rounded-[2px] bg-current" />
@@ -435,7 +401,7 @@ export function PromptBar({
                 onClick={send}
                 className={cn(
                   "flex size-7 shrink-0 items-center justify-center rounded-[8px] transition-[background-color,color,transform] duration-200 enabled:active:scale-[0.94]",
-                  wide ? "col-start-4 row-start-2" : "col-start-4 row-start-1"
+                  wide ? "col-start-3 row-start-2" : "col-start-3 row-start-1"
                 )}
                 style={{
                   background: canSend ? "var(--ink)" : "var(--line-strong)",

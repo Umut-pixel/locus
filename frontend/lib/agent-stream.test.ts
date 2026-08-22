@@ -88,7 +88,7 @@ async function run(name: string, chunks: string[]) {
   // 7) taninmayan bicim -> debug
   await run("taninmayan", ['data: {"beklenmedik":true}\n\n']);
 
-  // 9) GERCEK AKIS — 2026-08-22'de yerel `mda dev` sunucusundan yakalandi.
+  // 9) GERCEK AKIS — 2026-08-22'de yerel LangGraph sunucusundan yakalandi.
   //    En onemli test: messages/partial KUMULATIF, delta degil. Parser
   //    farki almazsa metin katlanarak tekrarlanir.
   {
@@ -134,7 +134,7 @@ async function run(name: string, chunks: string[]) {
 
   // 8) proxy 503 (JSON govde, SSE degil)
   (globalThis as any).fetch = async () =>
-    new Response(JSON.stringify({ error: "LANGSMITH_AGENT_URL tanimli degil" }), {
+    new Response(JSON.stringify({ error: "AGENT_URL tanimli degil" }), {
       status: 503,
       headers: { "Content-Type": "application/json" },
     });

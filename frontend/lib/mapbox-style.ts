@@ -2,7 +2,7 @@
  * Dark-mode basemap — Mapbox Studio (hesap: umutt, stil: Standard).
  * Mapbox Standard import: lightPreset `dusk`, globe projeksiyon.
  * Overlay katmanlarına `slot` verilmez: Standard `top` slotu yer etiketlerinin
- * altında kalır ve uzak zoomda kümeleri örter. Slot'suz katman stil yığınının
+ * altında kalır ve uzak zoom düzeyinde kümeleri örter. Slot'suz katman stil yığınının
  * üstünde durur.
  * Token: NEXT_PUBLIC_MAPBOX_TOKEN (Directions + Styles + Standard tiles).
  */

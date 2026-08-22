@@ -23,6 +23,6 @@ frontend/.env*.local
 frontend/*.tsbuildinfo
 
 # .env.example commit edilir (şifre yok)
-# MDA build ciktisi (uretilir)
+# Eski MDA build artığı (üretilmez)
 agent/.mda/
 agent/.venv/

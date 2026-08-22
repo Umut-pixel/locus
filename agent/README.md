@@ -1,7 +1,13 @@
 # Locus Agent
 
-Managed Deep Agents (LangChain) üzerine kurulu operasyon asistanı. Supabase'e
+OSS LangGraph + deepagents üzerine kurulu operasyon asistanı. Supabase'e
 salt-okunur SQL yazarak ciro / risk / sevkiyat / stok sorularını yanıtlar.
+
+MDA (Managed Deep Agents) ve LangSmith barındırmasından çıkıldı: lisans
+Plus/Enterprise istiyordu, alınmayacak bir ürün kararıydı; üstüne her istek
+LangSmith API'sine gidip anahtar doğruluyordu. Geriye MIT lisanslı
+`langgraph` + `langchain` + `deepagents` kaldı — agent kendi sunucusunda,
+dış servise çıkmadan çalışır. `mda` CLI'ı artık gerekmez.
 
 **Model:** `anthropic:claude-opus-5` (ana) + `anthropic:claude-haiku-4-5` (alt görev)
 
@@ -58,11 +64,18 @@ Tek düzenleme yeri **repo kökündeki `.env`**. `agent/.env` ondan üretilir:
 ./sync-env.sh
 ```
 
-Beyaz liste kopyalanır (`ANTHROPIC_API_KEY`, `LANGSMITH_API_KEY`,
-`LANGSMITH_WORKSPACE_ID`, `AGENT_DB_URL`, `LOCUS_API_BASE`,
-`AGENT_API_SECRET`). Symlink **bilerek kullanılmıyor**: `mda deploy` proje
-`.env`'ini LangSmith'e deploy sırrı olarak yükler; symlink olsaydı
-`SUPABASE_SERVICE_KEY` ve `AUTH_PASSWORD` da oraya giderdi.
+Beyaz liste kopyalanır (`ANTHROPIC_API_KEY`, `AGENT_INGRESS_SECRET`,
+`AGENT_DB_URL`, `LOCUS_API_BASE`, `AGENT_API_SECRET`). Symlink **bilerek
+kullanılmıyor**: agent sürecine `SUPABASE_SERVICE_KEY` ve `AUTH_PASSWORD`
+girmesin. Agent'ın güvenlik modelinin tamamı, onun service_role'a ASLA sahip
+olmamasına dayanıyor.
+
+`AGENT_INGRESS_SECRET` frontend→agent paylaşılan sırdır (`x-agent-secret`).
+`AGENT_API_SECRET` ters yöndür (agent→frontend yazma araçları). Karıştırma.
+Ingress sırrı 40+ karakter rastgele olmalı; yoksa sunucu açılışta durur.
+
+Kök `.env`'de `AGENT_URL=http://<sunucu>:2024/runs/stream` — bunu **yalnız
+Next.js proxy'si** kullanır, agent'ın kendisi görmez.
 
 > `AGENT_DB_URL` **locus_agent** kullanıcısı olmalı. service_role veya
 > postgres koyarsan güvenlik modelinin 1. katmanı tamamen devre dışı kalır.
@@ -85,79 +98,28 @@ Session mode seçildi: agent uzun ömürlü bir süreç, oturum semantiği bireb
 korunsun.
 
 ### 3. Çalıştır
-```bash
-uv tool install --prerelease allow managed-deepagents   # CLI (bir kez)
-uv sync                                                 # bağımlılıklar
-mda dev .                                               # yerel LangGraph dev sunucusu
-mda deploy .                                            # LangSmith'e dağıt
-mda logs . --lines 200                                  # dağıtılmış agent logu
-```
-
-`mda deploy` çıktısındaki URL kök `.env`'de `LANGSMITH_AGENT_URL` olur —
-bunu **yalnız Next.js proxy'si** kullanır, agent'ın kendisi görmez.
-
-> **⚠️ Bölge: hesap AB'de.** `LANGSMITH_ENDPOINT=https://eu.api.smith.langchain.com`
-> olmadan `mda` varsayılan ABD ucuna gider ve **her komut `Forbidden (HTTP 403)`**
-> verir — anahtar geçerli olsa bile. Hata mesajı anahtarı suçlar gibi görünür,
-> asıl neden bölgedir. 2026-08-23'te ölçüldü: aynı anahtar
-> `api.smith.langchain.com/api/v1/workspaces` → 403, `eu.api…` → 200.
-> Değişken beyaz listede (`sync-env.sh`), kök `.env`'den taşınır.
-
-> **⚠️ `mda deploy` Plus/Enterprise plan ister.** Ücretsiz/Developer planda
-> şu hatayla durur: *"Your LangSmith organization's plan does not include
-> LangSmith Deployment"*. Lisans alınmayacaksa **kendi sunucunuzda barındırın** —
-> aşağıdaki tarif uçtan uca doğrulandı.
-
-### 4. Kendi sunucunda barındırma (lisanssız) — DOĞRULANDI 2026-08-23
-
-`mda build` çıktısı **standart bir LangGraph uygulaması**; MDA'nın kendi
-bağımlılık listesinde zaten `langgraph-cli[inmem]` var, yani yerel sunucu
-ücretsiz OSS bileşen. Plan kapısı yalnız LangSmith'in *barındırmasını* kapatıyor,
-kodu çalıştırmayı değil.
 
 ```bash
-mda build .                       # -> .mda/build/ (langgraph.json + _mda_entry.py)
-cp ../.env .mda/build/.env        # langgraph.json "env": ".env" bekliyor
-
-# Auth: identity.py auth.langsmith_api_key() kullaniyor. Barindirilan MDA bu iki
-# degiskeni kendi enjekte ediyor; kendi sunucunda SEN vermelisin, yoksa
-# "LangSmith API-key authentication is not configured" (500) alirsin.
-cat >> .mda/build/.env <<'EOF'
-LANGSMITH_AUTH_ENDPOINT=https://eu.api.smith.langchain.com
-LANGSMITH_TENANT_ID=e319e646-1d07-4a02-9dee-72aa91295b27
-EOF
-
-cd .mda/build
-langgraph dev --no-browser --port 2024 --no-reload --allow-blocking
+uv sync
+uv run langgraph dev --no-browser --port 2024 --allow-blocking
 ```
 
-Kök `.env`'de `LANGSMITH_AGENT_URL=http://<sunucu>:2024/runs/stream`.
-**Frontend'de değişiklik gerekmez** — `lib/agent-stream.ts` zaten bu biçimi
-(`messages/partial` + `messages/complete`) ayrıştırıyor.
+`--allow-blocking` **zorunlu**: `tools/sql_query.py` psycopg'yi senkron
+çağırıyor, `langgraph dev` bunu varsayılan olarak `BlockingError` ile reddediyor.
+
+`langgraph dev` **bellek içi**: sunucu yeniden başlarsa sohbet thread'leri
+gider. Küçük iç ekip için kabul edilebilir; kalıcılık gerekirse Postgres
+checkpointer'lı bir kurulum araştırılmalı.
 
 Doğrulama (2026-08-23): `/api/agent` proxy'si üzerinden "Kaç aktif müşterimiz
 var?" → `schema_lookup` + `sql_query` çalıştı, 170 KB SSE, cevap
 *"951 aktif müşteri (toplam 1.318: 951 Aktif, 276 Pasif, 91 İptal)"*.
 
-**Tuzaklar:**
-- `--allow-blocking` **zorunlu**: `tools/sql_query.py` psycopg'yi senkron
-  çağırıyor, `langgraph dev` bunu varsayılan olarak `BlockingError` ile reddediyor.
-- `x-api-key` hâlâ gerçekten doğrulanıyor (LangSmith'e sorularak) — auth
-  devre dışı değil, yalnız yapılandırması bize geçti.
-- `langgraph dev` **bellek içi**: sunucu yeniden başlarsa sohbet thread'leri
-  gider. Küçük iç ekip için kabul edilebilir; kalıcılık gerekirse Postgres
-  checkpointer'lı bir kurulum araştırılmalı.
-- **Windows'ta `mda build` bozuk çıktı üretiyor**: `pyproject.toml`'a
-  `'managed-deepagents @ file://\\?\C:\...'` yazıyor — `\\?\` uzun-yol öneki,
-  ters bölü ve boşluklu klasör adı geçersiz PEP 508. Elle `"managed-deepagents"`
-  yapılırsa çalışıyor. Linux'ta bu sorun yok; sunucuda derleyin.
-- `agent/.mda/` gitignore'da — içindeki `.env` commit'lenmez.
-
 > **`LOCUS_API_BASE` dağıtımda değişmeli.** Yerelde `http://localhost:3000`
-> doğru, ama LangSmith'te barınan agent localhost'a ulaşamaz — dağıtımdan önce
-> `https://locus-two-delta.vercel.app` yapılmalı. Yalnız YAZMA araçlarını
+> doğru, ama uzak bir sunucuda barınan agent localhost'a ulaşamaz — dağıtımdan
+> önce `https://locus-two-delta.vercel.app` yapılmalı. Yalnız YAZMA araçlarını
 > (`tools/locus_actions.py`) etkiler; okuma sorguları bu değişkeni kullanmaz.
-> Tersi de riskli: canlıya bakan bir değerle `mda dev` çalıştırmak yerel
+> Tersi de riskli: canlıya bakan bir değerle yerel `langgraph dev` çalıştırmak
 > testin canlı veriye yazmasına yol açar.
 
 ## Testler
@@ -185,20 +147,22 @@ uygulanan bir rol ayarı, yani yazma korumasının gerçekten tuttuğu ancak
 kanıtlanabilir. Script bunu yapar ve okunabilir view'larda **0 satır** dönerse
 "RLS politikası eksik" diye kaldırır — sessiz hatanın imzası budur.
 
-`evals/tasks/*.md` — davranış testleri (`mda dev .` içinde çalıştırılır).
+`evals/tasks/*.md` — davranış testleri (`langgraph dev` içinde çalıştırılır).
 **Kabul kriteri: bunlar geçmeden frontend'e bağlanmaz.**
 
 ## Yapı
 
 ```
-agent.py              define_deep_agent — model + araç kaydı
-identity.py           auth.langsmith_api_key() — proxy'nin x-api-key'i buradan doğrulanır
+agent.py              create_deep_agent — model + araç kaydı + prompt/skills/memory
+auth.py               x-agent-secret — proxy'nin AGENT_INGRESS_SECRET'i buradan doğrulanır
+langgraph.json        LangGraph sunucu tanımı
 sync-env.sh           kök .env -> agent/.env (beyaz listeli)
 instructions.md       Türkçe sistem promptu, iş kuralı tuzakları
 semantic/             İş sözlüğü — SQL doğruluğunun kaynağı
   metrikler.md          ciro (KDV!), risk (2 tip), borç bantları
   veri_kaynaklari.md    hangi view ne içerir, tazelik modeli
 skills/               Alan bazlı sorgu playbook'ları
+memories/agent/       Paylaşılan kurum hafızası (AGENTS.md)
 tools/
   sql_guard.py          validator (güvenlik)
   sql_query.py          guarded çalıştırıcı
@@ -213,6 +177,6 @@ evals/                güvenlik + davranış testleri
 
 - **Kişi bazlı kimlik yok.** Locus tek paylaşımlı giriş kullanıyor
   (`frontend/lib/auth.ts`), bu yüzden audit log "kim sordu"yu ayırt edemez.
-  Gerçek kullanıcı sistemi eklenirse MDA `identity.py` devreye girer.
+  Gerçek kullanıcı sistemi eklenirse `auth.py` kullanıcı JWT'sine döner.
 - **n8n v1'de bağlı değil.** `connectors/mcp.py` iskelesi hazır.
 - `urun_skt` otomatik tazelenmez — fabrikadan 15 günde bir manuel yüklenir.

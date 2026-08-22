@@ -275,3 +275,15 @@ export function thinkingHeadline(rows: TraceRow[], working: boolean): { active: 
     done: n === 0 ? "Düşünüldü" : n === 1 ? "1 araç çalıştı" : `${n} araç çalıştı`,
   };
 }
+
+/**
+ * Tek sözlük + tek SQL (ve yazma yok) basit tur.
+ * Birden fazla sorgu, yazma aracı veya üçüncü bir araç türü karmaşık.
+ */
+export function isComplexTrace(rows: TraceRow[]): boolean {
+  const sql = rows.filter((r) => r.name === "sql_query").length;
+  if (sql > 1) return true;
+  if (rows.some((r) => r.name.startsWith("musteri_"))) return true;
+  const kinds = new Set(rows.map((r) => r.name));
+  return kinds.size > 2;
+}

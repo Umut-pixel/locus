@@ -5,7 +5,7 @@
  *   Akış ayrıştırma ile UI durumu iki ayrı iş. Burası saf: DOM'a dokunmaz,
  *   React bilmez, test edilebilir. AgentAssistant yalnızca `onEvent`'i dinler.
  *
- * BİÇİM — 2026-08-22'de yerel `mda dev` sunucusundan ÖLÇÜLDÜ, tahmin değil:
+ * BİÇİM — 2026-08-22'de yerel LangGraph sunucusundan ÖLÇÜLDÜ, tahmin değil:
  *
  *   event: metadata            {run_id, attempt}                 -> atla
  *   event: messages/metadata   {<run-id>: {...}} büyük sözlük     -> atla

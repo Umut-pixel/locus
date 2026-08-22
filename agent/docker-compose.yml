@@ -1,0 +1,13 @@
+services:
+  locus-agent:
+    build: .
+    container_name: locus-agent
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "127.0.0.1:2024:2024"
+    volumes:
+      - agent-memories:/app/memories
+
+volumes:
+  agent-memories:

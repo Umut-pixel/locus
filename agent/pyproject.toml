@@ -1,11 +1,12 @@
 [project]
 name = "locus-agent"
 version = "0.1.0"
-description = "Locus operasyon asistanı — Managed Deep Agents"
+description = "Locus operasyon asistanı — LangGraph + deepagents"
 requires-python = ">=3.11"
 dependencies = [
-    "managed-deepagents",
     "langchain",
+    "langgraph",
+    "langgraph-cli[inmem]>=0.4.30",
     "psycopg[binary]>=3.2",
     "sqlglot>=27",
     "httpx>=0.27",

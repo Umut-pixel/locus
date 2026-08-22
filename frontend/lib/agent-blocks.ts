@@ -18,6 +18,8 @@ export type FilterBlock = {
   columns: string[];
   rows: Record<string, string>[];
   filterKey: string;
+  /** Ardışık `kind: chart` bloğu aynı karta alınır. */
+  chart?: ChartBlock;
 };
 
 export type ChartSeries = {
@@ -305,11 +307,34 @@ export function parseAgentContent(
       const before = rest.slice(0, open.index ?? 0);
       if (before) blocks.push(...splitMarkdownTables(before, true));
       blocks.push({ type: "pending", label: "Görsel hazırlanıyor" });
-      return blocks.filter((b) => !(b.type === "markdown" && !b.text.trim()));
+      return coalesceVisuals(blocks.filter((b) => !(b.type === "markdown" && !b.text.trim())));
     }
   }
   if (rest) blocks.push(...splitMarkdownTables(rest, streaming));
-  return blocks.filter((b) => !(b.type === "markdown" && !b.text.trim()));
+  return coalesceVisuals(
+    blocks.filter((b) => !(b.type === "markdown" && !b.text.trim()))
+  );
+}
+
+/** Filtre tablosu ile hemen sonraki/önceki grafiği tek karta bağlar. */
+export function coalesceVisuals(blocks: AgentBlock[]): AgentBlock[] {
+  const out: AgentBlock[] = [];
+  for (let i = 0; i < blocks.length; i += 1) {
+    const current = blocks[i]!;
+    const next = blocks[i + 1];
+    if (current.type === "filter" && next?.type === "chart") {
+      out.push({ ...current, chart: next });
+      i += 1;
+      continue;
+    }
+    if (current.type === "chart" && next?.type === "filter") {
+      out.push({ ...next, chart: current });
+      i += 1;
+      continue;
+    }
+    out.push(current);
+  }
+  return out;
 }
 
 export function tableToFilterHint(table: TableBlock): FilterBlock | null {

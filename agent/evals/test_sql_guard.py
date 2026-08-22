@@ -1,6 +1,6 @@
 """SQL guard güvenlik testleri.
 
-Bu testler geçmeden agent hiçbir ortamda çalıştırılmamalı.
+Bu testler geçmeden agent çalıştırılmamalı.
 Çalıştır:  .venv/bin/python -m pytest evals/test_sql_guard.py -q
     veya:  .venv/bin/python evals/test_sql_guard.py
 """

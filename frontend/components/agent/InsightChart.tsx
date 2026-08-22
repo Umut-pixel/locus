@@ -6,7 +6,7 @@ import type { ChartBlock, ChartSeries } from "@/lib/agent-blocks";
 import { cn } from "@/lib/utils";
 
 const EASE = "cubic-bezier(0.16, 1, 0.3, 1)";
-const COLORS = [
+export const CHART_COLORS = [
   "var(--chart-1)",
   "var(--chart-2)",
   "var(--chart-3)",
@@ -92,7 +92,7 @@ function LineChart({ series }: { series: ChartSeries[] }) {
             key={s.name}
             d={pathFrom(s.values, w, h)}
             fill="none"
-            stroke={s.color ?? COLORS[i % COLORS.length]}
+            stroke={s.color ?? CHART_COLORS[i % CHART_COLORS.length]}
             strokeWidth="2.25"
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -115,7 +115,7 @@ function LineChart({ series }: { series: ChartSeries[] }) {
                 <span key={s.name} className="insight-chart-tooltip-item">
                   <span
                     className="insight-chart-tooltip-dot"
-                    style={{ background: s.color ?? COLORS[i % COLORS.length] }}
+                    style={{ background: s.color ?? CHART_COLORS[i % CHART_COLORS.length] }}
                   />
                   {s.name} {formatValue(s.values[hover] ?? 0, s.unit)}
                 </span>
@@ -150,7 +150,7 @@ function Allocation({ block }: { block: ChartBlock }) {
             className="relative h-full overflow-hidden rounded-full transition-[opacity,transform] duration-300"
             style={{
               width: `${s.pct}%`,
-              background: COLORS[i % COLORS.length],
+              background: CHART_COLORS[i % CHART_COLORS.length],
               opacity: selected === s.name ? 1 : 0.55,
               transitionTimingFunction: EASE,
             }}
@@ -168,7 +168,7 @@ function Allocation({ block }: { block: ChartBlock }) {
               selected === s.name ? "bg-field text-ink" : "text-ink-2 hover:bg-hover"
             )}
           >
-            <span className="size-1.5 rounded-full" style={{ background: COLORS[i % COLORS.length] }} />
+            <span className="size-1.5 rounded-full" style={{ background: CHART_COLORS[i % CHART_COLORS.length] }} />
             {s.label} <span className="tabular-nums">{s.pct}%</span>
           </button>
         ))}
@@ -180,64 +180,97 @@ function Allocation({ block }: { block: ChartBlock }) {
   );
 }
 
-export function InsightChart({ block }: { block: ChartBlock }) {
+function LineBody({ block, series }: { block: ChartBlock; series: ChartSeries[] }) {
+  const latest = series.map((s) => s.values[s.values.length - 1] ?? 0);
+  return (
+    <>
+      {block.variant === "compare" && series.length >= 2 ? (
+        <div className="mb-2 flex items-start gap-4">
+          {series.slice(0, 3).map((s, i) => {
+            const v = latest[i] ?? 0;
+            const up = v >= (s.values[0] ?? v);
+            return (
+              <div key={s.name} className="flex-1">
+                <span className="flex items-center gap-1.5 text-[11.5px] text-ink-2">
+                  <span
+                    className="size-2 rounded-full"
+                    style={{ background: s.color ?? CHART_COLORS[i % CHART_COLORS.length] }}
+                  />
+                  {s.name}
+                </span>
+                <span
+                  className={cn(
+                    "block text-[17px] font-semibold tracking-[-0.01em] tabular-nums",
+                    up ? "text-ink-green" : "text-ink-red"
+                  )}
+                >
+                  {formatValue(v, s.unit)}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="mb-2 flex items-center justify-between">
+          <span className="text-[12px] font-medium text-ink">{block.title ?? series[0]?.name}</span>
+          <span className="font-mono text-[12px] text-ink-2 tabular-nums">
+            {formatValue(latest[0] ?? 0, series[0]?.unit)}
+          </span>
+        </div>
+      )}
+      <div className="overflow-hidden rounded-[8px] bg-inset shadow-hairline">
+        <div className="flex items-center justify-between border-b border-line px-2.5 py-1.5">
+          <span className="text-[11px] text-ink-3">Trend</span>
+          <span className="rounded-full bg-field px-2 py-0.5 text-[10.5px] font-medium text-ink-2">
+            Sorgulanmış veri
+          </span>
+        </div>
+        <LineChart series={series} />
+      </div>
+    </>
+  );
+}
+
+export function InsightChart({
+  block,
+  embedded = false,
+}: {
+  block: ChartBlock;
+  embedded?: boolean;
+}) {
   if (block.variant === "allocation" && block.segments?.length) {
-    return <div className="my-3 w-full max-w-xl">{Allocation({ block })}</div>;
+    if (embedded) {
+      return (
+        <div className="px-3 pb-3">
+          <Allocation block={block} />
+        </div>
+      );
+    }
+    return (
+      <div className="my-3 w-full max-w-xl">
+        <Allocation block={block} />
+      </div>
+    );
   }
   const series = (block.series ?? []).filter((s) => s.values.length >= 2);
   if (series.length === 0) return null;
 
-  const latest = series.map((s) => s.values[s.values.length - 1] ?? 0);
+  if (embedded) {
+    return (
+      <div className="border-t border-line px-3 py-3">
+        {block.prose ? <p className="mb-2 text-[12.5px] leading-relaxed text-ink-2">{block.prose}</p> : null}
+        <LineBody block={block} series={series} />
+      </div>
+    );
+  }
 
   return (
     <div className="my-3 w-full max-w-xl">
       {block.prose ? (
         <p className="mb-2 text-[12.5px] leading-relaxed text-ink-2">{block.prose}</p>
       ) : null}
-      <div className="min-h-[220px] rounded-[14px] bg-card p-3 shadow-hairline">
-        {block.variant === "compare" && series.length >= 2 ? (
-          <div className="mb-2 flex items-start gap-4">
-            {series.slice(0, 3).map((s, i) => {
-              const v = latest[i] ?? 0;
-              const up = v >= (s.values[0] ?? v);
-              return (
-                <div key={s.name} className="flex-1">
-                  <span className="flex items-center gap-1.5 text-[11.5px] text-ink-2">
-                    <span
-                      className="size-2 rounded-full"
-                      style={{ background: s.color ?? COLORS[i % COLORS.length] }}
-                    />
-                    {s.name}
-                  </span>
-                  <span
-                    className={cn(
-                      "block text-[17px] font-semibold tracking-[-0.01em] tabular-nums",
-                      up ? "text-ink-green" : "text-ink-red"
-                    )}
-                  >
-                    {formatValue(v, s.unit)}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="mb-2 flex items-center justify-between">
-            <span className="text-[12px] font-medium text-ink">{block.title ?? series[0]?.name}</span>
-            <span className="font-mono text-[12px] text-ink-2 tabular-nums">
-              {formatValue(latest[0] ?? 0, series[0]?.unit)}
-            </span>
-          </div>
-        )}
-        <div className="overflow-hidden rounded-[8px] bg-inset shadow-hairline">
-          <div className="flex items-center justify-between border-b border-line px-2.5 py-1.5">
-            <span className="text-[11px] text-ink-3">Trend</span>
-            <span className="rounded-full bg-field px-2 py-0.5 text-[10.5px] font-medium text-ink-2">
-              Sorgulanmış veri
-            </span>
-          </div>
-          <LineChart series={series} />
-        </div>
+      <div className="rounded-[14px] bg-card p-3 shadow-hairline">
+        <LineBody block={block} series={series} />
       </div>
     </div>
   );

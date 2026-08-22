@@ -6,11 +6,18 @@ import { AgentMarkdown } from "@/components/agent/AgentMarkdown";
 import { ContextCards } from "@/components/agent/ContextCards";
 import { LoadingState } from "@/components/agent/LoadingState";
 import { PromptBar } from "@/components/agent/PromptBar";
+import { SelectionReply } from "@/components/agent/SelectionReply";
 import { TaskRows } from "@/components/agent/TaskRows";
 import { ThinkingTrace } from "@/components/agent/ThinkingTrace";
 import { AppSidebarMobileTrigger } from "@/components/sidebar/AppSidebar";
 import { useAgentSession, type ChatMessage } from "@/hooks/useAgentSession";
-import type { AgentTask, ContextChunk, TraceRow } from "@/lib/agent-trace";
+import {
+  contextsFromTrace,
+  isComplexTrace,
+  type AgentTask,
+  type ContextChunk,
+  type TraceRow,
+} from "@/lib/agent-trace";
 
 const ORNEK_SORULAR = [
   "Toplam kaç müşteri var?",
@@ -29,17 +36,22 @@ export default function HomePage() {
     tasks,
     contexts,
     revealed,
+    revealing,
+    revealId,
     answerId,
+    pendingQuote,
+    setPendingQuote,
     send,
     stop,
   } = useAgentSession();
   const sonRef = useRef<HTMLDivElement | null>(null);
   const sohbet = messages.length > 0;
-  const showWork = busy || trace.length > 0;
+  const waiting = busy && !answerId;
+  const complex = isComplexTrace(trace);
 
   useEffect(() => {
     sonRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [messages, trace, revealed, busy]);
+  }, [messages, trace, revealed, revealing, busy]);
 
   const composer = (
     <div>
@@ -50,6 +62,8 @@ export default function HomePage() {
         onStop={stop}
         busy={busy}
         tall={!sohbet}
+        quote={pendingQuote}
+        onClearQuote={() => setPendingQuote(null)}
         placeholder="Veriye bir şey sor…  @ kaynak  / komut"
       />
       <p className="mt-2 text-center text-[11px] text-ink-3">
@@ -96,25 +110,20 @@ export default function HomePage() {
         <>
           <div className="min-h-0 flex-1 overflow-y-auto px-4 py-6">
             <div className="mx-auto flex max-w-2xl flex-col gap-5">
-              {(() => {
-                let lastUserIdx = -1;
-                for (let i = 0; i < messages.length; i += 1) {
-                  if (messages[i]!.role === "user") lastUserIdx = i;
-                }
-                return messages.map((m, i) => (
-                  <Turn
-                    key={m.id}
-                    message={m}
-                    showWork={showWork && i === lastUserIdx}
-                    live={m.id === answerId && (m.streaming || busy)}
-                    revealed={revealed}
-                    busy={busy}
-                    trace={trace}
-                    tasks={tasks}
-                    contexts={contexts}
-                  />
-                ));
-              })()}
+              {messages.map((m) => (
+                <Turn
+                  key={m.id}
+                  message={m}
+                  live={m.id === revealId && (m.streaming || revealing)}
+                  revealed={revealed}
+                  busy={busy}
+                  trace={trace}
+                  tasks={tasks}
+                  contexts={contexts}
+                  onReply={setPendingQuote}
+                />
+              ))}
+              {waiting ? <WorkPanel busy={busy} trace={trace} tasks={tasks} complex={complex} /> : null}
               <div ref={sonRef} />
             </div>
           </div>
@@ -127,57 +136,95 @@ export default function HomePage() {
   );
 }
 
+function WorkPanel({
+  busy,
+  trace,
+  tasks,
+  complex,
+}: {
+  busy: boolean;
+  trace: TraceRow[];
+  tasks: AgentTask[];
+  complex: boolean;
+}) {
+  if (!busy) return null;
+  if (!complex) {
+    return <LoadingState label="Düşünüyor" />;
+  }
+  if (trace.length === 0) {
+    return <LoadingState label="Düşünüyor" />;
+  }
+  return (
+    <div className="flex flex-col gap-2">
+      <ThinkingTrace rows={trace} working={busy} />
+      <TaskRows tasks={tasks} />
+    </div>
+  );
+}
+
 function Turn({
   message: m,
-  showWork,
   live,
   revealed,
   busy,
   trace,
   tasks,
   contexts,
+  onReply,
 }: {
   message: ChatMessage;
-  showWork: boolean;
   live: boolean;
   revealed: string;
   busy: boolean;
   trace: TraceRow[];
   tasks: AgentTask[];
   contexts: ContextChunk[];
+  onReply: (quote: string) => void;
 }) {
-  const body = live ? revealed : m.text;
-  return (
-    <div className="flex flex-col gap-3">
-      {m.role === "user" ? (
-        <div className="flex justify-end">
-          <p className="max-w-[85%] rounded-2xl rounded-br-md bg-inset px-3.5 py-2 text-[13px] whitespace-pre-wrap text-ink">
-            {m.text}
-          </p>
+  if (m.role === "user") {
+    return (
+      <div className="flex justify-end">
+        <div className="max-w-[85%] rounded-2xl rounded-br-md bg-inset px-3.5 py-2">
+          {m.quote ? (
+            <p className="mb-1.5 line-clamp-2 text-[11.5px] leading-snug text-ink-3">{m.quote}</p>
+          ) : null}
+          <p className="text-[13px] whitespace-pre-wrap text-ink">{m.text}</p>
         </div>
-      ) : m.role === "error" ? (
-        <div className="rounded-[12px] border border-ink-red/30 bg-red-tint px-3.5 py-2.5">
-          <p className="mb-0.5 font-mono text-[10px] tracking-[0.14em] text-ink-red uppercase">
-            Hata
-          </p>
-          <p className="text-[13px] text-ink">{m.text}</p>
-        </div>
-      ) : body ? (
-        <div className="flex flex-col gap-2">
-          <AgentMarkdown streaming={live}>{body}</AgentMarkdown>
-          {!live ? <MessageActions text={body} /> : null}
-        </div>
-      ) : null}
+      </div>
+    );
+  }
 
-      {showWork ? (
-        <div className="flex flex-col gap-3">
-          {busy && trace.length === 0 ? (
-            <LoadingState label="Düşünüyor" />
-          ) : (
-            <ThinkingTrace rows={trace} working={busy} />
-          )}
-          {trace.length > 0 ? <TaskRows tasks={tasks} /> : null}
-          {contexts.length > 0 ? <ContextCards chunks={contexts} /> : null}
+  if (m.role === "error") {
+    return (
+      <div className="rounded-[12px] border border-ink-red/30 bg-red-tint px-3.5 py-2.5">
+        <p className="mb-0.5 font-mono text-[10px] tracking-[0.14em] text-ink-red uppercase">
+          Hata
+        </p>
+        <p className="text-[13px] text-ink">{m.text}</p>
+      </div>
+    );
+  }
+
+  const body = live ? revealed : m.text;
+  const chunks = live ? contexts : contextsFromTrace(m.trace ?? []);
+  const showComplexWork = live && busy && isComplexTrace(trace);
+  const showSimpleWait = live && busy && !body && !showComplexWork;
+
+  return (
+    <div className="flex flex-col gap-2.5">
+      {body ? (
+        <SelectionReply enabled={!live} onReply={onReply}>
+          <AgentMarkdown streaming={live}>{body}</AgentMarkdown>
+        </SelectionReply>
+      ) : null}
+      {!live && body ? <MessageActions text={body} /> : null}
+      {chunks.length > 0 || showSimpleWait || showComplexWork ? (
+        <div className="flex flex-col gap-2">
+          {chunks.length > 0 ? <ContextCards chunks={chunks} /> : null}
+          {showSimpleWait ? <LoadingState label="Düşünüyor" /> : null}
+          {showComplexWork ? (
+            <WorkPanel busy={busy} trace={trace} tasks={tasks} complex />
+          ) : null}
         </div>
       ) : null}
     </div>
