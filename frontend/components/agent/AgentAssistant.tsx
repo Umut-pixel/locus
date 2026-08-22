@@ -19,13 +19,13 @@ import {
   AGENT_ORB,
   DEMO_ANALYSIS,
   THOUGHT_FLY_MS,
-  THOUGHT_HOLD_MS,
   buildUploadAnalysis,
   importActivityToPhase,
   pickThoughtSequence,
   type AgentPhase,
   type ImportActivity,
 } from "@/lib/agent-states";
+import { TOOL_THOUGHTS, streamAgent } from "@/lib/agent-stream";
 import type { UploadResult } from "@/lib/import/types";
 import { cn } from "@/lib/utils";
 
@@ -85,6 +85,12 @@ export const AgentAssistant = memo(function AgentAssistant({
   const analysisPushedForDone = useRef(false);
   const welcomeDismissed = useRef(false);
   const thoughtKey = useRef(0);
+  /**
+   * Devam eden akisi iptal eder: unmount'ta ve yeni soru sorulunca.
+   * Olmazsa eski akis arka planda yazmaya devam eder ve iki yanit
+   * birbirine karisir.
+   */
+  const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     const reduce =
@@ -130,7 +136,13 @@ export const AgentAssistant = memo(function AgentAssistant({
     return t;
   }, []);
 
-  useEffect(() => () => clearTimers(), [clearTimers]);
+  useEffect(
+    () => () => {
+      clearTimers();
+      abortRef.current?.abort();
+    },
+    [clearTimers]
+  );
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -146,6 +158,17 @@ export const AgentAssistant = memo(function AgentAssistant({
 
   const push = useCallback((item: ChatItem) => {
     setItems((prev) => [...prev, item]);
+  }, []);
+
+  /** Akan yaniti mevcut balona ekler — her token icin yeni balon acmayiz. */
+  const appendToItem = useCallback((id: string, delta: string) => {
+    setItems((prev) =>
+      prev.map((item) =>
+        item.id === id && item.kind === "assistant"
+          ? { ...item, text: item.text + delta }
+          : item
+      )
+    );
   }, []);
 
   const showThought = useCallback((text: string) => {
@@ -164,33 +187,6 @@ export const AgentAssistant = memo(function AgentAssistant({
   const exitThought = useCallback(() => {
     setThought((prev) => (prev ? { ...prev, anim: "exit" } : null));
   }, []);
-
-  /** Cümleleri tek slot’ta: eski yukarı kaybolur → sonra yenisi alttan gelir. */
-  const runThoughtSequence = useCallback(
-    (phrases: readonly string[], startAtMs: number, onDone: () => void) => {
-      let t = startAtMs;
-
-      phrases.forEach((phrase, i) => {
-        if (i === 0) {
-          later(t, () => showThought(phrase));
-          t += THOUGHT_HOLD_MS;
-          return;
-        }
-        later(t, () => exitThought());
-        t += THOUGHT_FLY_MS;
-        later(t, () => showThought(phrase));
-        t += THOUGHT_HOLD_MS;
-      });
-
-      later(t, () => exitThought());
-      t += THOUGHT_FLY_MS;
-      later(t, () => {
-        setThought(null);
-        onDone();
-      });
-    },
-    [exitThought, later, showThought]
-  );
 
   const lastUploadResultRef = useRef<UploadResult | null>(null);
   useEffect(() => {
@@ -266,31 +262,95 @@ export const AgentAssistant = memo(function AgentAssistant({
         text: "Yükleme tamamlanamadı — dosyayı kontrol edip tekrar dene.",
       });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [importActivity, clearTimers, later, push, showThought, exitThought]);
 
+  /**
+   * Soruyu gerçek agent'a gönderir ve yanıtı akış halinde yazar.
+   *
+   * Faz haritası: araç çağrısı -> "solving" (düşünce cümlesi değişir),
+   * ilk metin parçası -> "composing" (balon açılır ve dolmaya başlar).
+   * Yanıt kabı bilerek ilk token'da açılıyor; agent 10-20 saniye SQL
+   * yazarken boş bir balon durmasın.
+   */
   const runSearchScenario = useCallback(
     (question: string) => {
       clearTimers();
+      // Önceki akış hâlâ sürüyorsa kes — iki yanıt aynı listeye karışmasın.
+      abortRef.current?.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
+
       setBusy(true);
       setPhase("searching");
       setThought(null);
       push({ id: uid(), kind: "user", text: question });
+      showThought(pickThoughtSequence(1)[0]);
 
-      runThoughtSequence(pickThoughtSequence(), 420, () => {
-        setPhase("composing");
-        later(1450, () => {
+      let answerId: string | null = null;
+      let errored = false;
+
+      void streamAgent({
+        message: question,
+        // threadId BİLEREK gönderilmiyor: LangGraph'ta var olmayan bir
+        // thread_id'ye run açmak sürüme göre 404 verebiliyor. Deploy sonrası
+        // gerçek davranış görülünce açılacak — o zamana kadar her soru
+        // bağımsız (stateless) çalışır. route.ts tarafı zaten hazır.
+        signal: controller.signal,
+        onEvent: (event) => {
+          if (controller.signal.aborted) return;
+
+          switch (event.kind) {
+            case "tool": {
+              setPhase("solving");
+              showThought(TOOL_THOUGHTS[event.name] ?? `${event.name} çalışıyor…`);
+              break;
+            }
+            case "text": {
+              let id = answerId;
+              if (id === null) {
+                id = uid();
+                answerId = id;
+                setPhase("composing");
+                setThought(null);
+                push({ id, kind: "assistant", text: "" });
+              }
+              appendToItem(id, event.delta);
+              break;
+            }
+            case "error": {
+              errored = true;
+              setThought(null);
+              push({
+                id: uid(),
+                kind: "assistant",
+                text: `Yanıt alınamadı — ${event.message}`,
+              });
+              break;
+            }
+            case "debug": {
+              // Akış biçimini ayarlamak için: tanınmayan kare konsola düşer.
+              // lib/agent-stream.ts içindeki normalizasyona buradan bakılır.
+              console.debug("[agent] tanınmayan SSE karesi:", event.raw);
+              break;
+            }
+          }
+        },
+      }).then(() => {
+        if (controller.signal.aborted) return;
+        if (!errored && answerId === null) {
           push({
             id: uid(),
             kind: "assistant",
-            text: "Bu soruya yarın canlı veri bağlanacak. Şimdilik akış: düşünce → yanıt.",
+            text: "Agent bir yanıt döndürmedi. Tarayıcı konsolundaki SSE karelerine bak.",
           });
-          setPhase("idle");
-          setBusy(false);
-        });
+        }
+        setThought(null);
+        setPhase("idle");
+        setBusy(false);
+        abortRef.current = null;
       });
     },
-    [clearTimers, later, push, runThoughtSequence]
+    [appendToItem, clearTimers, push, showThought]
   );
 
   const dismissWelcome = useCallback(() => {

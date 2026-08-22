@@ -77,7 +77,7 @@
             {
               "id": "b0e82f09-afa0-49ec-b5d6-5c5afa107411",
               "name": "panoramaPass",
-              "value": "arma123+",
+              "value": "<<PANORAMAPASS_BURAYA>>",
               "type": "string"
             },
             {
@@ -89,7 +89,7 @@
             {
               "id": "a04474ab-ddd8-467a-8c78-1d3eac08ee28",
               "name": "supabaseServiceRoleKey",
-              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB6ZXBubXp4cndubGhpeGRyZ3ptIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4NDk1NDI4OSwiZXhwIjoyMTAwNTMwMjg5fQ.vEuMH_c4QSWwlw-4FuNuVCN7GCkrsShNMG7BimFwo6Q",
+              "value": "<<SUPABASESERVICEROLEKEY_BURAYA>>",
               "type": "string"
             }
           ]
@@ -955,7 +955,7 @@
             {
               "id": "63c5dd39-abc5-4ed5-9d32-320d7adf9840",
               "name": "panoramaPass",
-              "value": "arma123+",
+              "value": "<<PANORAMAPASS_BURAYA>>",
               "type": "string"
             },
             {
@@ -967,7 +967,7 @@
             {
               "id": "d392135d-f0bc-48e3-ba60-6f1c7ef3deb9",
               "name": "supabaseServiceRoleKey",
-              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB6ZXBubXp4cndubGhpeGRyZ3ptIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4NDk1NDI4OSwiZXhwIjoyMTAwNTMwMjg5fQ.vEuMH_c4QSWwlw-4FuNuVCN7GCkrsShNMG7BimFwo6Q",
+              "value": "<<SUPABASESERVICEROLEKEY_BURAYA>>",
               "type": "string"
             }
           ]
@@ -1637,7 +1637,7 @@
             {
               "id": "2ff0c0e9-2bf3-46c4-abac-dbfc0a016e6a",
               "name": "panoramaPass",
-              "value": "arma123+",
+              "value": "<<PANORAMAPASS_BURAYA>>",
               "type": "string"
             },
             {
@@ -1649,7 +1649,7 @@
             {
               "id": "1c163cd5-c708-4891-b5b3-40088b90ce91",
               "name": "supabaseServiceRoleKey",
-              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB6ZXBubXp4cndubGhpeGRyZ3ptIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4NDk1NDI4OSwiZXhwIjoyMTAwNTMwMjg5fQ.vEuMH_c4QSWwlw-4FuNuVCN7GCkrsShNMG7BimFwo6Q",
+              "value": "<<SUPABASESERVICEROLEKEY_BURAYA>>",
               "type": "string"
             }
           ]
@@ -2648,7 +2648,7 @@
             {
               "id": "2ff0c0e9-2bf3-46c4-abac-dbfc0a016e6a",
               "name": "panoramaPass",
-              "value": "arma123+",
+              "value": "<<PANORAMAPASS_BURAYA>>",
               "type": "string"
             },
             {
@@ -2660,7 +2660,7 @@
             {
               "id": "1c163cd5-c708-4891-b5b3-40088b90ce91",
               "name": "supabaseServiceRoleKey",
-              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB6ZXBubXp4cndubGhpeGRyZ3ptIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4NDk1NDI4OSwiZXhwIjoyMTAwNTMwMjg5fQ.vEuMH_c4QSWwlw-4FuNuVCN7GCkrsShNMG7BimFwo6Q",
+              "value": "<<SUPABASESERVICEROLEKEY_BURAYA>>",
               "type": "string"
             }
           ]
@@ -3437,7 +3437,7 @@
             {
               "id": "2ff0c0e9-2bf3-46c4-abac-dbfc0a016e6a",
               "name": "panoramaPass",
-              "value": "arma123+",
+              "value": "<<PANORAMAPASS_BURAYA>>",
               "type": "string"
             },
             {
@@ -3449,7 +3449,7 @@
             {
               "id": "1c163cd5-c708-4891-b5b3-40088b90ce91",
               "name": "supabaseServiceRoleKey",
-              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB6ZXBubXp4cndubGhpeGRyZ3ptIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4NDk1NDI4OSwiZXhwIjoyMTAwNTMwMjg5fQ.vEuMH_c4QSWwlw-4FuNuVCN7GCkrsShNMG7BimFwo6Q",
+              "value": "<<SUPABASESERVICEROLEKEY_BURAYA>>",
               "type": "string"
             }
           ]
@@ -4242,7 +4242,7 @@
             {
               "id": "2ff0c0e9-2bf3-46c4-abac-dbfc0a016e6a",
               "name": "panoramaPass",
-              "value": "arma123+",
+              "value": "<<PANORAMAPASS_BURAYA>>",
               "type": "string"
             },
             {
@@ -4254,7 +4254,7 @@
             {
               "id": "1c163cd5-c708-4891-b5b3-40088b90ce91",
               "name": "supabaseServiceRoleKey",
-              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB6ZXBubXp4cndubGhpeGRyZ3ptIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4NDk1NDI4OSwiZXhwIjoyMTAwNTMwMjg5fQ.vEuMH_c4QSWwlw-4FuNuVCN7GCkrsShNMG7BimFwo6Q",
+              "value": "<<SUPABASESERVICEROLEKEY_BURAYA>>",
               "type": "string"
             }
           ]

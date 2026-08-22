@@ -1,0 +1,1 @@
+`musteriler_rapor` view'ında toplam **1.318 müşteri** kayıtlı (bunların 951'i "aktif" durumunda).

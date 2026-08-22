@@ -1,0 +1,157 @@
+event: metadata
+data: {"run_id":"01a02a25-0b1b-74e0-a510-555078bc2b83","attempt":1}
+
+event: messages/metadata
+data: {"lc_run--x": {"metadata": {"graph_id": "locus-analyst"}}}
+
+event: messages/partial
+data: [{"content":[],"additional_kwargs":{},"response_metadata":{"model_name":"claude-opus-5","model_provider":"anthropic"},"type":"ai","name":null,"id":"lc_run--01a02a25-0e9b-7520-887f-3e4e9e469a59","tool_calls":[],"invalid_tool_calls":[],"usage_metadata":null}]
+
+event: messages/partial
+data: [{"content":[{"thinking":"","type":"thinking","index":0}],"additional_kwargs":{},"response_metadata":{"model_name":"claude-opus-5","model_provider":"anthropic"},"type":"ai","name":null,"id":"lc_run--01a02a25-0e9b-7520-887f-3e4e9e469a59","tool_calls":[],"invalid_tool_calls":[],"usage_metadata":null}]
+
+event: messages/partial
+data: [{"content":[{"thinking":"","type":"thinking","index":0,"signature":"CAIS2AIKjgEIERgCKkB+IiNf6WsKeF5ch0ZpwKItHvmUHhwvqtT/G6B9TqZ+xB2I1Va89wT6q1oFMRoCabyyhhYtML2FW7VhxeOy7nwwMg1jbGF1ZGUtb3B1cy01OAFCCHRoaW5raW5nWiRlOWU0MDdkYS02NGRlLTQwYzYtYWI5Mi1iOGJkZGU0OGViOWWoAd2Hp9QGEgzRNtrcii8uN53aSLQaDE01vtKUIbSLVcrbYiIw762uG7kfGD6aDm4I+hhpnDe8/2LchFvzTLZGmQprtoixXZzE9C0fKlIq5qMBDJWAKneqhZ2lE/N5RYJygJdYTmY/CweKhFamCLfRJMNzqsot6tLbTrJ9NnbNVkk8bOinP3XVDuUP3OzMamuQHFpLnFgZEVWQ0TwXgeJkUYsOZeknbRxUzJTIAbQ6pkyG9GYqPq6ozgbYwYtNGRhWqZuWHDKigaS+oBfi4xgB"}],"additional_kwargs":{},"response_metadata":{"model_name":"claude-opus-5","model_provider":"anthropic"},"type":"ai","name":null,"id":"lc_run--01a02a25-0e9b-7520-887f-3e4e9e469a59","tool_calls":[],"invalid_tool_calls":[],"usage_metadata":null}]
+
+event: messages/partial
+data: [{"content":[{"thinking":"","type":"thinking","index":0,"signature":"CAIS2AIKjgEIERgCKkB+IiNf6WsKeF5ch0ZpwKItHvmUHhwvqtT/G6B9TqZ+xB2I1Va89wT6q1oFMRoCabyyhhYtML2FW7VhxeOy7nwwMg1jbGF1ZGUtb3B1cy01OAFCCHRoaW5raW5nWiRlOWU0MDdkYS02NGRlLTQwYzYtYWI5Mi1iOGJkZGU0OGViOWWoAd2Hp9QGEgzRNtrcii8uN53aSLQaDE01vtKUIbSLVcrbYiIw762uG7kfGD6aDm4I+hhpnDe8/2LchFvzTLZGmQprtoixXZzE9C0fKlIq5qMBDJWAKneqhZ2lE/N5RYJygJdYTmY/CweKhFamCLfRJMNzqsot6tLbTrJ9NnbNVkk8bOinP3XVDuUP3OzMamuQHFpLnFgZEVWQ0TwXgeJkUYsOZeknbRxUzJTIAbQ6pkyG9GYqPq6ozgbYwYtNGRhWqZuWHDKigaS+oBfi4xgB"},{"id":"toolu_01KLRmuZ91y7cHCTqyi5iC3u","caller":{"type":"direct"},"input":{},"name":"schema_lookup","type":"tool_use","toolset_name":null,"index":1}],"additional_kwargs":{},"response_metadata":{"model_name":"claude-opus-5","model_provider":"anthropic"},"type":"ai","name":null,"id":"lc_run--01a02a25-0e9b-7520-887f-3e4e9e469a59","tool_calls":[{"name":"schema_lookup","args":{},"id":"toolu_01KLRmuZ91y7cHCTqyi5iC3u","type":"tool_call"}],"invalid_tool_calls":[],"usage_metadata":null}]
+
+event: messages/partial
+data: [{"content":[{"thinking":"","type":"thinking","index":0,"signature":"CAIS2AIKjgEIERgCKkB+IiNf6WsKeF5ch0ZpwKItHvmUHhwvqtT/G6B9TqZ+xB2I1Va89wT6q1oFMRoCabyyhhYtML2FW7VhxeOy7nwwMg1jbGF1ZGUtb3B1cy01OAFCCHRoaW5raW5nWiRlOWU0MDdkYS02NGRlLTQwYzYtYWI5Mi1iOGJkZGU0OGViOWWoAd2Hp9QGEgzRNtrcii8uN53aSLQaDE01vtKUIbSLVcrbYiIw762uG7kfGD6aDm4I+hhpnDe8/2LchFvzTLZGmQprtoixXZzE9C0fKlIq5qMBDJWAKneqhZ2lE/N5RYJygJdYTmY/CweKhFamCLfRJMNzqsot6tLbTrJ9NnbNVkk8bOinP3XVDuUP3OzMamuQHFpLnFgZEVWQ0TwXgeJkUYsOZeknbRxUzJTIAbQ6pkyG9GYqPq6ozgbYwYtNGRhWqZuWHDKigaS+oBfi4xgB"},{"id":"toolu_01KLRmuZ91y7cHCTqyi5iC3u","caller":{"type":"direct"},"input":{},"name":"schema_lookup","type":"tool_use","toolset_name":null,"index":1,"partial_json":""}],"additional_kwargs":{},"response_metadata":{"model_name":"claude-opus-5","model_provider":"anthropic"},"type":"ai","name":null,"id":"lc_run--01a02a25-0e9b-7520-887f-3e4e9e469a59","tool_calls":[{"name":"schema_lookup","args":{},"id":"toolu_01KLRmuZ91y7cHCTqyi5iC3u","type":"tool_call"}],"invalid_tool_calls":[],"usage_metadata":null}]
+
+event: messages/partial
+data: [{"content":[{"thinking":"","type":"thinking","index":0,"signature":"CAIS2AIKjgEIERgCKkB+IiNf6WsKeF5ch0ZpwKItHvmUHhwvqtT/G6B9TqZ+xB2I1Va89wT6q1oFMRoCabyyhhYtML2FW7VhxeOy7nwwMg1jbGF1ZGUtb3B1cy01OAFCCHRoaW5raW5nWiRlOWU0MDdkYS02NGRlLTQwYzYtYWI5Mi1iOGJkZGU0OGViOWWoAd2Hp9QGEgzRNtrcii8uN53aSLQaDE01vtKUIbSLVcrbYiIw762uG7kfGD6aDm4I+hhpnDe8/2LchFvzTLZGmQprtoixXZzE9C0fKlIq5qMBDJWAKneqhZ2lE/N5RYJygJdYTmY/CweKhFamCLfRJMNzqsot6tLbTrJ9NnbNVkk8bOinP3XVDuUP3OzMamuQHFpLnFgZEVWQ0TwXgeJkUYsOZeknbRxUzJTIAbQ6pkyG9GYqPq6ozgbYwYtNGRhWqZuWHDKigaS+oBfi4xgB"},{"id":"toolu_01KLRmuZ91y7cHCTqyi5iC3u","caller":{"type":"direct"},"input":{},"name":"schema_lookup","type":"tool_use","toolset_name":null,"index":1,"partial_json":"{\"konu\": \"ka"}],"additional_kwargs":{},"response_metadata":{"model_name":"claude-opus-5","model_provider":"anthropic"},"type":"ai","name":null,"id":"lc_run--01a02a25-0e9b-7520-887f-3e4e9e469a59","tool_calls":[{"name":"schema_lookup","args":{"konu":"ka"},"id":"toolu_01KLRmuZ91y7cHCTqyi5iC3u","type":"tool_call"}],"invalid_tool_calls":[],"usage_metadata":null}]
+
+event: messages/partial
+data: [{"content":[{"thinking":"","type":"thinking","index":0,"signature":"CAIS2AIKjgEIERgCKkB+IiNf6WsKeF5ch0ZpwKItHvmUHhwvqtT/G6B9TqZ+xB2I1Va89wT6q1oFMRoCabyyhhYtML2FW7VhxeOy7nwwMg1jbGF1ZGUtb3B1cy01OAFCCHRoaW5raW5nWiRlOWU0MDdkYS02NGRlLTQwYzYtYWI5Mi1iOGJkZGU0OGViOWWoAd2Hp9QGEgzRNtrcii8uN53aSLQaDE01vtKUIbSLVcrbYiIw762uG7kfGD6aDm4I+hhpnDe8/2LchFvzTLZGmQprtoixXZzE9C0fKlIq5qMBDJWAKneqhZ2lE/N5RYJygJdYTmY/CweKhFamCLfRJMNzqsot6tLbTrJ9NnbNVkk8bOinP3XVDuUP3OzMamuQHFpLnFgZEVWQ0TwXgeJkUYsOZeknbRxUzJTIAbQ6pkyG9GYqPq6ozgbYwYtNGRhWqZuWHDKigaS+oBfi4xgB"},{"id":"toolu_01KLRmuZ91y7cHCTqyi5iC3u","caller":{"type":"direct"},"input":{},"name":"schema_lookup","type":"tool_use","toolset_name":null,"index":1,"partial_json":"{\"konu\": \"kayna"}],"additional_kwargs":{},"response_metadata":{"model_name":"claude-opus-5","model_provider":"anthropic"},"type":"ai","name":null,"id":"lc_run--01a02a25-0e9b-7520-887f-3e4e9e469a59","tool_calls":[{"name":"schema_lookup","args":{"konu":"kayna"},"id":"toolu_01KLRmuZ91y7cHCTqyi5iC3u","type":"tool_call"}],"invalid_tool_calls":[],"usage_metadata":null}]
+
+event: messages/partial
+data: [{"content":[{"thinking":"","type":"thinking","index":0,"signature":"CAIS2AIKjgEIERgCKkB+IiNf6WsKeF5ch0ZpwKItHvmUHhwvqtT/G6B9TqZ+xB2I1Va89wT6q1oFMRoCabyyhhYtML2FW7VhxeOy7nwwMg1jbGF1ZGUtb3B1cy01OAFCCHRoaW5raW5nWiRlOWU0MDdkYS02NGRlLTQwYzYtYWI5Mi1iOGJkZGU0OGViOWWoAd2Hp9QGEgzRNtrcii8uN53aSLQaDE01vtKUIbSLVcrbYiIw762uG7kfGD6aDm4I+hhpnDe8/2LchFvzTLZGmQprtoixXZzE9C0fKlIq5qMBDJWAKneqhZ2lE/N5RYJygJdYTmY/CweKhFamCLfRJMNzqsot6tLbTrJ9NnbNVkk8bOinP3XVDuUP3OzMamuQHFpLnFgZEVWQ0TwXgeJkUYsOZeknbRxUzJTIAbQ6pkyG9GYqPq6ozgbYwYtNGRhWqZuWHDKigaS+oBfi4xgB"},{"id":"toolu_01KLRmuZ91y7cHCTqyi5iC3u","caller":{"type":"direct"},"input":{},"name":"schema_lookup","type":"tool_use","toolset_name":null,"index":1,"partial_json":"{\"konu\": \"kaynaklar\"}"}],"additional_kwargs":{},"response_metadata":{"model_name":"claude-opus-5","model_provider":"anthropic"},"type":"ai","name":null,"id":"lc_run--01a02a25-0e9b-7520-887f-3e4e9e469a59","tool_calls":[{"name":"schema_lookup","args":{"konu":"kaynaklar"},"id":"toolu_01KLRmuZ91y7cHCTqyi5iC3u","type":"tool_call"}],"invalid_tool_calls":[],"usage_metadata":null}]
+
+event: messages/partial
+data: [{"content":[{"thinking":"","type":"thinking","index":0,"signature":"CAIS2AIKjgEIERgCKkB+IiNf6WsKeF5ch0ZpwKItHvmUHhwvqtT/G6B9TqZ+xB2I1Va89wT6q1oFMRoCabyyhhYtML2FW7VhxeOy7nwwMg1jbGF1ZGUtb3B1cy01OAFCCHRoaW5raW5nWiRlOWU0MDdkYS02NGRlLTQwYzYtYWI5Mi1iOGJkZGU0OGViOWWoAd2Hp9QGEgzRNtrcii8uN53aSLQaDE01vtKUIbSLVcrbYiIw762uG7kfGD6aDm4I+hhpnDe8/2LchFvzTLZGmQprtoixXZzE9C0fKlIq5qMBDJWAKneqhZ2lE/N5RYJygJdYTmY/CweKhFamCLfRJMNzqsot6tLbTrJ9NnbNVkk8bOinP3XVDuUP3OzMamuQHFpLnFgZEVWQ0TwXgeJkUYsOZeknbRxUzJTIAbQ6pkyG9GYqPq6ozgbYwYtNGRhWqZuWHDKigaS+oBfi4xgB"},{"id":"toolu_01KLRmuZ91y7cHCTqyi5iC3u","caller":{"type":"direct"},"input":{},"name":"schema_lookup","type":"tool_use","toolset_name":null,"index":1,"partial_json":"{\"konu\": \"kaynaklar\"}"}],"additional_kwargs":{},"response_metadata":{"model_name":"claude-opus-5","model_provider":"anthropic","stop_reason":"tool_use","stop_sequence":null},"type":"ai","name":null,"id":"lc_run--01a02a25-0e9b-7520-887f-3e4e9e469a59","tool_calls":[{"name":"schema_lookup","args":{"konu":"kaynaklar"},"id":"toolu_01KLRmuZ91y7cHCTqyi5iC3u","type":"tool_call"}],"invalid_tool_calls":[],"usage_metadata":{"input_tokens":10108,"output_tokens":95,"total_tokens":10203,"input_token_details":{"cache_creation":10106,"cache_read":0},"output_token_details":{"reasoning":38}}}]
+
+event: messages/metadata
+data: {"lc_run--x": {"metadata": {"graph_id": "locus-analyst"}}}
+
+event: messages/complete
+data: [{"content": "# Veri Kaynakları — Locus\n\n## Tazelik modeli (ÖNEMLİ)\n\nİki farklı tazelik sınıfı var. Karıştırmak \"trend\" sorularında ya …[test icin kisaltildi]", "additional_kwargs": {}, "response_metadata": {}, "type": "tool", "name": "schema_lookup", "id": "5a161802-faa6-495c-89e2-f3453667982c", "tool_call_id": "toolu_01KLRmuZ91y7cHCTqyi5iC3u", "artifact": null, "status": "success"}]
+
+data: 
+
+event: messages/metadata
+data: {"lc_run--x": {"metadata": {"graph_id": "locus-analyst"}}}
+
+event: messages/partial
+data: [{"content":[],"additional_kwargs":{},"response_metadata":{"model_name":"claude-opus-5","model_provider":"anthropic"},"type":"ai","name":null,"id":"lc_run--01a02a25-192b-77c1-9b5e-c681e50aa206","tool_calls":[],"invalid_tool_calls":[],"usage_metadata":null}]
+
+event: messages/partial
+data: [{"content":[{"id":"toolu_01J8EMK9zWtp3spcsg7CuruR","caller":{"type":"direct"},"input":{},"name":"sql_query","type":"tool_use","toolset_name":null,"index":0}],"additional_kwargs":{},"response_metadata":{"model_name":"claude-opus-5","model_provider":"anthropic"},"type":"ai","name":null,"id":"lc_run--01a02a25-192b-77c1-9b5e-c681e50aa206","tool_calls":[{"name":"sql_query","args":{},"id":"toolu_01J8EMK9zWtp3spcsg7CuruR","type":"tool_call"}],"invalid_tool_calls":[],"usage_metadata":null}]
+
+event: messages/partial
+data: [{"content":[{"id":"toolu_01J8EMK9zWtp3spcsg7CuruR","caller":{"type":"direct"},"input":{},"name":"sql_query","type":"tool_use","toolset_name":null,"index":0,"partial_json":""}],"additional_kwargs":{},"response_metadata":{"model_name":"claude-opus-5","model_provider":"anthropic"},"type":"ai","name":null,"id":"lc_run--01a02a25-192b-77c1-9b5e-c681e50aa206","tool_calls":[{"name":"sql_query","args":{},"id":"toolu_01J8EMK9zWtp3spcsg7CuruR","type":"tool_call"}],"invalid_tool_calls":[],"usage_metadata":null}]
+
+event: messages/partial
+data: [{"content":[{"id":"toolu_01J8EMK9zWtp3spcsg7CuruR","caller":{"type":"direct"},"input":{},"name":"sql_query","type":"tool_use","toolset_name":null,"index":0,"partial_json":"{\"sql\":"}],"additional_kwargs":{},"response_metadata":{"model_name":"claude-opus-5","model_provider":"anthropic"},"type":"ai","name":null,"id":"lc_run--01a02a25-192b-77c1-9b5e-c681e50aa206","tool_calls":[{"name":"sql_query","args":{},"id":"toolu_01J8EMK9zWtp3spcsg7CuruR","type":"tool_call"}],"invalid_tool_calls":[],"usage_metadata":null}]
+
+event: messages/partial
+data: [{"content":[{"id":"toolu_01J8EMK9zWtp3spcsg7CuruR","caller":{"type":"direct"},"input":{},"name":"sql_query","type":"tool_use","toolset_name":null,"index":0,"partial_json":"{\"sql\": \"SELECT"}],"additional_kwargs":{},"response_metadata":{"model_name":"claude-opus-5","model_provider":"anthropic"},"type":"ai","name":null,"id":"lc_run--01a02a25-192b-77c1-9b5e-c681e50aa206","tool_calls":[{"name":"sql_query","args":{"sql":"SELECT"},"id":"toolu_01J8EMK9zWtp3spcsg7CuruR","type":"tool_call"}],"invalid_tool_calls":[],"usage_metadata":null}]
+
+event: messages/partial
+data: [{"content":[{"id":"toolu_01J8EMK9zWtp3spcsg7CuruR","caller":{"type":"direct"},"input":{},"name":"sql_query","type":"tool_use","toolset_name":null,"index":0,"partial_json":"{\"sql\": \"SELECT COUNT("}],"additional_kwargs":{},"response_metadata":{"model_name":"claude-opus-5","model_provider":"anthropic"},"type":"ai","name":null,"id":"lc_run--01a02a25-192b-77c1-9b5e-c681e50aa206","tool_calls":[{"name":"sql_query","args":{"sql":"SELECT COUNT("},"id":"toolu_01J8EMK9zWtp3spcsg7CuruR","type":"tool_call"}],"invalid_tool_calls":[],"usage_metadata":null}]
+
+event: messages/partial
+data: [{"content":[{"id":"toolu_01J8EMK9zWtp3spcsg7CuruR","caller":{"type":"direct"},"input":{},"name":"sql_query","type":"tool_use","toolset_name":null,"index":0,"partial_json":"{\"sql\": \"SELECT COUNT(*)"}],"additional_kwargs":{},"response_metadata":{"model_name":"claude-opus-5","model_provider":"anthropic"},"type":"ai","name":null,"id":"lc_run--01a02a25-192b-77c1-9b5e-c681e50aa206","tool_calls":[{"name":"sql_query","args":{"sql":"SELECT COUNT(*)"},"id":"toolu_01J8EMK9zWtp3spcsg7CuruR","type":"tool_call"}],"invalid_tool_calls":[],"usage_metadata":null}]
+
+event: messages/partial
+data: [{"content":[{"id":"toolu_01J8EMK9zWtp3spcsg7CuruR","caller":{"type":"direct"},"input":{},"name":"sql_query","type":"tool_use","toolset_name":null,"index":0,"partial_json":"{\"sql\": \"SELECT COUNT(*) AS muste"}],"additional_kwargs":{},"response_metadata":{"model_name":"claude-opus-5","model_provider":"anthropic"},"type":"ai","name":null,"id":"lc_run--01a02a25-192b-77c1-9b5e-c681e50aa206","tool_calls":[{"name":"sql_query","args":{"sql":"SELECT COUNT(*) AS muste"},"id":"toolu_01J8EMK9zWtp3spcsg7CuruR","type":"tool_call"}],"invalid_tool_calls":[],"usage_metadata":null}]
+
+event: messages/partial
+data: [{"content":[{"id":"toolu_01J8EMK9zWtp3spcsg7CuruR","caller":{"type":"direct"},"input":{},"name":"sql_query","type":"tool_use","toolset_name":null,"index":0,"partial_json":"{\"sql\": \"SELECT COUNT(*) AS musteri_sayisi, "}],"additional_kwargs":{},"response_metadata":{"model_name":"claude-opus-5","model_provider":"anthropic"},"type":"ai","name":null,"id":"lc_run--01a02a25-192b-77c1-9b5e-c681e50aa206","tool_calls":[{"name":"sql_query","args":{"sql":"SELECT COUNT(*) AS musteri_sayisi, "},"id":"toolu_01J8EMK9zWtp3spcsg7CuruR","type":"tool_call"}],"invalid_tool_calls":[],"usage_metadata":null}]
+
+event: messages/partial
+data: [{"content":[{"id":"toolu_01J8EMK9zWtp3spcsg7CuruR","caller":{"type":"direct"},"input":{},"name":"sql_query","type":"tool_use","toolset_name":null,"index":0,"partial_json":"{\"sql\": \"SELECT COUNT(*) AS musteri_sayisi, COU"}],"additional_kwargs":{},"response_metadata":{"model_name":"claude-opus-5","model_provider":"anthropic"},"type":"ai","name":null,"id":"lc_run--01a02a25-192b-77c1-9b5e-c681e50aa206","tool_calls":[{"name":"sql_query","args":{"sql":"SELECT COUNT(*) AS musteri_sayisi, COU"},"id":"toolu_01J8EMK9zWtp3spcsg7CuruR","type":"tool_call"}],"invalid_tool_calls":[],"usage_metadata":null}]
+
+event: messages/partial
+data: [{"content":[{"id":"toolu_01J8EMK9zWtp3spcsg7CuruR","caller":{"type":"direct"},"input":{},"name":"sql_query","type":"tool_use","toolset_name":null,"index":0,"partial_json":"{\"sql\": \"SELECT COUNT(*) AS musteri_sayisi, COUNT(*) FILT"}],"additional_kwargs":{},"response_metadata":{"model_name":"claude-opus-5","model_provider":"anthropic"},"type":"ai","name":null,"id":"lc_run--01a02a25-192b-77c1-9b5e-c681e50aa206","tool_calls":[{"name":"sql_query","args":{"sql":"SELECT COUNT(*) AS musteri_sayisi, COUNT(*) FILT"},"id":"toolu_01J8EMK9zWtp3spcsg7CuruR","type":"tool_call"}],"invalid_tool_calls":[],"usage_metadata":null}]
+
+event: messages/partial
+data: [{"content":[{"id":"toolu_01J8EMK9zWtp3spcsg7CuruR","caller":{"type":"direct"},"input":{},"name":"sql_query","type":"tool_use","toolset_name":null,"index":0,"partial_json":"{\"sql\": \"SELECT COUNT(*) AS musteri_sayisi, COUNT(*) FILTER (WHER"}],"additional_kwargs":{},"response_metadata":{"model_name":"claude-opus-5","model_provider":"anthropic"},"type":"ai","name":null,"id":"lc_run--01a02a25-192b-77c1-9b5e-c681e50aa206","tool_calls":[{"name":"sql_query","args":{"sql":"SELECT COUNT(*) AS musteri_sayisi, COUNT(*) FILTER (WHER"},"id":"toolu_01J8EMK9zWtp3spcsg7CuruR","type":"tool_call"}],"invalid_tool_calls":[],"usage_metadata":null}]
+
+event: messages/partial
+data: [{"content":[{"id":"toolu_01J8EMK9zWtp3spcsg7CuruR","caller":{"type":"direct"},"input":{},"name":"sql_query","type":"tool_use","toolset_name":null,"index":0,"partial_json":"{\"sql\": \"SELECT COUNT(*) AS musteri_sayisi, COUNT(*) FILTER (WHERE durum ILI"}],"additional_kwargs":{},"response_metadata":{"model_name":"claude-opus-5","model_provider":"anthropic"},"type":"ai","name":null,"id":"lc_run--01a02a25-192b-77c1-9b5e-c681e50aa206","tool_calls":[{"name":"sql_query","args":{"sql":"SELECT COUNT(*) AS musteri_sayisi, COUNT(*) FILTER (WHERE durum ILI"},"id":"toolu_01J8EMK9zWtp3spcsg7CuruR","type":"tool_call"}],"invalid_tool_calls":[],"usage_metadata":null}]
+
+event: messages/partial
+data: [{"content":[{"id":"toolu_01J8EMK9zWtp3spcsg7CuruR","caller":{"type":"direct"},"input":{},"name":"sql_query","type":"tool_use","toolset_name":null,"index":0,"partial_json":"{\"sql\": \"SELECT COUNT(*) AS musteri_sayisi, COUNT(*) FILTER (WHERE durum ILIKE"}],"additional_kwargs":{},"response_metadata":{"model_name":"claude-opus-5","model_provider":"anthropic"},"type":"ai","name":null,"id":"lc_run--01a02a25-192b-77c1-9b5e-c681e50aa206","tool_calls":[{"name":"sql_query","args":{"sql":"SELECT COUNT(*) AS musteri_sayisi, COUNT(*) FILTER (WHERE durum ILIKE"},"id":"toolu_01J8EMK9zWtp3spcsg7CuruR","type":"tool_call"}],"invalid_tool_calls":[],"usage_metadata":null}]
+
+event: messages/partial
+data: [{"content":[{"id":"toolu_01J8EMK9zWtp3spcsg7CuruR","caller":{"type":"direct"},"input":{},"name":"sql_query","type":"tool_use","toolset_name":null,"index":0,"partial_json":"{\"sql\": \"SELECT COUNT(*) AS musteri_sayisi, COUNT(*) FILTER (WHERE durum ILIKE '%aktif%'"}],"additional_kwargs":{},"response_metadata":{"model_name":"claude-opus-5","model_provider":"anthropic"},"type":"ai","name":null,"id":"lc_run--01a02a25-192b-77c1-9b5e-c681e50aa206","tool_calls":[{"name":"sql_query","args":{"sql":"SELECT COUNT(*) AS musteri_sayisi, COUNT(*) FILTER (WHERE durum ILIKE '%aktif%'"},"id":"toolu_01J8EMK9zWtp3spcsg7CuruR","type":"tool_call"}],"invalid_tool_calls":[],"usage_metadata":null}]
+
+event: messages/partial
+data: [{"content":[{"id":"toolu_01J8EMK9zWtp3spcsg7CuruR","caller":{"type":"direct"},"input":{},"name":"sql_query","type":"tool_use","toolset_name":null,"index":0,"partial_json":"{\"sql\": \"SELECT COUNT(*) AS musteri_sayisi, COUNT(*) FILTER (WHERE durum ILIKE '%aktif%') AS"}],"additional_kwargs":{},"response_metadata":{"model_name":"claude-opus-5","model_provider":"anthropic"},"type":"ai","name":null,"id":"lc_run--01a02a25-192b-77c1-9b5e-c681e50aa206","tool_calls":[{"name":"sql_query","args":{"sql":"SELECT COUNT(*) AS musteri_sayisi, COUNT(*) FILTER (WHERE durum ILIKE '%aktif%') AS"},"id":"toolu_01J8EMK9zWtp3spcsg7CuruR","type":"tool_call"}],"invalid_tool_calls":[],"usage_metadata":null}]
+
+event: messages/partial
+data: [{"content":[{"id":"toolu_01J8EMK9zWtp3spcsg7CuruR","caller":{"type":"direct"},"input":{},"name":"sql_query","type":"tool_use","toolset_name":null,"index":0,"partial_json":"{\"sql\": \"SELECT COUNT(*) AS musteri_sayisi, COUNT(*) FILTER (WHERE durum ILIKE '%aktif%') AS akt"}],"additional_kwargs":{},"response_metadata":{"model_name":"claude-opus-5","model_provider":"anthropic"},"type":"ai","name":null,"id":"lc_run--01a02a25-192b-77c1-9b5e-c681e50aa206","tool_calls":[{"name":"sql_query","args":{"sql":"SELECT COUNT(*) AS musteri_sayisi, COUNT(*) FILTER (WHERE durum ILIKE '%aktif%') AS akt"},"id":"toolu_01J8EMK9zWtp3spcsg7CuruR","type":"tool_call"}],"invalid_tool_calls":[],"usage_metadata":null}]
+
+event: messages/partial
+data: [{"content":[{"id":"toolu_01J8EMK9zWtp3spcsg7CuruR","caller":{"type":"direct"},"input":{},"name":"sql_query","type":"tool_use","toolset_name":null,"index":0,"partial_json":"{\"sql\": \"SELECT COUNT(*) AS musteri_sayisi, COUNT(*) FILTER (WHERE durum ILIKE '%aktif%') AS aktif_sayisi "}],"additional_kwargs":{},"response_metadata":{"model_name":"claude-opus-5","model_provider":"anthropic"},"type":"ai","name":null,"id":"lc_run--01a02a25-192b-77c1-9b5e-c681e50aa206","tool_calls":[{"name":"sql_query","args":{"sql":"SELECT COUNT(*) AS musteri_sayisi, COUNT(*) FILTER (WHERE durum ILIKE '%aktif%') AS aktif_sayisi "},"id":"toolu_01J8EMK9zWtp3spcsg7CuruR","type":"tool_call"}],"invalid_tool_calls":[],"usage_metadata":null}]
+
+event: messages/partial
+data: [{"content":[{"id":"toolu_01J8EMK9zWtp3spcsg7CuruR","caller":{"type":"direct"},"input":{},"name":"sql_query","type":"tool_use","toolset_name":null,"index":0,"partial_json":"{\"sql\": \"SELECT COUNT(*) AS musteri_sayisi, COUNT(*) FILTER (WHERE durum ILIKE '%aktif%') AS aktif_sayisi FROM "}],"additional_kwargs":{},"response_metadata":{"model_name":"claude-opus-5","model_provider":"anthropic"},"type":"ai","name":null,"id":"lc_run--01a02a25-192b-77c1-9b5e-c681e50aa206","tool_calls":[{"name":"sql_query","args":{"sql":"SELECT COUNT(*) AS musteri_sayisi, COUNT(*) FILTER (WHERE durum ILIKE '%aktif%') AS aktif_sayisi FROM "},"id":"toolu_01J8EMK9zWtp3spcsg7CuruR","type":"tool_call"}],"invalid_tool_calls":[],"usage_metadata":null}]
+
+event: messages/partial
+data: [{"content":[{"id":"toolu_01J8EMK9zWtp3spcsg7CuruR","caller":{"type":"direct"},"input":{},"name":"sql_query","type":"tool_use","toolset_name":null,"index":0,"partial_json":"{\"sql\": \"SELECT COUNT(*) AS musteri_sayisi, COUNT(*) FILTER (WHERE durum ILIKE '%aktif%') AS aktif_sayisi FROM musteriler_r"}],"additional_kwargs":{},"response_metadata":{"model_name":"claude-opus-5","model_provider":"anthropic"},"type":"ai","name":null,"id":"lc_run--01a02a25-192b-77c1-9b5e-c681e50aa206","tool_calls":[{"name":"sql_query","args":{"sql":"SELECT COUNT(*) AS musteri_sayisi, COUNT(*) FILTER (WHERE durum ILIKE '%aktif%') AS aktif_sayisi FROM musteriler_r"},"id":"toolu_01J8EMK9zWtp3spcsg7CuruR","type":"tool_call"}],"invalid_tool_calls":[],"usage_metadata":null}]
+
+event: messages/partial
+data: [{"content":[{"id":"toolu_01J8EMK9zWtp3spcsg7CuruR","caller":{"type":"direct"},"input":{},"name":"sql_query","type":"tool_use","toolset_name":null,"index":0,"partial_json":"{\"sql\": \"SELECT COUNT(*) AS musteri_sayisi, COUNT(*) FILTER (WHERE durum ILIKE '%aktif%') AS aktif_sayisi FROM musteriler_rapor;\"}"}],"additional_kwargs":{},"response_metadata":{"model_name":"claude-opus-5","model_provider":"anthropic"},"type":"ai","name":null,"id":"lc_run--01a02a25-192b-77c1-9b5e-c681e50aa206","tool_calls":[{"name":"sql_query","args":{"sql":"SELECT COUNT(*) AS musteri_sayisi, COUNT(*) FILTER (WHERE durum ILIKE '%aktif%') AS aktif_sayisi FROM musteriler_rapor;"},"id":"toolu_01J8EMK9zWtp3spcsg7CuruR","type":"tool_call"}],"invalid_tool_calls":[],"usage_metadata":null}]
+
+event: messages/partial
+data: [{"content":[{"id":"toolu_01J8EMK9zWtp3spcsg7CuruR","caller":{"type":"direct"},"input":{},"name":"sql_query","type":"tool_use","toolset_name":null,"index":0,"partial_json":"{\"sql\": \"SELECT COUNT(*) AS musteri_sayisi, COUNT(*) FILTER (WHERE durum ILIKE '%aktif%') AS aktif_sayisi FROM musteriler_rapor;\"}"}],"additional_kwargs":{},"response_metadata":{"model_name":"claude-opus-5","model_provider":"anthropic","stop_reason":"tool_use","stop_sequence":null},"type":"ai","name":null,"id":"lc_run--01a02a25-192b-77c1-9b5e-c681e50aa206","tool_calls":[{"name":"sql_query","args":{"sql":"SELECT COUNT(*) AS musteri_sayisi, COUNT(*) FILTER (WHERE durum ILIKE '%aktif%') AS aktif_sayisi FROM musteriler_rapor;"},"id":"toolu_01J8EMK9zWtp3spcsg7CuruR","type":"tool_call"}],"invalid_tool_calls":[],"usage_metadata":{"input_tokens":12525,"output_tokens":122,"total_tokens":12647,"input_token_details":{"cache_creation":2417,"cache_read":10106},"output_token_details":{"reasoning":0}}}]
+
+event: messages/metadata
+data: {"lc_run--x": {"metadata": {"graph_id": "locus-analyst"}}}
+
+event: messages/complete
+data: [{"content":"1 satır (limit 1000).\nKaynak: musteriler_rapor\nSQL: SELECT COUNT(*) AS musteri_sayisi, COUNT(*) FILTER(WHERE durum ILIKE '%aktif%') AS aktif_sayisi FROM musteriler_rapor LIMIT 1000\n\n[\n {\n  \"musteri_sayisi\": 1318,\n  \"aktif_sayisi\": 951\n }\n]","additional_kwargs":{},"response_metadata":{},"type":"tool","name":"sql_query","id":"c609f848-a6bb-4ea4-8b66-d8510a4e1fc5","tool_call_id":"toolu_01J8EMK9zWtp3spcsg7CuruR","artifact":null,"status":"success"}]
+
+event: messages/metadata
+data: {"lc_run--x": {"metadata": {"graph_id": "locus-analyst"}}}
+
+event: messages/partial
+data: [{"content":[],"additional_kwargs":{},"response_metadata":{"model_name":"claude-opus-5","model_provider":"anthropic"},"type":"ai","name":null,"id":"lc_run--01a02a25-26dd-7fc2-a882-f9ec596551f3","tool_calls":[],"invalid_tool_calls":[],"usage_metadata":null}]
+
+event: messages/partial
+data: [{"content":[{"text":"`","type":"text","index":0}],"additional_kwargs":{},"response_metadata":{"model_name":"claude-opus-5","model_provider":"anthropic"},"type":"ai","name":null,"id":"lc_run--01a02a25-26dd-7fc2-a882-f9ec596551f3","tool_calls":[],"invalid_tool_calls":[],"usage_metadata":null}]
+
+event: messages/partial
+data: [{"content":[{"text":"`musteriler_rapor","type":"text","index":0}],"additional_kwargs":{},"response_metadata":{"model_name":"claude-opus-5","model_provider":"anthropic"},"type":"ai","name":null,"id":"lc_run--01a02a25-26dd-7fc2-a882-f9ec596551f3","tool_calls":[],"invalid_tool_calls":[],"usage_metadata":null}]
+
+event: messages/partial
+data: [{"content":[{"text":"`musteriler_rapor` view","type":"text","index":0}],"additional_kwargs":{},"response_metadata":{"model_name":"claude-opus-5","model_provider":"anthropic"},"type":"ai","name":null,"id":"lc_run--01a02a25-26dd-7fc2-a882-f9ec596551f3","tool_calls":[],"invalid_tool_calls":[],"usage_metadata":null}]
+
+event: messages/partial
+data: [{"content":[{"text":"`musteriler_rapor` view'","type":"text","index":0}],"additional_kwargs":{},"response_metadata":{"model_name":"claude-opus-5","model_provider":"anthropic"},"type":"ai","name":null,"id":"lc_run--01a02a25-26dd-7fc2-a882-f9ec596551f3","tool_calls":[],"invalid_tool_calls":[],"usage_metadata":null}]
+
+event: messages/partial
+data: [{"content":[{"text":"`musteriler_rapor` view'ında to","type":"text","index":0}],"additional_kwargs":{},"response_metadata":{"model_name":"claude-opus-5","model_provider":"anthropic"},"type":"ai","name":null,"id":"lc_run--01a02a25-26dd-7fc2-a882-f9ec596551f3","tool_calls":[],"invalid_tool_calls":[],"usage_metadata":null}]
+
+event: messages/partial
+data: [{"content":[{"text":"`musteriler_rapor` view'ında toplam **","type":"text","index":0}],"additional_kwargs":{},"response_metadata":{"model_name":"claude-opus-5","model_provider":"anthropic"},"type":"ai","name":null,"id":"lc_run--01a02a25-26dd-7fc2-a882-f9ec596551f3","tool_calls":[],"invalid_tool_calls":[],"usage_metadata":null}]
+
+event: messages/partial
+data: [{"content":[{"text":"`musteriler_rapor` view'ında toplam **1.","type":"text","index":0}],"additional_kwargs":{},"response_metadata":{"model_name":"claude-opus-5","model_provider":"anthropic"},"type":"ai","name":null,"id":"lc_run--01a02a25-26dd-7fc2-a882-f9ec596551f3","tool_calls":[],"invalid_tool_calls":[],"usage_metadata":null}]
+
+event: messages/partial
+data: [{"content":[{"text":"`musteriler_rapor` view'ında toplam **1.318 mü","type":"text","index":0}],"additional_kwargs":{},"response_metadata":{"model_name":"claude-opus-5","model_provider":"anthropic"},"type":"ai","name":null,"id":"lc_run--01a02a25-26dd-7fc2-a882-f9ec596551f3","tool_calls":[],"invalid_tool_calls":[],"usage_metadata":null}]
+
+event: messages/partial
+data: [{"content":[{"text":"`musteriler_rapor` view'ında toplam **1.318 müş","type":"text","index":0}],"additional_kwargs":{},"response_metadata":{"model_name":"claude-opus-5","model_provider":"anthropic"},"type":"ai","name":null,"id":"lc_run--01a02a25-26dd-7fc2-a882-f9ec596551f3","tool_calls":[],"invalid_tool_calls":[],"usage_metadata":null}]
+
+data: 
+
+event: messages/partial
+data: [{"content":[{"text":"`musteriler_rapor` view'ında toplam **1.318 müşteri** kayıtlı (bunların 951'i \"aktif\" durumunda).","type":"text","index":0}],"additional_kwargs":{},"response_metadata":{"model_name":"claude-opus-5","model_provider":"anthropic"},"type":"ai","name":null,"id":"lc_run--01a02a25-26dd-7fc2-a882-f9ec596551f3","tool_calls":[],"invalid_tool_calls":[],"usage_metadata":null}]
+
+event: messages/partial
+data: [{"content":[{"text":"`musteriler_rapor` view'ında toplam **1.318 müşteri** kayıtlı (bunların 951'i \"aktif\" durumunda).","type":"text","index":0}],"additional_kwargs":{},"response_metadata":{"model_name":"claude-opus-5","model_provider":"anthropic","stop_reason":"end_turn","stop_sequence":null},"type":"ai","name":null,"id":"lc_run--01a02a25-26dd-7fc2-a882-f9ec596551f3","tool_calls":[],"invalid_tool_calls":[],"usage_metadata":{"input_tokens":12804,"output_tokens":53,"total_tokens":12857,"input_token_details":{"cache_creation":279,"cache_read":12523},"output_token_details":{"reasoning":0}}}]
+

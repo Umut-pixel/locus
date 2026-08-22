@@ -9,7 +9,8 @@
     "dev": "next dev --webpack",
     "build": "next build --webpack",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:stream": "npx --yes tsx lib/agent-stream.test.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",
@@ -25,6 +26,8 @@
     "next": "16.2.11",
     "react": "19.2.4",
     "react-dom": "19.2.4",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1",
     "shadcn": "^4.14.1",
     "tailwind-merge": "^3.6.0",
     "thinking-orbs": "^0.1.1",

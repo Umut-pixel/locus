@@ -1,5 +1,10 @@
+# Sir tasiyan her .env turevi — yedek/kopya dahil.
+# `.env` tek basina yalniz tam esitligi yakalar; .env.yedek-2026… gibi
+# dosyalar izlenmeden kalirdi.
 .env
-.env.local
+.env.*
+!.env.example
+agent/.env
 __pycache__/
 *.pyc
 .venv/
@@ -18,3 +23,6 @@ frontend/.env*.local
 frontend/*.tsbuildinfo
 
 # .env.example commit edilir (şifre yok)
+# MDA build ciktisi (uretilir)
+agent/.mda/
+agent/.venv/

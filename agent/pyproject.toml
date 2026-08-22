@@ -1,0 +1,18 @@
+[project]
+name = "locus-agent"
+version = "0.1.0"
+description = "Locus operasyon asistanı — Managed Deep Agents"
+requires-python = ">=3.11"
+dependencies = [
+    "managed-deepagents",
+    "langchain",
+    "psycopg[binary]>=3.2",
+    "sqlglot>=27",
+    "httpx>=0.27",
+]
+
+[dependency-groups]
+dev = ["pytest>=8"]
+
+[tool.pytest.ini_options]
+testpaths = ["evals"]
