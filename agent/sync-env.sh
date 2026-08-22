@@ -19,6 +19,11 @@ HEDEF="$KOK/agent/.env"
 BEYAZ_LISTE=(
   ANTHROPIC_API_KEY
   LANGSMITH_API_KEY
+  # AB bolgesindeki hesaplar icin zorunlu. Yoksa mda varsayilan ABD ucuna
+  # gider ve HER komut "Forbidden (HTTP 403)" verir — anahtar gecerli olsa
+  # bile. 2026-08-23'te olculdu: ayni anahtar api.smith.langchain.com'da 403,
+  # eu.api.smith.langchain.com'da 200.
+  LANGSMITH_ENDPOINT
   LANGSMITH_WORKSPACE_ID
   AGENT_DB_URL
   LOCUS_API_BASE

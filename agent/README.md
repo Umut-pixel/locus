@@ -96,6 +96,70 @@ mda logs . --lines 200                                  # dağıtılmış agent 
 `mda deploy` çıktısındaki URL kök `.env`'de `LANGSMITH_AGENT_URL` olur —
 bunu **yalnız Next.js proxy'si** kullanır, agent'ın kendisi görmez.
 
+> **⚠️ Bölge: hesap AB'de.** `LANGSMITH_ENDPOINT=https://eu.api.smith.langchain.com`
+> olmadan `mda` varsayılan ABD ucuna gider ve **her komut `Forbidden (HTTP 403)`**
+> verir — anahtar geçerli olsa bile. Hata mesajı anahtarı suçlar gibi görünür,
+> asıl neden bölgedir. 2026-08-23'te ölçüldü: aynı anahtar
+> `api.smith.langchain.com/api/v1/workspaces` → 403, `eu.api…` → 200.
+> Değişken beyaz listede (`sync-env.sh`), kök `.env`'den taşınır.
+
+> **⚠️ `mda deploy` Plus/Enterprise plan ister.** Ücretsiz/Developer planda
+> şu hatayla durur: *"Your LangSmith organization's plan does not include
+> LangSmith Deployment"*. Lisans alınmayacaksa **kendi sunucunuzda barındırın** —
+> aşağıdaki tarif uçtan uca doğrulandı.
+
+### 4. Kendi sunucunda barındırma (lisanssız) — DOĞRULANDI 2026-08-23
+
+`mda build` çıktısı **standart bir LangGraph uygulaması**; MDA'nın kendi
+bağımlılık listesinde zaten `langgraph-cli[inmem]` var, yani yerel sunucu
+ücretsiz OSS bileşen. Plan kapısı yalnız LangSmith'in *barındırmasını* kapatıyor,
+kodu çalıştırmayı değil.
+
+```bash
+mda build .                       # -> .mda/build/ (langgraph.json + _mda_entry.py)
+cp ../.env .mda/build/.env        # langgraph.json "env": ".env" bekliyor
+
+# Auth: identity.py auth.langsmith_api_key() kullaniyor. Barindirilan MDA bu iki
+# degiskeni kendi enjekte ediyor; kendi sunucunda SEN vermelisin, yoksa
+# "LangSmith API-key authentication is not configured" (500) alirsin.
+cat >> .mda/build/.env <<'EOF'
+LANGSMITH_AUTH_ENDPOINT=https://eu.api.smith.langchain.com
+LANGSMITH_TENANT_ID=e319e646-1d07-4a02-9dee-72aa91295b27
+EOF
+
+cd .mda/build
+langgraph dev --no-browser --port 2024 --no-reload --allow-blocking
+```
+
+Kök `.env`'de `LANGSMITH_AGENT_URL=http://<sunucu>:2024/runs/stream`.
+**Frontend'de değişiklik gerekmez** — `lib/agent-stream.ts` zaten bu biçimi
+(`messages/partial` + `messages/complete`) ayrıştırıyor.
+
+Doğrulama (2026-08-23): `/api/agent` proxy'si üzerinden "Kaç aktif müşterimiz
+var?" → `schema_lookup` + `sql_query` çalıştı, 170 KB SSE, cevap
+*"951 aktif müşteri (toplam 1.318: 951 Aktif, 276 Pasif, 91 İptal)"*.
+
+**Tuzaklar:**
+- `--allow-blocking` **zorunlu**: `tools/sql_query.py` psycopg'yi senkron
+  çağırıyor, `langgraph dev` bunu varsayılan olarak `BlockingError` ile reddediyor.
+- `x-api-key` hâlâ gerçekten doğrulanıyor (LangSmith'e sorularak) — auth
+  devre dışı değil, yalnız yapılandırması bize geçti.
+- `langgraph dev` **bellek içi**: sunucu yeniden başlarsa sohbet thread'leri
+  gider. Küçük iç ekip için kabul edilebilir; kalıcılık gerekirse Postgres
+  checkpointer'lı bir kurulum araştırılmalı.
+- **Windows'ta `mda build` bozuk çıktı üretiyor**: `pyproject.toml`'a
+  `'managed-deepagents @ file://\\?\C:\...'` yazıyor — `\\?\` uzun-yol öneki,
+  ters bölü ve boşluklu klasör adı geçersiz PEP 508. Elle `"managed-deepagents"`
+  yapılırsa çalışıyor. Linux'ta bu sorun yok; sunucuda derleyin.
+- `agent/.mda/` gitignore'da — içindeki `.env` commit'lenmez.
+
+> **`LOCUS_API_BASE` dağıtımda değişmeli.** Yerelde `http://localhost:3000`
+> doğru, ama LangSmith'te barınan agent localhost'a ulaşamaz — dağıtımdan önce
+> `https://locus-two-delta.vercel.app` yapılmalı. Yalnız YAZMA araçlarını
+> (`tools/locus_actions.py`) etkiler; okuma sorguları bu değişkeni kullanmaz.
+> Tersi de riskli: canlıya bakan bir değerle `mda dev` çalıştırmak yerel
+> testin canlı veriye yazmasına yol açar.
+
 ## Testler
 
 Güvenlik testleri dış bağımlılık istemez (yalnız `sqlglot`):

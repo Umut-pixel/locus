@@ -33,11 +33,13 @@ async function run(name: string, chunks: string[]) {
   await streamAgent({ message: "test", onEvent: (e) => events.push(e) });
   const text = events.filter((e) => e.kind === "text").map((e: any) => e.delta).join("");
   const tools = events.filter((e) => e.kind === "tool").map((e: any) => e.name);
+  const results = events.filter((e) => e.kind === "tool_result").map((e: any) => e.summary);
   const errs = events.filter((e) => e.kind === "error").map((e: any) => e.message);
   const dbg = events.filter((e) => e.kind === "debug").length;
   console.log(`\n### ${name}`);
   console.log(`  metin : ${JSON.stringify(text)}`);
   console.log(`  arac  : ${JSON.stringify(tools)}`);
+  console.log(`  ozet  : ${JSON.stringify(results)}`);
   console.log(`  hata  : ${JSON.stringify(errs)}`);
   console.log(`  debug : ${dbg}`);
 }
@@ -104,10 +106,12 @@ async function run(name: string, chunks: string[]) {
 
     const metin = events.filter((e) => e.kind === "text").map((e: any) => e.delta).join("");
     const araclar = events.filter((e) => e.kind === "tool").map((e: any) => e.name);
+    const ozet = events.filter((e) => e.kind === "tool_result");
     const debug = events.filter((e) => e.kind === "debug").length;
 
     console.log("\n### GERCEK AKIS (fixture)");
     console.log(`  arac cagrilari : ${JSON.stringify(araclar)}`);
+    console.log(`  tool_result    : ${ozet.length} (${ozet.map((e: any) => e.summary).join(" | ")})`);
     console.log(`  debug kare     : ${debug}`);
     console.log(`  metin uzunlugu : ${metin.length} (beklenen ${beklenen.length})`);
     console.log(`  metin          : ${JSON.stringify(metin.slice(0, 100))}`);
@@ -120,6 +124,10 @@ async function run(name: string, chunks: string[]) {
     // Ham SQL sonucu sohbete sizmamali
     if (metin.includes("musteri_sayisi")) {
       console.log("  KALDI  ham SQL sonucu metne sizdi!");
+      process.exitCode = 1;
+    }
+    if (ozet.length === 0) {
+      console.log("  KALDI  tool_result yok — iz UI'si boş kalır");
       process.exitCode = 1;
     }
   }

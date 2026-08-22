@@ -2,6 +2,7 @@
 @import "@heroui/styles";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
+@import "./agent.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -47,6 +48,31 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+
+  /* Agent sohbet yüzeyi — mevcut Locus token'larına bağlanır, paralel tema yok. */
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-hover: var(--hover);
+  --color-hover-2: var(--hover-2);
+  --color-inset: var(--inset);
+  --color-field: var(--field);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-tint: var(--accent-tint);
+  --color-ink-green: var(--ink-green);
+  --color-ink-red: var(--ink-red);
+  --color-ink-orange: var(--ink-orange);
+  --color-green-tint: var(--green-tint);
+  --color-red-tint: var(--red-tint);
+  --shadow-hairline: 0 0 0 1px var(--border);
+  --shadow-btn: 0 1px 2px oklch(0 0 0 / 8%);
+  --shadow-agent: 0 1px 2px oklch(0 0 0 / 6%), 0 0 0 1px var(--border);
+  --shadow-raised: 0 10px 28px oklch(0 0 0 / 16%), 0 0 0 1px var(--border);
+  --shadow-overlay: 0 18px 44px oklch(0 0 0 / 24%), 0 0 0 1px var(--border);
+  --radius-card: 14px;
+  --radius-control: 8px;
 }
 
 :root {

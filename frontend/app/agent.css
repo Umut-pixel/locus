@@ -1,0 +1,293 @@
+/*
+ * Agent sohbet yüzeyi — pixel-grid loader, thinking izi, tablo/grafik kartları.
+ * Renkler Locus token'larından türetilir; ice-cream demo paleti yok.
+ */
+
+:root {
+  --ink: var(--foreground);
+  --ink-2: color-mix(in oklch, var(--foreground) 72%, var(--muted-foreground));
+  --ink-3: var(--muted-foreground);
+  --line: var(--border);
+  --line-strong: var(--input);
+  --hover: var(--accent);
+  --hover-2: var(--muted);
+  --inset: var(--muted);
+  --field: var(--secondary);
+  --accent-ink: var(--chart-1);
+  --accent-tint: color-mix(in oklch, var(--chart-1) 18%, transparent);
+  --ink-green: var(--chart-3);
+  --ink-red: var(--destructive);
+  --ink-orange: var(--chart-2);
+  --green-tint: color-mix(in oklch, var(--chart-3) 18%, transparent);
+  --red-tint: color-mix(in oklch, var(--destructive) 16%, transparent);
+  --shadow-hairline: 0 0 0 1px var(--border);
+  --shadow-btn: 0 1px 2px oklch(0 0 0 / 8%);
+  --shadow-agent: 0 1px 2px oklch(0 0 0 / 6%), 0 0 0 1px var(--border);
+  --shadow-raised: 0 10px 28px oklch(0 0 0 / 16%), 0 0 0 1px var(--border);
+  --shadow-overlay: 0 18px 44px oklch(0 0 0 / 24%), 0 0 0 1px var(--border);
+  --radius-card: 14px;
+  --radius-control: 8px;
+}
+
+.dark {
+  --shadow-btn: 0 1px 2px oklch(0 0 0 / 28%);
+  --shadow-agent: 0 1px 2px oklch(0 0 0 / 35%), 0 0 0 1px var(--border);
+  --shadow-raised: 0 12px 32px oklch(0 0 0 / 45%), 0 0 0 1px var(--border);
+  --shadow-overlay: 0 20px 48px oklch(0 0 0 / 55%), 0 0 0 1px var(--border);
+}
+
+@keyframes pixel-on {
+  0%,
+  100% {
+    opacity: 0.15;
+  }
+  45%,
+  55% {
+    opacity: 1;
+  }
+}
+
+@keyframes shimmer-text {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+@keyframes agent-word-in {
+  from {
+    opacity: 0;
+    filter: blur(6px);
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0);
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes eq-bounce {
+  0%,
+  100% {
+    transform: scaleY(0.45);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .agent-word {
+    animation: none !important;
+    filter: none !important;
+    transform: none !important;
+    opacity: 1 !important;
+  }
+}
+
+.agent-word {
+  display: inline;
+  animation: agent-word-in 280ms cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+
+.agent-table-shell {
+  overflow: hidden;
+  border-radius: var(--radius-card);
+  background: var(--card);
+  box-shadow: var(--shadow-agent);
+}
+
+.agent-table-scroll {
+  max-width: 100%;
+  overflow: auto;
+}
+
+.agent-table {
+  width: 100%;
+  min-width: 28rem;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 12.5px;
+}
+
+.agent-table th,
+.agent-table td {
+  padding: 0.55rem 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.agent-table th {
+  font-size: 11.5px;
+  font-weight: 550;
+  color: var(--ink-3);
+  background: color-mix(in oklch, var(--muted) 70%, var(--card));
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.agent-table td {
+  color: var(--ink);
+}
+
+.agent-table tbody tr:hover td {
+  background: var(--hover);
+}
+
+.agent-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.agent-tag {
+  display: inline-flex;
+  align-items: center;
+  height: 1.35rem;
+  padding: 0 0.45rem;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 550;
+  background: color-mix(in oklch, var(--tag-base, var(--muted-foreground)) 18%, var(--card));
+  color: color-mix(in oklch, var(--tag-base, var(--foreground)) 72%, var(--foreground));
+  box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--tag-base, var(--border)) 32%, transparent);
+}
+
+.filter-status-todo,
+.filter-status-progress,
+.filter-status-done,
+.filter-status-risk,
+.filter-status-ok,
+.filter-status-warn {
+  display: inline-flex;
+  height: 1.25rem;
+  align-items: center;
+  border-radius: 5px;
+  padding: 0 0.4rem;
+  font-size: 11px;
+  font-weight: 550;
+}
+
+.filter-status-todo,
+.filter-status-warn {
+  background: var(--accent-tint);
+  color: var(--ink-orange);
+}
+
+.filter-status-progress {
+  background: var(--accent-tint);
+  color: var(--accent-ink);
+}
+
+.filter-status-done,
+.filter-status-ok {
+  background: var(--green-tint);
+  color: var(--ink-green);
+}
+
+.filter-status-risk {
+  background: var(--red-tint);
+  color: var(--ink-red);
+}
+
+.insight-chart-stage {
+  cursor: crosshair;
+}
+
+.insight-chart-cursor {
+  position: absolute;
+  top: 8px;
+  bottom: 18px;
+  width: 1px;
+  background: var(--line-strong);
+  pointer-events: none;
+  transform: translateX(-0.5px);
+}
+
+.insight-chart-tooltip-anchor {
+  position: absolute;
+  top: 10px;
+  transform: translateX(-50%);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.insight-chart-tooltip {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 7rem;
+  border-radius: 8px;
+  background: var(--popover);
+  color: var(--popover-foreground);
+  padding: 6px 8px;
+  box-shadow: var(--shadow-raised);
+  font-size: 11px;
+}
+
+.insight-chart-tooltip-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-variant-numeric: tabular-nums;
+}
+
+.insight-chart-tooltip-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 99px;
+}
+
+.animated-underline {
+  background-image: linear-gradient(currentColor, currentColor);
+  background-position: 0 100%;
+  background-repeat: no-repeat;
+  background-size: 0 1px;
+  transition: background-size 180ms ease;
+}
+
+.animated-underline:hover {
+  background-size: 100% 1px;
+}

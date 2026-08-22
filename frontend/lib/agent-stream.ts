@@ -26,8 +26,33 @@
 /** Akış sırasında UI'ın tepki verebileceği olaylar. */
 export type AgentStreamEvent =
   | { kind: "text"; delta: string }
-  /** Agent bir araç çağırdı — düşünce animasyonunu buna bağlayabiliriz. */
-  | { kind: "tool"; name: string }
+  /** Agent bir araç çağırdı — düşünce izini buna bağlarız. */
+  | {
+      kind: "tool";
+      name: string;
+      id?: string;
+      args?: Record<string, unknown>;
+    }
+  /** Aynı çağrının argümanları (SQL vb.) tamamlanınca güncellenir. */
+  | {
+      kind: "tool_update";
+      name: string;
+      id: string;
+      args: Record<string, unknown>;
+    }
+  /** Aracın dönüş özeti — ham SQL sonucu sohbete basılmaz. */
+  | {
+      kind: "tool_result";
+      name: string;
+      id?: string;
+      ok: boolean;
+      summary: string;
+      source?: string;
+      rows?: number;
+      sql?: string;
+      chars?: number;
+      title?: string;
+    }
   | { kind: "error"; message: string }
   /** Tanınmayan kare — biçim ayarlamak için ham metin. */
   | { kind: "debug"; raw: string };
@@ -87,21 +112,99 @@ function extractText(content: unknown): string {
   return text;
 }
 
-/** Mesaj nesnesinden araç adı çıkarır (varsa). */
-function extractToolName(msg: Record<string, unknown>): string | null {
+type ToolCallSnap = {
+  id: string;
+  name: string;
+  args: Record<string, unknown>;
+};
+
+function asArgs(value: unknown): Record<string, unknown> {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    return value as Record<string, unknown>;
+  }
+  return {};
+}
+
+function argsReady(args: Record<string, unknown>): boolean {
+  const konu = typeof args.konu === "string" ? args.konu.trim() : "";
+  if (/^(metrikler|kaynaklar|hepsi)$/i.test(konu)) return true;
+  const sql = typeof args.sql === "string" ? args.sql.trim() : "";
+  if (sql.length >= 20 && /\blimit\s+\d+/i.test(sql)) return true;
+  if (sql.length >= 96) return true;
+  const kod = typeof args.musteri_kodu === "string" ? args.musteri_kodu.trim() : "";
+  return kod.length >= 4;
+}
+
+function argsKey(args: Record<string, unknown>): string {
+  try {
+    return JSON.stringify(args);
+  } catch {
+    return "";
+  }
+}
+
+/** Mesajdaki araç çağrılarını (id + ad + args) çıkarır. */
+function extractToolCalls(msg: Record<string, unknown>): ToolCallSnap[] {
+  const out: ToolCallSnap[] = [];
+  const seen = new Set<string>();
   const calls = msg.tool_calls ?? msg.tool_call_chunks;
   if (Array.isArray(calls)) {
     for (const call of calls) {
-      if (call && typeof call === "object") {
-        const name = (call as Record<string, unknown>).name;
-        // Streaming'de ad parça parça gelir; boş parçaları atla.
-        if (typeof name === "string" && name.length > 0) return name;
-      }
+      if (!call || typeof call !== "object") continue;
+      const c = call as Record<string, unknown>;
+      const name = typeof c.name === "string" ? c.name : "";
+      if (!name) continue;
+      const id = typeof c.id === "string" && c.id ? c.id : name;
+      if (seen.has(id)) continue;
+      seen.add(id);
+      out.push({ id, name, args: asArgs(c.args) });
     }
   }
-  // ToolMessage: aracın DÖNÜŞÜ — `name` alanında araç adı taşır.
-  if (msg.type === "tool" && typeof msg.name === "string") return msg.name;
-  return null;
+  if (out.length === 0 && msg.type === "tool" && typeof msg.name === "string") {
+    const id =
+      typeof msg.tool_call_id === "string" && msg.tool_call_id
+        ? msg.tool_call_id
+        : msg.name;
+    out.push({ id, name: msg.name, args: {} });
+  }
+  return out;
+}
+
+/** sql_query / schema_lookup dönüşünden sohbete sızmayan kısa özet. */
+export function summarizeToolResult(
+  name: string,
+  content: string
+): Omit<Extract<AgentStreamEvent, { kind: "tool_result" }>, "kind" | "name" | "id"> {
+  const rejected =
+    /^(SORGU REDDEDİLDİ|SQL HATASI|YETKİ HATASI|ZAMAN AŞIMI|YAPILANDIRMA HATASI|HATA\b)/.test(
+      content
+    );
+  if (name === "sql_query") {
+    const rows = content.match(/^(\d+) satır/m);
+    const source = content.match(/^Kaynak:\s*(.+)$/m);
+    const sql = content.match(/^SQL:\s*(.+)$/m);
+    const rowCount = rows ? Number(rows[1]) : undefined;
+    return {
+      ok: !rejected,
+      rows: rowCount,
+      source: source?.[1]?.trim(),
+      sql: sql?.[1]?.trim(),
+      summary: rejected
+        ? content.split("\n")[0]!.slice(0, 180)
+        : `${rowCount ?? "?"} satır · ${source?.[1]?.trim() ?? "sorgu"}`,
+    };
+  }
+  if (name === "schema_lookup") {
+    const title = content.match(/^#\s+(.+)$/m)?.[1]?.trim();
+    return {
+      ok: true,
+      chars: content.length,
+      title: title ?? "İş sözlüğü",
+      summary: title ?? "İş sözlüğü okundu",
+    };
+  }
+  const first = content.split("\n")[0]?.slice(0, 180) ?? name;
+  return { ok: !rejected && !/^HATA/.test(content), summary: first };
 }
 
 /** Akış boyunca yaşayan durum — kümülatif kareleri farka çevirmek için. */
@@ -110,10 +213,12 @@ interface StreamState {
   yayinlanan: Map<string, string>;
   /** aynı araç çağrısı için tekrar tekrar olay yaymayalım */
   gorulenAraclar: Set<string>;
+  /** id -> son görülen args imzası (SQL yazılırken güncellemek için) */
+  aracArgs: Map<string, string>;
 }
 
 function bosDurum(): StreamState {
-  return { yayinlanan: new Map(), gorulenAraclar: new Set() };
+  return { yayinlanan: new Map(), gorulenAraclar: new Set(), aracArgs: new Map() };
 }
 
 /**
@@ -131,14 +236,49 @@ function mesajdanOlaylar(
   if (!aday || typeof aday !== "object") return events;
   const msg = aday as Record<string, unknown>;
 
-  const tool = extractToolName(msg);
-  if (tool && !state.gorulenAraclar.has(tool)) {
-    state.gorulenAraclar.add(tool);
-    events.push({ kind: "tool", name: tool });
+  for (const call of extractToolCalls(msg)) {
+    if (!state.gorulenAraclar.has(call.id)) {
+      state.gorulenAraclar.add(call.id);
+      state.aracArgs.set(call.id, argsKey(call.args));
+      events.push({
+        kind: "tool",
+        name: call.name,
+        id: call.id,
+        args: call.args,
+      });
+    } else if (argsReady(call.args)) {
+      const next = argsKey(call.args);
+      if (next !== state.aracArgs.get(call.id)) {
+        state.aracArgs.set(call.id, next);
+        events.push({
+          kind: "tool_update",
+          name: call.name,
+          id: call.id,
+          args: call.args,
+        });
+      }
+    }
   }
 
   // ToolMessage = aracın DÖNÜŞÜ (ham SQL sonucu). Sohbete asla basma.
-  if (msg.type === "tool") return events;
+  if (msg.type === "tool") {
+    const name = typeof msg.name === "string" ? msg.name : "tool";
+    const id =
+      typeof msg.tool_call_id === "string" && msg.tool_call_id
+        ? msg.tool_call_id
+        : name;
+    const raw =
+      typeof msg.content === "string"
+        ? msg.content
+        : extractText(msg.content);
+    events.push({
+      kind: "tool_result",
+      name,
+      id,
+      ...summarizeToolResult(name, raw),
+    });
+    return events;
+  }
 
   const tam = extractText(msg.content);
   if (!tam) return events;
