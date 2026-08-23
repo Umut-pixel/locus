@@ -10,6 +10,7 @@ import {
 } from "react";
 import { ChevronDownIcon, MenuIcon, PanelLeftCloseIcon, PanelLeftOpenIcon } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
+import Link from "next/link";
 
 import { AppSidebarNavItem, SidebarIconCell, SidebarLabel } from "@/components/sidebar/AppSidebarNavItem";
 import {
@@ -137,7 +138,16 @@ function SidebarBody({
     >
       <div className="flex h-12 shrink-0 items-center border-b border-sidebar-border">
         <div className="min-w-0 flex-1">
-          <div className={cn(SIDEBAR_ROW, "h-12")}>
+          <Link
+            href="/home"
+            aria-label="Analyst"
+            className={cn(
+              SIDEBAR_ROW,
+              "h-12 outline-none",
+              "hover:bg-sidebar-accent/50",
+              "focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sidebar-ring/60"
+            )}
+          >
             <SidebarIconCell className="h-12">
               <CelixionMark size={18} className="text-sidebar-foreground" />
             </SidebarIconCell>
@@ -149,7 +159,7 @@ function SidebarBody({
                 Peritas ekibi
               </span>
             </SidebarLabel>
-          </div>
+          </Link>
         </div>
         {showExpandToggle ? (
           <button

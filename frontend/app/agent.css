@@ -367,6 +367,26 @@
   z-index: 2;
 }
 
+.borc-chart-hover-tip {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 10;
+  pointer-events: none;
+  will-change: transform;
+}
+
+.borc-chart-dot {
+  will-change: transform;
+  transition: fill 0.28s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .borc-chart-dot {
+    transition: none;
+  }
+}
+
 .insight-chart-tooltip {
   display: flex;
   flex-direction: column;

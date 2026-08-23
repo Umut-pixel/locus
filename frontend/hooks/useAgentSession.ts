@@ -164,6 +164,18 @@ export function useAgentSession(opts?: {
     sealLive(null);
   }, [sealLive]);
 
+  const reset = useCallback(() => {
+    abortRef.current?.abort();
+    abortRef.current = null;
+    threadRef.current = null;
+    setBusy(false);
+    setAnswerId(null);
+    setMessages([]);
+    setTrace([]);
+    traceRef.current = [];
+    setPendingQuote(null);
+  }, [setPendingQuote]);
+
   useEffect(() => () => abortRef.current?.abort(), []);
 
   useEffect(() => {
@@ -173,7 +185,10 @@ export function useAgentSession(opts?: {
       return;
     }
     if (!urlThread) {
+      abortRef.current?.abort();
+      abortRef.current = null;
       threadRef.current = null;
+      setBusy(false);
       setMessages([]);
       setTrace([]);
       traceRef.current = [];
@@ -385,5 +400,6 @@ export function useAgentSession(opts?: {
     setPendingQuote,
     send,
     stop,
+    reset,
   };
 }

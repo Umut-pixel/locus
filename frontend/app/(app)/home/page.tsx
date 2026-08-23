@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState, Suspense } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { ArrowLeftIcon } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 
 import { AgentMarkdown } from "@/components/agent/AgentMarkdown";
@@ -23,6 +25,7 @@ import {
   type ContextChunk,
   type TraceRow,
 } from "@/lib/agent-trace";
+import { cn } from "@/lib/utils";
 const ORNEK_SORULAR = [
   "Toplam kaç müşteri var?",
   "İzmir'de riskli müşteri sayısı nedir?",
@@ -67,6 +70,7 @@ function HomeChat() {
     setPendingQuote,
     send,
     stop,
+    reset,
   } = useAgentSession({
     persist: true,
     threadId,
@@ -121,12 +125,43 @@ function HomeChat() {
         ) : null}
       </AnimatePresence>
 
-      <header className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-center gap-2 px-4 pt-3">
+      <header
+        className={cn(
+          "pointer-events-none absolute inset-x-0 top-0 z-20 flex items-center gap-2 px-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-2 sm:px-4",
+          threadId || sohbet ? "bg-background/90 backdrop-blur-sm" : null
+        )}
+      >
         <div className="pointer-events-auto">
           <AppSidebarMobileTrigger />
         </div>
-        <h1 className="text-sm font-semibold text-ink">Asistan</h1>
-        <span className="ml-auto font-mono text-[10px] tracking-wide text-ink-3 uppercase">
+        {threadId || sohbet ? (
+          <Link
+            href="/home"
+            aria-label="Ana sayfaya dön"
+            onClick={(event) => {
+              if (
+                event.metaKey ||
+                event.ctrlKey ||
+                event.shiftKey ||
+                event.altKey ||
+                event.button !== 0
+              ) {
+                return;
+              }
+              event.preventDefault();
+              if (threadId) {
+                router.push("/home");
+                return;
+              }
+              reset();
+            }}
+            className="pointer-events-auto inline-flex h-10 min-w-0 max-w-[min(100%,16rem)] items-center gap-1.5 rounded-lg px-2.5 text-[13px] font-medium text-ink outline-none hover:bg-hover focus-visible:ring-2 focus-visible:ring-ring sm:h-9"
+          >
+            <ArrowLeftIcon className="size-4 shrink-0" aria-hidden />
+            <span className="truncate">Ana sayfa</span>
+          </Link>
+        ) : null}
+        <span className="ml-auto hidden font-mono text-[10px] tracking-wide text-ink-3 uppercase sm:inline">
           locus-analyst
         </span>
       </header>
@@ -136,7 +171,7 @@ function HomeChat() {
           <>
             <motion.div
               key="thread"
-              className="min-h-0 flex-1 overflow-y-auto px-4 pt-14 pb-6"
+              className="min-h-0 flex-1 overflow-y-auto px-4 pt-16 pb-6"
               initial={reduced ? false : { opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{
@@ -174,9 +209,16 @@ function HomeChat() {
               <div className="mx-auto w-full max-w-2xl">{composer}</div>
             </motion.div>
           </>
+        ) : threadId ? (
+          <div className="flex min-h-0 flex-1 flex-col">
+            <div className="min-h-0 flex-1" />
+            <div className="relative z-20 shrink-0 border-t border-line px-4 py-3">
+              <div className="mx-auto w-full max-w-2xl">{composer}</div>
+            </div>
+          </div>
         ) : (
           <div className="min-h-0 flex-1 overflow-y-auto">
-            <div className="px-4 pt-14 sm:pt-16">
+            <div className="px-4 pt-16">
               <div className="mx-auto w-full max-w-5xl">
                 <RotatingHeadline />
                 <p className="mb-5 text-center font-display text-[15px] leading-snug italic text-ink-3">

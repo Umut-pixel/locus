@@ -3,7 +3,9 @@
 import { Suspense, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import type { LucideIcon } from "lucide-react";
 import {
+  HouseIcon,
   MessageSquareIcon,
   MessageSquarePlusIcon,
   PinIcon,
@@ -48,8 +50,8 @@ function KonusmalarNavInner({ open }: { open: boolean }) {
     <div className="flex flex-col gap-0.5 pb-1">
       <RailLink
         href="/home"
-        label="Yeni konuşma"
-        icon={MessageSquarePlusIcon}
+        label={activeId ? "Ana sayfa" : "Yeni konuşma"}
+        icon={activeId ? HouseIcon : MessageSquarePlusIcon}
         active={onFreshHome}
         open={open}
         clearQuery
@@ -113,7 +115,7 @@ function RailLink({
 }: {
   href: string;
   label: string;
-  icon: typeof MessageSquarePlusIcon;
+  icon: LucideIcon;
   active: boolean;
   open: boolean;
   clearQuery?: boolean;

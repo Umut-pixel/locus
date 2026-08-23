@@ -1,6 +1,7 @@
 "use client";
 
-import { useId, useMemo, useState } from "react";
+import { useId, useLayoutEffect, useMemo, useRef, useState } from "react";
+import gsap from "gsap";
 import { useReducedMotion } from "motion/react";
 
 import { ChartGrid } from "@/components/agent/ChartGrid";
@@ -63,16 +64,69 @@ function areaPath(pts: { x: number; y: number }[]): string {
   return `${line} L${last.x.toFixed(1)},${base} L${first.x.toFixed(1)},${base} Z`;
 }
 
-function indexFromPointer(
-  event: React.PointerEvent<SVGSVGElement>,
-  count: number
-) {
-  const rect = event.currentTarget.getBoundingClientRect();
-  const x = event.clientX - rect.left;
+function indexFromClientX(clientX: number, rect: DOMRect, count: number) {
+  const x = clientX - rect.left;
   const plotLeft = (PAD.left / VB_W) * rect.width;
   const plotW = (PLOT_W / VB_W) * rect.width;
   const t = plotW <= 0 ? 0 : (x - plotLeft) / plotW;
   return Math.max(0, Math.min(count - 1, Math.round(t * (count - 1))));
+}
+
+function viewBoxXFromClientX(clientX: number, rect: DOMRect) {
+  if (rect.width <= 0) return PAD.left;
+  return ((clientX - rect.left) / rect.width) * VB_W;
+}
+
+function cubicAt(
+  p1: { x: number; y: number },
+  c1: { x: number; y: number },
+  c2: { x: number; y: number },
+  p2: { x: number; y: number },
+  t: number
+) {
+  const u = 1 - t;
+  const tt = t * t;
+  const uu = u * u;
+  return {
+    x: uu * u * p1.x + 3 * uu * t * c1.x + 3 * u * tt * c2.x + tt * t * p2.x,
+    y: uu * u * p1.y + 3 * uu * t * c1.y + 3 * u * tt * c2.y + tt * t * p2.y,
+  };
+}
+
+function sampleAlong(
+  pts: { x: number; y: number }[],
+  x: number
+): { x: number; y: number } {
+  if (pts.length === 0) return { x: PAD.left, y: PAD.top + PLOT_H };
+  if (pts.length === 1) return { x: pts[0]!.x, y: pts[0]!.y };
+  const x0 = pts[0]!.x;
+  const x1 = pts[pts.length - 1]!.x;
+  const cx = Math.max(x0, Math.min(x1, x));
+  if (pts.length === 2) {
+    const a = pts[0]!;
+    const b = pts[1]!;
+    const span = b.x - a.x || 1;
+    const t = Math.max(0, Math.min(1, (cx - a.x) / span));
+    return { x: cx, y: a.y + (b.y - a.y) * t };
+  }
+  let i = 0;
+  for (; i < pts.length - 2; i += 1) {
+    if (cx <= pts[i + 1]!.x) break;
+  }
+  const p0 = pts[Math.max(0, i - 1)]!;
+  const p1 = pts[i]!;
+  const p2 = pts[i + 1]!;
+  const p3 = pts[Math.min(pts.length - 1, i + 2)]!;
+  const c1 = { x: p1.x + (p2.x - p0.x) / 6, y: p1.y + (p2.y - p0.y) / 6 };
+  const c2 = { x: p2.x - (p3.x - p1.x) / 6, y: p2.y - (p3.y - p1.y) / 6 };
+  let lo = 0;
+  let hi = 1;
+  for (let k = 0; k < 14; k += 1) {
+    const mid = (lo + hi) / 2;
+    if (cubicAt(p1, c1, c2, p2, mid).x < cx) lo = mid;
+    else hi = mid;
+  }
+  return cubicAt(p1, c1, c2, p2, (lo + hi) / 2);
 }
 
 export function BorcRiskAreaChart({
@@ -84,24 +138,90 @@ export function BorcRiskAreaChart({
   loading?: boolean;
   onAsk: (prompt: string) => void;
 }) {
-  const rawId = useId().replace(/:/g, "");
-  const reduced = useReducedMotion();
-  const [hover, setHover] = useState<number | null>(null);
-
   const max = useMemo(
     () => Math.max(0, ...data.map((d) => d.tutar)),
     [data]
   );
-  const pts = useMemo(() => points(data, max > 0 ? max : 1), [data, max]);
-  const riskStart = data.findIndex((d) => d.riskli);
-  const active = hover != null ? data[hover] : null;
-  const activePt = hover != null ? pts[hover] : null;
-
   if (data.length === 0 || max <= 0) {
     return (
       <p className="mt-2 text-[12.5px] text-ink-3">Açık bakiye bandı yok.</p>
     );
   }
+  return (
+    <BorcRiskAreaChartPlot
+      data={data}
+      loading={loading}
+      onAsk={onAsk}
+      max={max}
+    />
+  );
+}
+
+function BorcRiskAreaChartPlot({
+  data,
+  loading,
+  onAsk,
+  max,
+}: {
+  data: BorcBantNokta[];
+  loading?: boolean;
+  onAsk: (prompt: string) => void;
+  max: number;
+}) {
+  const rawId = useId().replace(/:/g, "");
+  const reduced = useReducedMotion();
+  const [hover, setHover] = useState<number | null>(null);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
+  const ruleRef = useRef<SVGGElement>(null);
+  const dotRef = useRef<SVGCircleElement>(null);
+  const tipRef = useRef<HTMLDivElement>(null);
+  const shownRef = useRef(false);
+  const lastHoverRef = useRef(0);
+  const tweensRef = useRef<{
+    ruleX: ReturnType<typeof gsap.quickTo> | null;
+    dotX: ReturnType<typeof gsap.quickTo> | null;
+    dotY: ReturnType<typeof gsap.quickTo> | null;
+    tipX: ReturnType<typeof gsap.quickTo> | null;
+  }>({ ruleX: null, dotX: null, dotY: null, tipX: null });
+
+  const pts = useMemo(() => points(data, max), [data, max]);
+  const ptsRef = useRef(pts);
+  ptsRef.current = pts;
+  const riskStart = data.findIndex((d) => d.riskli);
+  if (hover != null) lastHoverRef.current = hover;
+  const band = Math.max(
+    0,
+    Math.min(data.length - 1, hover ?? lastHoverRef.current)
+  );
+  const active = data[band]!;
+
+  useLayoutEffect(() => {
+    const rule = ruleRef.current;
+    const dot = dotRef.current;
+    const tip = tipRef.current;
+    if (!rule || !dot || !tip) return;
+
+    const dur = reduced ? 0 : 0.32;
+    const ease = "power3.out";
+    const ctx = gsap.context(() => {
+      gsap.set(rule, { x: PAD.left, autoAlpha: 0 });
+      gsap.set(dot, { x: PAD.left, y: PAD.top + PLOT_H, autoAlpha: 0 });
+      gsap.set(tip, { xPercent: -50, x: 0, autoAlpha: 0 });
+      tweensRef.current = {
+        ruleX: gsap.quickTo(rule, "x", { duration: dur, ease }),
+        dotX: gsap.quickTo(dot, "x", { duration: dur, ease }),
+        dotY: gsap.quickTo(dot, "y", { duration: dur, ease }),
+        tipX: gsap.quickTo(tip, "x", { duration: dur, ease }),
+      };
+    });
+
+    return () => {
+      shownRef.current = false;
+      tweensRef.current = { ruleX: null, dotX: null, dotY: null, tipX: null };
+      ctx.revert();
+    };
+  }, [reduced]);
 
   const line = linePath(pts);
   const area = areaPath(pts);
@@ -111,19 +231,71 @@ export function BorcRiskAreaChart({
       : null;
   const tickEvery = data.length > 8 ? 2 : 1;
 
+  const moveMarker = (p: { x: number; y: number }, immediate: boolean) => {
+    const wrapW = wrapRef.current?.offsetWidth ?? 0;
+    const cssX = wrapW > 0 ? (p.x / VB_W) * wrapW : 0;
+    const tweens = tweensRef.current;
+    if (immediate || !tweens.ruleX) {
+      gsap.set(ruleRef.current, { x: p.x });
+      gsap.set(dotRef.current, { x: p.x, y: p.y });
+      gsap.set(tipRef.current, { x: cssX });
+      return;
+    }
+    tweens.ruleX(p.x);
+    tweens.dotX(p.x);
+    tweens.dotY(p.y);
+    tweens.tipX(cssX);
+  };
+
+  const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    const svg = svgRef.current;
+    if (!svg) return;
+    const rect = svg.getBoundingClientRect();
+    const i = indexFromClientX(e.clientX, rect, data.length);
+    setHover(i);
+    const p = sampleAlong(ptsRef.current, viewBoxXFromClientX(e.clientX, rect));
+    if (!shownRef.current) {
+      moveMarker(p, true);
+      gsap.to([ruleRef.current, dotRef.current, tipRef.current], {
+        autoAlpha: 1,
+        duration: reduced ? 0 : 0.18,
+        ease: "power2.out",
+        overwrite: "auto",
+      });
+      shownRef.current = true;
+      return;
+    }
+    moveMarker(p, Boolean(reduced));
+  };
+
+  const onPointerLeave = () => {
+    setHover(null);
+    shownRef.current = false;
+    gsap.to([ruleRef.current, dotRef.current, tipRef.current], {
+      autoAlpha: 0,
+      duration: reduced ? 0 : 0.2,
+      ease: "power2.out",
+      overwrite: "auto",
+    });
+  };
+
   return (
-    <div className={cn("relative mt-1 min-w-0", loading && "opacity-50")}>
+    <div
+      ref={wrapRef}
+      className={cn("relative mt-1 min-w-0", loading && "opacity-50")}
+      onPointerMove={onPointerMove}
+      onPointerLeave={onPointerLeave}
+      onClick={() => {
+        if (hover != null && active) onAsk(active.prompt);
+      }}
+      style={{ cursor: hover != null ? "pointer" : "crosshair" }}
+    >
       <svg
+        ref={svgRef}
         viewBox={`0 0 ${VB_W} ${VB_H}`}
         className="h-[188px] w-full"
         role="img"
         aria-label="Borç yaşlandırma bantlarına göre açık bakiye"
-        onPointerMove={(e) => setHover(indexFromPointer(e, data.length))}
-        onPointerLeave={() => setHover(null)}
-        onClick={() => {
-          if (active) onAsk(active.prompt);
-        }}
-        style={{ cursor: active ? "pointer" : "crosshair" }}
       >
         <defs>
           <linearGradient id={`${rawId}-fill`} x1="0" y1="0" x2="0" y2="1">
@@ -223,27 +395,28 @@ export function BorcRiskAreaChart({
           </g>
         </g>
 
-        {activePt ? (
-          <g>
-            <line
-              x1={activePt.x}
-              x2={activePt.x}
-              y1={PAD.top}
-              y2={PAD.top + PLOT_H}
-              stroke="var(--line-strong)"
-              strokeWidth="1"
-              vectorEffect="non-scaling-stroke"
-            />
-            <circle
-              cx={activePt.x}
-              cy={activePt.y}
-              r="3.4"
-              fill={active?.riskli ? RISK_FILL : FILL}
-              stroke="var(--card)"
-              strokeWidth="1.5"
-            />
-          </g>
-        ) : null}
+        <g ref={ruleRef} pointerEvents="none">
+          <line
+            x1={0}
+            x2={0}
+            y1={PAD.top}
+            y2={PAD.top + PLOT_H}
+            stroke="var(--line-strong)"
+            strokeWidth="1"
+            vectorEffect="non-scaling-stroke"
+          />
+        </g>
+        <circle
+          ref={dotRef}
+          className="borc-chart-dot"
+          cx={0}
+          cy={0}
+          r="3.4"
+          pointerEvents="none"
+          fill={active.riskli ? RISK_FILL : FILL}
+          stroke="var(--card)"
+          strokeWidth="1.5"
+        />
 
         {data.map((d, i) => {
           if (i % tickEvery !== 0 && i !== data.length - 1) return null;
@@ -255,9 +428,12 @@ export function BorcRiskAreaChart({
               x={pt.x}
               y={VB_H - 8}
               textAnchor="middle"
-              fill={lit ? "var(--ink)" : "var(--ink-3)"}
               fontSize="10"
               fontWeight={lit ? 600 : 500}
+              style={{
+                fill: lit ? "var(--ink)" : "var(--ink-3)",
+                transition: reduced ? undefined : "fill 0.28s ease",
+              }}
             >
               {d.label}
             </text>
@@ -265,15 +441,8 @@ export function BorcRiskAreaChart({
         })}
       </svg>
 
-      {active && hover != null ? (
-        <div
-          className="insight-chart-tooltip pointer-events-none absolute z-10"
-          style={{
-            left: `${((hover + 0.5) / data.length) * 100}%`,
-            top: 0,
-            transform: "translateX(-50%)",
-          }}
-        >
+      <div ref={tipRef} className="borc-chart-hover-tip">
+        <div className="insight-chart-tooltip">
           <span className="text-[12px] font-medium text-ink">{active.label}</span>
           <span className="insight-chart-tooltip-item">
             <span
@@ -284,7 +453,7 @@ export function BorcRiskAreaChart({
             {active.riskli ? " · riskli" : ""}
           </span>
         </div>
-      ) : null}
+      </div>
     </div>
   );
 }
