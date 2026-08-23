@@ -136,6 +136,8 @@ export function PromptBar({
   const measureRef = useRef<HTMLSpanElement>(null);
   const controlsRef = useRef<HTMLDivElement>(null);
   const rowRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const [openBelow, setOpenBelow] = useState(true);
   const wide = expanded || tall;
 
   const token = dismissed ? null : parseToken(value);
@@ -157,6 +159,22 @@ export function PromptBar({
     const target = rowRefs.current[active];
     if (target) setRowBox({ top: target.offsetTop, height: target.offsetHeight });
   }, [menu, query, active, rows.length]);
+
+  useLayoutEffect(() => {
+    if (!menu) return;
+    const node = wrapRef.current;
+    if (!node) return;
+    const place = () => {
+      const box = node.getBoundingClientRect();
+      const need = 36 * Math.max(rows.length, 1) + 44;
+      const below = window.innerHeight - box.bottom - 16;
+      const above = box.top - 16;
+      setOpenBelow(below >= need || below >= above);
+    };
+    place();
+    window.addEventListener("resize", place);
+    return () => window.removeEventListener("resize", place);
+  }, [menu, rows.length, wide]);
 
   useLayoutEffect(() => {
     const input = inputRef.current;
@@ -207,14 +225,17 @@ export function PromptBar({
 
   return (
     <div data-promptbar className="w-full">
-      <div className="relative">
+      <div ref={wrapRef} className="relative">
         {menu ? (
           <div
             onMouseLeave={() => setEngaged(false)}
-            className="absolute inset-x-0 bottom-full z-10 mb-2 rounded-[10px] bg-card p-1 shadow-raised"
+            className={cn(
+              "absolute inset-x-0 z-10 rounded-[10px] bg-card p-1 shadow-raised",
+              openBelow ? "top-full mt-2" : "bottom-full mb-2"
+            )}
             style={{
               animation: "pop-in 180ms cubic-bezier(0.23,1,0.32,1) both",
-              transformOrigin: "bottom center",
+              transformOrigin: openBelow ? "top center" : "bottom center",
             }}
           >
             <span

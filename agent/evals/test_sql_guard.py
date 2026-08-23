@@ -49,6 +49,7 @@ MUST_ALLOW = [
     ("union", "SELECT unvan FROM musteriler_rapor UNION SELECT unvan FROM musteriler_harita"),
     ("kucuk-limit", "SELECT unvan FROM musteriler_rapor LIMIT 5"),
     ("stok", "SELECT urun, miktar FROM v_panorama_detayli_stok_raporu_guncel WHERE miktar <= 0"),
+    ("konusma-liste", "SELECT id, baslik, ozet FROM agent_konusmalar"),
 ]
 
 

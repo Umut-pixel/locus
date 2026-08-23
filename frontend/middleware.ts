@@ -18,16 +18,6 @@ const CRON_PATHS = new Set(["/api/sync/panorama"]);
  */
 const AGENT_WRITABLE_PATHS = new Set(["/api/notlar", "/api/musteri/favori"]);
 
-/**
- * Girişten sonra otomatik DÖNÜLMEYECEK yollar.
- *
- * `/home` (agent sohbeti) sidebar'da bilerek bağlantısız bir geliştirme
- * yüzeyi. Adresi elle yazan biri oraya gidebilmeli — ama oturumu kapalıyken
- * açtığında giriş sonrası oraya düşmemeli. Uygulamanın açılışı her zaman
- * harita olmalı; buraya yalnız kasıtlı gidilir.
- */
-const NO_RETURN_PATHS = new Set(["/home"]);
-
 /** Sabit zamanlı karşılaştırma — token uzunluğu/içeriği sızmasın. */
 function secretMatches(header: string | null, secret: string): boolean {
   if (!header || !secret) return false;
@@ -82,15 +72,15 @@ export async function middleware(request: NextRequest) {
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = "/login";
     loginUrl.search = "";
-    if (pathname !== "/" && !NO_RETURN_PATHS.has(pathname)) {
+    if (pathname !== "/") {
       loginUrl.searchParams.set("next", pathname);
     }
     return NextResponse.redirect(loginUrl);
   }
 
-  if (isAuthed && pathname === "/login") {
+  if (isAuthed && (pathname === "/login" || pathname === "/")) {
     const home = request.nextUrl.clone();
-    home.pathname = "/";
+    home.pathname = "/home";
     home.search = "";
     return NextResponse.redirect(home);
   }

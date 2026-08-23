@@ -6,11 +6,9 @@ type LoginPageProps = {
 
 export default async function LoginPage({ searchParams }: LoginPageProps) {
   const params = await searchParams;
-  // middleware zaten `/home`'u `next` olarak koymuyor; burada da reddediyoruz
-  // çünkü adres elle uydurulabilir (`/login?next=/home`). Açılış her zaman harita.
   const istenen = typeof params.next === "string" ? params.next : "";
   const nextPath =
-    istenen.startsWith("/") && istenen !== "/home" ? istenen : "/";
+    istenen.startsWith("/") && !istenen.startsWith("//") ? istenen : "/home";
 
   return <LoginShell nextPath={nextPath} />;
 }

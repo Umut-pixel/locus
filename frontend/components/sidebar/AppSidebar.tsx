@@ -25,6 +25,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { KonusmalarNav } from "@/components/sidebar/KonusmalarNav";
 import {
   FOOTER_NAV,
   HARITA_KAPSAMI,
@@ -210,16 +211,20 @@ function SidebarBody({
                 className="overflow-hidden"
                 inert={sectionCollapsed}
               >
-                <div className="flex flex-col gap-0.5 pb-1">
-                  {section.items.map((item) => (
-                    <AppSidebarNavItem
-                      key={item.id}
-                      item={item}
-                      open={open}
-                      live={item.liveKey === "panorama" ? panoramaLive : false}
-                    />
-                  ))}
-                </div>
+                {section.id === "konusmalar" ? (
+                  <KonusmalarNav open={open} />
+                ) : (
+                  <div className="flex flex-col gap-0.5 pb-1">
+                    {section.items.map((item) => (
+                      <AppSidebarNavItem
+                        key={item.id}
+                        item={item}
+                        open={open}
+                        live={item.liveKey === "panorama" ? panoramaLive : false}
+                      />
+                    ))}
+                  </div>
+                )}
               </motion.div>
             </div>
           );

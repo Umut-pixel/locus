@@ -27,6 +27,8 @@ ALLOWED_RELATIONS: frozenset[str] = frozenset(
         "urun_skt",
         "musteri_metrik_gecmis",
         "rapor_bolge_disi_ozet",
+        "agent_konusmalar",
+        "agent_konusma_mesajlari",
     }
 )
 

@@ -17,11 +17,14 @@ export function parseBelgeTarihi(value: unknown): Date | null {
   }
   const s = String(value ?? "").trim();
   if (!s) return null;
-  const m = /^(\d{1,2})\.(\d{1,2})\.(\d{4})$/.exec(s);
-  if (!m) return null;
-  const day = Number(m[1]);
-  const month = Number(m[2]) - 1;
-  const year = Number(m[3]);
+  const dotted = /^(\d{1,2})\.(\d{1,2})\.(\d{4})$/.exec(s);
+  const iso = /^(\d{4})-(\d{2})-(\d{2})/.exec(s);
+  const day = dotted ? Number(dotted[1]) : iso ? Number(iso[3]) : NaN;
+  const month = dotted ? Number(dotted[2]) - 1 : iso ? Number(iso[2]) - 1 : NaN;
+  const year = dotted ? Number(dotted[3]) : iso ? Number(iso[1]) : NaN;
+  if (!Number.isFinite(day) || !Number.isFinite(month) || !Number.isFinite(year)) {
+    return null;
+  }
   const d = new Date(Date.UTC(year, month, day));
   if (
     d.getUTCFullYear() !== year ||

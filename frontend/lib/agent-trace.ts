@@ -62,6 +62,12 @@ const TOOL_META: Record<
     done: "Favori güncellendi",
     fail: "Favori güncellenemedi",
   },
+  konusma_gecmisi: {
+    verb: "Read",
+    running: "Geçmiş konuşmalar okunuyor",
+    done: "Geçmiş konuşmalar okundu",
+    fail: "Konuşma geçmişi okunamadı",
+  },
 };
 
 function meta(name: string) {

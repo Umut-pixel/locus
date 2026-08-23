@@ -116,7 +116,8 @@ declare
 begin
   foreach t in array array[
     'musteriler', 'musteri_yaslandirma', 'musteri_belge_ozet',
-    'urun_skt', 'musteri_metrik_gecmis'
+    'urun_skt', 'musteri_metrik_gecmis',
+    'agent_konusmalar', 'agent_konusma_mesajlari'
   ]
   loop
     if to_regclass('public.' || t) is null then
@@ -145,6 +146,8 @@ grant select on public.v_panorama_siparis_durum_raporu_guncel    to locus_agent_
 grant select on public.urun_skt                                  to locus_agent_ro;
 grant select on public.musteri_metrik_gecmis                     to locus_agent_ro;
 grant select on public.rapor_bolge_disi_ozet                     to locus_agent_ro;
+grant select on public.agent_konusmalar                          to locus_agent_ro;
+grant select on public.agent_konusma_mesajlari                   to locus_agent_ro;
 
 
 -- 8) v_panorama_* icin ek adim GEREKEBILIR ------------------------------------

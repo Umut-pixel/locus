@@ -42,10 +42,9 @@ def _jsonable(value: Any) -> Any:
 def sql_query(sql: str) -> str:
     """Locus veritabanında salt-okunur SQL sorgusu çalıştırır.
 
-    Yalnız SELECT çalışır ve yalnız izin verilen view'lara erişilebilir
-    (musteriler_rapor, v_panorama_*, urun_skt, musteri_metrik_gecmis).
-    Ham tablolara ve sistem şemalarına erişim yoktur. Sorgu reddedilirse
-    hata mesajı döner — SQL'i düzeltip tekrar dene.
+    Yalnız SELECT çalışır ve yalnız izin verilen view/tablolara erişilebilir
+    (musteriler_rapor, v_panorama_*, urun_skt, musteri_metrik_gecmis,
+    agent_konusmalar). Ham tablolara ve sistem şemalarına erişim yoktur.
 
     Kolon anlamları ve iş kuralları için önce schema_lookup kullan.
     Özellikle "ciro" sorulduğunda hangi kolonun doğru olduğunu kontrol et.

@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono, Inter } from "next/font/google";
+import { Geist, Geist_Mono, Inter, Source_Serif_4 } from "next/font/google";
 import "./globals.css";
 
 import { ThemeProvider, THEME_STORAGE_KEY } from "@/components/theme/ThemeProvider";
@@ -23,6 +23,14 @@ const geistMono = Geist_Mono({
 const inter = Inter({
   variable: "--font-inter",
   subsets: ["latin"],
+});
+
+/** Asistan karşılama başlığı — Türkçe latin-ext, Geist’ten ayrı display yüzü. */
+const sourceSerif = Source_Serif_4({
+  variable: "--font-source-serif",
+  subsets: ["latin", "latin-ext"],
+  weight: ["400", "600", "700"],
+  style: ["normal", "italic"],
 });
 
 export const metadata: Metadata = {
@@ -52,7 +60,7 @@ export default function RootLayout({
       // React bu tek attribute mismatch'ini görmezden gelsin, kendi (temasız)
       // değerine geri almasın.
       suppressHydrationWarning
-      className={`${geistSans.variable} ${geistMono.variable} ${inter.variable} dark h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${inter.variable} ${sourceSerif.variable} dark h-full antialiased`}
     >
       <body className="flex h-dvh min-h-dvh flex-col overflow-hidden overscroll-none">
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />

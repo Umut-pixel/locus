@@ -2,15 +2,12 @@ import {
   BanknoteIcon,
   BarChart3Icon,
   BoxesIcon,
-  EyeOffIcon,
+  BrainCircuitIcon,
   MapIcon,
-  RefreshCwIcon,
   RouteIcon,
   SettingsIcon,
   SparklesIcon,
-  StarIcon,
   TruckIcon,
-  UploadIcon,
   UsersIcon,
   type LucideIcon,
 } from "lucide-react";
@@ -50,10 +47,16 @@ export const NAV_SECTIONS: NavSectionConfig[] = [
     label: "Komuta",
     items: [
       {
+        id: "analyst",
+        label: "Analyst",
+        icon: BrainCircuitIcon,
+        href: "/home",
+      },
+      {
         id: "harita",
         label: "Harita",
         icon: MapIcon,
-        href: "/",
+        href: "/harita",
         children: [
           { id: "harita-musteri", label: "Müşteri Haritası", icon: UsersIcon },
           {
@@ -105,21 +108,11 @@ export const NAV_SECTIONS: NavSectionConfig[] = [
     ],
   },
   {
-    id: "araclar",
-    label: "Araçlar",
+    id: "konusmalar",
+    label: "Konuşmalar",
     collapsible: true,
     defaultCollapsed: false,
-    items: [
-      { id: "veri-yukle", label: "Veri Yükle", icon: UploadIcon },
-      { id: "favoriler", label: "Favoriler", icon: StarIcon },
-      { id: "gizlenenler", label: "Gizlenenler", icon: EyeOffIcon },
-      {
-        id: "panorama-senkron",
-        label: "Panorama Senkron",
-        icon: RefreshCwIcon,
-        liveKey: "panorama",
-      },
-    ],
+    items: [],
   },
 ];
 
@@ -129,13 +122,11 @@ export const FOOTER_NAV: SidebarNavLeaf[] = [
 
 /** @deprecated NAV_SECTIONS kullanın — geriye dönük düz liste. */
 export const MAIN_NAV: SidebarNavItem[] = NAV_SECTIONS.filter(
-  (s) => s.id !== "araclar"
+  (s) => s.id !== "konusmalar"
 ).flatMap((s) => s.items);
 
-/** @deprecated NAV_SECTIONS.araclar */
-export const TOOLS_NAV: SidebarNavLeaf[] = NAV_SECTIONS.find(
-  (s) => s.id === "araclar"
-)!.items;
+/** @deprecated NAV_SECTIONS.konusmalar — liste KonusmalarNav'da. */
+export const TOOLS_NAV: SidebarNavLeaf[] = [];
 
 export function isNavItemActive(
   pathname: string | null,

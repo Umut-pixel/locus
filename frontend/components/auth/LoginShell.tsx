@@ -23,7 +23,7 @@ const LoginMapPreview = dynamic(
 
 const EASE = [0.22, 1, 0.36, 1] as const;
 
-export function LoginShell({ nextPath = "/" }: { nextPath?: string }) {
+export function LoginShell({ nextPath = "/home" }: { nextPath?: string }) {
   const router = useRouter();
   const [exiting, setExiting] = useState(false);
 
@@ -39,7 +39,7 @@ export function LoginShell({ nextPath = "/" }: { nextPath?: string }) {
 
     await new Promise((r) => setTimeout(r, 520));
 
-    const target = nextPath.startsWith("/") ? nextPath : "/";
+    const target = nextPath.startsWith("/") ? nextPath : "/home";
     router.replace(target);
     router.refresh();
   }

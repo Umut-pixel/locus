@@ -12,6 +12,7 @@ from deepagents.backends import CompositeBackend, FilesystemBackend, StateBacken
 from memory import MEMORY_PATHS
 from middleware.audit import audit_tool_calls
 from tools.locus_actions import musteri_favori_toggle, musteri_notu_ekle
+from tools.konusma_gecmisi import konusma_gecmisi
 from tools.schema_lookup import schema_lookup
 from tools.sql_query import sql_query
 
@@ -45,6 +46,7 @@ agent = create_deep_agent(
     tools=[
         schema_lookup,      # önce: iş sözlüğü
         sql_query,          # sonra: guarded okuma
+        konusma_gecmisi,    # geçmiş thread'ler / kullanıcı amacı
         musteri_notu_ekle,  # yazma (yalnız açık istek üzerine)
         musteri_favori_toggle,
     ],

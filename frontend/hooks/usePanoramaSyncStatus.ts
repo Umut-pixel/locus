@@ -3,6 +3,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
+  formatIstanbulStamp,
+  nextPanoramaSyncStamp,
+} from "@/lib/panorama-schedule";
+import {
   PANORAMA_SYNC_DOSYA_TIPI,
   PANORAMA_SYNC_RUNS_TABLE,
   YUKLEME_LOGLARI_TABLE,
@@ -43,22 +47,6 @@ function fingerprint(ids: Record<string, string | null> | null): string | null {
   if (!a && !b && !c && !d && !e) return null;
   return `${a}|${b}|${c}|${d}|${e}`;
 }
-
-function formatIstanbul(iso: string | null): string | null {
-  if (!iso) return null;
-  try {
-    return new Intl.DateTimeFormat("tr-TR", {
-      timeZone: "Europe/Istanbul",
-      day: "2-digit",
-      month: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-    }).format(new Date(iso));
-  } catch {
-    return iso;
-  }
-}
-
 export function usePanoramaSyncStatus(
   options: UsePanoramaSyncStatusOptions = {}
 ) {
@@ -190,14 +178,16 @@ export function usePanoramaSyncStatus(
   const label = (() => {
     if (status.syncError) return `Sync uyarı: ${status.syncError.slice(0, 40)}`;
     if (status.transformPending) {
-      const t = formatIstanbul(status.lastSyncAt);
+      const t = formatIstanbulStamp(status.lastSyncAt);
       return t
         ? `Sync alındı ${t} — harita bekleniyor`
         : "Harita güncellemesi bekleniyor";
     }
-    const t = formatIstanbul(status.lastTransformAt ?? status.lastSyncAt);
+    const t = formatIstanbulStamp(status.lastTransformAt ?? status.lastSyncAt);
     return t ? `Son sync: ${t}` : null;
   })();
 
-  return { status, loading, label, refreshStatus: poll };
+  const nextStamp = nextPanoramaSyncStamp();
+
+  return { status, loading, label, nextStamp, refreshStatus: poll };
 }

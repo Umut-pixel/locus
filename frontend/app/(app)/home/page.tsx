@@ -1,15 +1,20 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 
 import { AgentMarkdown } from "@/components/agent/AgentMarkdown";
 import { ContextCards } from "@/components/agent/ContextCards";
+import { HomeOverviewBento } from "@/components/agent/HomeOverviewBento";
 import { LoadingState } from "@/components/agent/LoadingState";
 import { PromptBar } from "@/components/agent/PromptBar";
 import { SelectionReply } from "@/components/agent/SelectionReply";
 import { TaskRows } from "@/components/agent/TaskRows";
 import { ThinkingTrace } from "@/components/agent/ThinkingTrace";
 import { AppSidebarMobileTrigger } from "@/components/sidebar/AppSidebar";
+import { LightRays } from "@/components/ui/light-rays";
+import { Text3DFlip } from "@/components/ui/text-3d-flip";
 import { useAgentSession, type ChatMessage } from "@/hooks/useAgentSession";
 import {
   contextsFromTrace,
@@ -18,7 +23,6 @@ import {
   type ContextChunk,
   type TraceRow,
 } from "@/lib/agent-trace";
-
 const ORNEK_SORULAR = [
   "Toplam kaç müşteri var?",
   "İzmir'de riskli müşteri sayısı nedir?",
@@ -26,7 +30,27 @@ const ORNEK_SORULAR = [
   "Bornova teslimat ve borç durumu nedir?",
 ];
 
+const BASLIKLAR = [
+  "Veriye ne sormak istersin?",
+  "Bugün kime bakıyoruz?",
+  "Ciroyu mu, riski mi?",
+  "Ege'de ne öne çıkıyor?",
+];
+
+const EXIT_EASE = [0.16, 1, 0.3, 1] as const;
+
 export default function HomePage() {
+  return (
+    <Suspense fallback={<main className="agent-ui h-dvh flex-1 bg-background" />}>
+      <HomeChat />
+    </Suspense>
+  );
+}
+
+function HomeChat() {
+  const router = useRouter();
+  const params = useSearchParams();
+  const threadId = params.get("k");
   const {
     messages,
     draft,
@@ -43,11 +67,21 @@ export default function HomePage() {
     setPendingQuote,
     send,
     stop,
-  } = useAgentSession();
+  } = useAgentSession({
+    persist: true,
+    threadId,
+    onThread: (id) => {
+      router.replace(`/home?k=${id}`);
+    },
+  });
   const sonRef = useRef<HTMLDivElement | null>(null);
   const sohbet = messages.length > 0;
   const waiting = busy && !answerId;
   const complex = isComplexTrace(trace);
+  const reduced = useReducedMotion();
+  const exit = reduced
+    ? { duration: 0 }
+    : { duration: 0.26, ease: EXIT_EASE };
 
   useEffect(() => {
     sonRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -61,78 +95,175 @@ export default function HomePage() {
         onSend={send}
         onStop={stop}
         busy={busy}
-        tall={!sohbet}
         quote={pendingQuote}
         onClearQuote={() => setPendingQuote(null)}
         placeholder="Veriye bir şey sor…  @ kaynak  / komut"
       />
-      <p className="mt-2 text-center text-[11px] text-ink-3">
-        Salt-okunur SQL. Rakamları kritik kararlarda doğrulayın. Grafik yalnız sorgulanmış veriden.
+      <p className="mt-2 text-center font-display text-[12px] italic text-ink-3">
+        Yanıt salt okunur; önemli kararı rapordaki rakamla teyit edin.
       </p>
     </div>
   );
 
   return (
-    <main className="agent-ui flex h-dvh min-w-0 flex-1 flex-col">
-      <header className="flex shrink-0 items-center gap-2 border-b border-line px-4 py-3">
-        <AppSidebarMobileTrigger />
+    <main className="agent-ui relative flex h-dvh min-w-0 flex-1 flex-col overflow-hidden">
+      <AnimatePresence>
+        {!sohbet ? (
+          <motion.div
+            key="rays"
+            className="pointer-events-none absolute inset-0 z-0 overflow-hidden"
+            initial={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={exit}
+          >
+            <LightRays />
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+
+      <header className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-center gap-2 px-4 pt-3">
+        <div className="pointer-events-auto">
+          <AppSidebarMobileTrigger />
+        </div>
         <h1 className="text-sm font-semibold text-ink">Asistan</h1>
         <span className="ml-auto font-mono text-[10px] tracking-wide text-ink-3 uppercase">
           locus-analyst
         </span>
       </header>
 
-      {!sohbet ? (
-        <div className="flex min-h-0 flex-1 items-center justify-center px-4">
-          <div className="w-full max-w-2xl">
-            <h2 className="mb-1 text-center text-xl font-semibold text-ink">
-              Veriye ne sormak istersin?
-            </h2>
-            <p className="mb-6 text-center text-sm text-ink-3">
-              Ciro, risk, sevkiyat ve stok — tablo, filtre ve grafik yanıtta yerinde açılır.
-            </p>
-            {composer}
-            <div className="mt-6 flex flex-wrap justify-center gap-2">
-              {ORNEK_SORULAR.map((s) => (
-                <button
-                  key={s}
-                  type="button"
-                  onClick={() => send(s)}
-                  className="rounded-full border border-line bg-card px-3 py-1.5 text-xs text-ink-2 transition-colors hover:bg-hover hover:text-ink"
-                >
-                  {s}
-                </button>
-              ))}
+      <div className="relative z-10 flex min-h-0 flex-1 flex-col overflow-hidden">
+        {sohbet ? (
+          <>
+            <motion.div
+              key="thread"
+              className="min-h-0 flex-1 overflow-y-auto px-4 pt-14 pb-6"
+              initial={reduced ? false : { opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{
+                duration: reduced ? 0 : 0.28,
+                ease: EXIT_EASE,
+                delay: reduced ? 0 : 0.06,
+              }}
+            >
+              <div className="mx-auto flex max-w-2xl flex-col gap-5">
+                {messages.map((m) => (
+                  <Turn
+                    key={m.id}
+                    message={m}
+                    live={m.id === revealId && (m.streaming || revealing)}
+                    revealed={revealed}
+                    busy={busy}
+                    trace={trace}
+                    tasks={tasks}
+                    contexts={contexts}
+                    onReply={setPendingQuote}
+                  />
+                ))}
+                {waiting ? (
+                  <WorkPanel busy={busy} trace={trace} tasks={tasks} complex={complex} />
+                ) : null}
+                <div ref={sonRef} />
+              </div>
+            </motion.div>
+            <motion.div
+              layout
+              layoutId="home-composer"
+              className="relative z-20 shrink-0 border-t border-line px-4 py-3"
+              transition={{ layout: { duration: reduced ? 0 : 0.32, ease: EXIT_EASE } }}
+            >
+              <div className="mx-auto w-full max-w-2xl">{composer}</div>
+            </motion.div>
+          </>
+        ) : (
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            <div className="px-4 pt-14 sm:pt-16">
+              <div className="mx-auto w-full max-w-5xl">
+                <RotatingHeadline />
+                <p className="mb-5 text-center font-display text-[15px] leading-snug italic text-ink-3">
+                  Sor — tablo ve grafik cevapta açılsın.
+                </p>
+              </div>
+            </div>
+            <motion.div
+              layout
+              layoutId="home-composer"
+              className="relative z-20 px-4"
+              transition={{ layout: { duration: reduced ? 0 : 0.32, ease: EXIT_EASE } }}
+            >
+              <div className="mx-auto w-full max-w-5xl">{composer}</div>
+            </motion.div>
+            <div className="px-4 pb-10">
+              <div className="mx-auto w-full max-w-5xl">
+                <div className="mt-3 flex flex-wrap justify-center gap-1.5">
+                  {ORNEK_SORULAR.map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => send(s)}
+                      className="rounded-full border border-line bg-card px-3 py-1 text-[12px] leading-5 shadow-agent transition-[border-color,background-color] duration-150 hover:border-line-strong hover:bg-hover focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      <span className="shimmer-ink font-medium">{s}</span>
+                    </button>
+                  ))}
+                </div>
+                <div className="mt-6">
+                  <HomeOverviewBento onAsk={send} />
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-      ) : (
-        <>
-          <div className="min-h-0 flex-1 overflow-y-auto px-4 py-6">
-            <div className="mx-auto flex max-w-2xl flex-col gap-5">
-              {messages.map((m) => (
-                <Turn
-                  key={m.id}
-                  message={m}
-                  live={m.id === revealId && (m.streaming || revealing)}
-                  revealed={revealed}
-                  busy={busy}
-                  trace={trace}
-                  tasks={tasks}
-                  contexts={contexts}
-                  onReply={setPendingQuote}
-                />
-              ))}
-              {waiting ? <WorkPanel busy={busy} trace={trace} tasks={tasks} complex={complex} /> : null}
-              <div ref={sonRef} />
-            </div>
-          </div>
-          <div className="shrink-0 border-t border-line px-4 py-3">
-            <div className="mx-auto max-w-2xl">{composer}</div>
-          </div>
-        </>
-      )}
+        )}
+      </div>
     </main>
+  );
+}
+
+function RotatingHeadline() {
+  const reduced = useReducedMotion();
+  const [index, setIndex] = useState(0);
+  const paused = useRef(false);
+  const text = BASLIKLAR[index];
+
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      if (paused.current || document.hidden) return;
+      setIndex((n) => (n + 1) % BASLIKLAR.length);
+    }, 5200);
+    return () => window.clearInterval(id);
+  }, []);
+
+  const headingClass =
+    "mb-1 w-full justify-center font-display text-[1.625rem] leading-snug font-semibold tracking-[-0.03em] text-ink";
+
+  return (
+    <div
+      className="flex min-h-[2.6em] items-center justify-center"
+      onPointerEnter={() => {
+        paused.current = true;
+      }}
+      onPointerLeave={() => {
+        paused.current = false;
+      }}
+    >
+      {reduced ? (
+        <h2 className={headingClass} aria-live="polite">
+          {text}
+        </h2>
+      ) : (
+        <Text3DFlip
+          key={text}
+          as="h2"
+          className={headingClass}
+          textClassName="bg-background text-ink"
+          flipTextClassName="bg-background text-ink"
+          rotateDirection="top"
+          staggerFrom="center"
+          playOnMount={index === 0}
+        >
+          {text}
+        </Text3DFlip>
+      )}
+    </div>
   );
 }
 

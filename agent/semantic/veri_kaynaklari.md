@@ -74,3 +74,9 @@ kapsanan tarih aralığını yanıtta belirt.
 ## 8. `musteri_metrik_gecmis` — zaman serisi
 Günlük pg_cron snapshot'ı (05:15 UTC). Gerçek trend analizi için tek doğru kaynak.
 `snapshot_tarihi`, `musteri_kodu`, `net_ciro`, `toplam_teslimat_sayisi`
+
+## 9. `agent_konusmalar` / `agent_konusma_mesajlari` — sohbet hafızası
+Kullanıcı–asistan konuşmalarının tam metni. Operasyon verisi değil.
+Önce `konusma_gecmisi` aracını kullan; SQL ile okuyacaksan yalnız
+başlık/özet için `agent_konusmalar`, tam diyalog için mesaj tablosu.
+Yazma yok — kalıcı yazım Next.js API üzerinden.
