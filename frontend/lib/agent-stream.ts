@@ -329,6 +329,31 @@ function eventsFromPayload(
 }
 
 /**
+ * Safari "Load failed", Chrome "Failed to fetch" — ham TypeError metni.
+ * SQL/LLM turu uzun sürerken akış sessiz kalırsa tarayıcı bağlantıyı keser;
+ * aynı sorunun ikinci denemede geçmesi bunun imzası.
+ */
+export function explainNetworkError(err: unknown, fallback: string): string {
+  const raw =
+    err instanceof Error ? err.message.trim() : String(err ?? "").trim();
+  const key = raw.toLowerCase().replace(/\.$/, "");
+  if (
+    key === "load failed" ||
+    key === "failed to fetch" ||
+    key === "networkerror when attempting to fetch resource" ||
+    key === "network request failed" ||
+    key === "the network connection was lost" ||
+    key.includes("networkerror")
+  ) {
+    return (
+      "Bağlantı koptu (uzun sorgu veya telefon ağı). " +
+      "Aynı soruyu bir kez daha dene."
+    );
+  }
+  return raw || fallback;
+}
+
+/**
  * `event: error` gövdesinden okunabilir mesajı çıkarır.
  *
  * Yerel LangGraph sunucusundan gözlemlenen gerçek biçim:
@@ -368,8 +393,10 @@ export async function streamAgent({
     });
   } catch (err) {
     if (signal?.aborted) return;
-    const detail = err instanceof Error ? err.message : "bilinmeyen hata";
-    onEvent({ kind: "error", message: `Agent'a ulaşılamadı: ${detail}` });
+    onEvent({
+      kind: "error",
+      message: explainNetworkError(err, "Agent'a ulaşılamadı"),
+    });
     return;
   }
 
@@ -445,8 +472,10 @@ export async function streamAgent({
     }
   } catch (err) {
     if (signal?.aborted) return;
-    const detail = err instanceof Error ? err.message : "akış kesildi";
-    onEvent({ kind: "error", message: detail });
+    onEvent({
+      kind: "error",
+      message: explainNetworkError(err, "akış kesildi"),
+    });
   } finally {
     reader.releaseLock();
   }

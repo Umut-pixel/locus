@@ -9,7 +9,8 @@ from __future__ import annotations
 import decimal
 import json
 import os
-from datetime import date, datetime
+import uuid
+from datetime import date, datetime, time, timedelta
 from typing import Any
 
 import psycopg
@@ -27,15 +28,29 @@ _MAX_RESULT_CHARS = 20_000
 
 
 def _jsonable(value: Any) -> Any:
-    """Postgres tiplerini JSON'a çevir (Decimal para tutarları dahil)."""
+    """Postgres tiplerini JSON'a çevir (Decimal, UUID, tarih dahil)."""
+    if value is None or isinstance(value, (bool, int, float, str)):
+        return value
     if isinstance(value, decimal.Decimal):
         # Para tutarları: float'a çevirmek hassasiyet kaybettirir, string tut.
         return str(value)
-    if isinstance(value, (datetime, date)):
+    if isinstance(value, uuid.UUID):
+        return str(value)
+    if isinstance(value, datetime):
         return value.isoformat()
+    if isinstance(value, date):
+        return value.isoformat()
+    if isinstance(value, time):
+        return value.isoformat()
+    if isinstance(value, timedelta):
+        return value.total_seconds()
     if isinstance(value, (bytes, memoryview)):
         return "<binary>"
-    return value
+    if isinstance(value, dict):
+        return {str(k): _jsonable(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple, set)):
+        return [_jsonable(v) for v in value]
+    return str(value)
 
 
 @tool(parse_docstring=True)
@@ -87,8 +102,16 @@ def sql_query(sql: str) -> str:
             "Filtreler fazla dar olabilir — kontrol et."
         )
 
-    payload = [{k: _jsonable(v) for k, v in row.items()} for row in rows]
-    body = json.dumps(payload, ensure_ascii=False, indent=1)
+    try:
+        payload = [{k: _jsonable(v) for k, v in row.items()} for row in rows]
+        # default=str: _jsonable'ın kaçırdığı nadir tipler (inet, range, …)
+        # agent turunu çökertmesin.
+        body = json.dumps(payload, ensure_ascii=False, indent=1, default=str)
+    except (TypeError, ValueError) as err:
+        return (
+            f"SQL HATASI: Sonuç JSON'a çevrilemedi ({err}). "
+            "Daha az kolon seçip tekrar dene."
+        )
 
     truncated = ""
     if len(body) > _MAX_RESULT_CHARS:

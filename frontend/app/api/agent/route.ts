@@ -26,6 +26,85 @@ const AGENT_SECRET_HEADER = "x-agent-secret";
  */
 const ASSISTANT_ID = process.env.ASSISTANT_ID?.trim() || "locus-analyst";
 
+/** SQL / LLM sırasında sessiz kalınca Safari ve ara proxy'ler bağlantıyı keser. */
+const HEARTBEAT_MS = 12_000;
+
+function withSseHeartbeat(
+  source: ReadableStream<Uint8Array>,
+  signal?: AbortSignal
+): ReadableStream<Uint8Array> {
+  const ping = new TextEncoder().encode(": ping\n\n");
+  const reader = source.getReader();
+
+  return new ReadableStream<Uint8Array>({
+    start(controller) {
+      let closed = false;
+      let interval: ReturnType<typeof setInterval> | undefined;
+
+      const stop = () => {
+        if (interval === undefined) return;
+        clearInterval(interval);
+        interval = undefined;
+      };
+
+      const push = (chunk: Uint8Array) => {
+        if (closed) return;
+        try {
+          controller.enqueue(chunk);
+        } catch {
+          closed = true;
+          stop();
+        }
+      };
+
+      const finish = (err?: unknown) => {
+        if (closed) return;
+        closed = true;
+        stop();
+        try {
+          if (err === undefined) controller.close();
+          else controller.error(err);
+        } catch {
+          /* zaten kapalı */
+        }
+      };
+
+      interval = setInterval(() => push(ping), HEARTBEAT_MS);
+      push(ping);
+
+      const onAbort = () => {
+        void reader.cancel();
+        finish();
+      };
+      signal?.addEventListener("abort", onAbort, { once: true });
+
+      void (async () => {
+        try {
+          for (;;) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            if (value) push(value);
+          }
+          finish();
+        } catch (err) {
+          finish(err);
+        } finally {
+          signal?.removeEventListener("abort", onAbort);
+          stop();
+          try {
+            reader.releaseLock();
+          } catch {
+            /* */
+          }
+        }
+      })();
+    },
+    cancel() {
+      void reader.cancel();
+    },
+  });
+}
+
 interface AgentRequestBody {
   message?: unknown;
   threadId?: unknown;
@@ -99,6 +178,8 @@ export async function POST(request: Request) {
         ...(threadId ? { thread_id: threadId } : {}),
         stream_mode: "messages",
       }),
+      // Telefon ekranı kapanınca / kullanıcı vazgeçince LangGraph tarafı da dursun.
+      signal: request.signal,
     });
 
     if (!upstream.ok) {
@@ -116,15 +197,19 @@ export async function POST(request: Request) {
       );
     }
 
-    // SSE akışını olduğu gibi tarayıcıya geçir.
-    return new Response(upstream.body, {
+    // SSE: 12 sn'de bir yorum satırı — Safari "Load failed" idle kesmesini önler.
+    return new Response(withSseHeartbeat(upstream.body, request.signal), {
       headers: {
         "Content-Type": "text/event-stream; charset=utf-8",
         "Cache-Control": "no-cache, no-transform",
         Connection: "keep-alive",
+        "X-Accel-Buffering": "no",
       },
     });
   } catch (err) {
+    if (request.signal.aborted) {
+      return new Response(null, { status: 499 });
+    }
     const detail = err instanceof Error ? err.message : "bilinmeyen hata";
     return NextResponse.json(
       { error: `Agent'a bağlanılamadı: ${detail}` },

@@ -3,13 +3,17 @@
 import {
   AlertTriangleIcon,
   BanknoteIcon,
+  CalendarRangeIcon,
   CircleDollarSignIcon,
   ReceiptTextIcon,
   WalletIcon,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
-import type { FinansalOzet as FinansalOzetVerisi } from "@/hooks/useFinansalRaporu";
+import {
+  AYLIK_CIRO_GUN_SAYISI,
+  type FinansalOzet as FinansalOzetVerisi,
+} from "@/hooks/useFinansalRaporu";
 import { useCountUp } from "@/hooks/useCountUp";
 import { formatCurrency } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -29,9 +33,10 @@ export function FinansalOzet({ ozet, loading }: FinansalOzetProps) {
   const toplamBrutCiro = useCountUp(ozet.toplamBrutCiro);
   const toplamNetCiro = useCountUp(ozet.toplamNetCiro);
   const toplamNetCiroKdvDahil = useCountUp(ozet.toplamNetCiroKdvDahil);
+  const aylikNetCiro = useCountUp(ozet.aylikNetCiro);
 
   return (
-    <div className="grid grid-cols-2 gap-px border-b border-border bg-border lg:grid-cols-5">
+    <div className="grid grid-cols-2 gap-px border-b border-border bg-border lg:grid-cols-3">
       <div className="flex flex-col justify-center gap-1 bg-background px-3.5 py-4">
         <span className="text-[12px] tracking-[0.06em] text-muted-foreground uppercase">
           Toplam açık bakiye
@@ -79,6 +84,14 @@ export function FinansalOzet({ ozet, loading }: FinansalOzetProps) {
         etiket="Net ciro (KDV dahil)"
         deger={formatCurrency(toplamNetCiroKdvDahil)}
         altBilgi="KDV dahil, güncel senkron"
+        loading={loading}
+      />
+
+      <StatKutusu
+        icon={CalendarRangeIcon}
+        etiket="1 aylık ciro"
+        deger={formatCurrency(aylikNetCiro)}
+        altBilgi={`Son ${AYLIK_CIRO_GUN_SAYISI} gün, KDV hariç`}
         loading={loading}
       />
     </div>

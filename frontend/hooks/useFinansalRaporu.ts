@@ -24,6 +24,8 @@ import { fetchAllRows } from "@/lib/supabase-fetch-all";
 const BELGE_TIPLERI = [...KEEP_BELGE_TIP];
 /** Ciro/tahsilat trendi penceresi — açık uçlu bir tarih seçici yerine sabit, makul bir varsayılan. */
 export const CIRO_TREND_GUN_SAYISI = 60;
+/** KPI kartı: bugünden geriye yuvarlanan 30 gün (takvim ayı değil). */
+export const AYLIK_CIRO_GUN_SAYISI = 30;
 const BELGE_DETAY_MAX_BATCHES = 15;
 
 function sayi(value: unknown): number {
@@ -85,6 +87,8 @@ export interface FinansalOzet {
   toplamBrutCiro: number;
   toplamNetCiro: number;
   toplamNetCiroKdvDahil: number;
+  /** Son 30 gün, KDV hariç net satış (iadeler işaretli girer). */
+  aylikNetCiro: number;
   borcluMusteriSayisi: number;
 }
 
@@ -305,6 +309,7 @@ export function useFinansalRaporu() {
       toplamBrutCiro: Math.round(toplamBrutCiro * 100) / 100,
       toplamNetCiro: Math.round(toplamNetCiro * 100) / 100,
       toplamNetCiroKdvDahil: Math.round(toplamNetCiroKdvDahil * 100) / 100,
+      aylikNetCiro: 0,
       borcluMusteriSayisi,
     };
   }, [musteriler]);
@@ -338,13 +343,14 @@ export function useFinansalRaporu() {
   // Satış hareketleri: iade satırları ciroya negatifleriyle girer ama "aktivite"
   // kırılımlarına (temsilci/ürün/trend) girmez — parse-belge-detay.ts'teki
   // musteri_belge_ozet agregasyonuyla aynı kural.
-  const { ciroGunluk, temsilciDagilimi, urunGrubuDagilimi, iadeToplam, satisToplam } =
+  const { ciroGunluk, temsilciDagilimi, urunGrubuDagilimi, iadeToplam, satisToplam, aylikNetCiro } =
     useMemo(() => {
       const gunlukMap = new Map<string, number>();
       const temsilciMap = new Map<string, number>();
       const urunGrubuMap = new Map<string, number>();
       let iadeToplam = 0;
       let satisToplam = 0;
+      let aylikNetCiro = 0;
 
       // Trend penceresi bugünden geriye sayılır (dosyadaki en yeni tarihten
       // değil) — sync durursa grafik boşalarak bunu gösterir, sessizce
@@ -353,6 +359,10 @@ export function useFinansalRaporu() {
       trendBaslangic.setDate(trendBaslangic.getDate() - CIRO_TREND_GUN_SAYISI);
       const trendBaslangicIso = trendBaslangic.toISOString().slice(0, 10);
 
+      const aylikBaslangic = new Date();
+      aylikBaslangic.setDate(aylikBaslangic.getDate() - AYLIK_CIRO_GUN_SAYISI);
+      const aylikBaslangicIso = aylikBaslangic.toISOString().slice(0, 10);
+
       for (const r of belgeSatirlari) {
         // KDV hariç gerçek net satış = brüt - iskonto (Panorama'nın "Nettutar"ı
         // KDV dahildir, ciro hesabında kullanılmaz — bkz. sql/net_ciro_kdv_haric.sql).
@@ -360,6 +370,14 @@ export function useFinansalRaporu() {
         const iskonto = sayi(r.iskonto);
         const netHesap = Math.round((brut - iskonto) * 100) / 100;
         const iade = iadeMi(metin(r.islem_tip));
+        const tarih = parseIslemTarihi(r.islem_tarihi);
+
+        // Aylık KPI net ciro tanımını takip eder: iade satırları işaretleriyle
+        // girer (parse-belge-detay.ts). Trend/kırılım aktivite olduğu için iadeyi
+        // aşağıda dışarıda bırakır.
+        if (tarih && tarih >= aylikBaslangicIso) {
+          aylikNetCiro += netHesap;
+        }
 
         if (iade) {
           iadeToplam += Math.abs(netHesap);
@@ -367,7 +385,6 @@ export function useFinansalRaporu() {
         }
         satisToplam += netHesap;
 
-        const tarih = parseIslemTarihi(r.islem_tarihi);
         if (tarih && tarih >= trendBaslangicIso) {
           gunlukMap.set(tarih, (gunlukMap.get(tarih) ?? 0) + netHesap);
         }
@@ -405,16 +422,22 @@ export function useFinansalRaporu() {
         urunGrubuDagilimi: toplamHelper(urunGrubuMap),
         iadeToplam: Math.round(iadeToplam * 100) / 100,
         satisToplam: Math.round(satisToplam * 100) / 100,
+        aylikNetCiro: Math.round(aylikNetCiro * 100) / 100,
       };
     }, [belgeSatirlari]);
 
   const iadeOrani = satisToplam > 0 ? iadeToplam / satisToplam : 0;
 
+  const ozetKpi = useMemo<FinansalOzet>(
+    () => ({ ...ozet, aylikNetCiro }),
+    [ozet, aylikNetCiro]
+  );
+
   return {
     loading,
     refreshing,
     error,
-    ozet,
+    ozet: ozetKpi,
     bantlar,
     topBorclular,
     acikFaturalar,

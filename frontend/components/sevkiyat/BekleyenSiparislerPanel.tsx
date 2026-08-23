@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { CheckCircle2Icon, ClipboardListIcon } from "lucide-react";
 
 import { ScrollBottomFade } from "@/components/ui/ScrollBottomFade";
@@ -38,6 +39,10 @@ export function BekleyenSiparislerPanel({
   const { wrapperRef, scrollRef } = useScrollBottomFade<HTMLElement, HTMLDivElement>(
     satirlar.length
   );
+  const toplamTutar = useMemo(
+    () => satirlar.reduce((acc, s) => acc + s.toplamTutar, 0),
+    [satirlar]
+  );
 
   return (
     <section
@@ -63,6 +68,20 @@ export function BekleyenSiparislerPanel({
         ) : null}
         {headerExtra ? <div className="ml-auto shrink-0">{headerExtra}</div> : null}
       </header>
+
+      {!bos ? (
+        <div
+          className="flex h-9 shrink-0 items-center justify-between gap-3 border-b border-border/60 px-3.5"
+          aria-label={`Bekleyen siparişlerin toplam tutarı ${formatCurrency(toplamTutar)}`}
+        >
+          <span className="text-[12px] tracking-[0.06em] text-muted-foreground uppercase">
+            Toplam tutar
+          </span>
+          <span className="font-mono text-[13px] font-medium text-amber-400 tabular-nums">
+            {formatCurrency(toplamTutar)}
+          </span>
+        </div>
+      ) : null}
 
       <div
         ref={scrollRef}

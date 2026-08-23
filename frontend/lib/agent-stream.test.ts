@@ -11,7 +11,11 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { streamAgent, type AgentStreamEvent } from "./agent-stream";
+import {
+  explainNetworkError,
+  streamAgent,
+  type AgentStreamEvent,
+} from "./agent-stream";
 
 function sseResponse(chunks: string[]): Response {
   const enc = new TextEncoder();
@@ -142,4 +146,21 @@ async function run(name: string, chunks: string[]) {
   await streamAgent({ message: "x", onEvent: (e) => ev.push(e) });
   console.log("\n### proxy 503");
   console.log("  hata  :", JSON.stringify(ev.map((e: any) => e.message)));
+
+  // 9) Safari "Load failed" — kullanıcıya ham TypeError gitmesin
+  const safari = explainNetworkError(new TypeError("Load failed"), "x");
+  const chrome = explainNetworkError(new TypeError("Failed to fetch"), "x");
+  const other = explainNetworkError(new Error("boom"), "x");
+  console.log("\n### network error");
+  console.log("  safari:", safari);
+  console.log("  chrome:", chrome);
+  console.log("  other :", other);
+  if (!safari.includes("Bağlantı koptu") || !chrome.includes("Bağlantı koptu")) {
+    console.log("  KALDI  Load failed / Failed to fetch çevrilmedi");
+    process.exitCode = 1;
+  }
+  if (other !== "boom") {
+    console.log("  KALDI  diğer hatalar olduğu gibi kalmalı");
+    process.exitCode = 1;
+  }
 })();
