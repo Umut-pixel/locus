@@ -404,3 +404,50 @@
 .animated-underline:hover {
   background-size: 100% 1px;
 }
+
+@keyframes locus-live-halo {
+  0% {
+    transform: scale(1);
+    opacity: 0.5;
+  }
+  70%,
+  100% {
+    transform: scale(2.35);
+    opacity: 0;
+  }
+}
+
+.locus-live-dot {
+  position: relative;
+  display: inline-flex;
+  width: 7px;
+  height: 7px;
+  flex-shrink: 0;
+}
+
+.locus-live-dot::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background: var(--ink-green);
+  animation: locus-live-halo 1.8s ease-out infinite;
+}
+
+.locus-live-dot > span {
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--ink-green);
+  box-shadow: 0 1px 3px color-mix(in oklch, var(--ink-green) 55%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .locus-live-dot::before {
+    animation: none;
+    opacity: 0;
+  }
+}

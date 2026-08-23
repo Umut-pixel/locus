@@ -17,6 +17,7 @@ import {
   notifyKonusmalarChanged,
   type KonusmaMesaj,
 } from "@/lib/agent-konusma";
+import { reportAgentDown, reportAgentOk } from "@/lib/agent-status";
 
 export type ChatRole = "user" | "assistant" | "error";
 
@@ -272,6 +273,7 @@ export function useAgentSession(opts?: {
             };
             extra.push(errMsg);
             setMessages((prev) => [...prev, errMsg]);
+            reportAgentDown(event.message);
             break;
           }
           case "debug":
@@ -320,13 +322,17 @@ export function useAgentSession(opts?: {
         if (controller.signal.aborted) return;
         if (!hataVar && yanitId === null) {
           const errId = uid();
+          const emptyText =
+            "Agent yanıt döndürmedi. `langgraph dev` çalışıyor mu ve AGENT_URL doğru mu kontrol et.";
           extra.push({
             id: errId,
             role: "error",
-            text:
-              "Agent yanıt döndürmedi. `langgraph dev` çalışıyor mu ve AGENT_URL doğru mu kontrol et.",
+            text: emptyText,
           });
           setMessages((prev) => [...prev, extra[extra.length - 1]!]);
+          reportAgentDown(emptyText);
+        } else if (!hataVar && yanitMetin.trim()) {
+          reportAgentOk();
         }
         sealLive(yanitId);
         setBusy(false);

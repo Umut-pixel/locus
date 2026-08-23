@@ -5,27 +5,20 @@ import {
   AGENT_KONUSMALAR_TABLE,
   createSupabaseAdmin,
 } from "@/lib/supabase-admin";
-import { konusmaBasligi, konusmaOzeti, type KonusmaRol } from "@/lib/agent-konusma";
+import {
+  konusmaBasligi,
+  konusmaOzetFromRow,
+  konusmaOzeti,
+  type KonusmaRol,
+} from "@/lib/agent-konusma";
 
 export const runtime = "nodejs";
 
-const HEAD_SELECT = "id,baslik,ozet,mesaj_sayisi,guncelleme";
+const HEAD_SELECT = "id,baslik,ozet,mesaj_sayisi,guncelleme,sabitlendi";
 const MSG_SELECT = "id,sira,rol,metin,alinti";
 const ROLES = new Set<KonusmaRol>(["user", "assistant", "error"]);
 
 type Ctx = { params: Promise<{ id: string }> };
-
-function asOzet(raw: Record<string, unknown>) {
-  const id = raw.id != null ? String(raw.id) : "";
-  if (!id) return null;
-  return {
-    id,
-    baslik: typeof raw.baslik === "string" ? raw.baslik : "Yeni konuşma",
-    ozet: typeof raw.ozet === "string" ? raw.ozet : null,
-    mesajSayisi: Number(raw.mesaj_sayisi ?? 0),
-    guncelleme: String(raw.guncelleme ?? ""),
-  };
-}
 
 function asMesaj(raw: Record<string, unknown>) {
   const id = raw.id != null ? String(raw.id) : "";
@@ -77,7 +70,7 @@ export async function GET(_request: Request, ctx: Ctx) {
       if (item) mesajlar.push(item);
     }
     return NextResponse.json({
-      konusma: asOzet(head.data as Record<string, unknown>),
+      konusma: konusmaOzetFromRow(head.data as Record<string, unknown>),
       mesajlar,
     });
   } catch (err) {
@@ -188,7 +181,70 @@ export async function POST(request: Request, ctx: Ctx) {
       return NextResponse.json({ error: upd.error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ konusma: asOzet(upd.data as Record<string, unknown>) });
+    return NextResponse.json({
+      konusma: konusmaOzetFromRow(upd.data as Record<string, unknown>),
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Bilinmeyen hata";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}
+
+/** PATCH { sabitlendi: boolean } — başa sabitle / kaldır. */
+export async function PATCH(request: Request, ctx: Ctx) {
+  const { id } = await ctx.params;
+  if (!id) {
+    return NextResponse.json({ error: "id gerekli" }, { status: 400 });
+  }
+
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Geçersiz JSON" }, { status: 400 });
+  }
+  const obj = body && typeof body === "object" ? (body as Record<string, unknown>) : {};
+  if (typeof obj.sabitlendi !== "boolean") {
+    return NextResponse.json({ error: "sabitlendi gerekli" }, { status: 400 });
+  }
+
+  try {
+    const admin = createSupabaseAdmin();
+    const upd = await admin
+      .from(AGENT_KONUSMALAR_TABLE)
+      .update({ sabitlendi: obj.sabitlendi })
+      .eq("id", id)
+      .select(HEAD_SELECT)
+      .maybeSingle();
+    if (upd.error) {
+      return NextResponse.json({ error: upd.error.message }, { status: 500 });
+    }
+    if (!upd.data) {
+      return NextResponse.json({ error: "Konuşma yok" }, { status: 404 });
+    }
+    return NextResponse.json({
+      konusma: konusmaOzetFromRow(upd.data as Record<string, unknown>),
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Bilinmeyen hata";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}
+
+/** DELETE — konuşma ve mesajları siler (cascade). */
+export async function DELETE(_request: Request, ctx: Ctx) {
+  const { id } = await ctx.params;
+  if (!id) {
+    return NextResponse.json({ error: "id gerekli" }, { status: 400 });
+  }
+
+  try {
+    const admin = createSupabaseAdmin();
+    const del = await admin.from(AGENT_KONUSMALAR_TABLE).delete().eq("id", id);
+    if (del.error) {
+      return NextResponse.json({ error: del.error.message }, { status: 500 });
+    }
+    return NextResponse.json({ ok: true });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Bilinmeyen hata";
     return NextResponse.json({ error: message }, { status: 500 });

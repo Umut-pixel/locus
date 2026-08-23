@@ -4,31 +4,20 @@ import {
   AGENT_KONUSMALAR_TABLE,
   createSupabaseAdmin,
 } from "@/lib/supabase-admin";
-import { konusmaBasligi } from "@/lib/agent-konusma";
+import { konusmaBasligi, konusmaOzetFromRow } from "@/lib/agent-konusma";
 
 export const runtime = "nodejs";
 
-const LIST_SELECT = "id,baslik,ozet,mesaj_sayisi,guncelleme";
+const LIST_SELECT = "id,baslik,ozet,mesaj_sayisi,guncelleme,sabitlendi";
 
-function asOzet(raw: Record<string, unknown>) {
-  const id = raw.id != null ? String(raw.id) : "";
-  if (!id) return null;
-  return {
-    id,
-    baslik: typeof raw.baslik === "string" ? raw.baslik : "Yeni konuşma",
-    ozet: typeof raw.ozet === "string" ? raw.ozet : null,
-    mesajSayisi: Number(raw.mesaj_sayisi ?? 0),
-    guncelleme: String(raw.guncelleme ?? ""),
-  };
-}
-
-/** GET — yeniden eskiye konuşma listesi. */
+/** GET — sabitlenenler önde, sonra yeniden eskiye. */
 export async function GET() {
   try {
     const admin = createSupabaseAdmin();
     const { data, error } = await admin
       .from(AGENT_KONUSMALAR_TABLE)
       .select(LIST_SELECT)
+      .order("sabitlendi", { ascending: false })
       .order("guncelleme", { ascending: false })
       .limit(80);
 
@@ -38,7 +27,7 @@ export async function GET() {
 
     const items = [];
     for (const row of data ?? []) {
-      const item = asOzet(row as Record<string, unknown>);
+      const item = konusmaOzetFromRow(row as Record<string, unknown>);
       if (item) items.push(item);
     }
     return NextResponse.json({ items });
@@ -79,7 +68,7 @@ export async function POST(request: Request) {
         { status: 500 }
       );
     }
-    const item = asOzet(data as Record<string, unknown>);
+    const item = konusmaOzetFromRow(data as Record<string, unknown>);
     return NextResponse.json({ konusma: item }, { status: 201 });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Bilinmeyen hata";

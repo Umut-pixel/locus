@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 
 import { IlceBarChart } from "@/components/agent/IlceBarChart";
 import { BorcRiskAreaChart } from "@/components/agent/BorcRiskAreaChart";
@@ -15,10 +16,16 @@ import {
   type HomeSevkSatiri,
   type HomeBorcBant,
 } from "@/hooks/useHomeOverview";
+import { useAgentRuntimeStatus } from "@/hooks/useAgentRuntimeStatus";
 import { usePanoramaSyncStatus } from "@/hooks/usePanoramaSyncStatus";
+import { clipAgentError } from "@/lib/agent-status";
 import { formatCurrency, formatNumber } from "@/lib/format";
+import { formatIstanbulStamp } from "@/lib/panorama-schedule";
 import { RISK_COLORS } from "@/lib/risk-style";
 import { cn } from "@/lib/utils";
+
+const STATUS_ROTATE_MS = 7000;
+const STATUS_FACE_EASE = [0.16, 1, 0.3, 1] as const;
 
 const DURUM_RENK: Record<HomeDurumSlice["ad"], string> = {
   Aktif: "var(--chart-3)",
@@ -118,16 +125,18 @@ export function HomeOverviewBento({
 function Tile({
   className,
   children,
+  ...rest
 }: {
   className?: string;
   children: ReactNode;
-}) {
+} & React.ComponentPropsWithoutRef<"section">) {
   return (
     <section
       className={cn(
         "flex min-w-0 flex-col rounded-[14px] border border-line bg-card p-2.5 shadow-agent",
         className
       )}
+      {...rest}
     >
       {children}
     </section>
@@ -400,6 +409,84 @@ function BorcTile({
   );
 }
 
+type StatusTone = "ok" | "wait" | "warn";
+
+type StatusFaceModel = {
+  title: string;
+  pill: string;
+  tone: StatusTone;
+  line: string;
+  sub: string | null;
+  loading?: boolean;
+  liveLabel?: string | null;
+};
+
+function StatusPill({ label, tone }: { label: string; tone: StatusTone }) {
+  const pill =
+    tone === "warn"
+      ? "bg-red-tint text-ink-red"
+      : tone === "wait"
+        ? "bg-accent-tint text-ink-orange"
+        : "bg-green-tint text-ink-green";
+  return (
+    <span
+      className={cn(
+        "inline-flex h-5 items-center rounded-full px-1.5 text-[11px] font-medium",
+        pill
+      )}
+    >
+      {label}
+    </span>
+  );
+}
+
+function LiveDot() {
+  return (
+    <span className="locus-live-dot" aria-hidden>
+      <span />
+    </span>
+  );
+}
+
+function StatusFace({
+  title,
+  pill,
+  tone,
+  line,
+  sub,
+  loading,
+  liveLabel,
+}: StatusFaceModel) {
+  return (
+    <div className="flex min-w-0 flex-col gap-1.5">
+      <header className="flex items-center justify-between gap-2">
+        <h3 className="text-[12px] font-medium text-ink">{title}</h3>
+        <StatusPill label={pill} tone={tone} />
+      </header>
+      <p
+        className={cn(
+          "text-[13px] leading-snug text-ink-2",
+          loading && "opacity-50"
+        )}
+      >
+        {line}
+      </p>
+      {liveLabel ? (
+        <p className="flex min-h-[1.125rem] items-center">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-green-tint px-2 py-0.5 text-[12px] font-medium text-ink-green">
+            <LiveDot />
+            {liveLabel}
+          </span>
+        </p>
+      ) : (
+        <p className="min-h-[1.125rem] text-[12px] leading-snug text-ink-3">
+          {sub ?? "\u00a0"}
+        </p>
+      )}
+    </div>
+  );
+}
+
 function SyncTile({
   className,
   label,
@@ -415,37 +502,104 @@ function SyncTile({
   error: string | null;
   pending: boolean;
 }) {
-  const durum = error ? "Uyarı" : pending ? "Bekliyor" : "Güncel";
-  const pill = error
-    ? "bg-red-tint text-ink-red"
-    : pending
-      ? "bg-accent-tint text-ink-orange"
-      : "bg-green-tint text-ink-green";
+  const agent = useAgentRuntimeStatus();
+  const reduced = useReducedMotion();
+  const [face, setFace] = useState<"panorama" | "analyst">("panorama");
+
+  useEffect(() => {
+    if (reduced) return;
+    let id = 0;
+    const start = () => {
+      window.clearInterval(id);
+      id = window.setInterval(() => {
+        setFace((current) => (current === "panorama" ? "analyst" : "panorama"));
+      }, STATUS_ROTATE_MS);
+    };
+    const onVis = () => {
+      if (document.visibilityState === "visible") start();
+      else window.clearInterval(id);
+    };
+    start();
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      window.clearInterval(id);
+      document.removeEventListener("visibilitychange", onVis);
+    };
+  }, [reduced]);
+
+  const panorama: StatusFaceModel = {
+    title: "Panorama",
+    pill: error ? "Uyarı" : pending ? "Bekliyor" : "Güncel",
+    tone: error ? "warn" : pending ? "wait" : "ok",
+    line: label ?? (loading ? "Kontrol ediliyor…" : "Henüz sync kaydı yok"),
+    sub: nextStamp ? `Sonraki: ${nextStamp}` : null,
+    loading,
+  };
+
+  const analyst: StatusFaceModel = agent.ok
+    ? {
+        title: "Analyst",
+        pill: "Operasyonel",
+        tone: "ok",
+        line: "Sistem hazır",
+        sub: null,
+        liveLabel: "Claude Opus",
+      }
+    : {
+        title: "Analyst",
+        pill: "Uyarı",
+        tone: "warn",
+        line: clipAgentError(agent.message),
+        sub: (() => {
+          const stamp = formatIstanbulStamp(agent.at);
+          return stamp ? `Son hata: ${stamp}` : null;
+        })(),
+      };
+
+  const summary = agent.ok
+    ? `${panorama.title} ${panorama.pill}. ${analyst.title} ${analyst.pill}, Claude Opus.`
+    : `${panorama.title} ${panorama.pill}. ${analyst.title} ${analyst.pill}.`;
 
   return (
-    <Tile className={cn(className, "gap-1.5")}>
-      <header className="flex items-center justify-between gap-2">
-        <h3 className="text-[12px] font-medium text-ink">Panorama</h3>
-        <span
-          className={cn(
-            "inline-flex h-5 items-center rounded-full px-1.5 text-[11px] font-medium",
-            pill
-          )}
-        >
-          {durum}
-        </span>
-      </header>
-      <p
-        className={cn(
-          "text-[13px] leading-snug text-ink-2",
-          loading && "opacity-50"
-        )}
-      >
-        {label ?? (loading ? "Kontrol ediliyor…" : "Henüz sync kaydı yok")}
-      </p>
-      {nextStamp ? (
-        <p className="text-[12px] leading-snug text-ink-3">Sonraki: {nextStamp}</p>
-      ) : null}
+    <Tile className={cn(className, "gap-1.5")} aria-label={summary}>
+      {reduced ? (
+        <>
+          <StatusFace {...panorama} />
+          <div className="border-t border-line" />
+          <StatusFace {...analyst} />
+        </>
+      ) : (
+        <div className="grid overflow-hidden" aria-hidden>
+          <AnimatePresence initial={false}>
+            <motion.div
+              key={face}
+              className="col-start-1 row-start-1"
+              initial={{
+                opacity: 0,
+                y: 14,
+                filter: "blur(6px)",
+                clipPath: "inset(22% 0 0 0)",
+              }}
+              animate={{
+                opacity: 1,
+                y: 0,
+                filter: "blur(0px)",
+                clipPath: "inset(0% 0 0 0)",
+              }}
+              exit={{
+                opacity: 0,
+                y: -10,
+                filter: "blur(6px)",
+                clipPath: "inset(0 0 28% 0)",
+                transition: { duration: 0.28, ease: STATUS_FACE_EASE },
+              }}
+              transition={{ duration: 0.46, ease: STATUS_FACE_EASE }}
+            >
+              <StatusFace {...(face === "panorama" ? panorama : analyst)} />
+            </motion.div>
+          </AnimatePresence>
+        </div>
+      )}
     </Tile>
   );
 }

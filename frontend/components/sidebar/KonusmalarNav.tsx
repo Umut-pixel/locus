@@ -1,9 +1,14 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { MessageSquareIcon, MessageSquarePlusIcon } from "lucide-react";
+import {
+  MessageSquareIcon,
+  MessageSquarePlusIcon,
+  PinIcon,
+  Trash2Icon,
+} from "lucide-react";
 import { motion } from "motion/react";
 
 import { SidebarIconCell, SidebarLabel } from "@/components/sidebar/AppSidebarNavItem";
@@ -30,9 +35,10 @@ export function KonusmalarNav({ open }: { open: boolean }) {
 function KonusmalarNavInner({ open }: { open: boolean }) {
   const pathname = usePathname();
   const params = useSearchParams();
+  const router = useRouter();
   const activeId = pathname === "/home" ? params.get("k") : null;
   const onFreshHome = pathname === "/home" && !activeId;
-  const { items, loading } = useKonusmalar();
+  const { items, loading, remove, togglePin } = useKonusmalar();
   const [expanded, setExpanded] = useState(false);
 
   const hidden = items.length > SIDEBAR_KONUSMA_PREVIEW;
@@ -66,6 +72,12 @@ function KonusmalarNavInner({ open }: { open: boolean }) {
               href={`/home?k=${item.id}`}
               label={item.baslik}
               active={activeId === item.id}
+              pinned={item.sabitlendi}
+              onPin={() => void togglePin(item.id, !item.sabitlendi)}
+              onDelete={() => {
+                void remove(item.id);
+                if (activeId === item.id) router.push("/home");
+              }}
             />
           ))}
           {hidden ? (
@@ -178,34 +190,118 @@ function ChatLink({
   href,
   label,
   active,
+  pinned,
+  onPin,
+  onDelete,
 }: {
   href: string;
   label: string;
   active: boolean;
+  pinned: boolean;
+  onPin: () => void;
+  onDelete: () => void;
 }) {
   const router = useRouter();
   return (
     <div className={SIDEBAR_ROW}>
       <span aria-hidden style={{ width: ICON_RAIL_WIDTH }} />
-      <Link
-        href={href}
-        aria-current={active ? "page" : undefined}
-        title={label}
-        onClick={(e) => {
-          e.preventDefault();
-          router.push(href);
-        }}
+      <div
         className={cn(
-          "mr-3 flex h-8 min-w-0 items-center gap-2 rounded-md px-1.5 text-left text-[12.5px] outline-none transition-colors duration-150",
-          "focus-visible:ring-2 focus-visible:ring-sidebar-ring/60",
+          "group/chat relative mr-3 flex h-8 min-w-0 items-center rounded-md",
+          "transition-colors duration-150",
           active
-            ? "bg-black/[0.06] font-medium text-sidebar-foreground dark:bg-white/[0.08]"
-            : "font-medium text-muted-foreground hover:bg-black/[0.04] hover:text-sidebar-foreground dark:hover:bg-white/[0.04]"
+            ? "bg-black/[0.06] dark:bg-white/[0.08]"
+            : "hover:bg-black/[0.04] dark:hover:bg-white/[0.04]"
         )}
       >
-        <MessageSquareIcon className="size-3.5 shrink-0" />
-        <span className="truncate">{label}</span>
-      </Link>
+        <Link
+          href={href}
+          aria-current={active ? "page" : undefined}
+          title={label}
+          onClick={(e) => {
+            e.preventDefault();
+            router.push(href);
+          }}
+          className={cn(
+            "flex h-8 min-w-0 flex-1 items-center gap-2 rounded-md px-1.5 text-left text-[12.5px] outline-none",
+            "focus-visible:ring-2 focus-visible:ring-sidebar-ring/60",
+            active
+              ? "font-medium text-sidebar-foreground"
+              : "font-medium text-muted-foreground group-hover/chat:text-sidebar-foreground",
+            pinned ? "pr-8" : "pr-1.5",
+            "group-hover/chat:pr-[52px] group-focus-within/chat:pr-[52px]"
+          )}
+        >
+          <MessageSquareIcon className="size-3.5 shrink-0" />
+          <span className="truncate">{label}</span>
+        </Link>
+        <div className="absolute top-1/2 right-0.5 z-[1] flex -translate-y-1/2 items-center">
+          <RowAction
+            label={pinned ? "Sabitlemeyi kaldır" : "Başa sabitle"}
+            pressed={pinned}
+            onClick={onPin}
+            className={cn(
+              "pointer-events-none text-muted-foreground opacity-0",
+              "group-hover/chat:pointer-events-auto group-hover/chat:opacity-100",
+              "group-focus-within/chat:pointer-events-auto group-focus-within/chat:opacity-100",
+              "[@media(hover:none)]:pointer-events-auto [@media(hover:none)]:opacity-100",
+              pinned && "pointer-events-auto opacity-100 text-sidebar-foreground"
+            )}
+          >
+            <PinIcon className={cn("size-3.5", pinned && "fill-current")} />
+          </RowAction>
+          <RowAction
+            label="Konuşmayı sil"
+            onClick={onDelete}
+            className={cn(
+              "pointer-events-none text-muted-foreground opacity-0",
+              "hover:text-red-600 dark:hover:text-red-400",
+              "group-hover/chat:pointer-events-auto group-hover/chat:opacity-100",
+              "group-focus-within/chat:pointer-events-auto group-focus-within/chat:opacity-100",
+              "[@media(hover:none)]:pointer-events-auto [@media(hover:none)]:opacity-100"
+            )}
+          >
+            <Trash2Icon className="size-3.5" />
+          </RowAction>
+        </div>
+      </div>
     </div>
+  );
+}
+
+function RowAction({
+  label,
+  pressed,
+  onClick,
+  className,
+  children,
+}: {
+  label: string;
+  pressed?: boolean;
+  onClick: () => void;
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      title={label}
+      aria-label={label}
+      aria-pressed={pressed}
+      onClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onClick();
+      }}
+      className={cn(
+        "flex size-6 shrink-0 items-center justify-center rounded-md outline-none",
+        "transition-opacity duration-150",
+        "hover:bg-black/[0.06] dark:hover:bg-white/[0.08]",
+        "focus-visible:ring-2 focus-visible:ring-sidebar-ring/60",
+        className
+      )}
+    >
+      {children}
+    </button>
   );
 }

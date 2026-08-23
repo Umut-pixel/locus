@@ -11,6 +11,7 @@ create table if not exists public.agent_konusmalar (
   baslik text not null default 'Yeni konuşma',
   ozet text,
   mesaj_sayisi integer not null default 0,
+  sabitlendi boolean not null default false,
   olusturulma timestamptz not null default now(),
   guncelleme timestamptz not null default now(),
   constraint agent_konusmalar_baslik_len check (char_length(baslik) between 1 and 120),
@@ -33,6 +34,12 @@ create table if not exists public.agent_konusma_mesajlari (
 
 create index if not exists agent_konusmalar_guncelleme_idx
   on public.agent_konusmalar (guncelleme desc);
+
+alter table public.agent_konusmalar
+  add column if not exists sabitlendi boolean not null default false;
+
+create index if not exists agent_konusmalar_sabit_guncelleme_idx
+  on public.agent_konusmalar (sabitlendi desc, guncelleme desc);
 
 create index if not exists agent_konusma_mesajlari_konusma_sira_idx
   on public.agent_konusma_mesajlari (konusma_id, sira);
