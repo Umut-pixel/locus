@@ -458,7 +458,7 @@ function StatusFace({
   liveLabel,
 }: StatusFaceModel) {
   return (
-    <div className="flex min-w-0 flex-col gap-1.5">
+    <div className="flex h-full min-h-0 w-full flex-col justify-center gap-1.5 text-left">
       <header className="flex items-center justify-between gap-2">
         <h3 className="text-[12px] font-medium text-ink">{title}</h3>
         <StatusPill label={pill} tone={tone} />
@@ -561,19 +561,19 @@ function SyncTile({
     : `${panorama.title} ${panorama.pill}. ${analyst.title} ${analyst.pill}.`;
 
   return (
-    <Tile className={cn(className, "gap-1.5")} aria-label={summary}>
+    <Tile className={cn(className, "min-h-0")} aria-label={summary}>
       {reduced ? (
-        <>
+        <div className="flex min-h-0 flex-1 flex-col justify-center gap-1.5">
           <StatusFace {...panorama} />
           <div className="border-t border-line" />
           <StatusFace {...analyst} />
-        </>
+        </div>
       ) : (
-        <div className="grid overflow-hidden" aria-hidden>
+        <div className="grid min-h-0 flex-1 overflow-hidden" aria-hidden>
           <AnimatePresence initial={false}>
             <motion.div
               key={face}
-              className="col-start-1 row-start-1"
+              className="col-start-1 row-start-1 flex h-full min-h-0 min-w-0"
               initial={{
                 opacity: 0,
                 y: 14,
