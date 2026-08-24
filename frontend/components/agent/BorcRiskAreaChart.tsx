@@ -234,17 +234,17 @@ function BorcRiskAreaChartPlot({
   const moveMarker = (p: { x: number; y: number }, immediate: boolean) => {
     const wrapW = wrapRef.current?.offsetWidth ?? 0;
     const cssX = wrapW > 0 ? (p.x / VB_W) * wrapW : 0;
-    const tweens = tweensRef.current;
-    if (immediate || !tweens.ruleX) {
+    const { ruleX, dotX, dotY, tipX } = tweensRef.current;
+    if (immediate || !ruleX || !dotX || !dotY || !tipX) {
       gsap.set(ruleRef.current, { x: p.x });
       gsap.set(dotRef.current, { x: p.x, y: p.y });
       gsap.set(tipRef.current, { x: cssX });
       return;
     }
-    tweens.ruleX(p.x);
-    tweens.dotX(p.x);
-    tweens.dotY(p.y);
-    tweens.tipX(cssX);
+    ruleX(p.x);
+    dotX(p.x);
+    dotY(p.y);
+    tipX(cssX);
   };
 
   const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
