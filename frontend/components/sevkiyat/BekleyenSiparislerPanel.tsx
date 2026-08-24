@@ -22,6 +22,16 @@ const DURUM_ETIKET: Record<BekleyenSiparisSatiri["durum"], string> = {
   irsaliyeli: "İrsaliyeli",
 };
 
+function trKucuk(s: string): string {
+  return s.replace(/İ/g, "i").replace(/I/g, "ı").toLocaleLowerCase("tr-TR");
+}
+
+/** Unvan zaten "(EDREMİT)" taşıyorsa ilçeyi bir daha yazma. */
+function unvanIlceIceriyor(unvan: string | null, ilce: string | null): boolean {
+  if (!unvan || !ilce) return false;
+  return trKucuk(unvan).includes(trKucuk(ilce.trim()));
+}
+
 /**
  * Sipariş Durum Raporu'ndan (5140) — henüz faturalaştırılmamış siparişler.
  * "Bekleyen Sipariş" (işlenmedi) ve "İrsaliyeleştirildi" (sevk edildi,
@@ -115,6 +125,9 @@ export function BekleyenSiparislerPanel({
                 <span className="flex min-w-0 flex-1 flex-col">
                   <span className="truncate text-[13px] text-foreground">
                     {s.musteriAd ?? s.musteriKod}
+                    {s.ilce && !unvanIlceIceriyor(s.musteriAd, s.ilce) ? (
+                      <span className="text-muted-foreground"> ({s.ilce})</span>
+                    ) : null}
                   </span>
                   <span className="truncate font-mono text-[11.5px] text-muted-foreground">
                     #{s.belgeKod} · {s.kalemSayisi} kalem

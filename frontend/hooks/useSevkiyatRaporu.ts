@@ -180,6 +180,8 @@ export interface BekleyenSiparisSatiri {
   belgeKod: string;
   musteriKod: string;
   musteriAd: string | null;
+  /** musteriler_rapor.ilce — sipariş raporunda yok, müşteri koduyla bağlanır. */
+  ilce: string | null;
   temsilci: string | null;
   islemTarihi: string | null;
   /**
@@ -580,11 +582,17 @@ export function useSevkiyatRaporu() {
       map.set(belgeKod, acc);
     }
 
+    const ilceByKod = new Map<string, string | null>();
+    for (const m of musteriler) {
+      if (!ilceByKod.has(m.musteri_kodu)) ilceByKod.set(m.musteri_kodu, m.ilce);
+    }
+
     const bekleyenSiparisler: BekleyenSiparisSatiri[] = [...map.entries()]
       .map(([belgeKod, v]) => ({
         belgeKod,
         musteriKod: v.musteriKod,
         musteriAd: v.musteriAd,
+        ilce: v.musteriKod ? (ilceByKod.get(v.musteriKod) ?? null) : null,
         temsilci: v.temsilci,
         islemTarihi: v.islemTarihi,
         sevkTarihi: v.sevkTarihi,
@@ -605,7 +613,7 @@ export function useSevkiyatRaporu() {
     };
 
     return { bekleyenSiparisler, bekleyenOzet };
-  }, [siparisDurumSatirlari]);
+  }, [siparisDurumSatirlari, musteriler]);
 
   return {
     loading,
