@@ -8,10 +8,10 @@ import { EnRiskliMusterilerPanel } from "@/components/sevkiyat/EnRiskliMusterile
 import { PanelGecisi, type OperasyonPaneli } from "@/components/sevkiyat/PanelGecisi";
 import { PlakaOdemeDagilimi } from "@/components/sevkiyat/PlakaOdemeDagilimi";
 import { RutPerformansTablosu } from "@/components/sevkiyat/RutPerformansTablosu";
+import { RutSiparisDolulukPanel } from "@/components/sevkiyat/RutSiparisDolulukPanel";
 import { SevkiyatOzet } from "@/components/sevkiyat/SevkiyatOzet";
 import { SevkiyatSikligiTrendi } from "@/components/sevkiyat/SevkiyatSikligiTrendi";
 import { SonSevkiyatlarPanel } from "@/components/sevkiyat/SonSevkiyatlarPanel";
-import { TeslimatGecikmeDagilimi } from "@/components/sevkiyat/TeslimatGecikmeDagilimi";
 import { AppSidebarMobileTrigger } from "@/components/sidebar/AppSidebar";
 import { useRaporTazeligi } from "@/hooks/useMusteriRaporlama";
 import {
@@ -34,6 +34,7 @@ export default function SevkiyatRaporlariPage() {
     odemeTipleri,
     bekleyenSiparisler,
     sonSevkiyatlar,
+    rutSiparisDoluluk,
   } = useSevkiyatRaporu();
 
   /** Orta panel iki veri kümesini paylaşıyor — tek tuşla geçiş. */
@@ -55,7 +56,7 @@ export default function SevkiyatRaporlariPage() {
             {formatNumber(ozet.aktifRutSayisi)}
           </span>
           <Typography.Paragraph size="sm" color="muted" truncate className="hidden md:block">
-            Teslimat gecikmesi, rut performansı ve sevkiyat sıklığı
+            Rut sipariş doluluğu, rut performansı ve sevkiyat sıklığı
           </Typography.Paragraph>
         </div>
         <div className="ml-auto flex items-center gap-3">
@@ -78,10 +79,14 @@ export default function SevkiyatRaporlariPage() {
         {/*
          * Orta sütun iki veri kümesini paylaşıyor (bekleyen siparişler ↔ en
          * riskli müşteriler); sağ sütun gerçekleşmiş sevkiyatlar. Sıralama
-         * bilinçli: soldan sağa "durum → bekleyen iş → tamamlanan iş".
+         * bilinçli: soldan sağa "rut yükü → bekleyen iş → tamamlanan iş".
          */}
         <div className="grid border-b border-border lg:grid-cols-3 [&>section]:h-[22rem]">
-          <TeslimatGecikmeDagilimi riskDagilimi={ozet.riskDagilimi} loading={loading} />
+          <RutSiparisDolulukPanel
+            satirlar={rutSiparisDoluluk}
+            aktifRutSayisi={ozet.aktifRutSayisi}
+            loading={loading}
+          />
           {ortaPanel === "bekleyen" ? (
             <BekleyenSiparislerPanel
               satirlar={bekleyenSiparisler}

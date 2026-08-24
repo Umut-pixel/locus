@@ -205,6 +205,24 @@ export interface BekleyenSiparisOzet {
   enEskiGun: number | null;
 }
 
+/** Bekleyen/irsaliyeli siparişlerin rut hatlarındaki durak doluluğu. */
+export interface RutSiparisDolulukSatiri {
+  rutKod: string;
+  rutAciklama: string | null;
+  rutsuz: boolean;
+  /** Ruttaki kayıtlı müşteri; rutsuz satırda siparişli müşteri sayısı. */
+  musteriSayisi: number;
+  siparisliMusteri: number;
+  siparisSayisi: number;
+  toplamTutar: number;
+  bekleyenSayisi: number;
+  irsaliyeliSayisi: number;
+  /** siparisliMusteri / musteriSayisi (0–1). Rutsuz veya payda yoksa null. */
+  doluluk: number | null;
+}
+
+const RUTSUZ_KEY = "__rutsuz";
+
 /**
  * Bugünden kaç gün önce — pozitif = geçmişte.
  * `bugunIso` dışarıdan verilebiliyor: 1800+ satırlık sevkiyat listesinde
@@ -623,6 +641,91 @@ export function useSevkiyatRaporu() {
     return { bekleyenSiparisler, bekleyenOzet };
   }, [siparisDurumSatirlari, musteriler]);
 
+  const rutSiparisDoluluk = useMemo<RutSiparisDolulukSatiri[]>(() => {
+    const rutByMusteri = new Map<string, { rutKod: string; rutAciklama: string | null }>();
+    const rutMusteriSayisi = new Map<string, { aciklama: string | null; sayi: number }>();
+
+    for (const m of musteriler) {
+      if (!m.rut_kod) continue;
+      rutByMusteri.set(m.musteri_kodu, {
+        rutKod: m.rut_kod,
+        rutAciklama: m.rut_aciklama,
+      });
+      const acc = rutMusteriSayisi.get(m.rut_kod) ?? {
+        aciklama: m.rut_aciklama,
+        sayi: 0,
+      };
+      acc.sayi += 1;
+      if (!acc.aciklama && m.rut_aciklama) acc.aciklama = m.rut_aciklama;
+      rutMusteriSayisi.set(m.rut_kod, acc);
+    }
+
+    type Acc = {
+      rutAciklama: string | null;
+      siparisli: Set<string>;
+      siparisSayisi: number;
+      toplamTutar: number;
+      bekleyenSayisi: number;
+      irsaliyeliSayisi: number;
+    };
+    const map = new Map<string, Acc>();
+
+    for (const s of bekleyenSiparisler) {
+      const meta = s.musteriKod ? rutByMusteri.get(s.musteriKod) : undefined;
+      const key = meta?.rutKod ?? RUTSUZ_KEY;
+      const acc = map.get(key) ?? {
+        rutAciklama: meta?.rutAciklama ?? null,
+        siparisli: new Set<string>(),
+        siparisSayisi: 0,
+        toplamTutar: 0,
+        bekleyenSayisi: 0,
+        irsaliyeliSayisi: 0,
+      };
+      acc.siparisSayisi += 1;
+      acc.toplamTutar += s.toplamTutar;
+      if (s.durum === "bekleyen") acc.bekleyenSayisi += 1;
+      else acc.irsaliyeliSayisi += 1;
+      if (s.musteriKod) acc.siparisli.add(s.musteriKod);
+      map.set(key, acc);
+    }
+
+    const satirlar: RutSiparisDolulukSatiri[] = [];
+    for (const [key, v] of map) {
+      const rutsuz = key === RUTSUZ_KEY;
+      const musteriSayisi = rutsuz
+        ? v.siparisli.size
+        : (rutMusteriSayisi.get(key)?.sayi ?? 0);
+      const siparisliMusteri = v.siparisli.size;
+      const doluluk =
+        rutsuz || musteriSayisi <= 0 ? null : siparisliMusteri / musteriSayisi;
+      satirlar.push({
+        rutKod: rutsuz ? "Rutsuz" : key,
+        rutAciklama: rutsuz
+          ? null
+          : (rutMusteriSayisi.get(key)?.aciklama ?? v.rutAciklama),
+        rutsuz,
+        musteriSayisi,
+        siparisliMusteri,
+        siparisSayisi: v.siparisSayisi,
+        toplamTutar: Math.round(v.toplamTutar * 100) / 100,
+        bekleyenSayisi: v.bekleyenSayisi,
+        irsaliyeliSayisi: v.irsaliyeliSayisi,
+        doluluk,
+      });
+    }
+
+    satirlar.sort((a, b) => {
+      if (a.rutsuz !== b.rutsuz) return a.rutsuz ? 1 : -1;
+      const da = a.doluluk ?? -1;
+      const db = b.doluluk ?? -1;
+      if (db !== da) return db - da;
+      if (b.toplamTutar !== a.toplamTutar) return b.toplamTutar - a.toplamTutar;
+      return a.rutKod.localeCompare(b.rutKod, "tr");
+    });
+
+    return satirlar;
+  }, [bekleyenSiparisler, musteriler]);
+
   return {
     loading,
     refreshing,
@@ -637,5 +740,6 @@ export function useSevkiyatRaporu() {
     sonSevkiyatlar,
     bekleyenSiparisler,
     bekleyenOzet,
+    rutSiparisDoluluk,
   };
 }
