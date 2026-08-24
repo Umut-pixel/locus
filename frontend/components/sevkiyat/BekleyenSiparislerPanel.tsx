@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { CheckCircle2Icon, ClipboardListIcon } from "lucide-react";
 
 import { ScrollBottomFade } from "@/components/ui/ScrollBottomFade";
+import { MusteriAdIlce } from "@/components/sevkiyat/MusteriAdIlce";
 import type { BekleyenSiparisSatiri } from "@/hooks/useSevkiyatRaporu";
 import { useScrollBottomFade } from "@/hooks/useScrollBottomFade";
 import { formatCurrency, formatNumber } from "@/lib/format";
@@ -21,16 +22,6 @@ const DURUM_ETIKET: Record<BekleyenSiparisSatiri["durum"], string> = {
   bekleyen: "Bekliyor",
   irsaliyeli: "İrsaliyeli",
 };
-
-function trKucuk(s: string): string {
-  return s.replace(/İ/g, "i").replace(/I/g, "ı").toLocaleLowerCase("tr-TR");
-}
-
-/** Unvan zaten "(EDREMİT)" taşıyorsa ilçeyi bir daha yazma. */
-function unvanIlceIceriyor(unvan: string | null, ilce: string | null): boolean {
-  if (!unvan || !ilce) return false;
-  return trKucuk(unvan).includes(trKucuk(ilce.trim()));
-}
 
 /**
  * Sipariş Durum Raporu'ndan (5140) — henüz faturalaştırılmamış siparişler.
@@ -123,12 +114,11 @@ export function BekleyenSiparislerPanel({
                   aria-hidden
                 />
                 <span className="flex min-w-0 flex-1 flex-col">
-                  <span className="truncate text-[13px] text-foreground">
-                    {s.musteriAd ?? s.musteriKod}
-                    {s.ilce && !unvanIlceIceriyor(s.musteriAd, s.ilce) ? (
-                      <span className="text-muted-foreground"> ({s.ilce})</span>
-                    ) : null}
-                  </span>
+                  <MusteriAdIlce
+                    ad={s.musteriAd ?? s.musteriKod}
+                    ilce={s.ilce}
+                    className="text-[13px] text-foreground"
+                  />
                   <span className="truncate font-mono text-[11.5px] text-muted-foreground">
                     #{s.belgeKod} · {s.kalemSayisi} kalem
                     {s.temsilci ? ` · ${s.temsilci}` : ""}

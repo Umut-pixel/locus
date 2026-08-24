@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { PackageCheckIcon, TruckIcon } from "lucide-react";
 
 import { ScrollBottomFade } from "@/components/ui/ScrollBottomFade";
+import { MusteriAdIlce } from "@/components/sevkiyat/MusteriAdIlce";
 import type { SevkiyatSatiri } from "@/hooks/useSevkiyatRaporu";
 import { useScrollBottomFade } from "@/hooks/useScrollBottomFade";
 import { formatCurrency, formatDate, formatKg, formatNumber } from "@/lib/format";
@@ -86,9 +87,11 @@ export function SonSevkiyatlarPanel({ satirlar, loading }: SonSevkiyatlarPanelPr
                   aria-hidden
                 />
                 <span className="flex min-w-0 flex-1 flex-col">
-                  <span className="truncate text-[13px] text-foreground">
-                    {s.musteriUnvani ?? s.musteriKodu ?? "—"}
-                  </span>
+                  <MusteriAdIlce
+                    ad={s.musteriUnvani ?? s.musteriKodu ?? "—"}
+                    ilce={s.ilce}
+                    className="text-[13px] text-foreground"
+                  />
                   <span className="truncate font-mono text-[11.5px] text-muted-foreground">
                     #{s.belgeKod}
                     {s.agirlikKg > 0 ? ` · ${formatKg(s.agirlikKg)}` : ""}

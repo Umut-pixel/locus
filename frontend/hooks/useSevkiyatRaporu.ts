@@ -134,6 +134,8 @@ export interface SevkiyatSatiri {
   belgeKod: string;
   musteriKodu: string | null;
   musteriUnvani: string | null;
+  /** musteriler_rapor.ilce — 5130'da yok, müşteri koduyla bağlanır. */
+  ilce: string | null;
   /** ISO — belge_tarihi (yükleme günü). */
   tarih: string;
   gunOnce: number | null;
@@ -474,6 +476,10 @@ export function useSevkiyatRaporu() {
     const sevkiyatlar: SevkiyatSatiri[] = [];
     const bugunIso = new Date().toISOString().slice(0, 10);
     let sonTarih: string | null = null;
+    const ilceByKod = new Map<string, string | null>();
+    for (const m of musteriler) {
+      if (!ilceByKod.has(m.musteri_kodu)) ilceByKod.set(m.musteri_kodu, m.ilce);
+    }
 
     for (const r of sevkiyatSatirlari) {
       const plaka = metin(r.plaka);
@@ -500,10 +506,12 @@ export function useSevkiyatRaporu() {
 
       const belgeKod = metin(r.belge_kod);
       if (belgeKod && tarihStr) {
+        const musteriKodu = metin(r.musteri_kodu);
         sevkiyatlar.push({
           belgeKod,
-          musteriKodu: metin(r.musteri_kodu),
+          musteriKodu,
           musteriUnvani: metin(r.musteri_unvani),
+          ilce: musteriKodu ? (ilceByKod.get(musteriKodu) ?? null) : null,
           tarih: tarihStr,
           gunOnce: gunFarki(tarihStr, bugunIso),
           tutar: Math.round(tutar * 100) / 100,
@@ -545,7 +553,7 @@ export function useSevkiyatRaporu() {
       sonSyncTarihi: sonTarih,
       sonSevkiyatlar: sevkiyatlar,
     };
-  }, [sevkiyatSatirlari]);
+  }, [sevkiyatSatirlari, musteriler]);
 
   const { bekleyenSiparisler, bekleyenOzet } = useMemo(() => {
     const map = new Map<
