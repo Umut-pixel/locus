@@ -24,9 +24,20 @@ import { fetchAllRows } from "@/lib/supabase-fetch-all";
 const BELGE_TIPLERI = [...KEEP_BELGE_TIP];
 /** Ciro/tahsilat trendi penceresi — açık uçlu bir tarih seçici yerine sabit, makul bir varsayılan. */
 export const CIRO_TREND_GUN_SAYISI = 60;
-/** KPI kartı: bugünden geriye yuvarlanan 30 gün (takvim ayı değil). */
-export const AYLIK_CIRO_GUN_SAYISI = 30;
 const BELGE_DETAY_MAX_BATCHES = 15;
+
+/** Yerel takvim günü (UTC `toISOString` TR gece yarısında bir gün kaydırır). */
+function yerelIsoGun(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const gun = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${gun}`;
+}
+
+/** KPI kartı: içinde bulunulan takvim ayının 1'i (month-to-date). */
+export function buAyinBasiIso(now = new Date()): string {
+  return yerelIsoGun(new Date(now.getFullYear(), now.getMonth(), 1));
+}
 
 function sayi(value: unknown): number {
   return sayiyaCevir(value) ?? 0;
@@ -87,7 +98,7 @@ export interface FinansalOzet {
   toplamBrutCiro: number;
   toplamNetCiro: number;
   toplamNetCiroKdvDahil: number;
-  /** Son 30 gün, KDV hariç net satış (iadeler işaretli girer). */
+  /** Ay başından bugüne, KDV hariç net satış (iadeler işaretli girer). */
   aylikNetCiro: number;
   borcluMusteriSayisi: number;
 }
@@ -359,9 +370,7 @@ export function useFinansalRaporu() {
       trendBaslangic.setDate(trendBaslangic.getDate() - CIRO_TREND_GUN_SAYISI);
       const trendBaslangicIso = trendBaslangic.toISOString().slice(0, 10);
 
-      const aylikBaslangic = new Date();
-      aylikBaslangic.setDate(aylikBaslangic.getDate() - AYLIK_CIRO_GUN_SAYISI);
-      const aylikBaslangicIso = aylikBaslangic.toISOString().slice(0, 10);
+      const aylikBaslangicIso = buAyinBasiIso();
 
       for (const r of belgeSatirlari) {
         // KDV hariç gerçek net satış = brüt - iskonto (Panorama'nın "Nettutar"ı

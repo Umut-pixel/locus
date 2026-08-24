@@ -10,10 +10,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
-import {
-  AYLIK_CIRO_GUN_SAYISI,
-  type FinansalOzet as FinansalOzetVerisi,
-} from "@/hooks/useFinansalRaporu";
+import { type FinansalOzet as FinansalOzetVerisi } from "@/hooks/useFinansalRaporu";
 import { useCountUp } from "@/hooks/useCountUp";
 import { formatCurrency } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -91,7 +88,7 @@ export function FinansalOzet({ ozet, loading }: FinansalOzetProps) {
         icon={CalendarRangeIcon}
         etiket="1 aylık ciro"
         deger={formatCurrency(aylikNetCiro)}
-        altBilgi={`Son ${AYLIK_CIRO_GUN_SAYISI} gün, KDV hariç`}
+        altBilgi="Ay başından bugüne, KDV hariç"
         loading={loading}
       />
     </div>
