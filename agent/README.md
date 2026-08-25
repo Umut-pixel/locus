@@ -108,8 +108,10 @@ uv run langgraph dev --no-browser --port 2024 --allow-blocking
 çağırıyor, `langgraph dev` bunu varsayılan olarak `BlockingError` ile reddediyor.
 
 `langgraph dev` **bellek içi**: sunucu yeniden başlarsa sohbet thread'leri
-gider. Küçük iç ekip için kabul edilebilir; kalıcılık gerekirse Postgres
-checkpointer'lı bir kurulum araştırılmalı.
+gider. Proxy (`/api/agent`) checkpointer boşsa Supabase geçmişini rakamsız
+**playbook** olarak basar — agent yöntemi hatırlar, rakamı `sql_query` ile
+yeniden çeker. Postgres checkpointer ayrıca gerekmez; küçük iç ekip için
+bu yeterli.
 
 Doğrulama (2026-08-23): `/api/agent` proxy'si üzerinden "Kaç aktif müşterimiz
 var?" → `schema_lookup` + `sql_query` çalıştı, 170 KB SSE, cevap
@@ -129,7 +131,17 @@ Güvenlik testleri dış bağımlılık istemez (yalnız `sqlglot`):
 ```bash
 python3 -m venv .venv && .venv/bin/pip install sqlglot
 .venv/bin/python evals/test_sql_guard.py
+.venv/bin/python evals/test_templates.py
+.venv/bin/python evals/test_router.py
 ```
+
+Router testleri Haiku çağırmaz: JSON parse, çıplak ciro tuzağı, risk
+clarify, `build_spec` SQL guard.
+
+
+Şablon testleri home/slash kilitli metinlerin eşleştiğini, belirsiz
+risk / KDV'siz ciro / alıntının eşleşmediğini ve üretilen SQL'in
+`sql_guard`'dan geçtiğini doğrular (DB yok).
 
 31 test: 23 reddetme (DROP, stacked query, CTE'ye gizlenmiş DELETE, ham tablo
 join'i, `pg_read_file`, sistem şemaları…), 8 kabul, 1 LIMIT tavanı.
@@ -154,6 +166,9 @@ kanıtlanabilir. Script bunu yapar ve okunabilir view'larda **0 satır** döners
 
 ```
 agent.py              create_deep_agent — model + araç kaydı + prompt/skills/memory
+harness.py            Opus 5 profili: GP subagent kapalı, Haiku özetleme, 1 saat cache
+templates/            Home/slash kilitli sorular — Opus'suz SQL şablonu
+router/               Haiku classify (template|clarify|oos|opus); SQL yazmaz
 auth.py               x-agent-secret — proxy'nin AGENT_INGRESS_SECRET'i buradan doğrulanır
 langgraph.json        LangGraph sunucu tanımı
 sync-env.sh           kök .env -> agent/.env (beyaz listeli)
@@ -169,6 +184,7 @@ tools/
   schema_lookup.py      semantic layer erişimi
   locus_actions.py      yazma (Next.js API üzerinden)
 middleware/audit.py   araç çağrısı logu
+middleware/fast_path.py  exact → prefilter → Haiku classify; SQL Python'da
 connectors/mcp.py     n8n — v2 iskelesi (v1'de pasif)
 evals/                güvenlik + davranış testleri
 ```

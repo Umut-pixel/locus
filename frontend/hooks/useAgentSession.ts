@@ -17,6 +17,7 @@ import {
   notifyKonusmalarChanged,
   type KonusmaMesaj,
 } from "@/lib/agent-konusma";
+import { konusmaAmaci } from "@/lib/agent-playbook";
 import { reportAgentDown, reportAgentOk } from "@/lib/agent-status";
 
 export type ChatRole = "user" | "assistant" | "error";
@@ -112,6 +113,7 @@ export function useAgentSession(opts?: {
   const quoteRef = useRef<string | null>(null);
   const threadRef = useRef<string | null>(urlThread);
   const skipLoadRef = useRef(false);
+  const purposeSetRef = useRef(false);
 
   const [revealId, setRevealId] = useState<string | null>(null);
   if (answerId && answerId !== revealId) {
@@ -168,6 +170,7 @@ export function useAgentSession(opts?: {
     abortRef.current?.abort();
     abortRef.current = null;
     threadRef.current = null;
+    purposeSetRef.current = false;
     setBusy(false);
     setAnswerId(null);
     setMessages([]);
@@ -188,6 +191,7 @@ export function useAgentSession(opts?: {
       abortRef.current?.abort();
       abortRef.current = null;
       threadRef.current = null;
+      purposeSetRef.current = false;
       setBusy(false);
       setMessages([]);
       setTrace([]);
@@ -206,6 +210,9 @@ export function useAgentSession(opts?: {
         const body = (await res.json()) as { mesajlar?: KonusmaMesaj[] };
         if (cancelled) return;
         setMessages((body.mesajlar ?? []).map(fromStored));
+        purposeSetRef.current = (body.mesajlar ?? []).some(
+          (m) => m.rol === "assistant"
+        );
         setTrace([]);
         traceRef.current = [];
         setAnswerId(null);
@@ -316,11 +323,9 @@ export function useAgentSession(opts?: {
 
         if (persist && threadId) {
           try {
-            await appendMessages(
-              threadId,
-              [{ id: userId, role: "user", text: q, quote: alinti }],
-              { baslik: konusmaBasligi(q), ozet: konusmaOzeti(q) }
-            );
+            await appendMessages(threadId, [
+              { id: userId, role: "user", text: q, quote: alinti },
+            ]);
             notifyKonusmalarChanged();
           } catch {
             /* */
@@ -374,9 +379,14 @@ export function useAgentSession(opts?: {
             }
           }
           if (toSave.length > 0) {
-            void appendMessages(threadId, toSave).then(() =>
-              notifyKonusmalarChanged()
-            );
+            const meta =
+              !purposeSetRef.current && yanitMetin.trim()
+                ? { ozet: konusmaAmaci(q, yanitMetin) }
+                : undefined;
+            void appendMessages(threadId, toSave, meta).then(() => {
+              if (meta) purposeSetRef.current = true;
+              notifyKonusmalarChanged();
+            });
           }
         }
       })();

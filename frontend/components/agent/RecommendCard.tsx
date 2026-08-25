@@ -28,12 +28,19 @@ function toneFor(signal: number): string {
   return "var(--ink-3)";
 }
 
+export type RecommendAccept = {
+  key: string;
+  question: string;
+  short: string;
+  body: string;
+};
+
 export function RecommendCard({
   block,
   onAccept,
 }: {
   block: RecommendBlock;
-  onAccept?: (key: string) => void;
+  onAccept?: (choice: RecommendAccept) => void;
 }) {
   const [selected, setSelected] = useState(0);
   const [open, setOpen] = useState(false);
@@ -108,7 +115,12 @@ export function RecommendCard({
             className="text-[12.5px]"
             onClick={() => {
               setAccepted(true);
-              onAccept?.(active.key);
+              onAccept?.({
+                key: active.key,
+                question: block.question,
+                short: active.short,
+                body: active.body,
+              });
             }}
           >
             {accepted ? "Onaylandı" : active.cta}

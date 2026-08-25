@@ -8,7 +8,7 @@ import { AgentTable } from "@/components/agent/AgentTable";
 import { FilterTable } from "@/components/agent/FilterTable";
 import { InsightChart } from "@/components/agent/InsightChart";
 import { LoadingState } from "@/components/agent/LoadingState";
-import { RecommendCard } from "@/components/agent/RecommendCard";
+import { RecommendCard, type RecommendAccept } from "@/components/agent/RecommendCard";
 import { StreamingWords } from "@/components/agent/StreamingWords";
 import {
   parseAgentContent,
@@ -97,7 +97,7 @@ function BlockView({
 }: {
   block: AgentBlock;
   streamingTail?: boolean;
-  onAccept?: (key: string) => void;
+  onAccept?: (choice: RecommendAccept) => void;
 }) {
   switch (block.type) {
     case "pending":
@@ -132,7 +132,7 @@ export const AgentMarkdown = memo(function AgentMarkdown({
   children: string;
   className?: string;
   streaming?: boolean;
-  onAccept?: (key: string) => void;
+  onAccept?: (choice: RecommendAccept) => void;
 }) {
   const blocks = parseAgentContent(children, { streaming });
   const lastMd = streaming

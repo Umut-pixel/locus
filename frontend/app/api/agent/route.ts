@@ -1,5 +1,12 @@
 import { NextResponse } from "next/server";
 
+import {
+  langgraphOrigin,
+  loadKonusmaPlaybook,
+  threadHasMessages,
+  type LgMessage,
+} from "@/lib/agent-hydrate";
+
 /**
  * AI asistanı proxy'si — tarayıcı ile kendi sunucumuzdaki LangGraph
  * agent'ı arasında durur.
@@ -164,6 +171,26 @@ export async function POST(request: Request) {
       ? body.threadId.trim()
       : undefined;
 
+  const inputMessages: LgMessage[] = [{ role: "user", content: message }];
+  if (threadId) {
+    try {
+      const warm = await threadHasMessages(
+        langgraphOrigin(agentUrl),
+        threadId,
+        ingressSecret,
+        request.signal
+      );
+      if (!warm) {
+        const playbook = await loadKonusmaPlaybook(threadId, message);
+        if (playbook.length > 0) {
+          inputMessages.unshift(...playbook);
+        }
+      }
+    } catch {
+      /* checkpointer varsayılanı: yalnız yeni mesaj */
+    }
+  }
+
   try {
     const upstream = await fetch(agentUrl, {
       method: "POST",
@@ -174,7 +201,7 @@ export async function POST(request: Request) {
       },
       body: JSON.stringify({
         assistant_id: ASSISTANT_ID,
-        input: { messages: [{ role: "user", content: message }] },
+        input: { messages: inputMessages },
         ...(threadId ? { thread_id: threadId } : {}),
         stream_mode: "messages",
       }),

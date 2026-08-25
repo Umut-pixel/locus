@@ -10,6 +10,7 @@ import decimal
 import json
 import os
 import uuid
+from dataclasses import dataclass, field
 from datetime import date, datetime, time, timedelta
 from typing import Any
 
@@ -53,6 +54,125 @@ def _jsonable(value: Any) -> Any:
     return str(value)
 
 
+@dataclass
+class GuardedQueryOutcome:
+    """sql_guard + DB sonucunun hem araç hem fast-path için ortak biçimi."""
+
+    ok: bool
+    message: str
+    rows: list[dict[str, Any]] = field(default_factory=list)
+    sql: str = ""
+    relations: tuple[str, ...] = ()
+    limit: int | None = None
+
+
+def execute_guarded_sql(sql: str) -> GuardedQueryOutcome:
+    """SQL'i doğrula ve locus_agent_ro ile çalıştır. Guard atlanmaz."""
+    try:
+        guarded = validate_sql(sql)
+    except SqlGuardError as err:
+        return GuardedQueryOutcome(
+            ok=False,
+            message=f"SORGU REDDEDİLDİ: {err}\n\nSQL'i düzeltip tekrar dene.",
+        )
+
+    dsn = os.environ.get(_DSN_ENV)
+    if not dsn:
+        return GuardedQueryOutcome(
+            ok=False,
+            sql=guarded.sql,
+            relations=guarded.relations,
+            limit=guarded.limit,
+            message=(
+                f"YAPILANDIRMA HATASI: {_DSN_ENV} tanımlı değil. "
+                "agent/.env dosyasına locus_agent_ro bağlantı dizesini ekle."
+            ),
+        )
+
+    try:
+        with psycopg.connect(dsn, row_factory=dict_row, connect_timeout=10) as conn:
+            # Sürücü seviyesinde de read-only — rol ayarına ek güvence.
+            conn.read_only = True
+            with conn.cursor() as cur:
+                cur.execute(guarded.sql)  # type: ignore[arg-type]
+                rows = cur.fetchall()
+    except psycopg.errors.InsufficientPrivilege as err:
+        return GuardedQueryOutcome(
+            ok=False,
+            sql=guarded.sql,
+            relations=guarded.relations,
+            limit=guarded.limit,
+            message=f"YETKİ HATASI: {err}\nBu kaynağa erişim yok. Başka bir view dene.",
+        )
+    except psycopg.errors.QueryCanceled:
+        return GuardedQueryOutcome(
+            ok=False,
+            sql=guarded.sql,
+            relations=guarded.relations,
+            limit=guarded.limit,
+            message=(
+                "ZAMAN AŞIMI (10sn): Sorgu çok ağır. Filtre ekle, tarih aralığını "
+                "daralt veya agregasyon kullan."
+            ),
+        )
+    except psycopg.Error as err:
+        return GuardedQueryOutcome(
+            ok=False,
+            sql=guarded.sql,
+            relations=guarded.relations,
+            limit=guarded.limit,
+            message=f"SQL HATASI: {err}\n\nSorguyu düzeltip tekrar dene.",
+        )
+
+    payload = [{k: _jsonable(v) for k, v in row.items()} for row in rows]
+    if not payload:
+        return GuardedQueryOutcome(
+            ok=True,
+            rows=[],
+            sql=guarded.sql,
+            relations=guarded.relations,
+            limit=guarded.limit,
+            message=(
+                f"Sonuç yok (0 satır).\nÇalıştırılan SQL: {guarded.sql}\n\n"
+                "Filtreler fazla dar olabilir — kontrol et."
+            ),
+        )
+
+    try:
+        body = json.dumps(payload, ensure_ascii=False, indent=1, default=str)
+    except (TypeError, ValueError) as err:
+        return GuardedQueryOutcome(
+            ok=False,
+            sql=guarded.sql,
+            relations=guarded.relations,
+            limit=guarded.limit,
+            message=(
+                f"SQL HATASI: Sonuç JSON'a çevrilemedi ({err}). "
+                "Daha az kolon seçip tekrar dene."
+            ),
+        )
+
+    truncated = ""
+    if len(body) > _MAX_RESULT_CHARS:
+        body = body[:_MAX_RESULT_CHARS]
+        truncated = (
+            "\n\n[SONUÇ KISALTILDI — daha az kolon seç veya agregasyon kullan]"
+        )
+
+    return GuardedQueryOutcome(
+        ok=True,
+        rows=payload,
+        sql=guarded.sql,
+        relations=guarded.relations,
+        limit=guarded.limit,
+        message=(
+            f"{len(rows)} satır (limit {guarded.limit}).\n"
+            f"Kaynak: {', '.join(guarded.relations)}\n"
+            f"SQL: {guarded.sql}\n\n{body}{truncated}"
+        ),
+    )
+
+
 @tool(parse_docstring=True)
 def sql_query(sql: str) -> str:
     """Locus veritabanında salt-okunur SQL sorgusu çalıştırır.
@@ -67,61 +187,4 @@ def sql_query(sql: str) -> str:
     Args:
         sql: Çalıştırılacak PostgreSQL SELECT sorgusu.
     """
-    try:
-        guarded = validate_sql(sql)
-    except SqlGuardError as err:
-        return f"SORGU REDDEDİLDİ: {err}\n\nSQL'i düzeltip tekrar dene."
-
-    dsn = os.environ.get(_DSN_ENV)
-    if not dsn:
-        return (
-            f"YAPILANDIRMA HATASI: {_DSN_ENV} tanımlı değil. "
-            "agent/.env dosyasına locus_agent_ro bağlantı dizesini ekle."
-        )
-
-    try:
-        with psycopg.connect(dsn, row_factory=dict_row, connect_timeout=10) as conn:
-            # Sürücü seviyesinde de read-only — rol ayarına ek güvence.
-            conn.read_only = True
-            with conn.cursor() as cur:
-                cur.execute(guarded.sql)  # type: ignore[arg-type]
-                rows = cur.fetchall()
-    except psycopg.errors.InsufficientPrivilege as err:
-        return f"YETKİ HATASI: {err}\nBu kaynağa erişim yok. Başka bir view dene."
-    except psycopg.errors.QueryCanceled:
-        return (
-            "ZAMAN AŞIMI (10sn): Sorgu çok ağır. Filtre ekle, tarih aralığını "
-            "daralt veya agregasyon kullan."
-        )
-    except psycopg.Error as err:
-        return f"SQL HATASI: {err}\n\nSorguyu düzeltip tekrar dene."
-
-    if not rows:
-        return (
-            f"Sonuç yok (0 satır).\nÇalıştırılan SQL: {guarded.sql}\n\n"
-            "Filtreler fazla dar olabilir — kontrol et."
-        )
-
-    try:
-        payload = [{k: _jsonable(v) for k, v in row.items()} for row in rows]
-        # default=str: _jsonable'ın kaçırdığı nadir tipler (inet, range, …)
-        # agent turunu çökertmesin.
-        body = json.dumps(payload, ensure_ascii=False, indent=1, default=str)
-    except (TypeError, ValueError) as err:
-        return (
-            f"SQL HATASI: Sonuç JSON'a çevrilemedi ({err}). "
-            "Daha az kolon seçip tekrar dene."
-        )
-
-    truncated = ""
-    if len(body) > _MAX_RESULT_CHARS:
-        body = body[:_MAX_RESULT_CHARS]
-        truncated = (
-            "\n\n[SONUÇ KISALTILDI — daha az kolon seç veya agregasyon kullan]"
-        )
-
-    return (
-        f"{len(rows)} satır (limit {guarded.limit}).\n"
-        f"Kaynak: {', '.join(guarded.relations)}\n"
-        f"SQL: {guarded.sql}\n\n{body}{truncated}"
-    )
+    return execute_guarded_sql(sql).message

@@ -11,6 +11,9 @@ from deepagents.backends import CompositeBackend, FilesystemBackend, StateBacken
 
 from memory import MEMORY_PATHS
 from middleware.audit import audit_tool_calls
+from middleware.cache_usage import log_prompt_cache
+from middleware.fast_path import fast_path
+from harness import register_locus_harness
 from tools.locus_actions import musteri_favori_toggle, musteri_notu_ekle
 from tools.konusma_gecmisi import konusma_gecmisi
 from tools.schema_lookup import schema_lookup
@@ -33,8 +36,14 @@ _BACKEND = CompositeBackend(
 # sessizce %20 sapmalı rakam üretir, o yüzden en güçlü akıl yürütme katmanı.
 MAIN_MODEL = "anthropic:claude-opus-5"
 
-# Ucuz alt görevler (niyet sınıflandırma, özetleme) için.
+# Context-window özetleme — ucuz / hızlı. SQL ve analiz Opus'ta kalır.
 FAST_MODEL = "anthropic:claude-haiku-4-5"
+
+register_locus_harness(
+    model_id=MAIN_MODEL,
+    fast_model=FAST_MODEL,
+    backend=_BACKEND,
+)
 
 agent = create_deep_agent(
     name="locus-analyst",
@@ -50,5 +59,5 @@ agent = create_deep_agent(
         musteri_notu_ekle,  # yazma (yalnız açık istek üzerine)
         musteri_favori_toggle,
     ],
-    middleware=[audit_tool_calls],
+    middleware=[fast_path, audit_tool_calls, log_prompt_cache],
 )

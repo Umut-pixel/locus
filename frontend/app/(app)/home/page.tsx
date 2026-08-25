@@ -7,6 +7,7 @@ import { ArrowLeftIcon } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 
 import { AgentMarkdown } from "@/components/agent/AgentMarkdown";
+import type { RecommendAccept } from "@/components/agent/RecommendCard";
 import { ContextCards } from "@/components/agent/ContextCards";
 import { HomeOverviewBento } from "@/components/agent/HomeOverviewBento";
 import { LoadingState } from "@/components/agent/LoadingState";
@@ -192,6 +193,18 @@ function HomeChat() {
                     tasks={tasks}
                     contexts={contexts}
                     onReply={setPendingQuote}
+                    onAcceptRecommend={
+                      busy
+                        ? undefined
+                        : (choice) => {
+                            send(
+                              `Öneri kartını uygula. ${choice.question} Seçenek (${choice.key}): ${choice.short}. ${choice.body}`.slice(
+                                0,
+                                4000
+                              )
+                            );
+                          }
+                    }
                   />
                 ))}
                 {waiting ? (
@@ -344,6 +357,7 @@ function Turn({
   tasks,
   contexts,
   onReply,
+  onAcceptRecommend,
 }: {
   message: ChatMessage;
   live: boolean;
@@ -353,6 +367,7 @@ function Turn({
   tasks: AgentTask[];
   contexts: ContextChunk[];
   onReply: (quote: string) => void;
+  onAcceptRecommend?: (choice: RecommendAccept) => void;
 }) {
   if (m.role === "user") {
     return (
@@ -387,7 +402,12 @@ function Turn({
     <div className="flex flex-col gap-2.5">
       {body ? (
         <SelectionReply enabled={!live} onReply={onReply}>
-          <AgentMarkdown streaming={live}>{body}</AgentMarkdown>
+          <AgentMarkdown
+            streaming={live}
+            onAccept={live ? undefined : onAcceptRecommend}
+          >
+            {body}
+          </AgentMarkdown>
         </SelectionReply>
       ) : null}
       {!live && body ? <MessageActions text={body} /> : null}

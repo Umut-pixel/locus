@@ -2,8 +2,9 @@
 
 Sohbet gövdesi `agent_konusmalar` / `agent_konusma_mesajlari` tablolarında.
 Bu araç LLM'in yazdığı SQL değil; parametreli okuma. Limitler bağlamı
-taşırmaz. Aktif thread LangGraph checkpointer'da zaten durur; burası
-*diğer* konuşmalar ve uzun vadeli niyet için.
+taşırmaz. Aktif sohbet restart sonrası proxy playbook'u ile dolabilir;
+burası *diğer* konuşmalar ve uzun vadeli niyet için. Rakam kopyalama —
+çağıran sql_query ile yeniler.
 """
 
 from __future__ import annotations
