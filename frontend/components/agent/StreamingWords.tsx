@@ -14,7 +14,7 @@ export function StreamingWords({
   return (
     <p className="text-[13px] leading-relaxed text-ink">
       {tokens.map((token, i) => (
-        <span key={`${i}-${token.slice(0, 12)}`} className="agent-word">
+        <span key={i} className="agent-word">
           {token}
         </span>
       ))}

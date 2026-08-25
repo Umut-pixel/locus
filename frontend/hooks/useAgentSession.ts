@@ -127,15 +127,10 @@ export function useAgentSession(opts?: {
   const purposeSetRef = useRef(false);
 
   const [revealId, setRevealId] = useState<string | null>(null);
-  if (answerId && answerId !== revealId) {
-    setRevealId(answerId);
-  }
-  const revealMsg =
-    messages.find((m) => m.id === answerId) ??
-    messages.find((m) => m.id === revealId);
+  const revealMsg = messages.find((m) => m.id === revealId);
   const { text: revealed, pending: revealing } = useRevealedText(
     revealMsg?.text ?? "",
-    Boolean(answerId)
+    revealId
   );
   const replySettled =
     !busy && messages.some((m) => m.role === "assistant" && m.text.length > 0);
@@ -174,6 +169,7 @@ export function useAgentSession(opts?: {
     abortRef.current = null;
     setBusy(false);
     setAnswerId(null);
+    setRevealId(null);
     sealLive(null);
   }, [sealLive]);
 
@@ -184,6 +180,7 @@ export function useAgentSession(opts?: {
     purposeSetRef.current = false;
     setBusy(false);
     setAnswerId(null);
+    setRevealId(null);
     setMessages([]);
     setTrace([]);
     traceRef.current = [];
@@ -208,6 +205,7 @@ export function useAgentSession(opts?: {
       setTrace([]);
       traceRef.current = [];
       setAnswerId(null);
+      setRevealId(null);
       return;
     }
     if (urlThread === threadRef.current && messages.length > 0) return;
@@ -227,6 +225,7 @@ export function useAgentSession(opts?: {
         setTrace([]);
         traceRef.current = [];
         setAnswerId(null);
+        setRevealId(null);
       } catch {
         /* yüklenemezse boş thread */
       }
@@ -256,6 +255,7 @@ export function useAgentSession(opts?: {
       traceRef.current = [];
       setTrace([]);
       setAnswerId(null);
+      setRevealId(null);
       setMessages((prev) => [
         ...prev.map((m) =>
           m.streaming
@@ -287,6 +287,7 @@ export function useAgentSession(opts?: {
               yanitId = yeni;
               id = yeni;
               setAnswerId(yeni);
+              setRevealId(yeni);
               setMessages((prev) => [
                 ...prev,
                 {
