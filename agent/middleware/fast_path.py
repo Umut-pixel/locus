@@ -57,11 +57,8 @@ def _last_human_if_turn_start(request: object) -> str | None:
 
 
 def _model_response(text: str, model_name: str | None = None) -> ModelResponse:
-    meta = (
-        {"model_name": model_name, "model_provider": "anthropic"}
-        if model_name
-        else {}
-    )
+    name = model_name or "claude-haiku-4-5"
+    meta = {"model_name": name, "model_provider": "anthropic"}
     return ModelResponse(result=[AIMessage(content=text, response_metadata=meta)])
 
 
@@ -70,7 +67,7 @@ async def _resolve_spec(text: str) -> tuple[TemplateSpec | str | None, str | Non
     spec = match_template(text)
     if spec is not None:
         logger.info("fast-path exact %s", spec.template_id)
-        return spec, None
+        return spec, "claude-haiku-4-5"
 
     used: str | None = None
     decision = prefilter_route(text)
@@ -85,10 +82,10 @@ async def _resolve_spec(text: str) -> tuple[TemplateSpec | str | None, str | Non
     action = apply_route(decision)
     if action.kind == "text" and action.text:
         logger.info("fast-path canned %s", decision.route)
-        return action.text, used
+        return action.text, used or "claude-haiku-4-5"
     if action.kind == "spec" and isinstance(action.spec, TemplateSpec):
         logger.info("fast-path route template_id=%s", action.spec.template_id)
-        return action.spec, used
+        return action.spec, used or "claude-haiku-4-5"
     return None, None
 
 

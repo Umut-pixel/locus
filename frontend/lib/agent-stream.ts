@@ -231,12 +231,26 @@ function bosDurum(): StreamState {
 
 function extractModelName(msg: Record<string, unknown>): string | null {
   const meta = msg.response_metadata;
-  if (!meta || typeof meta !== "object") return null;
-  const rec = meta as Record<string, unknown>;
-  const name = rec.model_name ?? rec.model;
-  if (typeof name !== "string") return null;
-  const t = name.trim();
-  return t || null;
+  const rec =
+    meta && typeof meta === "object" && !Array.isArray(meta)
+      ? (meta as Record<string, unknown>)
+      : {};
+  const extra =
+    msg.additional_kwargs && typeof msg.additional_kwargs === "object"
+      ? (msg.additional_kwargs as Record<string, unknown>)
+      : {};
+  const candidates = [
+    rec.model_name,
+    rec.model,
+    rec.ls_model_name,
+    extra.model_name,
+    extra.model,
+    msg.model,
+  ];
+  for (const name of candidates) {
+    if (typeof name === "string" && name.trim()) return name.trim();
+  }
+  return null;
 }
 
 /**
