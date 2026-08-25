@@ -153,6 +153,18 @@ def main() -> int:
         except SqlGuardError as err:
             fail(f"toplam SQL: {err}")
 
+    top5 = match_template("Bu dönem en yüksek cirolu 5 müşteri kim?")
+    if top5 is None or top5.template_id != "top_ciro_5":
+        fail("top_ciro_5 exact miss")
+    elif "belge_net_ciro" not in top5.sql or "LIMIT 5" not in top5.sql.upper():
+        fail("top_ciro_5 SQL")
+    else:
+        try:
+            validate_sql(top5.sql)
+            ok("top_ciro_5 exact")
+        except SqlGuardError as err:
+            fail(f"top_ciro_5 SQL: {err}")
+
     sehir = match_template(
         "Balıkesir'deki müşterilerin toplam açık bakiyesi ve cirosu ne?"
     )

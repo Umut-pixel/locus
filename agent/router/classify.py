@@ -65,8 +65,6 @@ _RISK_FOLDS = frozenset(
     }
 )
 
-_model = None
-
 
 def prefilter_route(text: str) -> Decision | None:
     """Haiku öncesi kilit: eval + güvenlik. None = classify et."""
@@ -169,67 +167,49 @@ def apply_route(decision: Decision) -> RouteAction:
     return RouteAction(kind="opus")
 
 
-def _get_model():
-    global _model
-    if _model is None:
-        from langchain.chat_models import init_chat_model
+def _anthropic_model_id() -> str:
+    return CLASSIFIER_MODEL.split(":", 1)[-1]
 
-        _model = init_chat_model(
-            CLASSIFIER_MODEL,
-            temperature=0,
-            max_tokens=CLASSIFY_MAX_TOKENS,
-            disable_streaming=True,
+
+async def _haiku_json(text: str) -> str:
+    """LangChain'siz HTTP — wrap_model_call callback'ine yazılmaz."""
+    import os
+
+    import httpx
+
+    key = (os.environ.get("ANTHROPIC_API_KEY") or "").strip()
+    if not key:
+        raise RuntimeError("ANTHROPIC_API_KEY yok")
+    async with httpx.AsyncClient(timeout=CLASSIFY_TIMEOUT_S) as client:
+        response = await client.post(
+            "https://api.anthropic.com/v1/messages",
+            headers={
+                "x-api-key": key,
+                "anthropic-version": "2023-06-01",
+                "content-type": "application/json",
+            },
+            json={
+                "model": _anthropic_model_id(),
+                "max_tokens": CLASSIFY_MAX_TOKENS,
+                "temperature": 0,
+                "system": _PROMPT,
+                "messages": [{"role": "user", "content": text}],
+            },
         )
-    return _model
-
-
-def _content_text(msg: object) -> str:
-    content = getattr(msg, "content", "")
-    if isinstance(content, str):
-        return content
-    if isinstance(content, list):
-        parts: list[str] = []
-        for block in content:
-            if isinstance(block, str):
-                parts.append(block)
-            elif isinstance(block, dict) and isinstance(block.get("text"), str):
-                parts.append(str(block["text"]))
-            else:
-                t = getattr(block, "text", None)
-                if isinstance(t, str):
-                    parts.append(t)
-        return "".join(parts)
-    return str(content or "")
+        response.raise_for_status()
+        body = response.json()
+    parts: list[str] = []
+    for block in body.get("content") or []:
+        if isinstance(block, dict) and block.get("type") == "text":
+            parts.append(str(block.get("text") or ""))
+    return "".join(parts)
 
 
 async def classify(text: str) -> Decision:
-    """Haiku JSON. Hata/timeout → opus.
-
-    Agent `wrap_model_call` içinden çağrılır; parent callback/stream'e
-    yazılırsa JSON sohbete sızar ve Opus turu 'internal error' olur.
-    """
-    from langchain_core.runnables.config import var_child_runnable_config
-
-    token = var_child_runnable_config.set({"callbacks": []})
+    """Haiku JSON. Hata/timeout → opus. LangChain ainvoke yok."""
     try:
-        from langchain_core.messages import HumanMessage, SystemMessage
-
-        model = _get_model()
-        messages = [
-            SystemMessage(content=_PROMPT),
-            HumanMessage(content=text),
-        ]
-        isolated = {"callbacks": []}
-
-        async def _call():
-            if hasattr(model, "ainvoke"):
-                return await model.ainvoke(messages, config=isolated)
-            return model.invoke(messages, config=isolated)
-
-        msg = await asyncio.wait_for(_call(), timeout=CLASSIFY_TIMEOUT_S)
-        raw = _content_text(msg)
-        decision = parse_decision(raw)
-        out = normalize_decision(text, decision)
+        raw = await asyncio.wait_for(_haiku_json(text), timeout=CLASSIFY_TIMEOUT_S)
+        out = normalize_decision(text, parse_decision(raw))
         logger.info(
             "classify route=%s template_id=%s",
             out.route,
@@ -239,5 +219,3 @@ async def classify(text: str) -> Decision:
     except Exception:
         logger.info("classify fail-open opus", exc_info=True)
         return OPUS
-    finally:
-        var_child_runnable_config.reset(token)

@@ -132,6 +132,33 @@ def _render_borc_30(outcome: QueryOutcome) -> str:
     )
 
 
+def _render_top_ciro(outcome: QueryOutcome) -> str:
+    err = _empty_or_error(
+        outcome, "Bu dönem KDV hariç net cirosu olan müşteri yok."
+    )
+    if err is not None:
+        return err
+    table_rows: list[list[str]] = []
+    for row in outcome.rows:
+        table_rows.append(
+            [
+                str(row.get("unvan") or "—"),
+                str(row.get("sehir") or "—"),
+                str(row.get("ilce") or "—"),
+                format_try(row.get("net_ciro")),
+            ]
+        )
+    summary = (
+        f"Bu dönem en yüksek KDV hariç net ciro (`belge_net_ciro`), "
+        f"ilk {format_number(len(table_rows))} müşteri."
+    )
+    return maybe_table(
+        ["Müşteri", "Şehir", "İlçe", "Net ciro"],
+        table_rows,
+        fallback=summary,
+    )
+
+
 def _render_ilce(ilce: str):
     def render(outcome: QueryOutcome) -> str:
         err = _empty_or_error(
@@ -361,6 +388,14 @@ _BORC_30_SQL = (
     "ORDER BY bakiye_28_plus DESC LIMIT 20"
 )
 
+_TOP_CIRO_SQL = (
+    "SELECT unvan, sehir, ilce, belge_net_ciro AS net_ciro "
+    "FROM musteriler_rapor "
+    "WHERE COALESCE(belge_net_ciro, 0) > 0 "
+    "ORDER BY belge_net_ciro DESC "
+    "LIMIT 5"
+)
+
 
 def _exact_specs() -> dict[str, TemplateSpec]:
     items: list[tuple[str, TemplateSpec]] = [
@@ -421,6 +456,10 @@ def _exact_specs() -> dict[str, TemplateSpec]:
         (
             "Bu dönem net ciro (KDV hariç) nedir?",
             TemplateSpec("net_ciro", _CIRO_SQL, _render_net_ciro),
+        ),
+        (
+            "Bu dönem en yüksek cirolu 5 müşteri kim?",
+            TemplateSpec("top_ciro_5", _TOP_CIRO_SQL, _render_top_ciro),
         ),
         (
             "Risk durumuna göre müşteri sayısı nedir?",

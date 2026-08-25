@@ -40,6 +40,7 @@ MUST_HIT = [
     ("İptal müşteri sayısı nedir?", "musteri_durum_iptal"),
     ("Durumu belirsiz müşteri sayısı nedir?", "musteri_durum_diger"),
     ("Bu dönem net ciro (KDV hariç) nedir?", "net_ciro"),
+    ("Bu dönem en yüksek cirolu 5 müşteri kim?", "top_ciro_5"),
     ("Risk durumuna göre müşteri sayısı nedir?", "sevkiyat_risk_kirilim"),
     ("Sağlıklı teslimat durumundaki müşteri sayısı nedir?", "sevkiyat_risk_saglikli"),
     ("İzlenmeli müşteri sayısı nedir?", "sevkiyat_risk_izlenmeli"),
@@ -152,6 +153,22 @@ def main() -> int:
         fail(f"ciro render: {rendered!r}")
     else:
         ok("ciro render KDV hariç")
+
+    top5 = match_template("Bu dönem en yüksek cirolu 5 müşteri kim?")
+    assert top5 is not None
+    top5_txt = top5.render(
+        _FakeOutcome(
+            rows=[
+                {"unvan": "A", "sehir": "İZMİR", "ilce": "BORNOVA", "net_ciro": "100"},
+                {"unvan": "B", "sehir": "İZMİR", "ilce": "KONAK", "net_ciro": "90"},
+                {"unvan": "C", "sehir": "MANİSA", "ilce": "YUNUSEMRE", "net_ciro": "80"},
+            ]
+        )
+    )
+    if "KDV hariç" not in top5_txt or "```locus" not in top5_txt:
+        fail(f"top_ciro_5 render: {top5_txt[:200]!r}")
+    else:
+        ok("top_ciro_5 render")
 
     borc = match_template("30 günü aşan borçlu müşterileri listele")
     assert borc is not None

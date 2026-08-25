@@ -33,6 +33,7 @@ Tek JSON nesnesi, başka metin yok:
 musteri_toplam (durum belirtmeden kaç/toplam müşteri — analiz değil),
 musteri_durum_aktif, musteri_durum_pasif, musteri_durum_iptal, musteri_durum_diger,
 net_ciro (yalnız KDV tipi açıkça hariç/dahil/brüt ise; dahil/brüt ise opus),
+top_ciro_5 (en yüksek cirolu 5 — KDV hariç belge_net_ciro; analiz değil),
 sevkiyat_risk_kirilim, sevkiyat_risk_saglikli, sevkiyat_risk_izlenmeli,
 sevkiyat_risk_riskli, sevkiyat_risk_yok,
 borc_temiz, borc_kisa, borc_56, borc_verisiz, borc_30_plus,
