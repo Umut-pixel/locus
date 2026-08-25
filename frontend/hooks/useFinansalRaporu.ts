@@ -95,10 +95,11 @@ type MusteriFinansalRow = Pick<
 export interface FinansalOzet {
   toplamAcikBakiye: number;
   toplamRiskliTutar: number;
+  /** İskonto öncesi brüt satış, KDV dahil. */
   toplamBrutCiro: number;
   toplamNetCiro: number;
   toplamNetCiroKdvDahil: number;
-  /** Ay başından bugüne, KDV hariç net satış (iadeler işaretli girer). */
+  /** Ay başından bugüne, KDV dahil (Panorama Nettutar; iadeler işaretli girer). */
   aylikNetCiro: number;
   borcluMusteriSayisi: number;
 }
@@ -309,9 +310,15 @@ export function useFinansalRaporu() {
     for (const m of musteriler) {
       toplamAcikBakiye += m.yas_toplam ?? 0;
       toplamRiskliTutar += m.yas_riskli_tutar ?? 0;
-      toplamBrutCiro += m.belge_brut_ciro ?? 0;
-      toplamNetCiro += m.belge_net_ciro ?? 0;
-      toplamNetCiroKdvDahil += m.belge_net_ciro_kdv_dahil ?? 0;
+      const brut = m.belge_brut_ciro ?? 0;
+      const netHariç = m.belge_net_ciro ?? 0;
+      const netKdvDahil = m.belge_net_ciro_kdv_dahil ?? 0;
+      // Brüt KPI KDV dahil: müşterinin gerçek KDV çarpanı (Nettutar / net hariç).
+      // Payda yoksa %20 — BelgeDetay'da doğrulanan oran.
+      const kdvCarpani = netHariç !== 0 ? netKdvDahil / netHariç : 1.2;
+      toplamBrutCiro += brut * kdvCarpani;
+      toplamNetCiro += netHariç;
+      toplamNetCiroKdvDahil += netKdvDahil;
       if ((m.yas_toplam ?? 0) > 0) borcluMusteriSayisi += 1;
     }
     return {
@@ -374,18 +381,20 @@ export function useFinansalRaporu() {
 
       for (const r of belgeSatirlari) {
         // KDV hariç gerçek net satış = brüt - iskonto (Panorama'nın "Nettutar"ı
-        // KDV dahildir, ciro hesabında kullanılmaz — bkz. sql/net_ciro_kdv_haric.sql).
+        // KDV dahildir — trend/kırılım KDV hariç kalır, aylık KPI KDV dahil).
+        // bkz. sql/net_ciro_kdv_haric.sql
         const brut = sayi(r.brut_tutar);
         const iskonto = sayi(r.iskonto);
         const netHesap = Math.round((brut - iskonto) * 100) / 100;
+        const netKdvDahil = Math.round(sayi(r.nettutar) * 100) / 100;
         const iade = iadeMi(metin(r.islem_tip));
         const tarih = parseIslemTarihi(r.islem_tarihi);
 
-        // Aylık KPI net ciro tanımını takip eder: iade satırları işaretleriyle
-        // girer (parse-belge-detay.ts). Trend/kırılım aktivite olduğu için iadeyi
+        // Aylık KPI: Nettutar (KDV dahil). İade satırları işaretleriyle girer
+        // (parse-belge-detay.ts). Trend/kırılım aktivite olduğu için iadeyi
         // aşağıda dışarıda bırakır.
         if (tarih && tarih >= aylikBaslangicIso) {
-          aylikNetCiro += netHesap;
+          aylikNetCiro += netKdvDahil;
         }
 
         if (iade) {

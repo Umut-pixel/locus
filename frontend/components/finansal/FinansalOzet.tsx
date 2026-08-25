@@ -64,7 +64,7 @@ export function FinansalOzet({ ozet, loading }: FinansalOzetProps) {
         icon={CircleDollarSignIcon}
         etiket="Brüt ciro"
         deger={formatCurrency(toplamBrutCiro)}
-        altBilgi="İskonto öncesi, güncel senkron"
+        altBilgi="İskonto öncesi, KDV dahil"
         loading={loading}
       />
 
@@ -88,7 +88,7 @@ export function FinansalOzet({ ozet, loading }: FinansalOzetProps) {
         icon={CalendarRangeIcon}
         etiket="1 aylık ciro"
         deger={formatCurrency(aylikNetCiro)}
-        altBilgi="Ay başından bugüne, KDV hariç"
+        altBilgi="Ay başından bugüne, KDV dahil"
         loading={loading}
       />
     </div>
