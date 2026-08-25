@@ -46,10 +46,7 @@ export function SktYaklasanPanel({
   );
 
   return (
-    <section
-      ref={wrapperRef}
-      className="relative flex min-w-0 flex-col border-b border-border lg:border-r lg:border-b-0"
-    >
+    <section ref={wrapperRef} className="relative flex min-w-0 flex-col">
       <header className="flex h-11 shrink-0 items-center justify-between gap-3 border-b border-border/60 px-3.5">
         <h2 className="flex items-center gap-1.5 text-[12px] font-medium tracking-[0.06em] text-muted-foreground uppercase">
           <CalendarClockIcon

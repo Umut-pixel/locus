@@ -63,9 +63,12 @@ aksiyon gerektirenler ilk ikisi:
 
 ```sql
 SELECT belge_kod, musteri_unvan, islem_tarihi, bekleyen_siparis,
-       SUM(genel_toplam) AS tutar
+       SUM(nettutar) AS net_tutar
 FROM v_panorama_siparis_durum_raporu_guncel
 WHERE bekleyen_siparis IN ('Bekleyen Sipariş', 'İrsaliyeleştirildi')
 GROUP BY belge_kod, musteri_unvan, islem_tarihi, bekleyen_siparis
 ORDER BY islem_tarihi ASC
 ```
+
+> `nettutar` = belge footer'ındaki Net Tutar (KDV hariç).
+> `genel_toplam` = nettutar + kdv; kalem toplamında kullanılırsa %20 şişer.

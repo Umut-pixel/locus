@@ -54,6 +54,8 @@ Bir belge = bir sevkiyat. `belge_tarihi` = aracın yüklendiği gün (gerçek).
 ## 4. `v_panorama_siparis_durum_raporu_guncel` — fulfillment (5140)
 `bekleyen_siparis` üç değer alır: "Bekleyen Sipariş", "İrsaliyeleştirildi",
 "Faturalaştırıldı". İlk ikisi aksiyon gerektirir.
+> `nettutar` = Net Tutar (KDV hariç). `genel_toplam` = nettutar + kdv;
+> belge toplamı için **nettutar** topla, yoksa %20 şişer.
 > `sevk_tarihi` **nominal/planlanan** — 5130'un `belge_tarihi`'nden farklı olabilir.
 > Gerçekleşmiş sevkiyat için 5130 kullan.
 

@@ -162,7 +162,10 @@ interface SiparisDurumSatirRaw {
   islem_tarihi: string | null;
   sevk_tarihi: string | null;
   bekleyen_siparis: string | null;
-  genel_toplam: string | null;
+  /** Kalem net tutarı (KDV hariç). genel_toplam = nettutar + kdv; belge
+   *  footer'ındaki "Net Tutar" nettutar toplamıdır — genel_toplam toplanırsa
+   *  %20 şişer. */
+  nettutar: string | null;
   satis_temsilcisi: string | null;
 }
 
@@ -195,6 +198,7 @@ export interface BekleyenSiparisSatiri {
   sevkTarihi: string | null;
   durum: SiparisDurumu;
   kalemSayisi: number;
+  /** Belge net tutarı — kalem `nettutar` toplamı (KDV hariç). */
   toplamTutar: number;
   gecenGun: number | null;
 }
@@ -253,7 +257,7 @@ interface SevkiyatRaporuCache {
   siparisDurumSatirlari: SiparisDurumSatirRaw[];
 }
 
-const CACHE_KEY = "sevkiyat-raporu";
+const CACHE_KEY = "sevkiyat-raporu-v2";
 
 /**
  * Sevkiyat Raporları sayfası — üç kaynak, tek seferde çekilir (Stok
@@ -329,7 +333,7 @@ export function useSevkiyatRaporu() {
             supabase
               .from(PANORAMA_SIPARIS_DURUM_VIEW)
               .select(
-                "musteri_kod,musteri_unvan,belge_kod,islem_tarihi,sevk_tarihi,bekleyen_siparis,genel_toplam,satis_temsilcisi"
+                "musteri_kod,musteri_unvan,belge_kod,islem_tarihi,sevk_tarihi,bekleyen_siparis,nettutar,satis_temsilcisi"
               )
               .in("bekleyen_siparis", Object.keys(SIPARIS_DURUM_ETIKETLERI))
               .range(from, to) as unknown as Promise<{
@@ -604,7 +608,7 @@ export function useSevkiyatRaporu() {
         toplamTutar: 0,
       };
       acc.kalemSayisi += 1;
-      acc.toplamTutar += sayi(r.genel_toplam);
+      acc.toplamTutar += sayi(r.nettutar);
       map.set(belgeKod, acc);
     }
 

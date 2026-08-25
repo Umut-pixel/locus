@@ -14,7 +14,6 @@ import { StokDurumCubugu } from "@/components/stok/StokDurumCubugu";
 import { StokFilters } from "@/components/stok/StokFilters";
 import { StokOzet } from "@/components/stok/StokOzet";
 import { StokTable } from "@/components/stok/StokTable";
-import { StoktaYokPanel } from "@/components/stok/StoktaYokPanel";
 import {
   EMPTY_STOK_FILTERS,
   VARSAYILAN_STOK_SORT,
@@ -56,7 +55,6 @@ export default function StokRaporlariPage() {
     satirlar,
     tumSatirlar,
     ozet,
-    stoktaYokSatirlar,
     markaSecenekleri,
     kategoriSecenekleri,
     loading,
@@ -180,13 +178,11 @@ export default function StokRaporlariPage() {
 
         {/*
          * Grafik ve uyarı panelleri sabit yükseklikte: eksen/etiket bandı
-         * içeride kalsın. Satırın alt kenarı BURADA çiziliyor, çocuk
-         * section'larda değil — StokDagilim ve SktYaklasanPanel masaüstünde
-         * border-b'yi border-r'ye çeviriyor (dikey ayraç için),
-         * StoktaYokPanel'in kendi alt kenarı yok; hepsi kendi border-b'sini
-         * taşısaydı satırın alt kenarı yarım kalırdı.
+         * içeride kalsın. Satırın alt kenarı BURADA çiziliyor — StokDagilim
+         * masaüstünde border-b'yi border-r'ye çeviriyor (dikey ayraç);
+         * SktYaklasanPanel son sütun olduğu için kendi alt/sağ kenarı yok.
          */}
-        <div className="grid border-b border-border lg:grid-cols-3 [&>section]:h-[21rem]">
+        <div className="grid border-b border-border lg:grid-cols-2 [&>section]:h-[21rem]">
           <StokDagilim
             satirlar={satirlar}
             boyut={boyut}
@@ -200,7 +196,6 @@ export default function StokRaporlariPage() {
             stokMiktarlari={stokMiktarlari}
             loading={sktLoading}
           />
-          <StoktaYokPanel satirlar={stoktaYokSatirlar} loading={loading} />
         </div>
 
         <StokTable

@@ -27,8 +27,8 @@ const DURUM_ETIKET: Record<BekleyenSiparisSatiri["durum"], string> = {
  * Sipariş Durum Raporu'ndan (5140) — henüz faturalaştırılmamış siparişler.
  * "Bekleyen Sipariş" (işlenmedi) ve "İrsaliyeleştirildi" (sevk edildi,
  * faturalanmadı) durumları; "Faturalaştırıldı" (çoğunluk, ~8400 satır)
- * hook seviyesinde zaten filtreleniyor. StoktaYokPanel.tsx'in ranked-list
- * deseniyle aynı — 3'lü grid'de orta sütun, bkz. page.tsx'teki border notu.
+ * hook seviyesinde zaten filtreleniyor. Ranked-list deseni (SktYaklasanPanel
+ * ile aynı) — sevkiyat sayfasındaki grid sütun düzenine uyar.
  */
 export function BekleyenSiparislerPanel({
   satirlar,
@@ -73,10 +73,10 @@ export function BekleyenSiparislerPanel({
       {!bos ? (
         <div
           className="flex h-9 shrink-0 items-center justify-between gap-3 border-b border-border/60 px-3.5"
-          aria-label={`Bekleyen siparişlerin toplam tutarı ${formatCurrency(toplamTutar)}`}
+          aria-label={`Bekleyen siparişlerin net tutarı ${formatCurrency(toplamTutar)}`}
         >
           <span className="text-[12px] tracking-[0.06em] text-muted-foreground uppercase">
-            Toplam tutar
+            Net tutar
           </span>
           <span className="font-mono text-[13px] font-medium text-amber-400 tabular-nums">
             {formatCurrency(toplamTutar)}

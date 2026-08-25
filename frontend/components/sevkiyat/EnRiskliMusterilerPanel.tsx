@@ -17,7 +17,7 @@ interface EnRiskliMusterilerPanelProps {
   headerExtra?: React.ReactNode;
 }
 
-/** En uzun süredir teslimat almayan 20 müşteri — StoktaYokPanel.tsx'in ranked-list deseniyle aynı. */
+/** En uzun süredir teslimat almayan 20 müşteri — ranked-list deseni (SktYaklasanPanel ile aynı). */
 export function EnRiskliMusterilerPanel({
   satirlar,
   loading,

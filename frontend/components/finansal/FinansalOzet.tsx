@@ -1,10 +1,9 @@
 "use client";
 
 import {
-  AlertTriangleIcon,
-  BanknoteIcon,
   CalendarRangeIcon,
   CircleDollarSignIcon,
+  ClipboardListIcon,
   ReceiptTextIcon,
   WalletIcon,
 } from "lucide-react";
@@ -12,7 +11,7 @@ import type { LucideIcon } from "lucide-react";
 
 import { type FinansalOzet as FinansalOzetVerisi } from "@/hooks/useFinansalRaporu";
 import { useCountUp } from "@/hooks/useCountUp";
-import { formatCurrency } from "@/lib/format";
+import { formatCurrency, formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 interface FinansalOzetProps {
@@ -26,14 +25,13 @@ interface FinansalOzetProps {
  */
 export function FinansalOzet({ ozet, loading }: FinansalOzetProps) {
   const toplamAcikBakiye = useCountUp(ozet.toplamAcikBakiye);
-  const toplamRiskliTutar = useCountUp(ozet.toplamRiskliTutar);
+  const bekleyenSiparisNetTutar = useCountUp(ozet.bekleyenSiparisNetTutar);
   const toplamBrutCiro = useCountUp(ozet.toplamBrutCiro);
-  const toplamNetCiro = useCountUp(ozet.toplamNetCiro);
   const toplamNetCiroKdvDahil = useCountUp(ozet.toplamNetCiroKdvDahil);
   const aylikNetCiro = useCountUp(ozet.aylikNetCiro);
 
   return (
-    <div className="grid grid-cols-2 gap-px border-b border-border bg-border lg:grid-cols-3">
+    <div className="grid grid-cols-2 gap-px border-b border-border bg-border lg:grid-cols-5">
       <div className="flex flex-col justify-center gap-1 bg-background px-3.5 py-4">
         <span className="text-[12px] tracking-[0.06em] text-muted-foreground uppercase">
           Toplam açık bakiye
@@ -47,16 +45,17 @@ export function FinansalOzet({ ozet, loading }: FinansalOzetProps) {
           {formatCurrency(toplamAcikBakiye)}
         </span>
         <span className="text-[12px] text-muted-foreground">
-          {formatCurrency(ozet.toplamRiskliTutar)} riskli (56+ gün)
+          {formatNumber(ozet.borcluMusteriSayisi)} müşteride açık bakiye
         </span>
       </div>
 
       <StatKutusu
-        icon={AlertTriangleIcon}
-        etiket="Riskli tutar"
-        deger={formatCurrency(toplamRiskliTutar)}
-        altBilgi={`${ozet.borcluMusteriSayisi} müşteride açık bakiye`}
-        vurgu={ozet.toplamRiskliTutar > 0}
+        icon={ClipboardListIcon}
+        etiket="Bekleyen sipariş"
+        deger={formatCurrency(bekleyenSiparisNetTutar)}
+        altBilgi={`${formatNumber(ozet.bekleyenSiparisBelgeSayisi)} belge · KDV hariç`}
+        vurgu={ozet.bekleyenSiparisNetTutar > 0}
+        vurguSinif="text-amber-400"
         loading={loading}
       />
 
@@ -65,14 +64,6 @@ export function FinansalOzet({ ozet, loading }: FinansalOzetProps) {
         etiket="Brüt ciro"
         deger={formatCurrency(toplamBrutCiro)}
         altBilgi="İskonto öncesi, KDV dahil"
-        loading={loading}
-      />
-
-      <StatKutusu
-        icon={BanknoteIcon}
-        etiket="Net ciro"
-        deger={formatCurrency(toplamNetCiro)}
-        altBilgi="KDV hariç, güncel senkron"
         loading={loading}
       />
 
@@ -102,6 +93,7 @@ function StatKutusu({
   altBilgi,
   loading,
   vurgu = false,
+  vurguSinif = "text-destructive",
 }: {
   icon: LucideIcon;
   etiket: string;
@@ -109,12 +101,13 @@ function StatKutusu({
   altBilgi: string;
   loading: boolean;
   vurgu?: boolean;
+  vurguSinif?: string;
 }) {
   return (
     <div className="flex flex-col justify-center gap-1 bg-background px-3.5 py-4">
       <span className="flex items-center gap-1.5 text-[12px] tracking-[0.06em] text-muted-foreground uppercase">
         <Icon
-          className={cn("size-3.5", vurgu && "text-destructive")}
+          className={cn("size-3.5", vurgu && vurguSinif)}
           strokeWidth={1.75}
           aria-hidden
         />
@@ -123,7 +116,7 @@ function StatKutusu({
       <span
         className={cn(
           "font-sans text-[2rem] leading-none font-semibold transition-opacity",
-          vurgu ? "text-destructive" : "text-foreground",
+          vurgu ? vurguSinif : "text-foreground",
           loading && "opacity-40"
         )}
       >

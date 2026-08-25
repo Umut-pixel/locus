@@ -17,6 +17,7 @@ import {
   useRaporTazeligi,
 } from "@/hooks/useMusteriRaporlama";
 import { useFinansalRaporu } from "@/hooks/useFinansalRaporu";
+import { SIPARIS_DURUM_REPORT_ID } from "@/hooks/useSevkiyatRaporu";
 import { formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -126,12 +127,13 @@ export default function FinansalRaporlarPage() {
   );
 }
 
-/** ST Yaşlandırma (5530) ve Belge Detay (5450) — borç ve ciro rakamları bu iki çekime dayanıyor. */
+/** ST Yaşlandırma (5530), Belge Detay (5450) ve Sipariş Durum (5140). */
 function VeriTazeligi() {
   const yaslandirma = useRaporTazeligi(YASLANDIRMA_REPORT_ID);
   const belgeDetay = useRaporTazeligi(BELGE_DETAY_REPORT_ID);
+  const siparisDurum = useRaporTazeligi(SIPARIS_DURUM_REPORT_ID);
 
-  const enEski = [yaslandirma, belgeDetay]
+  const enEski = [yaslandirma, belgeDetay, siparisDurum]
     .filter((t) => t.saatOnce != null)
     .sort((a, b) => (b.saatOnce ?? 0) - (a.saatOnce ?? 0))[0];
 
@@ -149,7 +151,7 @@ function VeriTazeligi() {
   return (
     <span
       className="hidden shrink-0 items-center gap-1.5 md:flex"
-      title="ST Yaşlandırma (5530) ve Belge Detay (5450) raporlarının en eski olanının Panorama'dan son çekim zamanı."
+      title="ST Yaşlandırma (5530), Belge Detay (5450) ve Sipariş Durum (5140) — en eski çekimin zamanı."
     >
       <span
         className={cn(

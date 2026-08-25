@@ -249,20 +249,10 @@ export function useStokRaporu(filters: StokFilters, sort: StokSort) {
     };
   }, [filtrelenmis]);
 
-  /** Stokta olmayan ürünler — filtreden bağımsız değil, aynı slice üzerinden. */
-  const stoktaYokSatirlar = useMemo(
-    () =>
-      filtrelenmis
-        .filter((s) => s.miktar <= 0)
-        .sort((a, b) => b.fiyat - a.fiyat),
-    [filtrelenmis]
-  );
-
   return {
     satirlar,
     tumSatirlar,
     ozet,
-    stoktaYokSatirlar,
     markaSecenekleri,
     kategoriSecenekleri,
     loading,

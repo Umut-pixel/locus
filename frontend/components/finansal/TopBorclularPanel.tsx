@@ -14,7 +14,7 @@ interface TopBorclularPanelProps {
   loading: boolean;
 }
 
-/** En yüksek açık bakiyeli 20 müşteri — StoktaYokPanel.tsx'in ranked-list deseniyle aynı. */
+/** En yüksek açık bakiyeli 20 müşteri — ranked-list deseni (SktYaklasanPanel ile aynı). */
 export function TopBorclularPanel({ satirlar, loading }: TopBorclularPanelProps) {
   const bos = satirlar.length === 0;
 
