@@ -33,6 +33,8 @@ MUST_MISS = [
 ]
 
 MUST_HIT = [
+    ("Toplam kaç müşteri var?", "musteri_toplam"),
+    ("Toplam müşteri sayısı nedir?", "musteri_toplam"),
     ("Aktif müşteri sayısı nedir?", "musteri_durum_aktif"),
     ("Pasif müşteri sayısı nedir?", "musteri_durum_pasif"),
     ("İptal müşteri sayısı nedir?", "musteri_durum_iptal"),

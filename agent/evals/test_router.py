@@ -42,6 +42,15 @@ def main() -> int:
     else:
         ok("geçersiz JSON → opus")
 
+    leak = (
+        '{"route":"opus","template_id":null,"slots":{},"clarify_key":null}\n'
+        'Neden: "Toplam kaç müşteri var?" sorgusu genel istatistik'
+    )
+    if parse_decision(leak).route != "opus":
+        fail("JSON + Neden parse opus değil")
+    else:
+        ok("JSON + Neden → opus")
+
     if parse_decision('{"route":"template","template_id":"yok_boyle"}').route == "opus":
         fail("unknown id normalize edilmeden opus olmamalı — parse ham id tutar")
     d = normalize_decision("kaç aktif", parse_decision('{"route":"template","template_id":"yok_boyle"}'))
@@ -133,6 +142,16 @@ def main() -> int:
         fail("kdv-regresyon cümlesi exact hit")
     else:
         ok("kdv-regresyon exact miss")
+
+    toplam = match_template("Toplam kaç müşteri var?")
+    if toplam is None or toplam.template_id != "musteri_toplam":
+        fail("toplam müşteri exact miss")
+    else:
+        try:
+            validate_sql(toplam.sql)
+            ok("musteri_toplam exact")
+        except SqlGuardError as err:
+            fail(f"toplam SQL: {err}")
 
     sehir = match_template(
         "Balıkesir'deki müşterilerin toplam açık bakiyesi ve cirosu ne?"

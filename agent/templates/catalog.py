@@ -365,6 +365,22 @@ _BORC_30_SQL = (
 def _exact_specs() -> dict[str, TemplateSpec]:
     items: list[tuple[str, TemplateSpec]] = [
         (
+            "Toplam kaç müşteri var?",
+            TemplateSpec(
+                "musteri_toplam",
+                "SELECT COUNT(*) AS sayi FROM musteriler_rapor",
+                _count_render("Toplam müşteri", "Müşteri yok."),
+            ),
+        ),
+        (
+            "Toplam müşteri sayısı nedir?",
+            TemplateSpec(
+                "musteri_toplam",
+                "SELECT COUNT(*) AS sayi FROM musteriler_rapor",
+                _count_render("Toplam müşteri", "Müşteri yok."),
+            ),
+        ),
+        (
             "Aktif müşteri sayısı nedir?",
             TemplateSpec(
                 "musteri_durum_aktif",

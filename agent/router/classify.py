@@ -178,6 +178,7 @@ def _get_model():
             CLASSIFIER_MODEL,
             temperature=0,
             max_tokens=CLASSIFY_MAX_TOKENS,
+            disable_streaming=True,
         )
     return _model
 
@@ -202,26 +203,28 @@ def _content_text(msg: object) -> str:
 
 
 async def classify(text: str) -> Decision:
-    """Haiku JSON. Hata/timeout → opus."""
+    """Haiku JSON. Hata/timeout → opus.
+
+    Agent `wrap_model_call` içinden çağrılır; parent callback/stream'e
+    yazılırsa JSON sohbete sızar ve Opus turu 'internal error' olur.
+    """
+    from langchain_core.runnables.config import var_child_runnable_config
+
+    token = var_child_runnable_config.set({"callbacks": []})
     try:
         from langchain_core.messages import HumanMessage, SystemMessage
 
         model = _get_model()
+        messages = [
+            SystemMessage(content=_PROMPT),
+            HumanMessage(content=text),
+        ]
+        isolated = {"callbacks": []}
 
         async def _call():
             if hasattr(model, "ainvoke"):
-                return await model.ainvoke(
-                    [
-                        SystemMessage(content=_PROMPT),
-                        HumanMessage(content=text),
-                    ]
-                )
-            return model.invoke(
-                [
-                    SystemMessage(content=_PROMPT),
-                    HumanMessage(content=text),
-                ]
-            )
+                return await model.ainvoke(messages, config=isolated)
+            return model.invoke(messages, config=isolated)
 
         msg = await asyncio.wait_for(_call(), timeout=CLASSIFY_TIMEOUT_S)
         raw = _content_text(msg)
@@ -236,3 +239,5 @@ async def classify(text: str) -> Decision:
     except Exception:
         logger.info("classify fail-open opus", exc_info=True)
         return OPUS
+    finally:
+        var_child_runnable_config.reset(token)
