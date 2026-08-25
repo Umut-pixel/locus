@@ -54,6 +54,8 @@ export type AgentStreamEvent =
       title?: string;
     }
   | { kind: "error"; message: string }
+  /** Yanıtı üreten model — hover damgası. Metin ayrıştırmasını değiştirmez. */
+  | { kind: "model"; name: string }
   /** Tanınmayan kare — biçim ayarlamak için ham metin. */
   | { kind: "debug"; raw: string };
 
@@ -215,10 +217,26 @@ interface StreamState {
   gorulenAraclar: Set<string>;
   /** id -> son görülen args imzası (SQL yazılırken güncellemek için) */
   aracArgs: Map<string, string>;
+  modelYayinlandi: boolean;
 }
 
 function bosDurum(): StreamState {
-  return { yayinlanan: new Map(), gorulenAraclar: new Set(), aracArgs: new Map() };
+  return {
+    yayinlanan: new Map(),
+    gorulenAraclar: new Set(),
+    aracArgs: new Map(),
+    modelYayinlandi: false,
+  };
+}
+
+function extractModelName(msg: Record<string, unknown>): string | null {
+  const meta = msg.response_metadata;
+  if (!meta || typeof meta !== "object") return null;
+  const rec = meta as Record<string, unknown>;
+  const name = rec.model_name ?? rec.model;
+  if (typeof name !== "string") return null;
+  const t = name.trim();
+  return t || null;
 }
 
 /**
@@ -235,6 +253,14 @@ function mesajdanOlaylar(
   const events: AgentStreamEvent[] = [];
   if (!aday || typeof aday !== "object") return events;
   const msg = aday as Record<string, unknown>;
+
+  if (msg.type !== "tool" && !state.modelYayinlandi) {
+    const model = extractModelName(msg);
+    if (model) {
+      state.modelYayinlandi = true;
+      events.push({ kind: "model", name: model });
+    }
+  }
 
   for (const call of extractToolCalls(msg)) {
     if (!state.gorulenAraclar.has(call.id)) {

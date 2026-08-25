@@ -15,6 +15,8 @@ export type KonusmaMesaj = {
   rol: KonusmaRol;
   metin: string;
   alinti: string | null;
+  olusturulma?: string | null;
+  model?: string | null;
 };
 
 export const KONUSMALAR_CHANGED = "locus-konusmalar";

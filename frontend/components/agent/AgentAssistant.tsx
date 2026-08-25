@@ -4,6 +4,7 @@ import { memo, useEffect, useRef } from "react";
 
 import { AgentMarkdown } from "@/components/agent/AgentMarkdown";
 import { LoadingState } from "@/components/agent/LoadingState";
+import { MessageMeta } from "@/components/agent/MessageMeta";
 import { PromptBar } from "@/components/agent/PromptBar";
 import { ThinkingTrace } from "@/components/agent/ThinkingTrace";
 import { useAgentSession } from "@/hooks/useAgentSession";
@@ -93,9 +94,12 @@ export const AgentAssistant = memo(function AgentAssistant({
           const body = live ? revealed : m.text;
           if (!body) return null;
           return (
-            <AgentMarkdown key={m.id} streaming={live} className="text-[12px]">
-              {body}
-            </AgentMarkdown>
+            <div key={m.id} className="group">
+              <AgentMarkdown streaming={live} className="text-[12px]">
+                {body}
+              </AgentMarkdown>
+              <MessageMeta at={m.at} model={m.model} />
+            </div>
           );
         })}
         {busy && trace.length > 0 ? (

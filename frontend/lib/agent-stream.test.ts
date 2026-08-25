@@ -125,6 +125,12 @@ async function run(name: string, chunks: string[]) {
       console.log(`  BEKLENEN: ${JSON.stringify(beklenen)}`);
       process.exitCode = 1;
     }
+    const modeller = events.filter((e) => e.kind === "model").map((e: any) => e.name);
+    console.log(`  model          : ${JSON.stringify(modeller)}`);
+    if (modeller[0] !== "claude-opus-5") {
+      console.log("  KALDI  model_name yok veya yanlış");
+      process.exitCode = 1;
+    }
     // Ham SQL sonucu sohbete sizmamali
     if (metin.includes("musteri_sayisi")) {
       console.log("  KALDI  ham SQL sonucu metne sizdi!");

@@ -29,6 +29,8 @@ export type ChatMessage = {
   streaming?: boolean;
   quote?: string;
   trace?: TraceRow[];
+  at?: string;
+  model?: string;
 };
 
 const QUOTE_MAX = 800;
@@ -58,6 +60,8 @@ function fromStored(row: KonusmaMesaj): ChatMessage {
     role: row.rol,
     text: row.metin,
     quote: row.alinti ?? undefined,
+    at: row.olusturulma ?? undefined,
+    model: row.model ?? undefined,
   };
 }
 
@@ -74,7 +78,13 @@ async function createKonusma(baslik: string, ozet: string): Promise<string | nul
 
 async function appendMessages(
   konusmaId: string,
-  messages: { id: string; role: ChatRole; text: string; quote?: string }[],
+  messages: {
+    id: string;
+    role: ChatRole;
+    text: string;
+    quote?: string;
+    model?: string;
+  }[],
   meta?: { baslik?: string; ozet?: string }
 ) {
   if (messages.length === 0) return;
@@ -87,6 +97,7 @@ async function appendMessages(
         rol: m.role,
         metin: m.text,
         alinti: m.quote ?? null,
+        model: m.model ?? null,
       })),
       ...meta,
     }),
@@ -251,11 +262,12 @@ export function useAgentSession(opts?: {
             ? { ...m, streaming: false, trace: m.trace ?? previousTrace }
             : m
         ),
-        { id: userId, role: "user", text: q, quote: alinti },
+        { id: userId, role: "user", text: q, quote: alinti, at: new Date().toISOString() },
       ]);
 
       let yanitId: string | null = null;
       let yanitMetin = "";
+      let yanitModel: string | undefined;
       let hataVar = false;
       const outbound = alinti ? composeQuotedPrompt(q, alinti) : q;
       const extra: ChatMessage[] = [];
@@ -277,7 +289,14 @@ export function useAgentSession(opts?: {
               setAnswerId(yeni);
               setMessages((prev) => [
                 ...prev,
-                { id: yeni, role: "assistant", text: "", streaming: true },
+                {
+                  id: yeni,
+                  role: "assistant",
+                  text: "",
+                  streaming: true,
+                  at: new Date().toISOString(),
+                  model: yanitModel,
+                },
               ]);
             }
             yanitMetin += event.delta;
@@ -286,12 +305,23 @@ export function useAgentSession(opts?: {
             );
             break;
           }
+          case "model": {
+            yanitModel = event.name;
+            const id = yanitId;
+            if (id) {
+              setMessages((prev) =>
+                prev.map((m) => (m.id === id ? { ...m, model: event.name } : m))
+              );
+            }
+            break;
+          }
           case "error": {
             hataVar = true;
             const errMsg: ChatMessage = {
               id: uid(),
               role: "error",
               text: event.message,
+              at: new Date().toISOString(),
             };
             extra.push(errMsg);
             setMessages((prev) => [...prev, errMsg]);
@@ -348,6 +378,7 @@ export function useAgentSession(opts?: {
             id: errId,
             role: "error",
             text: emptyText,
+            at: new Date().toISOString(),
           });
           setMessages((prev) => [...prev, extra[extra.length - 1]!]);
           reportAgentDown(emptyText);
@@ -360,13 +391,19 @@ export function useAgentSession(opts?: {
         abortRef.current = null;
 
         if (persist && threadId) {
-          const toSave: { id: string; role: ChatRole; text: string; quote?: string }[] =
-            [];
+          const toSave: {
+            id: string;
+            role: ChatRole;
+            text: string;
+            quote?: string;
+            model?: string;
+          }[] = [];
           if (yanitId && yanitMetin.trim()) {
             toSave.push({
               id: yanitId,
               role: "assistant",
               text: yanitMetin,
+              model: yanitModel,
             });
           }
           for (const err of extra) {

@@ -56,20 +56,28 @@ def _last_human_if_turn_start(request: object) -> str | None:
     return text or None
 
 
-def _model_response(text: str) -> ModelResponse:
-    return ModelResponse(result=[AIMessage(content=text)])
+def _model_response(text: str, model_name: str | None = None) -> ModelResponse:
+    meta = (
+        {"model_name": model_name, "model_provider": "anthropic"}
+        if model_name
+        else {}
+    )
+    return ModelResponse(result=[AIMessage(content=text, response_metadata=meta)])
 
 
-async def _resolve_spec(text: str) -> TemplateSpec | str | None:
-    """Spec, hazır metin, veya None (= Opus)."""
+async def _resolve_spec(text: str) -> tuple[TemplateSpec | str | None, str | None]:
+    """Spec veya hazır metin, ve varsa model adı. None spec = Opus."""
     spec = match_template(text)
     if spec is not None:
         logger.info("fast-path exact %s", spec.template_id)
-        return spec
+        return spec, None
 
+    used: str | None = None
     decision = prefilter_route(text)
     if decision is None:
         decision = await classify(text)
+        if decision.route != "opus":
+            used = "claude-haiku-4-5"
     else:
         decision = normalize_decision(text, decision)
         logger.info("fast-path prefilter route=%s", decision.route)
@@ -77,11 +85,11 @@ async def _resolve_spec(text: str) -> TemplateSpec | str | None:
     action = apply_route(decision)
     if action.kind == "text" and action.text:
         logger.info("fast-path canned %s", decision.route)
-        return action.text
+        return action.text, used
     if action.kind == "spec" and isinstance(action.spec, TemplateSpec):
         logger.info("fast-path route template_id=%s", action.spec.template_id)
-        return action.spec
-    return None
+        return action.spec, used
+    return None, None
 
 
 @wrap_model_call
@@ -90,11 +98,11 @@ async def fast_path(request, handler):
     if not text:
         return await handler(request)
 
-    resolved = await _resolve_spec(text)
+    resolved, model_name = await _resolve_spec(text)
     if resolved is None:
         return await handler(request)
     if isinstance(resolved, str):
-        return _model_response(resolved)
+        return _model_response(resolved, model_name)
 
     spec = resolved
     outcome = execute_guarded_sql(spec.sql)
@@ -105,4 +113,4 @@ async def fast_path(request, handler):
         return await handler(request)
     if not (answer or "").strip():
         return await handler(request)
-    return _model_response(answer)
+    return _model_response(answer, model_name)

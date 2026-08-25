@@ -11,6 +11,7 @@ import type { RecommendAccept } from "@/components/agent/RecommendCard";
 import { ContextCards } from "@/components/agent/ContextCards";
 import { HomeOverviewBento } from "@/components/agent/HomeOverviewBento";
 import { LoadingState } from "@/components/agent/LoadingState";
+import { MessageMeta } from "@/components/agent/MessageMeta";
 import { PromptBar } from "@/components/agent/PromptBar";
 import { SelectionReply } from "@/components/agent/SelectionReply";
 import { TaskRows } from "@/components/agent/TaskRows";
@@ -402,12 +403,15 @@ function Turn({
     <div className="flex flex-col gap-2.5">
       {body ? (
         <SelectionReply enabled={!live} onReply={onReply}>
-          <AgentMarkdown
-            streaming={live}
-            onAccept={live ? undefined : onAcceptRecommend}
-          >
-            {body}
-          </AgentMarkdown>
+          <div className="group">
+            <AgentMarkdown
+              streaming={live}
+              onAccept={live ? undefined : onAcceptRecommend}
+            >
+              {body}
+            </AgentMarkdown>
+            <MessageMeta at={m.at} model={m.model} />
+          </div>
         </SelectionReply>
       ) : null}
       {!live && body ? <MessageActions text={body} /> : null}

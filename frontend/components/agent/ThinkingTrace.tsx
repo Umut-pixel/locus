@@ -30,8 +30,7 @@ export function ThinkingTrace({
   working: boolean;
 }) {
   const [manual, setManual] = useState<boolean | null>(null);
-  const autoExpanded = working || rows.length > 0;
-  const expanded = manual ?? (working ? true : rows.length > 0);
+  const expanded = manual ?? false;
   const traceRef = useRef<HTMLDivElement>(null);
   const [lineHeight, setLineHeight] = useState(0);
   const head = thinkingHeadline(rows, working);
@@ -45,7 +44,7 @@ export function ThinkingTrace({
       <button
         type="button"
         aria-expanded={expanded}
-        onClick={() => setManual((current) => !(current ?? autoExpanded))}
+        onClick={() => setManual((current) => !(current ?? false))}
         className="-mx-1.5 flex w-fit items-center gap-2 rounded-[8px] px-1.5 py-1 transition-colors duration-100 hover:bg-hover-2"
       >
         <svg width="16" height="16" viewBox="0 0 24 24" fill={working ? "var(--ink-2)" : "var(--ink-3)"}>
@@ -98,11 +97,11 @@ export function ThinkingTrace({
           <div className="relative mt-1 ml-[5px] pl-4">
             <span
               aria-hidden
-              className="absolute left-[3px] w-px bg-line"
+              className="absolute top-[-8px] left-[3px] w-px origin-top bg-line"
               style={{
-                top: -8,
-                height: lineHeight ? lineHeight - 2 : 0,
-                transition: "height 500ms cubic-bezier(0.23,1,0.32,1)",
+                height: Math.max(0, lineHeight - 2),
+                transform: expanded ? "scaleY(1)" : "scaleY(0)",
+                transition: "transform 500ms cubic-bezier(0.23,1,0.32,1)",
               }}
             />
             <div ref={traceRef} className="flex flex-col gap-1 py-1">

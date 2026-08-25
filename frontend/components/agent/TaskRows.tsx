@@ -76,7 +76,7 @@ export function TaskRows({ tasks }: { tasks: AgentTask[] }) {
   return (
     <div className="flex w-full max-w-xl flex-col gap-2">
       {tasks.map((row, i) => {
-        const expanded = open[row.key] ?? (row.status === "running" && row.details.length > 0);
+        const expanded = open[row.key] ?? false;
         const badge =
           row.status === "done" ? (
             <Badge tone="green">{CheckIcon}</Badge>

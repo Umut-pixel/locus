@@ -15,7 +15,7 @@ import {
 export const runtime = "nodejs";
 
 const HEAD_SELECT = "id,baslik,ozet,mesaj_sayisi,guncelleme,sabitlendi";
-const MSG_SELECT = "id,sira,rol,metin,alinti";
+const MSG_SELECT = "id,sira,rol,metin,alinti,olusturulma,model";
 const ROLES = new Set<KonusmaRol>(["user", "assistant", "error"]);
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -32,6 +32,8 @@ function asMesaj(raw: Record<string, unknown>) {
     rol,
     metin: typeof raw.metin === "string" ? raw.metin : "",
     alinti: typeof raw.alinti === "string" ? raw.alinti : null,
+    olusturulma: typeof raw.olusturulma === "string" ? raw.olusturulma : null,
+    model: typeof raw.model === "string" && raw.model.trim() ? raw.model.trim() : null,
   };
 }
 
@@ -106,6 +108,7 @@ export async function POST(request: Request, ctx: Ctx) {
     rol: KonusmaRol;
     metin: string;
     alinti: string | null;
+    model: string | null;
   }[] = [];
   for (const row of rawMsgs) {
     if (!row || typeof row !== "object") continue;
@@ -113,6 +116,7 @@ export async function POST(request: Request, ctx: Ctx) {
     const rol = m.rol;
     const metin = typeof m.metin === "string" ? m.metin.trim() : "";
     if (!ROLES.has(rol as KonusmaRol) || !metin) continue;
+    const modelRaw = typeof m.model === "string" ? m.model.trim() : "";
     incoming.push({
       id: typeof m.id === "string" ? m.id : undefined,
       rol: rol as KonusmaRol,
@@ -121,6 +125,7 @@ export async function POST(request: Request, ctx: Ctx) {
         typeof m.alinti === "string" && m.alinti.trim()
           ? m.alinti.trim().slice(0, 2000)
           : null,
+      model: modelRaw ? modelRaw.slice(0, 80) : null,
     });
   }
   if (incoming.length === 0) {
@@ -149,6 +154,7 @@ export async function POST(request: Request, ctx: Ctx) {
       rol: m.rol,
       metin: m.metin,
       alinti: m.alinti,
+      model: m.model,
     }));
 
     const ins = await admin.from(AGENT_KONUSMA_MESAJLARI_TABLE).insert(rows);
