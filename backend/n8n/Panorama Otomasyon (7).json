@@ -4993,7 +4993,7 @@
     },
     {
       "parameters": {
-        "content": "## Manuel Sync (UI butonu)\n\nWebhook: POST path panorama-manual-sync\nAuth: Header Auth credential\n  name  = X-N8N-Sync-Secret\n  value = N8N_PANORAMA_MANUAL_WEBHOOK_SECRET\n\nAkis: Webhook -> Config (cron ile ayni giris).\nLoop Reports done -> IF -> Wait 180s -> sonraki Config.\nSira: Main (5020/5500/5130) -> YL 5530 -> BD2 5450 -> SD 5140 -> STK 5430.\nCron execution'da IF false, zincir bitiyor (paralel scrape yok).\n\nImport sonrasi n8n UI:\n1. Header Auth credential olustur / bagla\n2. Webhook Production URL'i\n   N8N_PANORAMA_MANUAL_WEBHOOK_URL'e yaz\n3. responseMode = onReceived (API beklemesin)\n",
+        "content": "## Manuel Sync (UI butonu)\n\nWebhook: POST path panorama-manual-sync (Authentication = None).\nGuard Manuel Secret: X-N8N-Sync-Secret header.\nIstege bagli n8n Variable PANORAMA_MANUAL_SYNC_SECRET\n(veya env N8N_PANORAMA_MANUAL_WEBHOOK_SECRET) — ayni deger.\nHeader Auth credential KULLANMA; placeholder 403 veriyordu.\n\nAkis: Webhook -> Config (cron ile ayni giris).\nLoop Reports done -> IF -> Wait 180s -> sonraki Config.\nSira: Main (5020/5500/5130) -> YL 5530 -> BD2 5450 -> SD 5140 -> STK 5430.\nCron execution'da IF false, zincir bitiyor (paralel scrape yok).\n\nImport sonrasi n8n UI:\n1. Workflow aktif, Production URL kopyala\n   (/webhook/panorama-manual-sync — webhook-test DEGIL)\n2. Istege bagli: Variables → PANORAMA_MANUAL_SYNC_SECRET\n3. Next .env: URL + ayni secret\n4. responseMode = onReceived (API beklemesin)\n",
         "height": 420,
         "width": 420,
         "color": 6
@@ -5011,7 +5011,6 @@
       "parameters": {
         "httpMethod": "POST",
         "path": "panorama-manual-sync",
-        "authentication": "headerAuth",
         "responseMode": "onReceived",
         "options": {}
       },
@@ -5023,13 +5022,20 @@
         -256,
         1104
       ],
-      "webhookId": "48bd012c-e5f7-4809-34ab-5c6d7e8f9012",
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "<<N8N_HEADER_AUTH_CREDENTIAL_ID>>",
-          "name": "Panorama Manual Sync Header"
-        }
-      }
+      "webhookId": "48bd012c-e5f7-4809-34ab-5c6d7e8f9012"
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first();\nconst headers = (item.json && item.json.headers) || {};\nfunction pick(name) {\n  const want = String(name).toLowerCase();\n  for (const [k, v] of Object.entries(headers)) {\n    if (String(k).toLowerCase() === want) {\n      return String(Array.isArray(v) ? v[0] : v ?? '');\n    }\n  }\n  return '';\n}\nconst given = pick('x-n8n-sync-secret') || pick('authorization').replace(/^Bearer\\s+/i, '').trim();\nconst expected = String(($vars && $vars.PANORAMA_MANUAL_SYNC_SECRET) || ($env && $env.N8N_PANORAMA_MANUAL_WEBHOOK_SECRET) || '').trim();\nif (expected) {\n  if (given !== expected) throw new Error('Manuel sync yetkisiz');\n} else if (!given) {\n  throw new Error('X-N8N-Sync-Secret header gerekli');\n}\nreturn [{ json: { ok: true, manual: true } }];\n"
+      },
+      "id": "91c4e7b2-0d3a-4f18-a9e6-55b12c88d001",
+      "name": "Guard Manuel Secret",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -16,
+        1104
+      ]
     },
     {
       "parameters": {
@@ -6727,6 +6733,17 @@
       ]
     },
     "Webhook Manuel Sync": {
+      "main": [
+        [
+          {
+            "node": "Guard Manuel Secret",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Guard Manuel Secret": {
       "main": [
         [
           {

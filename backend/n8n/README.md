@@ -34,13 +34,17 @@ değişkenleriyle de beslenebilir.
 
 `Panorama Otomasyon (7).json` içinde `Webhook Manuel Sync` node’u:
 
-1. n8n → Credentials → Header Auth oluştur  
-   name = `X-N8N-Sync-Secret`, value = rastgele sır  
-2. Webhook node’una bu credential’ı bağla (JSON’daki `<<N8N_HEADER_AUTH_CREDENTIAL_ID>>` yer tutucu)  
-3. Workflow’u aktif et, Production URL’i kopyala  
+1. n8n’de bu JSON’u **mevcut** Panorama Otomasyon üzerine içe aktar (veya
+   Webhook node’unu elle düzelt). Canlı instance hâlâ **GET + Header Auth**
+   ise POST 404 / GET 403 verir — Next `n8n tetiklenemedi` döner.
+2. Webhook: Method **POST**, Authentication **None**, path
+   `panorama-manual-sync`. Kaydet, workflow’u **kapatıp tekrar aç**
+   (production webhook yeniden kaydolur). Test URL (`/webhook-test/`) kullanma.
+3. Sır `Guard Manuel Secret` node’unda `X-N8N-Sync-Secret` (veya Bearer) ile
+   kontrol edilir. İsteğe bağlı: Variables `PANORAMA_MANUAL_SYNC_SECRET`.
 4. Kök `.env` + Vercel:  
    `N8N_PANORAMA_MANUAL_WEBHOOK_URL`  
-   `N8N_PANORAMA_MANUAL_WEBHOOK_SECRET` (aynı value)
+   `N8N_PANORAMA_MANUAL_WEBHOOK_SECRET`
 
 Webhook cron’u değiştirmez. Manuel execution’da zincirler **Wait 180s** ile sırayla gider  
 (Main → YL → BD2 → Sipariş → Stok) — WAF’a paralel login basmamak için.

@@ -1,12 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useState, type ReactNode } from "react";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 
 import { IlceBarChart } from "@/components/agent/IlceBarChart";
 import { BorcRiskAreaChart } from "@/components/agent/BorcRiskAreaChart";
 import { LinearGauge } from "@/components/agent/LinearGauge";
 import { Button } from "@/components/ui/button";
+import { useToastManager } from "@/components/ui/toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   useHomeOverview,
@@ -17,18 +17,16 @@ import {
   type HomeSevkSatiri,
   type HomeBorcBant,
 } from "@/hooks/useHomeOverview";
-import { useAgentRuntimeStatus } from "@/hooks/useAgentRuntimeStatus";
 import { usePanoramaSyncStatus } from "@/hooks/usePanoramaSyncStatus";
-import { clipAgentError } from "@/lib/agent-status";
 import { formatCurrency, formatNumber } from "@/lib/format";
-import { formatIstanbulStamp } from "@/lib/panorama-schedule";
+import {
+  MANUAL_SYNC_COOLDOWN_MS,
+  MANUAL_SYNC_STORAGE_KEY,
+  manualSyncToastDescription,
+  waitForManualPipeline,
+} from "@/lib/panorama-manual-sync";
 import { RISK_COLORS } from "@/lib/risk-style";
 import { cn } from "@/lib/utils";
-
-const STATUS_ROTATE_MS = 7000;
-const STATUS_FACE_EASE = [0.16, 1, 0.3, 1] as const;
-const MANUAL_SYNC_STORAGE_KEY = "locus:panorama-manual-sync-at";
-const MANUAL_SYNC_COOLDOWN_MS = 60 * 60 * 1000;
 
 const DURUM_RENK: Record<HomeDurumSlice["ad"], string> = {
   Aktif: "var(--chart-3)",
@@ -533,9 +531,7 @@ function SyncTile({
   error: string | null;
   pending: boolean;
 }) {
-  const agent = useAgentRuntimeStatus();
-  const reduced = useReducedMotion();
-  const [face, setFace] = useState<"panorama" | "analyst">("panorama");
+  const toast = useToastManager();
   const [now, setNow] = useState(() => Date.now());
   const [manualAt, setManualAt] = useState(0);
   const [manualBusy, setManualBusy] = useState(false);
@@ -553,63 +549,81 @@ function SyncTile({
     return () => window.clearTimeout(id);
   }, [remainingMs]);
 
-  useEffect(() => {
-    if (reduced) return;
-    let id = 0;
-    const start = () => {
-      window.clearInterval(id);
-      id = window.setInterval(() => {
-        setFace((current) => (current === "panorama" ? "analyst" : "panorama"));
-      }, STATUS_ROTATE_MS);
-    };
-    const onVis = () => {
-      if (document.visibilityState === "visible") start();
-      else window.clearInterval(id);
-    };
-    start();
-    document.addEventListener("visibilitychange", onVis);
-    return () => {
-      window.clearInterval(id);
-      document.removeEventListener("visibilitychange", onVis);
-    };
-  }, [reduced]);
-
-  const triggerManual = useCallback(async () => {
+  const triggerManual = useCallback(() => {
     if (manualBusy || remainingMs > 0) return;
-    setManualBusy(true);
+    const started = Date.now();
+    const waitNote = manualSyncToastDescription(new Date(started));
     setManualError(null);
-    try {
-      const res = await fetch("/api/sync/panorama/manual", { method: "POST" });
-      const body = (await res.json().catch(() => null)) as {
-        error?: string;
-        retryAfterSec?: number;
-      } | null;
-      if (res.status === 429) {
-        const retryMs =
-          typeof body?.retryAfterSec === "number"
-            ? body.retryAfterSec * 1000
-            : MANUAL_SYNC_COOLDOWN_MS;
-        const at = Date.now() - (MANUAL_SYNC_COOLDOWN_MS - retryMs);
-        writeManualSyncAt(at);
-        setManualAt(at);
-        setNow(Date.now());
-        setManualError(body?.error ?? "Son çekimden bu yana 60 dakika dolmadı.");
-        return;
+
+    const run = (async () => {
+      setManualBusy(true);
+      try {
+        const res = await fetch("/api/sync/panorama/manual", { method: "POST" });
+        const body = (await res.json().catch(() => null)) as {
+          error?: string;
+          retryAfterSec?: number;
+        } | null;
+        if (res.status === 429) {
+          const retryMs =
+            typeof body?.retryAfterSec === "number"
+              ? body.retryAfterSec * 1000
+              : MANUAL_SYNC_COOLDOWN_MS;
+          const at = Date.now() - (MANUAL_SYNC_COOLDOWN_MS - retryMs);
+          writeManualSyncAt(at);
+          setManualAt(at);
+          setNow(Date.now());
+          const msg = body?.error ?? "Son çekimden bu yana 60 dakika dolmadı.";
+          setManualError(msg);
+          throw new Error(msg);
+        }
+        if (!res.ok) {
+          const msg = body?.error ?? "Tetiklenemedi.";
+          setManualError(msg);
+          throw new Error(msg);
+        }
+        writeManualSyncAt(started);
+        setManualAt(started);
+        setNow(started);
+      } catch (err) {
+        const msg =
+          err instanceof Error && err.message
+            ? err.message
+            : "Bağlantı kurulamadı.";
+        setManualError(msg);
+        throw err instanceof Error ? err : new Error(msg);
+      } finally {
+        setManualBusy(false);
       }
-      if (!res.ok) {
-        setManualError(body?.error ?? "Tetiklenemedi.");
-        return;
-      }
-      const at = Date.now();
-      writeManualSyncAt(at);
-      setManualAt(at);
-      setNow(at);
-    } catch {
-      setManualError("Bağlantı kurulamadı.");
-    } finally {
-      setManualBusy(false);
-    }
-  }, [manualBusy, remainingMs]);
+      return waitForManualPipeline(started);
+    })();
+
+    toast.promise(run, {
+      loading: {
+        type: "loading",
+        title: "Panorama çekiliyor…",
+        description: waitNote,
+        timeout: 0,
+      },
+      success: (data: string) => ({
+        type: "success",
+        title: "Çekim tamamlandı",
+        description: data,
+        timeout: 10_000,
+      }),
+      error: (err) => {
+        const msg =
+          err instanceof Error ? err.message : "Bilinmeyen hata";
+        return {
+          type: "error",
+          title: msg.includes("zaman aşımı")
+            ? "Çekim bitmedi"
+            : "Çekim başlatılamadı",
+          description: msg,
+          timeout: 12_000,
+        };
+      },
+    });
+  }, [manualBusy, remainingMs, toast]);
 
   const guncel = !loading && !error && !pending;
   const cooldownLabel =
@@ -631,7 +645,7 @@ function SyncTile({
       }
       onClick={(e) => {
         e.stopPropagation();
-        void triggerManual();
+        triggerManual();
       }}
     >
       {manualBusy ? "Çekiliyor…" : remainingMs > 0 ? cooldownLabel : "Şimdi çek"}
@@ -652,70 +666,11 @@ function SyncTile({
     action: manualAction,
   };
 
-  const analyst: StatusFaceModel = agent.ok
-    ? {
-        title: "Analyst",
-        pill: "Operasyonel",
-        tone: "ok",
-        line: "Sistem hazır",
-        sub: null,
-        liveLabel: "Claude Opus",
-      }
-    : {
-        title: "Analyst",
-        pill: "Uyarı",
-        tone: "warn",
-        line: clipAgentError(agent.message),
-        sub: (() => {
-          const stamp = formatIstanbulStamp(agent.at);
-          return stamp ? `Son hata: ${stamp}` : null;
-        })(),
-      };
-
-  const summary = agent.ok
-    ? `${panorama.title} ${panorama.pill}. ${analyst.title} ${analyst.pill}, Claude Opus.`
-    : `${panorama.title} ${panorama.pill}. ${analyst.title} ${analyst.pill}.`;
+  const summary = `${panorama.title} ${panorama.pill}`;
 
   return (
     <Tile className={cn(className, "min-h-0")} aria-label={summary}>
-      {reduced ? (
-        <div className="flex min-h-0 flex-1 flex-col justify-center gap-1.5">
-          <StatusFace {...panorama} />
-          <div className="border-t border-line" />
-          <StatusFace {...analyst} />
-        </div>
-      ) : (
-        <div className="grid min-h-0 flex-1 overflow-hidden">
-          <AnimatePresence initial={false}>
-            <motion.div
-              key={face}
-              className="col-start-1 row-start-1 flex h-full min-h-0 min-w-0"
-              initial={{
-                opacity: 0,
-                y: 14,
-                filter: "blur(6px)",
-                clipPath: "inset(22% 0 0 0)",
-              }}
-              animate={{
-                opacity: 1,
-                y: 0,
-                filter: "blur(0px)",
-                clipPath: "inset(0% 0 0 0)",
-              }}
-              exit={{
-                opacity: 0,
-                y: -10,
-                filter: "blur(6px)",
-                clipPath: "inset(0 0 28% 0)",
-                transition: { duration: 0.28, ease: STATUS_FACE_EASE },
-              }}
-              transition={{ duration: 0.46, ease: STATUS_FACE_EASE }}
-            >
-              <StatusFace {...(face === "panorama" ? panorama : analyst)} />
-            </motion.div>
-          </AnimatePresence>
-        </div>
-      )}
+      <StatusFace {...panorama} />
     </Tile>
   );
 }

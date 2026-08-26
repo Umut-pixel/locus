@@ -24,6 +24,13 @@ export async function POST() {
     return jsonError("Manuel sync henüz yapılandırılmadı.", 503);
   }
 
+  if (/\/webhook-test\//i.test(webhookUrl)) {
+    return jsonError(
+      "Test webhook URL’si kullanılıyor. n8n’de Production URL kopyala (Listen kapalıyken test 404 verir).",
+      400
+    );
+  }
+
   try {
     const admin = createSupabaseAdmin();
 
@@ -72,18 +79,53 @@ export async function POST() {
       }
     }
 
-    const res = await fetch(webhookUrl, {
+    const n8nHeaders: Record<string, string> = {
+      [HEADER_SECRET]: webhookSecret,
+      Authorization: `Bearer ${webhookSecret}`,
+      Accept: "application/json",
+    };
+    const signal = AbortSignal.timeout(15_000);
+
+    let res = await fetch(webhookUrl, {
       method: "POST",
-      headers: {
-        [HEADER_SECRET]: webhookSecret,
-        Accept: "application/json",
-      },
-      signal: AbortSignal.timeout(15_000),
+      headers: { ...n8nHeaders, "Content-Type": "application/json" },
+      body: JSON.stringify({ source: "locus-manual" }),
+      signal,
     });
 
+    if (res.status === 404) {
+      const preview = (await res.text().catch(() => "")).slice(0, 280);
+      if (/not registered for POST|GET request/i.test(preview)) {
+        res = await fetch(webhookUrl, {
+          method: "GET",
+          headers: n8nHeaders,
+          signal,
+        });
+      } else {
+        console.error("[api/sync/panorama/manual] n8n", 404, preview);
+        return jsonError(
+          "n8n webhook bulunamadı. Production URL ve workflow’un aktif olduğunu kontrol et.",
+          502
+        );
+      }
+    }
+
     if (!res.ok) {
-      console.error("[api/sync/panorama/manual] n8n", res.status);
-      return jsonError("n8n tetiklenemedi.", 502);
+      const preview = (await res.text().catch(() => "")).slice(0, 280);
+      console.error("[api/sync/panorama/manual] n8n", res.status, preview);
+      if (res.status === 404) {
+        return jsonError(
+          "n8n webhook hâlâ GET kayıtlı. Authentication=None ve Method=POST yapıp workflow’u kapatıp aç.",
+          502
+        );
+      }
+      if (res.status === 401 || res.status === 403) {
+        return jsonError(
+          "n8n Header Auth reddetti. Webhook Authentication = None olmalı; sır Guard node’da X-N8N-Sync-Secret ile kontrol edilir.",
+          502
+        );
+      }
+      return jsonError(`n8n tetiklenemedi (HTTP ${res.status}).`, 502);
     }
 
     return NextResponse.json({ ok: true });
@@ -91,7 +133,10 @@ export async function POST() {
     const message =
       err instanceof Error ? err.message : "Beklenmeyen sunucu hatası.";
     console.error("[api/sync/panorama/manual]", err);
-    if (err instanceof Error && (err.name === "TimeoutError" || err.name === "AbortError")) {
+    if (
+      err instanceof Error &&
+      (err.name === "TimeoutError" || err.name === "AbortError")
+    ) {
       return jsonError("n8n yanıt vermedi.", 504);
     }
     return jsonError(message, 500);

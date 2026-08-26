@@ -3,6 +3,7 @@ import { Geist, Geist_Mono, Inter, Source_Serif_4 } from "next/font/google";
 import "./globals.css";
 
 import { ThemeProvider, THEME_STORAGE_KEY } from "@/components/theme/ThemeProvider";
+import { ToastProvider } from "@/components/ui/toast";
 
 /** Hydration öncesi .dark class'ı uygulanır — FOUC (yanlış tema flaşı) yok. Light mode şimdilik kapalı. */
 const THEME_INIT_SCRIPT = `(function(){try{document.documentElement.classList.add("dark");document.documentElement.setAttribute("data-theme","dark");localStorage.setItem(${JSON.stringify(
@@ -64,7 +65,9 @@ export default function RootLayout({
     >
       <body className="flex h-dvh min-h-dvh flex-col overflow-hidden overscroll-none">
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
-        <ThemeProvider>{children}</ThemeProvider>
+        <ThemeProvider>
+          <ToastProvider position="bottom-right">{children}</ToastProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

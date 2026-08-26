@@ -21,7 +21,7 @@ npm run sync-env             # veya doğrudan: npm run dev
 | `NEXT_PUBLIC_MAPBOX_TOKEN` | Tarayıcı | Mapbox `pk.…` |
 | `CRON_SECRET` | Sunucu only | `/api/sync/panorama` — Database Webhook + manuel Bearer |
 | `N8N_PANORAMA_MANUAL_WEBHOOK_URL` | Sunucu only | n8n `Webhook Manuel Sync` Production URL |
-| `N8N_PANORAMA_MANUAL_WEBHOOK_SECRET` | Sunucu only | n8n Header Auth değeri (`X-N8N-Sync-Secret`) |
+| `N8N_PANORAMA_MANUAL_WEBHOOK_SECRET` | Sunucu only | `X-N8N-Sync-Secret` (n8n Guard node; webhook Auth = None) |
 
 ### Vercel
 
