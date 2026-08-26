@@ -887,7 +887,7 @@
     },
     {
       "parameters": {
-        "content": "## Panorama -> Supabase\n\nTimezone: Europe/Istanbul (workflow settings).\nMain Schedule: 07:00 + 19:00 TR daily (aktif).\n5450 Schedule: Pzt/Car/Cum/Paz 07:15 TR — DEAKTIF.\n5130 insert: on_conflict=matbu_no ignore-duplicates.\nManuel: Webhook Manuel Sync (UI butonu) -> Config, sonra\nWait 180s ile YL -> BD2 -> SD -> STK. Cron IF false.\nDOSYAYI PAYLASMA — JWT duz metin.\n",
+        "content": "## Panorama -> Supabase\n\nTimezone: Europe/Istanbul (workflow settings).\nMain Schedule: 07:00 + 19:00 TR daily (aktif).\n5450 Schedule: Pzt/Car/Cum/Paz 07:15 TR — DEAKTIF.\n5130 insert: on_conflict=matbu_no ignore-duplicates.\nManuel: Webhook Manuel Sync (UI butonu) -> Config, sonra\nWait 60s ile YL -> BD2 -> SD -> STK. Cron IF false.\nDOSYAYI PAYLASMA — JWT duz metin.\n",
         "height": 420,
         "width": 420,
         "color": 5
@@ -4993,7 +4993,7 @@
     },
     {
       "parameters": {
-        "content": "## Manuel Sync (UI butonu)\n\nWebhook: POST path panorama-manual-sync (Authentication = None).\nGuard Manuel Secret: X-N8N-Sync-Secret header.\nIstege bagli n8n Variable PANORAMA_MANUAL_SYNC_SECRET\n(veya env N8N_PANORAMA_MANUAL_WEBHOOK_SECRET) — ayni deger.\nHeader Auth credential KULLANMA; placeholder 403 veriyordu.\n\nAkis: Webhook -> Config (cron ile ayni giris).\nLoop Reports done -> IF -> Wait 180s -> sonraki Config.\nSira: Main (5020/5500/5130) -> YL 5530 -> BD2 5450 -> SD 5140 -> STK 5430.\nCron execution'da IF false, zincir bitiyor (paralel scrape yok).\n\nImport sonrasi n8n UI:\n1. Workflow aktif, Production URL kopyala\n   (/webhook/panorama-manual-sync — webhook-test DEGIL)\n2. Istege bagli: Variables → PANORAMA_MANUAL_SYNC_SECRET\n3. Next .env: URL + ayni secret\n4. responseMode = onReceived (API beklemesin)\n",
+        "content": "## Manuel Sync (UI butonu)\n\nWebhook: POST path panorama-manual-sync (Authentication = None).\nGuard Manuel Secret: X-N8N-Sync-Secret header.\nIstege bagli n8n Variable PANORAMA_MANUAL_SYNC_SECRET\n(veya env N8N_PANORAMA_MANUAL_WEBHOOK_SECRET) — ayni deger.\nHeader Auth credential KULLANMA; placeholder 403 veriyordu.\n\nAkis: Webhook -> Config (cron ile ayni giris).\nLoop Reports done -> IF -> Wait 60s -> sonraki Config.\nSira: Main (5020/5500/5130) -> YL 5530 -> BD2 5450 -> SD 5140 -> STK 5430.\nCron execution'da IF false, zincir bitiyor (paralel scrape yok).\n\nImport sonrasi n8n UI:\n1. Workflow aktif, Production URL kopyala\n   (/webhook/panorama-manual-sync — webhook-test DEGIL)\n2. Istege bagli: Variables → PANORAMA_MANUAL_SYNC_SECRET\n3. Next .env: URL + ayni secret\n4. responseMode = onReceived (API beklemesin)\n",
         "height": 420,
         "width": 420,
         "color": 6
@@ -5074,7 +5074,7 @@
     {
       "parameters": {
         "resume": "timeInterval",
-        "amount": 180,
+        "amount": 60,
         "unit": "seconds"
       },
       "id": "c0f5e3a4-6d7f-4081-bc23-d4e5f6071829",
@@ -5124,7 +5124,7 @@
     {
       "parameters": {
         "resume": "timeInterval",
-        "amount": 180,
+        "amount": 60,
         "unit": "seconds"
       },
       "id": "e2b7a5c6-8f91-42a3-de45-f60718293a4b",
@@ -5174,7 +5174,7 @@
     {
       "parameters": {
         "resume": "timeInterval",
-        "amount": 180,
+        "amount": 60,
         "unit": "seconds"
       },
       "id": "04d9c7e8-a1b3-44c5-f067-18293a4b5c6d",
@@ -5224,7 +5224,7 @@
     {
       "parameters": {
         "resume": "timeInterval",
-        "amount": 180,
+        "amount": 60,
         "unit": "seconds"
       },
       "id": "26fbe90a-c3d5-46e7-1289-3a4b5c6d7e8f",

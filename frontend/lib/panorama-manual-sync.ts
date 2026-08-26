@@ -5,7 +5,7 @@ export const MANUAL_SYNC_STORAGE_KEY = "locus:panorama-manual-sync-at";
 export const MANUAL_SYNC_COOLDOWN_MS = 60 * 60 * 1000;
 
 /** Zincirler arası n8n Wait. */
-export const MANUAL_CHAIN_WAIT_SEC = 180;
+export const MANUAL_CHAIN_WAIT_SEC = 60;
 const WAIT_COUNT = 4;
 const CHAIN_COUNT = 5;
 const SCRAPE_SEC_PER_CHAIN = 180;
