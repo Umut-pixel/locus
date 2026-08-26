@@ -65,32 +65,6 @@ _RISK_FOLDS = frozenset(
     }
 )
 
-# Şablon yok ≠ veri yok. Bu iğneler Locus'ta var; oos konservesini ez.
-_IN_SCOPE_NEEDLES = (
-    "stok",
-    "ürün",
-    "urun",
-    "sipariş",
-    "siparis",
-    "sevk",
-    "ciro",
-    "borç",
-    "borc",
-    "müşteri",
-    "musteri",
-    "depo",
-    "marka",
-    "skt",
-    "fatura",
-    "belge",
-    "satılan",
-    "satilan",
-    "satış",
-    "satis",
-    "satıldı",
-    "satildi",
-    "mama",
-)
 # Gerçek kapsam dışı — ciro kelimesi geçse bile oos kalır (rakip cirosu).
 _EXPLICIT_OOS_NEEDLES = (
     "rakip",
@@ -107,6 +81,48 @@ _PRODUCTISH = re.compile(
     re.IGNORECASE,
 )
 _SKTISH = re.compile(r"skt|son kullanma", re.IGNORECASE)
+# Önceki tura atıf — Haiku yalnız bu cümleyi görür, oos konservesine düşer.
+_FOLLOW_FOLDS = frozenset(
+    tr_fold(s)
+    for s in (
+        "evet",
+        "evet çıkar",
+        "evet cikar",
+        "evet yap",
+        "evet listele",
+        "evet lütfen",
+        "evet lutfen",
+        "hayır",
+        "hayir",
+        "tamam",
+        "olur",
+        "yap",
+        "çıkar",
+        "cikar",
+        "listele",
+        "göster",
+        "goster",
+        "devam",
+        "devam et",
+        "onu çıkar",
+        "onu cikar",
+        "onu listele",
+        "bunu çıkar",
+        "onları çıkar",
+        "onlari cikar",
+        "peki",
+        "ok",
+        "okay",
+        "tabi",
+        "tabii",
+        "lütfen",
+        "lutfen",
+        "isterim",
+        "istiyorum",
+        "yap lütfen",
+        "yap lutfen",
+    )
+)
 _DOMAIN_NEEDLES: dict[str, tuple[str, ...]] = {
     "urun": (
         "ürün",
@@ -134,10 +150,6 @@ def _folded_has(folded: str, needles: tuple[str, ...]) -> bool:
     return any(tr_fold(n) in folded for n in needles)
 
 
-def _in_scope(text: str) -> bool:
-    return _folded_has(tr_fold(text), _IN_SCOPE_NEEDLES)
-
-
 def _explicit_oos(text: str) -> bool:
     return _folded_has(tr_fold(text), _EXPLICIT_OOS_NEEDLES)
 
@@ -153,6 +165,10 @@ def _domain_hits(text: str) -> frozenset[str]:
 
 def _compound_query(text: str) -> bool:
     return len(_domain_hits(text)) >= 2
+
+
+def _follow_up_utterance(text: str) -> bool:
+    return tr_fold(text) in _FOLLOW_FOLDS
 
 
 def prefilter_route(text: str) -> Decision | None:
@@ -174,6 +190,8 @@ def prefilter_route(text: str) -> Decision | None:
     if _OPUS_HINT.search(raw):
         return OPUS
     if _compound_query(raw):
+        return OPUS
+    if _follow_up_utterance(raw):
         return OPUS
     return None
 
@@ -245,11 +263,11 @@ def normalize_decision(text: str, decision: Decision) -> Decision:
             return OPUS
         return Decision(route="clarify", clarify_key="risk")
     if decision.route == "oos":
+        # Konserve oos yalnız açık kapsam dışı. "evet çıkar" gibi takip
+        # Haiku'ya şablon yok gibi görünür — Opus konuşma geçmişini görür.
         if _explicit_oos(text):
             return OOS
-        if _in_scope(text) or _compound_query(text):
-            return OPUS
-        return OOS
+        return OPUS
     return OPUS
 
 

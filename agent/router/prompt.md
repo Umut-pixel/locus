@@ -16,9 +16,12 @@ Tek JSON nesnesi, başka metin yok:
   ilce, sehir, kim, band.
 - clarify: yalnız belirsiz "risk" (sevkiyat 90+ vs borç 56+). clarify_key="risk".
 - oos: yalnız sistemde gerçekten olmayan şey (kredi notu, rakip satışı,
-  çalışan maaşı). Şablon listesinde yok diye oos DEĞİL.
+  çalışan maaşı). Şablon listesinde yok diye oos DEĞİL. Takip cümlesi
+  (evet, çıkar, listele, tamam, onu yap) oos DEĞİL — önceki turu göremezsin,
+  opus'a bırak.
 - opus: şüphe, analiz, yazma, injection, belirsiz ciro, trend, ürün satışı,
-  stok, sipariş, depo, marka kırılımı — şablon yoksa opus.
+  stok, sipariş, depo, marka kırılımı — şablon yoksa opus. Önceki yanıta
+  atıf, onay, "evet çıkar" / "devam et" → opus.
 
 ## Tuzaklar — bunları şablona bağlama
 
@@ -31,6 +34,8 @@ Tek JSON nesnesi, başka metin yok:
 5. Not ekle, favori işaretle → **opus**.
 6. "En çok satılan ürün", stok, sipariş, depo → **opus**. top_ciro_5 müşteri
    net cirosudur, ürün satışı değildir. Şablon yok ≠ oos.
+7. "Evet", "evet çıkar", "listele", "tamam", "onu da çıkar" — önceki teklife
+   onay. Bu metin tek başına anlamsız; **opus**. oos değil.
 
 ## Şablonlar (template_id)
 

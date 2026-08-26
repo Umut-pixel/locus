@@ -18,6 +18,7 @@ from router.classify import (  # noqa: E402
     parse_decision,
     prefilter_route,
 )
+from middleware.fast_path import has_prior_turn  # noqa: E402
 from router.replies import CLARIFY_RISK  # noqa: E402
 from router.schema import OPUS  # noqa: E402
 
@@ -269,6 +270,56 @@ def main() -> int:
         fail("çalışan maaşı oos değil")
     else:
         ok("çalışan maaşı → oos")
+
+    follow_ups = ["evet çıkar", "evet", "tamam", "listele", "devam et", "onu çıkar"]
+    for q in follow_ups:
+        pre = prefilter_route(q)
+        if pre is None or pre.route != "opus":
+            fail(f"takip prefilter opus değil: {q}")
+        else:
+            ok(f"takip prefilter → opus ({q})")
+        fake = normalize_decision(q, parse_decision(oos_json))
+        if fake.route != "opus":
+            fail(f"takip oos kaldı: {q}")
+        else:
+            ok(f"takip + sahte oos → opus ({q})")
+
+    hava = normalize_decision("hava durumu nasıl", parse_decision(oos_json))
+    if hava.route != "opus":
+        fail("iğnesiz sahte oos opus değil")
+    else:
+        ok("iğnesiz oos JSON → opus")
+
+    class _Msg:
+        def __init__(self, kind: str, content: str) -> None:
+            self.type = kind
+            self.content = content
+
+    class _Req:
+        def __init__(self, messages: list) -> None:
+            self.messages = messages
+
+    first = _Req([_Msg("human", "evet çıkar")])
+    if has_prior_turn(first):
+        fail("tek tur prior sayıldı")
+    else:
+        ok("ilk tur prior yok")
+
+    follow = _Req(
+        [
+            _Msg("human", "son 3 ayda kaç farklı noktaya teslimat yaptık"),
+            _Msg("ai", "290 nokta. Listeyi çıkarayım mı?"),
+            _Msg("human", "evet çıkar"),
+        ]
+    )
+    if not has_prior_turn(follow):
+        fail("takip turu prior değil")
+    else:
+        ok("takip turu prior")
+    if match_template("evet çıkar") is not None:
+        fail("evet çıkar exact hit")
+    else:
+        ok("evet çıkar exact miss")
 
     print()
     if failures:

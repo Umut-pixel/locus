@@ -1,7 +1,7 @@
 """Katalog hit veya router kararı — Opus'u atla.
 
-Sıra: tam eşleşme → deterministik tuzak/clarify → Haiku classify.
-Haiku SQL yazmaz. Opus yolu effort=high kalır (değiştirilmez).
+Sıra: tam eşleşme → (takip turu: Opus) → deterministik tuzak/clarify → Haiku.
+Takip cümlesi ('evet çıkar') Haiku'ya gitmez — yalnız son mesajı görür.
 """
 
 from __future__ import annotations
@@ -45,6 +45,13 @@ def _message_text(msg: object) -> str:
     return str(content or "")
 
 
+def _is_ai(msg: object) -> bool:
+    kind = getattr(msg, "type", None)
+    if kind in ("ai", "assistant"):
+        return True
+    return type(msg).__name__ == "AIMessage"
+
+
 def _last_human_if_turn_start(request: object) -> str | None:
     messages = getattr(request, "messages", None) or []
     if not messages:
@@ -54,6 +61,18 @@ def _last_human_if_turn_start(request: object) -> str | None:
         return None
     text = _message_text(last).strip()
     return text or None
+
+
+def has_prior_turn(request: object) -> bool:
+    """Bu turdan önce insan veya asistan mesajı var mı.
+
+    Haiku yalnız son kullanıcı cümlesini görür. 'evet çıkar' gibi takip
+    o bağlam olmadan oos konservesine düşer — Opus'a bırak.
+    """
+    messages = getattr(request, "messages", None) or []
+    if len(messages) < 2:
+        return False
+    return any(_is_human(m) or _is_ai(m) for m in messages[:-1])
 
 
 def _model_response(text: str, model_name: str | None = None) -> ModelResponse:
@@ -93,6 +112,11 @@ async def _resolve_spec(text: str) -> tuple[TemplateSpec | str | None, str | Non
 async def fast_path(request, handler):
     text = _last_human_if_turn_start(request)
     if not text:
+        return await handler(request)
+
+    # Tam chip eşleşmesi konuşma içinde de ucuz kalır.
+    if has_prior_turn(request) and match_template(text) is None:
+        logger.info("fast-path follow-up → opus")
         return await handler(request)
 
     resolved, model_name = await _resolve_spec(text)
