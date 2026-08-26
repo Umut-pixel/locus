@@ -51,8 +51,8 @@ Komşu bir genel-amaçlı CRM bu domain-özel veri temizliğini kopyalayamaz.
 
 ## Capabilities and Constraints
 
-- ~1200–1290 müşteri, Ege bölgesinde 8 il (İzmir, Aydın, Muğla, Manisa,
-  Denizli, Balıkesir, Çanakkale, Uşak).
+- DistGrup'taki tüm senkron müşteriler (~1400+ unique). Çekirdek Ege
+  illeri `bolge_grubu` etiketi; Antalya, Bursa, İstanbul vb. de dahildir.
 - Teslimat riski sunucu tarafında (`musteriler_harita` view) hesaplanır:
   sağlıklı / izlenmeli (>45 gün) / riskli (>90 gün) / hiç teslimat yok —
   client bunu asla yeniden hesaplamaz.

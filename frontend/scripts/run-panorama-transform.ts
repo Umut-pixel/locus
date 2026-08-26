@@ -1,7 +1,10 @@
-import { config } from "dotenv";
+import { existsSync } from "fs";
 import { resolve } from "path";
 
-config({ path: resolve(process.cwd(), ".env.local") });
+const envPath = resolve(process.cwd(), ".env.local");
+if (existsSync(envPath)) {
+  process.loadEnvFile(envPath);
+}
 
 import { createSupabaseAdmin } from "../lib/supabase-admin";
 import { runPanoramaTransform } from "../lib/sync/run-transform";

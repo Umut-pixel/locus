@@ -16,18 +16,16 @@ import {
   EMPTY_RAPORLAMA_FILTERS,
   raporlamaFiltersActive,
   useIlceSecenekleri,
+  useSehirSecenekleri,
   useTemsilciSecenekleri,
   type RaporlamaFilters,
   type RaporlamaSort,
 } from "@/hooks/useMusteriRaporlama";
-import { SEHIR_HEDEF } from "@/lib/import/cities";
 import { SEGMENT_OPTIONS, segmentDisplayLabel } from "@/lib/raporlama-style";
 import { riskShortLabelsForMode, type RiskMetricMode } from "@/lib/risk-mode";
 import { RISK_ORDER } from "@/lib/risk-style";
 import type { RiskDurumu } from "@/lib/types";
 import { cn } from "@/lib/utils";
-
-const SEHIR_OPTIONS = Array.from(SEHIR_HEDEF).sort((a, b) => a.localeCompare(b, "tr"));
 
 /**
  * Araç çubuğu tek satırda kalsın diye tüm kontroller aynı yoğunlukta:
@@ -105,6 +103,7 @@ export function MusteriRaporlamaFilters({
   riskMode,
 }: MusteriRaporlamaFiltersProps) {
   const { options: temsilciOptions } = useTemsilciSecenekleri();
+  const { options: sehirOptions } = useSehirSecenekleri();
   const { options: ilceOptions } = useIlceSecenekleri(filters.sehir);
   const active = raporlamaFiltersActive(filters);
   const riskLabels = riskShortLabelsForMode(riskMode);
@@ -212,7 +211,7 @@ export function MusteriRaporlamaFilters({
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="all">Tüm iller</SelectItem>
-          {SEHIR_OPTIONS.map((sehir) => (
+          {sehirOptions.map((sehir) => (
             <SelectItem key={sehir} value={sehir}>
               {sehir}
             </SelectItem>

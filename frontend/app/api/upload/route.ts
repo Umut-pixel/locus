@@ -318,7 +318,7 @@ export async function POST(request: Request) {
       }
       if (parsed.bolgeDisi > 0) {
         uyarilar.push(
-          `${parsed.bolgeDisi} müşteri 8-il filtresi dışında bırakıldı.`
+          `${parsed.bolgeDisi} müşteri çekirdek 8 il dışında — dahil edildi.`
         );
       }
 

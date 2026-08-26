@@ -155,14 +155,11 @@ function NetCiroTrend({
 }
 
 /**
- * 8-il filtresi dışında kaldığı için bu tabloda HİÇ görünmeyen ciro.
+ * Master'da kaydı olmadığı için bu tabloda HİÇ görünmeyen ciro.
  *
- * BelgeDetayRaporu (5450) bayi bölgesinin tamamını kapsıyor; müşteri master'ı
- * 8 Ege iliyle sınırlı. Aradaki fark hiçbir ekranda yoktu ve ekrandaki toplam
- * Panorama'nınkiyle tutmuyordu — okuyan kişi rakamın eksik olduğunu bilmiyordu.
- *
- * Yalnızca filtre yokken gösterilir: bu rakam tüm veri üzerinden sabittir,
- * filtrelenmiş bir toplamın yanında durursa yanıltır (NetCiroTrend ile aynı kural).
+ * BelgeDetayRaporu (5450) DistGrup'un tamamını kapsıyor; müşteri master'ına
+ * henüz yazılmamış kodlar (landing'de yok, yeni fatura vb.) burada kalır.
+ * Filtre yokken gösterilir — filtrelenmiş bir toplamın yanında durursa yanıltır.
  */
 function BolgeDisiCiro({ filters }: { filters: RaporlamaFilters }) {
   const aktif = !raporlamaFiltersActive(filters);
@@ -174,13 +171,12 @@ function BolgeDisiCiro({ filters }: { filters: RaporlamaFilters }) {
     <span
       className="flex shrink-0 items-center gap-1.5 text-muted-foreground"
       title={
-        `Panorama'nın belge raporu tüm bayi bölgesini kapsıyor; bu harita ve rapor ` +
-        `8 Ege iliyle sınırlı. ${formatNumber(musteriSayisi)} müşteri ` +
-        `(${formatCurrency(netCiro)}) bu 8 il dışında olduğu için yukarıdaki ` +
-        `toplama dahil değil. Panorama ile karşılaştırırken bu farkı ekleyin.`
+        `Panorama belge raporunda olup müşteri master'ında kaydı olmayan ` +
+        `${formatNumber(musteriSayisi)} müşteri (${formatCurrency(netCiro)}) ` +
+        `yukarıdaki toplama dahil değil.`
       }
     >
-      <span className="text-[12px]">bölge dışı</span>
+      <span className="text-[12px]">master dışı</span>
       <span className="font-mono font-medium tabular-nums">
         {formatCurrency(netCiro)}
       </span>

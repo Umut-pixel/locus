@@ -519,6 +519,28 @@ export function useTemsilciSecenekleri(): { options: string[]; loading: boolean 
   return { options, loading };
 }
 
+/** Veritabanındaki tüm iller — 8-il sabiti değil, DistGrup'ta ne varsa. */
+export function useSehirSecenekleri(): { options: string[]; loading: boolean } {
+  const [options, setOptions] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchDistinctColumn("sehir")
+      .then((opts) => {
+        if (!cancelled) setOptions(opts);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  return { options, loading };
+}
+
 /** Seçili şehre göre daralan ilçe listesi (cascading). */
 export function useIlceSecenekleri(sehir: string | null): {
   options: string[];
@@ -777,16 +799,11 @@ export interface BolgeDisiOzet {
 }
 
 /**
- * 8-il filtresi dışında kalan ciro — mutabakat satırı.
+ * Master'da kaydı olmayan belge cirosu — mutabakat satırı.
  *
- * BelgeDetayRaporu (5450) bayi bölgesinin tamamını kapsıyor, müşteri master'ı
- * ise `SEHIR_HEDEF` ile 8 Ege iline daraltılıyor (bilinçli ürün kararı, bkz.
- * lib/import/cities.ts). Aradaki müşteriler hiçbir ekranda görünmüyordu ve
- * toplam Panorama'yla tutmuyordu. Bu hook farkı okunur kılar; kapsamı
- * değiştirmez.
- *
- * `useNetCiroTrendi` ile aynı kısıt: bu rakam TÜM veri üzerinden hesaplanır,
- * filtreye duyarlı değildir — çağıran taraf filtre varken kapatmalı.
+ * BelgeDetayRaporu (5450) DistGrup'un tamamını kapsıyor; müşteri kodu
+ * `musteriler`'de yoksa (landing'de olmayan yeni fatura vb.) burada kalır.
+ * `useNetCiroTrendi` ile aynı kısıt: TÜM veri, filtreye duyarlı değil.
  */
 export function useBolgeDisiOzet(enabled: boolean): BolgeDisiOzet {
   const [state, setState] = useState<BolgeDisiOzet>({

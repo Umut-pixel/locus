@@ -1,5 +1,10 @@
 import { sehirNormalize } from "./utils";
 
+/**
+ * Çekirdek / sınır etiketleri — dahil etme kapısı değil.
+ * DistGrup'taki her müşteri `musteriler`'e yazılır; bu setler yalnızca
+ * `bolge_grubu` kolonunu (`cekirdek` | `sinir_dahil` | `bolge_disi`) doldurur.
+ */
 export const SEHIR_CEKIRDEK = new Set([
   "İZMİR",
   "MANİSA",
@@ -37,8 +42,9 @@ export function bolgeGrubu(sehir: string): BolgeGrubu {
   return "bolge_disi";
 }
 
+/** @deprecated Kapsam artık DistGrup'un tamamı — dahil etme kapısı değil, etiket. */
 export function hedefBolgeMi(sehir: string): boolean {
-  return SEHIR_HEDEF.has(sehirNormalize(sehir));
+  return Boolean(sehirNormalize(sehir));
 }
 
 /** Mapbox fitBounds: [[minLon, minLat], [maxLon, maxLat]]. */

@@ -1,4 +1,4 @@
-import { bolgeGrubu, hedefBolgeMi } from "./cities";
+import { bolgeGrubu } from "./cities";
 import { musteriDedup } from "./dedup-musteri";
 import type { MusteriUpsertRow } from "./types";
 import {
@@ -33,6 +33,8 @@ export interface ParseMusteriSonuc {
 /**
  * MusteriListesi satırlarını kısmi upsert satırlarına çevir.
  * KoordinatX = enlem (lat), KoordinatY = boylam (lon).
+ * İl filtresi yok — DistGrup'taki her geçerli kod yazılır; `bolgeDisi`
+ * yalnızca çekirdek 8 il dışındaki (veya şehri boş) kayıt sayısıdır.
  */
 export function parseMusteriListesi(
   rawRows: Record<string, unknown>[]
@@ -47,10 +49,7 @@ export function parseMusteriListesi(
     if (!musteri_kodu || !unvan) continue;
 
     const sehir = sehirNormalize(r["Sehir"] ?? r["sehir"] ?? "");
-    if (!hedefBolgeMi(sehir)) {
-      bolgeDisi += 1;
-      continue;
-    }
+    if (!sehir || bolgeGrubu(sehir) === "bolge_disi") bolgeDisi += 1;
 
     // KoordinatX = lat, KoordinatY = lon (isim yanıltıcı)
     let lat = sayiyaCevir(r["KoordinatX"]);

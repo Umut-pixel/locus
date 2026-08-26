@@ -1,20 +1,14 @@
 -- =============================================================================
--- rapor_bolge_disi_ozet: 8-il filtresi disinda kalan cironun mutabakat satiri
+-- rapor_bolge_disi_ozet: master'da kaydi olmayan belge cirosunun mutabakat satiri
 -- =============================================================================
 --
 -- NEDEN
---   Panorama'nin BelgeDetayRaporu'su (5450) bayi bolgesinin TAMAMINI kapsiyor
---   (DistGrup = 'Ege ve Akdeniz Bolge'). Musteri master'i (5020 -> musteriler)
---   ise `SEHIR_HEDEF` ile 8 Ege iline daraltiliyor -- bu bilincli bir urun
---   karari, bug degil (bkz. lib/import/cities.ts).
+--   Panorama'nin BelgeDetayRaporu'su (5450) DistGrup'un TAMAMINI kapsiyor.
+--   Musteri master'i da ayni kapsami yazar; bu view yalnizca 5450'de cirosu
+--   olan ama `musteriler`'de henuz kaydi bulunmayan kodlari (yeni fatura,
+--   landing gecikmesi vb.) sayar. 8-il skip kaldirildi.
 --
---   Sonucu: 5450'de cirosu olan ama 8 il disinda kalan musteriler hicbir
---   ekranda gorunmuyor ve toplam, Panorama'nin rakamiyla tutmuyor.
---   2026-08-18'de 25 musteri / 1.502.613 TL (tek basina 735.064 TL'si
---   100001077 ARCA PETSHOP / Ankara).
---
---   Bu view kapsamı DEGISTIRMEZ -- sadece farki gorunur kilar ki rapordaki
---   rakam Panorama ile mutabik okunabilsin.
+--   Bu view kapsami DEGISTIRMEZ -- sadece farki gorunur kilar.
 --
 -- DEDUP
 --   parseBelgeDetayRaporu ile AYNI anahtar kullanilir:

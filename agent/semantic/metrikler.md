@@ -91,6 +91,9 @@ Borç modunda etiketler farklı: `saglikli`→"Temiz", `izlenmeli`→"Borçlu",
 
 ## Coğrafi kapsam
 
-8 il: AYDIN, BALIKESİR, ÇANAKKALE, DENİZLİ, İZMİR, MANİSA, MUĞLA, UŞAK.
-`sehir` kolonu **büyük harf** tutulur — filtrede `sehir = 'BALIKESİR'` (Türkçe İ dikkat).
-Bu 8 il dışındaki ciro `rapor_bolge_disi_ozet` view'ında (mutabakat için).
+Kapsam DistGrup'un tamamı (Ege ve Akdeniz Bölge landing). `bolge_grubu`
+yalnızca etikettir (`cekirdek` / `sinir_dahil` / `bolge_disi`); dahil
+etme kapısı değildir. `sehir` kolonu **büyük harf** tutulur — filtrede
+`sehir = 'BALIKESİR'` (Türkçe İ dikkat).
+`rapor_bolge_disi_ozet` master'da kaydı olmayan belge cirosunun mutabakat
+satırıdır (8-il skip artık yok).

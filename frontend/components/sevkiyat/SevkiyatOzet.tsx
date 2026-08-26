@@ -59,7 +59,7 @@ export function SevkiyatOzet({ ozet, loading }: SevkiyatOzetProps) {
         icon={TruckIcon}
         etiket="Müşteri"
         deger={formatNumber(Math.round(musteriSayisi))}
-        altBilgi="8 il kapsamında"
+        altBilgi="bayi bölgesi, tüm senkron"
         loading={loading}
       />
     </div>

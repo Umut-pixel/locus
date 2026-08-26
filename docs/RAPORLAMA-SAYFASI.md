@@ -167,8 +167,8 @@ tekrar kullanılır** — üç yerde ayrı filtre mantığı yok.
   10 Ağustos 2026'da canlı DB'de gözlenen 7 sabit kod (`200`–`206`) hardcoded.
   Bilinmeyen bir kod gelirse dropdown'da çıkmaz ama satırda hash-bazlı
   fallback renkle (kırılmadan) gösterilir.
-- **Şehir** listesi Supabase'den değil, `lib/import/cities.ts`'teki
-  `SEHIR_HEDEF` sabitinden gelir (Ege bölgesi 8 il).
+- **Şehir** listesi `useSehirSecenekleri` ile view'daki distinct `sehir`
+  değerlerinden gelir (DistGrup'ta ne varsa).
 
 ---
 

@@ -210,7 +210,7 @@ export async function runPanoramaTransform(
   }
   if (parsedMusteri.bolgeDisi > 0) {
     uyarilar.push(
-      `${parsedMusteri.bolgeDisi} müşteri 8-il filtresi dışında bırakıldı.`
+      `${parsedMusteri.bolgeDisi} müşteri çekirdek 8 il dışında — dahil edildi.`
     );
   }
 

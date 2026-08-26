@@ -29,7 +29,7 @@ export const MUSTERILER_HARITA_VIEW = "musteriler_harita";
  */
 export const MUSTERILER_RAPOR_VIEW = "musteriler_rapor";
 /**
- * 8-il filtresi dışında kaldığı için hiçbir ekrana girmeyen cironun mutabakat
+ * Master'da kaydı olmadığı için ekrana girmeyen cironun mutabakat
  * satırı (agregat: müşteri adedi + tutar). Kapsamı değiştirmez, farkı görünür
  * kılar — bkz. sql/rapor_bolge_disi_ozet.sql.
  */

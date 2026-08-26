@@ -2730,5 +2730,502 @@
   "tip": "administrative",
   "display": "Susurluk, Balıkesir, Marmara Bölgesi, Türkiye"
  },
- "ayi̇tli̇ ozmevki̇ kosten küme evleri̇ gökbel mahallesi, ortaca, muğla, türkiye": {}
+ "ayi̇tli̇ ozmevki̇ kosten küme evleri̇ gökbel mahallesi, ortaca, muğla, türkiye": {},
+ "beşevler mahallesi, ni̇lüfer, bursa, türkiye": {
+  "lat": 40.2083693,
+  "lon": 28.9643603,
+  "tip": "administrative",
+  "display": "Beşevler Mahallesi, Nilüfer, Bursa, Marmara Bölgesi, Türkiye"
+ },
+ "çamlica mahallesi, ni̇lüfer, bursa, türkiye": {
+  "lat": 40.1967627,
+  "lon": 28.9789562,
+  "tip": "administrative",
+  "display": "Çamlıca Mahallesi, Nilüfer, Bursa, Marmara Bölgesi, Türkiye"
+ },
+ "kinik mahallesi, kaş, antalya, türkiye": {},
+ "kaş, antalya, türkiye": {
+  "lat": 36.1993752,
+  "lon": 29.6413365,
+  "tip": "administrative",
+  "display": "Kaş, Antalya, Akdeniz Bölgesi, Türkiye"
+ },
+ "güzelyali mahallesi, çukurova, adana, türkiye": {
+  "lat": 37.0470729,
+  "lon": 35.3094964,
+  "tip": "administrative",
+  "display": "Güzelyalı Mahallesi, Çukurova, Adana, Akdeniz Bölgesi, Türkiye"
+ },
+ "üsküdar, i̇stanbul, türkiye": {
+  "lat": 41.0265498,
+  "lon": 29.0151321,
+  "tip": "administrative",
+  "display": "Üsküdar, İstanbul, Marmara Bölgesi, Türkiye"
+ },
+ "toros mahallesi, adana, türkiye": {
+  "lat": 37.0395088,
+  "lon": 35.2991442,
+  "tip": "administrative",
+  "display": "Toros Mahallesi, Çukurova, Adana, Akdeniz Bölgesi, 01170, Türkiye"
+ },
+ "güvenler mahallesi, mersin, türkiye": {},
+ "fati̇h mahallesi, mersin, türkiye": {
+  "lat": 36.0547233,
+  "lon": 32.8300018,
+  "tip": "suburb",
+  "display": "Fatih, Anamur, Mersin, Akdeniz Bölgesi, 33650, Türkiye"
+ },
+ "canbali mahallesi, karacabey, bursa, türkiye": {
+  "lat": 40.2020428,
+  "lon": 28.3517218,
+  "tip": "administrative",
+  "display": "Canbalı Mahallesi, Karacabey, Bursa, Marmara Bölgesi, 16700, Türkiye"
+ },
+ "örenci̇k mahallesi, gölbaşi, ankara, türkiye": {
+  "lat": 39.7825534,
+  "lon": 32.834955,
+  "tip": "administrative",
+  "display": "Örencik Mahallesi, Gölbaşı, Ankara, İç Anadolu Bölgesi, Türkiye"
+ },
+ "bağlica mahallesi, eti̇mesgut, ankara, türkiye": {
+  "lat": 39.8940734,
+  "lon": 32.6480435,
+  "tip": "administrative",
+  "display": "Bağlıca Mahallesi, Etimesgut, Ankara, İç Anadolu Bölgesi, Türkiye"
+ },
+ "cumhuri̇yet mahallesi, polatli, ankara, türkiye": {
+  "lat": 39.5832328,
+  "lon": 32.1466362,
+  "tip": "administrative",
+  "display": "Cumhuriyet Mahallesi, Polatlı, Ankara, İç Anadolu Bölgesi, Türkiye"
+ },
+ "orhangazi̇ mahallesi, pendi̇k, i̇stanbul, türkiye": {
+  "lat": 40.8660896,
+  "lon": 29.2894246,
+  "tip": "administrative",
+  "display": "Orhangazi Mahallesi, Pendik, İstanbul, Marmara Bölgesi, 34903, Türkiye"
+ },
+ "kavakli mahallesi, beyli̇kdüzü, i̇stanbul, türkiye": {
+  "lat": 40.9819486,
+  "lon": 28.6403256,
+  "tip": "administrative",
+  "display": "Kavaklı Mahallesi, Beylikdüzü, İstanbul, Marmara Bölgesi, 34520, Türkiye"
+ },
+ "fulya mahallesi, şi̇şli̇, i̇stanbul, türkiye": {
+  "lat": 41.0583894,
+  "lon": 28.9979356,
+  "tip": "administrative",
+  "display": "Fulya Mahallesi, Nişantaşı, Şişli, İstanbul, Marmara Bölgesi, Türkiye"
+ },
+ "pazari̇çi̇ mahallesi, gazi̇osmanpaşa, i̇stanbul, türkiye": {
+  "lat": 41.0591205,
+  "lon": 28.9344768,
+  "tip": "administrative",
+  "display": "Pazariçi Mahallesi, Gaziosmanpaşa, İstanbul, Marmara Bölgesi, Türkiye"
+ },
+ "ergenekon mahallesi, şi̇şli̇, i̇stanbul, türkiye": {
+  "lat": 41.0489803,
+  "lon": 28.9864057,
+  "tip": "administrative",
+  "display": "Ergenekon Mahallesi, Şişli, İstanbul, Marmara Bölgesi, Türkiye"
+ },
+ "sariyer, i̇stanbul, türkiye": {
+  "lat": 41.1685803,
+  "lon": 29.0572623,
+  "tip": "administrative",
+  "display": "Sarıyer, İstanbul, Marmara Bölgesi, Türkiye"
+ },
+ "mi̇mar si̇nan mahallesi, körfez, kocaeli̇, türkiye": {
+  "lat": 40.7705961,
+  "lon": 29.7518448,
+  "tip": "administrative",
+  "display": "Mimar Sinan Mahallesi, Körfez, Kocaeli, Marmara Bölgesi, Türkiye"
+ },
+ "maden mahallesi, sariyer, i̇stanbul, türkiye": {
+  "lat": 41.1817996,
+  "lon": 29.0379835,
+  "tip": "administrative",
+  "display": "Maden Mahallesi, Sarıyer, İstanbul, Marmara Bölgesi, Türkiye"
+ },
+ "yakacık çarşı mahallesi, kartal, i̇stanbul, türkiye": {
+  "lat": 40.9184915,
+  "lon": 29.2257746,
+  "tip": "administrative",
+  "display": "Yakacık Çarşı Mahallesi, Kartal, İstanbul, Marmara Bölgesi, Türkiye"
+ },
+ "alemdağ mahallesi, çekmeköy, i̇stanbul, türkiye": {
+  "lat": 41.0496927,
+  "lon": 29.237004,
+  "tip": "administrative",
+  "display": "Alemdağ Mahallesi, Çekmeköy, İstanbul, Marmara Bölgesi, Türkiye"
+ },
+ "a.n. gürman mahallesi, güngören, i̇stanbul, türkiye": {},
+ "güngören, i̇stanbul, türkiye": {
+  "lat": 41.0252832,
+  "lon": 28.8726498,
+  "tip": "administrative",
+  "display": "Güngören, İstanbul, Marmara Bölgesi, Türkiye"
+ },
+ "i̇çerenköy mahallesi, ataşehi̇r, i̇stanbul, türkiye": {
+  "lat": 40.9701086,
+  "lon": 29.1110569,
+  "tip": "administrative",
+  "display": "İçerenköy Mahallesi, Ataşehir, İstanbul, Marmara Bölgesi, 34752, Türkiye"
+ },
+ "mi̇mar si̇nan mahallesi, si̇li̇vri̇, i̇stanbul, türkiye": {
+  "lat": 41.0850824,
+  "lon": 28.2406022,
+  "tip": "administrative",
+  "display": "Mimar Sinan Mahallesi, Silivri, İstanbul, Marmara Bölgesi, Türkiye"
+ },
+ "mehmet aki̇f mahallesi, selçuklu, konya, türkiye": {
+  "lat": 37.9058693,
+  "lon": 32.4763943,
+  "tip": "administrative",
+  "display": "Mehmet Akif Mahallesi, Konya, Selçuklu, Konya, İç Anadolu Bölgesi, Türkiye"
+ },
+ "sariyakup mahallesi, karatay, konya, türkiye": {
+  "lat": 37.8632882,
+  "lon": 32.5063642,
+  "tip": "administrative",
+  "display": "Sarıyakup Mahallesi, Karatay, Konya, İç Anadolu Bölgesi, Türkiye"
+ },
+ "yunusemre mahallesi, yildirim, bursa, türkiye": {},
+ "yildirim, bursa, türkiye": {
+  "lat": 40.1866362,
+  "lon": 29.128191,
+  "tip": "administrative",
+  "display": "Yıldırım, Bursa, Marmara Bölgesi, Türkiye"
+ },
+ "balkan mahallesi, ni̇lüfer, bursa, türkiye": {
+  "lat": 40.2307264,
+  "lon": 28.9785358,
+  "tip": "residential",
+  "display": "Balkan Sokağı, Fethiye, Fethiye Mahallesi, Nilüfer, Bursa, Marmara Bölgesi, 16220, Türkiye"
+ },
+ "altinşehi̇r mahallesi, ni̇lüfer, bursa, türkiye": {
+  "lat": 40.2284093,
+  "lon": 28.9232677,
+  "tip": "administrative",
+  "display": "Altınşehir Mahallesi, Nilüfer, Bursa, Marmara Bölgesi, Türkiye"
+ },
+ "emek zekai̇ gümüşdi̇ş mahallesi, osmangazi̇, bursa, türkiye": {
+  "lat": 40.2558501,
+  "lon": 28.9566797,
+  "tip": "administrative",
+  "display": "Emek Zekai Gümüşdiş Mahallesi, Bursa, Osmangazi, Bursa, Marmara Bölgesi, Türkiye"
+ },
+ "tepebaşi, eski̇şehi̇r, türkiye": {
+  "lat": 39.7809893,
+  "lon": 30.5140549,
+  "tip": "administrative",
+  "display": "Tepebaşı, Eskişehir, İç Anadolu Bölgesi, Türkiye"
+ },
+ "zincirli kuyu mahallesi, tepebaşi, eski̇şehi̇r, türkiye": {},
+ "uluönder mahallesi, tepebaşi, eski̇şehi̇r, türkiye": {
+  "lat": 39.7885346,
+  "lon": 30.4870067,
+  "tip": "administrative",
+  "display": "Uluönder Mahallesi, Tepebaşı, Eskişehir, İç Anadolu Bölgesi, 26150, Türkiye"
+ },
+ "odunpazari, eski̇şehi̇r, türkiye": {
+  "lat": 39.7655536,
+  "lon": 30.5237649,
+  "tip": "administrative",
+  "display": "Odunpazarı, Eskişehir, İç Anadolu Bölgesi, Türkiye"
+ },
+ "mustafakemalpaşa, bursa, türkiye": {
+  "lat": 40.0350481,
+  "lon": 28.4132707,
+  "tip": "administrative",
+  "display": "Mustafakemalpaşa, Bursa, Marmara Bölgesi, 16500, Türkiye"
+ },
+ "gazi̇paşa mahallesi, merkez, bi̇leci̇k, türkiye": {
+  "lat": 40.1412213,
+  "lon": 29.9779275,
+  "tip": "administrative",
+  "display": "Gazipaşa Mahallesi, Bilecik Merkez, Bilecik, Marmara Bölgesi, Türkiye"
+ },
+ "75. yıl mahallesi, saricakaya, eski̇şehi̇r, türkiye": {},
+ "saricakaya, eski̇şehi̇r, türkiye": {
+  "lat": 40.0389485,
+  "lon": 30.6189477,
+  "tip": "administrative",
+  "display": "Sarıcakaya, Eskişehir, İç Anadolu Bölgesi, Türkiye"
+ },
+ "maliköy başkent osb mahallesi, si̇ncan, ankara, türkiye": {
+  "lat": 39.8035661,
+  "lon": 32.381668,
+  "tip": "administrative",
+  "display": "Malıköy Başkent OSB Mahallesi, Sincan, Ankara, İç Anadolu Bölgesi, Türkiye"
+ },
+ "uzunoluk mahallesi, korkuteli̇, antalya, türkiye": {},
+ "korkuteli̇, antalya, türkiye": {
+  "lat": 37.0666523,
+  "lon": 30.1970497,
+  "tip": "administrative",
+  "display": "Korkuteli, Antalya, Akdeniz Bölgesi, Türkiye"
+ },
+ "yeni̇ emek mahallesi, döşemealti, antalya, türkiye": {},
+ "döşemealti, antalya, türkiye": {
+  "lat": 37.022956,
+  "lon": 30.6013333,
+  "tip": "administrative",
+  "display": "Döşemealtı, Antalya, Akdeniz Bölgesi, Türkiye"
+ },
+ "çağlayan mahallesi, muratpaşa, antalya, türkiye": {
+  "lat": 36.8510305,
+  "lon": 30.7673181,
+  "tip": "administrative",
+  "display": "Çağlayan Mahallesi, Antalya, Muratpaşa, Antalya, Akdeniz Bölgesi, Türkiye"
+ },
+ "altindağ mahallesi, muratpaşa, antalya, türkiye": {
+  "lat": 36.8912382,
+  "lon": 30.6921871,
+  "tip": "administrative",
+  "display": "Altındağ Mahallesi, Antalya, Muratpaşa, Antalya, Akdeniz Bölgesi, Türkiye"
+ },
+ "si̇teler mahallesi, konyaalti, antalya, türkiye": {
+  "lat": 36.8919223,
+  "lon": 30.6326564,
+  "tip": "administrative",
+  "display": "Siteler Mahallesi, Konyaaltı, Antalya, Akdeniz Bölgesi, Türkiye"
+ },
+ "kayağdi mahallesi, elmali, antalya, türkiye": {},
+ "elmali, antalya, türkiye": {
+  "lat": 36.7383786,
+  "lon": 29.9183623,
+  "tip": "administrative",
+  "display": "Elmalı, Antalya, Akdeniz Bölgesi, 07700, Türkiye"
+ },
+ "ki̇remi̇tli̇ mahallesi, korkuteli̇, antalya, türkiye": {},
+ "kircami̇ mahallesi, muratpaşa, antalya, türkiye": {
+  "lat": 36.8703676,
+  "lon": 30.7356794,
+  "tip": "administrative",
+  "display": "Kırcami Mahallesi, Antalya, Muratpaşa, Antalya, Akdeniz Bölgesi, Türkiye"
+ },
+ "yeni̇köy mahallesi, döşemealti, antalya, türkiye": {
+  "lat": 37.0090806,
+  "lon": 30.6274719,
+  "tip": "charging_station",
+  "display": "SHARZ Yeniköy Döşemealtı Petrol, Antalya - Burdur Yolu, Çıplaklı, Döşemealtı, Antalya, Akdeniz Bölgesi, 07040, Türkiye"
+ },
+ "güzelbağ mahallesi, muratpaşa, antalya, türkiye": {
+  "lat": 36.8721158,
+  "lon": 30.7855989,
+  "tip": "administrative",
+  "display": "Güzelbağ Mahallesi, Antalya, Muratpaşa, Antalya, Akdeniz Bölgesi, Türkiye"
+ },
+ "çaybaşi mahallesi, muratpaşa, antalya, türkiye": {
+  "lat": 36.8874416,
+  "lon": 30.7173436,
+  "tip": "administrative",
+  "display": "Çaybaşı Mahallesi, Antalya, Muratpaşa, Antalya, Akdeniz Bölgesi, Türkiye"
+ },
+ "hi̇sar mahallesi, manavgat, antalya, türkiye": {
+  "lat": 36.7903591,
+  "lon": 31.441959,
+  "tip": "administrative",
+  "display": "Yukarıhisar Mahallesi, Çayyazı, Manavgat, Antalya, Akdeniz Bölgesi, Türkiye"
+ },
+ "ci̇kci̇lli̇ mahallesi, alanya, antalya, türkiye": {
+  "lat": 36.5475857,
+  "lon": 32.0287295,
+  "tip": "administrative",
+  "display": "Cikcilli Mahallesi, Alanya, Antalya, Akdeniz Bölgesi, Türkiye"
+ },
+ "güller pinari mahallesi, alanya, antalya, türkiye": {
+  "lat": 36.5473632,
+  "lon": 32.0113041,
+  "tip": "administrative",
+  "display": "Güller Pınarı Mahallesi, Alanya, Antalya, Akdeniz Bölgesi, Türkiye"
+ },
+ "hacet mahallesi, alanya, antalya, türkiye": {
+  "lat": 36.5510356,
+  "lon": 32.0072352,
+  "tip": "administrative",
+  "display": "Hacet Mahallesi, Alanya, Antalya, Akdeniz Bölgesi, Türkiye"
+ },
+ "soğuksu mahallesi, muratpaşa, antalya, türkiye": {
+  "lat": 36.8967006,
+  "lon": 30.6794712,
+  "tip": "administrative",
+  "display": "Soğuksu Mahallesi, Antalya, Muratpaşa, Antalya, Akdeniz Bölgesi, Türkiye"
+ },
+ "y.hi̇sar mahallesi, manavgat, antalya, türkiye": {
+  "lat": 36.7903591,
+  "lon": 31.441959,
+  "tip": "administrative",
+  "display": "Yukarıhisar Mahallesi, Çayyazı, Manavgat, Antalya, Akdeniz Bölgesi, Türkiye"
+ },
+ "a.hi̇sar mahallesi, manavgat, antalya, türkiye": {
+  "lat": 36.7903591,
+  "lon": 31.441959,
+  "tip": "administrative",
+  "display": "Yukarıhisar Mahallesi, Çayyazı, Manavgat, Antalya, Akdeniz Bölgesi, Türkiye"
+ },
+ "arslanbucak mahallesi, elmali, antalya, türkiye": {},
+ "göksu mahallesi, antalya, türkiye": {
+  "lat": 36.9155556,
+  "lon": 30.7445805,
+  "tip": "administrative",
+  "display": "Göksu Mahallesi, Kepez, Antalya, Akdeniz Bölgesi, 07620, Türkiye"
+ },
+ "belek mahallesi, seri̇k, antalya, türkiye": {
+  "lat": 36.8633459,
+  "lon": 31.0578184,
+  "tip": "administrative",
+  "display": "Belek Mahallesi, Serik, Antalya, Akdeniz Bölgesi, 07506, Türkiye"
+ },
+ "cumhuri̇yet mahallesi, seri̇k, antalya, türkiye": {
+  "lat": 36.9209801,
+  "lon": 31.1102911,
+  "tip": "suburb",
+  "display": "Cumhuriyet, Evrenpaşa Mahallesi, Serik, Antalya, Akdeniz Bölgesi, Türkiye"
+ },
+ "cami̇kebi̇r mahallesi, antalya, türkiye": {},
+ "gündoğan mahallesi, elmali, antalya, türkiye": {
+  "lat": 36.7405607,
+  "lon": 29.92046,
+  "tip": "suburb",
+  "display": "Gündoğan, Elmalı, Antalya, Akdeniz Bölgesi, 07700, Türkiye"
+ },
+ "fener mahallesi, muratpaşa, antalya, türkiye": {
+  "lat": 36.8534226,
+  "lon": 30.7557296,
+  "tip": "administrative",
+  "display": "Fener Mahallesi, Antalya, Muratpaşa, Antalya, Akdeniz Bölgesi, 07160, Türkiye"
+ },
+ "bahçekaya mahallesi, döşemealti, antalya, türkiye": {},
+ "li̇man mahallesi, konyaalti, antalya, türkiye": {
+  "lat": 36.8515304,
+  "lon": 30.6163056,
+  "tip": "administrative",
+  "display": "Liman Mahallesi, Konyaaltı, Antalya, Akdeniz Bölgesi, Türkiye"
+ },
+ "yeşi̇lbahçe mahallesi, muratpaşa, antalya, türkiye": {
+  "lat": 36.8681823,
+  "lon": 30.7235661,
+  "tip": "administrative",
+  "display": "Yeşilbahçe Mahallesi, Antalya, Muratpaşa, Antalya, Akdeniz Bölgesi, Türkiye"
+ },
+ "habi̇beler mahallesi, antalya, türkiye": {},
+ "yeni̇gün mahallesi, muratpaşa, antalya, türkiye": {
+  "lat": 36.8968072,
+  "lon": 30.7173683,
+  "tip": "administrative",
+  "display": "Yenigün Mahallesi, Antalya, Muratpaşa, Antalya, Akdeniz Bölgesi, 07310, Türkiye"
+ },
+ "düdenbaşi mahallesi, antalya, türkiye": {
+  "lat": 36.9139036,
+  "lon": 30.7352603,
+  "tip": "administrative",
+  "display": "Düdenbaşı Mahallesi, Kepez, Antalya, Akdeniz Bölgesi, Türkiye"
+ },
+ "arapsuyu mahallesi, konyaalti, antalya, türkiye": {
+  "lat": 36.8753511,
+  "lon": 30.6494024,
+  "tip": "administrative",
+  "display": "Arapsuyu Mahallesi, Konyaaltı, Antalya, Akdeniz Bölgesi, Türkiye"
+ },
+ "varsak karşiyaka mahallesi, antalya, türkiye": {
+  "lat": 36.9658652,
+  "lon": 30.7073875,
+  "tip": "administrative",
+  "display": "Varsak Karşıyaka Mahallesi, Kepez, Antalya, Akdeniz Bölgesi, Türkiye"
+ },
+ "gürsu mahallesi, konyaalti, antalya, türkiye": {
+  "lat": 36.8627684,
+  "lon": 30.6330873,
+  "tip": "administrative",
+  "display": "Gürsu Mahallesi, Konyaaltı, Antalya, Akdeniz Bölgesi, 07075, Türkiye"
+ },
+ "ilica mahallesi, manavgat, antalya, türkiye": {},
+ "manavgat, antalya, türkiye": {
+  "lat": 36.7870124,
+  "lon": 31.4406667,
+  "tip": "administrative",
+  "display": "Manavgat, Antalya, Akdeniz Bölgesi, Türkiye"
+ },
+ "bağlik mahallesi, kumluca, antalya, türkiye": {},
+ "kumluca, antalya, türkiye": {
+  "lat": 36.3669046,
+  "lon": 30.2858418,
+  "tip": "administrative",
+  "display": "Kumluca, Antalya, Akdeniz Bölgesi, Türkiye"
+ },
+ "atatürk mahallesi, merkez, burdur, türkiye": {
+  "lat": 37.7124118,
+  "lon": 30.2396964,
+  "tip": "administrative",
+  "display": "Atatürk Mahallesi, Burdur Merkez, Burdur, Akdeniz Bölgesi, Türkiye"
+ },
+ "konak mahallesi, merkez, burdur, türkiye": {
+  "lat": 37.7214079,
+  "lon": 30.2841997,
+  "tip": "administrative",
+  "display": "Konak Mahallesi, Burdur Merkez, Burdur, Akdeniz Bölgesi, 15030, Türkiye"
+ },
+ "özgür mahallesi, merkez, burdur, türkiye": {
+  "lat": 37.7235804,
+  "lon": 30.2884698,
+  "tip": "administrative",
+  "display": "Özgür Mahallesi, Burdur Merkez, Burdur, Akdeniz Bölgesi, Türkiye"
+ },
+ "yayla mahallesi, merkez, isparta, türkiye": {
+  "lat": 37.7628611,
+  "lon": 30.5504303,
+  "tip": "administrative",
+  "display": "Yayla Mahallesi, Isparta Belediyesi, Isparta Merkez, Isparta, Akdeniz Bölgesi, Türkiye"
+ },
+ "maliköy başkent osb mahallesi, ankara, türkiye": {
+  "lat": 39.8035661,
+  "lon": 32.381668,
+  "tip": "administrative",
+  "display": "Malıköy Başkent OSB Mahallesi, Sincan, Ankara, İç Anadolu Bölgesi, Türkiye"
+ },
+ "şebi̇nkarahi̇sar, gi̇resun, türkiye": {
+  "lat": 40.2886007,
+  "lon": 38.4236116,
+  "tip": "administrative",
+  "display": "Şebinkarahisar, Giresun, Karadeniz Bölgesi, 28400, Türkiye"
+ },
+ "4 eylül mahallesi, si̇mav, kütahya, türkiye": {
+  "lat": 39.0909999,
+  "lon": 28.9825882,
+  "tip": "administrative",
+  "display": "4 Eylül Mahallesi, Simav, Kütahya, Ege Bölgesi, Türkiye"
+ },
+ "kepez, antalya, türkiye": {
+  "lat": 36.9176296,
+  "lon": 30.7149914,
+  "tip": "administrative",
+  "display": "Kepez, Antalya, Akdeniz Bölgesi, Türkiye"
+ },
+ "süleymani̇ye mahallesi, i̇negöl, bursa, türkiye": {
+  "lat": 40.0855712,
+  "lon": 29.4962344,
+  "tip": "administrative",
+  "display": "Süleymaniye Mahallesi, Çeltikçi, İnegöl, Bursa, Marmara Bölgesi, Türkiye"
+ },
+ "sultanbeyli̇, i̇stanbul, türkiye": {
+  "lat": 40.9670242,
+  "lon": 29.2671314,
+  "tip": "administrative",
+  "display": "Sultanbeyli, İstanbul, Marmara Bölgesi, Türkiye"
+ },
+ "şi̇ri̇nyali mahallesi, muratpaşa, antalya, türkiye": {
+  "lat": 36.8589303,
+  "lon": 30.7359431,
+  "tip": "administrative",
+  "display": "Şirinyalı Mahallesi, Antalya, Muratpaşa, Antalya, Akdeniz Bölgesi, Türkiye"
+ },
+ "si̇li̇vri̇, i̇stanbul, türkiye": {
+  "lat": 41.0742476,
+  "lon": 28.2481709,
+  "tip": "administrative",
+  "display": "Silivri, İstanbul, Marmara Bölgesi, Türkiye"
+ },
+ "bülbül mahallesi, şebi̇nkarahi̇sar, gi̇resun, türkiye": {}
 }
