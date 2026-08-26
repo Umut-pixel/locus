@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 
 import { IlceBarChart } from "@/components/agent/IlceBarChart";
 import { BorcRiskAreaChart } from "@/components/agent/BorcRiskAreaChart";
 import { LinearGauge } from "@/components/agent/LinearGauge";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   useHomeOverview,
@@ -26,6 +27,8 @@ import { cn } from "@/lib/utils";
 
 const STATUS_ROTATE_MS = 7000;
 const STATUS_FACE_EASE = [0.16, 1, 0.3, 1] as const;
+const MANUAL_SYNC_STORAGE_KEY = "locus:panorama-manual-sync-at";
+const MANUAL_SYNC_COOLDOWN_MS = 60 * 60 * 1000;
 
 const DURUM_RENK: Record<HomeDurumSlice["ad"], string> = {
   Aktif: "var(--chart-3)",
@@ -419,7 +422,31 @@ type StatusFaceModel = {
   sub: string | null;
   loading?: boolean;
   liveLabel?: string | null;
+  action?: ReactNode;
 };
+
+function readManualSyncAt(): number {
+  try {
+    const raw = window.localStorage.getItem(MANUAL_SYNC_STORAGE_KEY);
+    const n = raw ? Number(raw) : 0;
+    return Number.isFinite(n) ? n : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function writeManualSyncAt(at: number) {
+  try {
+    window.localStorage.setItem(MANUAL_SYNC_STORAGE_KEY, String(at));
+  } catch {
+    /* private mode */
+  }
+}
+
+function cooldownLeftMs(at: number, now: number): number {
+  if (!at) return 0;
+  return Math.max(0, at + MANUAL_SYNC_COOLDOWN_MS - now);
+}
 
 function StatusPill({ label, tone }: { label: string; tone: StatusTone }) {
   const pill =
@@ -456,6 +483,7 @@ function StatusFace({
   sub,
   loading,
   liveLabel,
+  action,
 }: StatusFaceModel) {
   return (
     <div className="flex h-full min-h-0 w-full flex-col justify-center gap-1.5 text-left">
@@ -479,9 +507,12 @@ function StatusFace({
           </span>
         </p>
       ) : (
-        <p className="min-h-[1.125rem] text-[12px] leading-snug text-ink-3">
-          {sub ?? "\u00a0"}
-        </p>
+        <div className="flex min-h-[1.125rem] items-center justify-between gap-2">
+          <p className="min-w-0 truncate text-[12px] leading-snug text-ink-3">
+            {sub ?? "\u00a0"}
+          </p>
+          {action}
+        </div>
       )}
     </div>
   );
@@ -505,6 +536,22 @@ function SyncTile({
   const agent = useAgentRuntimeStatus();
   const reduced = useReducedMotion();
   const [face, setFace] = useState<"panorama" | "analyst">("panorama");
+  const [now, setNow] = useState(() => Date.now());
+  const [manualAt, setManualAt] = useState(0);
+  const [manualBusy, setManualBusy] = useState(false);
+  const [manualError, setManualError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setManualAt(readManualSyncAt());
+  }, []);
+
+  const remainingMs = cooldownLeftMs(manualAt, now);
+
+  useEffect(() => {
+    if (remainingMs <= 0) return;
+    const id = window.setTimeout(() => setNow(Date.now()), Math.min(remainingMs, 30_000));
+    return () => window.clearTimeout(id);
+  }, [remainingMs]);
 
   useEffect(() => {
     if (reduced) return;
@@ -527,13 +574,82 @@ function SyncTile({
     };
   }, [reduced]);
 
+  const triggerManual = useCallback(async () => {
+    if (manualBusy || remainingMs > 0) return;
+    setManualBusy(true);
+    setManualError(null);
+    try {
+      const res = await fetch("/api/sync/panorama/manual", { method: "POST" });
+      const body = (await res.json().catch(() => null)) as {
+        error?: string;
+        retryAfterSec?: number;
+      } | null;
+      if (res.status === 429) {
+        const retryMs =
+          typeof body?.retryAfterSec === "number"
+            ? body.retryAfterSec * 1000
+            : MANUAL_SYNC_COOLDOWN_MS;
+        const at = Date.now() - (MANUAL_SYNC_COOLDOWN_MS - retryMs);
+        writeManualSyncAt(at);
+        setManualAt(at);
+        setNow(Date.now());
+        setManualError(body?.error ?? "Son çekimden bu yana 60 dakika dolmadı.");
+        return;
+      }
+      if (!res.ok) {
+        setManualError(body?.error ?? "Tetiklenemedi.");
+        return;
+      }
+      const at = Date.now();
+      writeManualSyncAt(at);
+      setManualAt(at);
+      setNow(at);
+    } catch {
+      setManualError("Bağlantı kurulamadı.");
+    } finally {
+      setManualBusy(false);
+    }
+  }, [manualBusy, remainingMs]);
+
+  const guncel = !loading && !error && !pending;
+  const cooldownLabel =
+    remainingMs > 0
+      ? `${Math.max(1, Math.ceil(remainingMs / 60_000))} dk`
+      : null;
+
+  const manualAction = guncel ? (
+    <Button
+      type="button"
+      variant="outline"
+      size="xs"
+      className="shrink-0 border-line text-[11px] text-ink-2"
+      disabled={manualBusy || remainingMs > 0}
+      title={
+        remainingMs > 0
+          ? `Yeniden çekmek için ${cooldownLabel} bekleyin`
+          : "Tüm Panorama otomasyonlarını şimdi çalıştır"
+      }
+      onClick={(e) => {
+        e.stopPropagation();
+        void triggerManual();
+      }}
+    >
+      {manualBusy ? "Çekiliyor…" : remainingMs > 0 ? cooldownLabel : "Şimdi çek"}
+    </Button>
+  ) : null;
+
   const panorama: StatusFaceModel = {
     title: "Panorama",
     pill: error ? "Uyarı" : pending ? "Bekliyor" : "Güncel",
     tone: error ? "warn" : pending ? "wait" : "ok",
     line: label ?? (loading ? "Kontrol ediliyor…" : "Henüz sync kaydı yok"),
-    sub: nextStamp ? `Sonraki: ${nextStamp}` : null,
+    sub: manualError
+      ? manualError
+      : nextStamp
+        ? `Sonraki: ${nextStamp}`
+        : null,
     loading,
+    action: manualAction,
   };
 
   const analyst: StatusFaceModel = agent.ok
@@ -569,7 +685,7 @@ function SyncTile({
           <StatusFace {...analyst} />
         </div>
       ) : (
-        <div className="grid min-h-0 flex-1 overflow-hidden" aria-hidden>
+        <div className="grid min-h-0 flex-1 overflow-hidden">
           <AnimatePresence initial={false}>
             <motion.div
               key={face}

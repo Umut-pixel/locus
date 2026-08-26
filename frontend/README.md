@@ -20,6 +20,8 @@ npm run sync-env             # veya doğrudan: npm run dev
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Tarayıcı | Harita okuma (RLS) |
 | `NEXT_PUBLIC_MAPBOX_TOKEN` | Tarayıcı | Mapbox `pk.…` |
 | `CRON_SECRET` | Sunucu only | `/api/sync/panorama` — Database Webhook + manuel Bearer |
+| `N8N_PANORAMA_MANUAL_WEBHOOK_URL` | Sunucu only | n8n `Webhook Manuel Sync` Production URL |
+| `N8N_PANORAMA_MANUAL_WEBHOOK_SECRET` | Sunucu only | n8n Header Auth değeri (`X-N8N-Sync-Secret`) |
 
 ### Vercel
 
@@ -63,8 +65,11 @@ n8n `panorama_*` landing’e yazar → `GET/POST /api/sync/panorama` view’lar�
 `musteriler`e aktarır (`dosya_tipi=PanoramaSync` log) → harita `musteriler_harita`
 okur. Dashboard `panorama_sync_runs` + son PanoramaSync log’unu poll eder.
 
-Manuel: `Authorization: Bearer $CRON_SECRET` ile  
-`POST /api/sync/panorama?force=1` (aynı sync’i yeniden uygula).
+Manuel transform: `Authorization: Bearer $CRON_SECRET` ile  
+`POST /api/sync/panorama?force=1` (aynı landing’i yeniden uygula).
+
+Ana sayfa **Şimdi çek** (yalnız “Güncel” iken): oturumlu `POST /api/sync/panorama/manual`  
+n8n webhook’unu tetikler (60 dk rate limit). n8n URL tarayıcıya sızmaz.
 
 ## Veri modeli
 

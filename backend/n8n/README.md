@@ -30,6 +30,21 @@ aktarılan JSON'da sır hiç bulunmaz:
 n8n'de: Settings → Variables. Self-hosted'da `N8N_VARIABLES_*` ortam
 değişkenleriyle de beslenebilir.
 
+## Manuel sync (ana sayfa “Şimdi çek”)
+
+`Panorama Otomasyon (7).json` içinde `Webhook Manuel Sync` node’u:
+
+1. n8n → Credentials → Header Auth oluştur  
+   name = `X-N8N-Sync-Secret`, value = rastgele sır  
+2. Webhook node’una bu credential’ı bağla (JSON’daki `<<N8N_HEADER_AUTH_CREDENTIAL_ID>>` yer tutucu)  
+3. Workflow’u aktif et, Production URL’i kopyala  
+4. Kök `.env` + Vercel:  
+   `N8N_PANORAMA_MANUAL_WEBHOOK_URL`  
+   `N8N_PANORAMA_MANUAL_WEBHOOK_SECRET` (aynı value)
+
+Webhook cron’u değiştirmez. Manuel execution’da zincirler **Wait 180s** ile sırayla gider  
+(Main → YL → BD2 → Sipariş → Stok) — WAF’a paralel login basmamak için.
+
 ## Dışa aktarmadan önce kontrol
 
 ```bash
