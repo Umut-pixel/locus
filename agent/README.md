@@ -166,7 +166,7 @@ kanıtlanabilir. Script bunu yapar ve okunabilir view'larda **0 satır** döners
 
 ```
 agent.py              create_deep_agent — model + araç kaydı + prompt/skills/memory
-harness.py            Opus 5 profili: GP subagent kapalı, Haiku özetleme, 1 saat cache
+harness.py            Opus 5 profili: GP subagent kapalı, Haiku özetleme, 5 dk cache
 templates/            Home/slash kilitli sorular — Opus'suz SQL şablonu
 router/               Haiku classify (template|clarify|oos|opus); SQL yazmaz
 auth.py               x-agent-secret — proxy'nin AGENT_INGRESS_SECRET'i buradan doğrulanır
@@ -191,9 +191,11 @@ evals/                güvenlik + davranış testleri
 
 ## Bilinen sınırlar
 
-- **Router değişince VPS restart.** `oos`/şablon tuzakları `agent/router/`
-  içinde; frontend yetmez. `git pull` sonra LangGraph veya
-  `docs/vps-setting.md` docker compose restart. Eski süreç eski classify tutar.
+- **Router / harness değişince VPS restart.** `oos` tuzakları ve prompt
+  cache TTL `agent/` içinde; frontend yetmez. `git pull` sonra
+  `docs/vps-setting.md` docker compose rebuild. Eski süreç eski kod tutar.
+  Prompt cache **5 dk** olmalı — `1h` MemoryMiddleware'in 5 dk'sıyla
+  çakışınca Anthropic 400 verir, ekranda "An internal error occurred" görünür.
 - **Kişi bazlı kimlik yok.** Locus tek paylaşımlı giriş kullanıyor
   (`frontend/lib/auth.ts`), bu yüzden audit log "kim sordu"yu ayırt edemez.
   Gerçek kullanıcı sistemi eklenirse `auth.py` kullanıcı JWT'sine döner.

@@ -1,4 +1,4 @@
-"""Harness profili — GP kapalı, Haiku özetleme adı ayrı, 1 saat cache."""
+"""Harness profili — GP kapalı, Haiku özetleme adı ayrı, 5 dk cache."""
 
 import sys
 from pathlib import Path
@@ -34,8 +34,8 @@ def test_haiku_summarization_name():
 
 
 def test_prompt_cache_ttl():
-    cache = LocusPromptCache(ttl="1h", unsupported_model_behavior="ignore")
-    assert cache.ttl == "1h"
+    cache = LocusPromptCache(ttl="5m", unsupported_model_behavior="ignore")
+    assert cache.ttl == "5m"
     assert cache.name == "LocusPromptCache"
     assert cache.name != "AnthropicPromptCachingMiddleware"
 

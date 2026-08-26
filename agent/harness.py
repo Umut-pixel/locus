@@ -1,4 +1,4 @@
-"""Locus-specific deepagents harness — subagent kapalı, Haiku özetleme, 1 saat cache.
+"""Locus-specific deepagents harness — subagent kapalı, Haiku özetleme, 5 dk cache.
 
 create_deep_agent çağrılmadan önce register edilmeli.
 """
@@ -28,7 +28,14 @@ If you intend to call multiple tools and there are no dependencies between the t
 
 
 class LocusPromptCache(AnthropicPromptCachingMiddleware):
-    """Varsayılan 5 dk yerine 1 saat — exclusion tam sınıf adına bakıyor."""
+    """Prompt cache 5 dk.
+
+    1 saat (`ttl=1h`) Anthropic'te yasak: MemoryMiddleware son system
+    bloğuna ttl'siz (yani 5 dk) `cache_control` basıyor. Sıra tools →
+    system → messages; 1 saatlik blok 5 dk'lık bloktan sonra gelince API 400 veriyor ve
+    LangGraph bunu "An internal error occurred" diye yutuyor.
+    Exclusion tam sınıf adına bakıyor; bu yüzden alt sınıf.
+    """
 
     name = "LocusPromptCache"
 
@@ -60,7 +67,7 @@ def register_locus_harness(
     fast_model: str,
     backend: BackendProtocol,
 ) -> HarnessProfile:
-    """GP subagent kapalı; özetleme Haiku; prompt cache 1 saat."""
+    """GP subagent kapalı; özetleme Haiku; prompt cache 5 dk."""
     profile = HarnessProfile(
         system_prompt_suffix=_PARALLEL_TOOLS,
         general_purpose_subagent=GeneralPurposeSubagentProfile(enabled=False),
@@ -72,7 +79,7 @@ def register_locus_harness(
         ),
         extra_middleware=[
             _haiku_summarization(fast_model, backend),
-            LocusPromptCache(ttl="1h", unsupported_model_behavior="ignore"),
+            LocusPromptCache(ttl="5m", unsupported_model_behavior="ignore"),
         ],
     )
     register_harness_profile(model_id, profile)
