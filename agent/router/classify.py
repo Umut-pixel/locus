@@ -65,6 +65,95 @@ _RISK_FOLDS = frozenset(
     }
 )
 
+# Şablon yok ≠ veri yok. Bu iğneler Locus'ta var; oos konservesini ez.
+_IN_SCOPE_NEEDLES = (
+    "stok",
+    "ürün",
+    "urun",
+    "sipariş",
+    "siparis",
+    "sevk",
+    "ciro",
+    "borç",
+    "borc",
+    "müşteri",
+    "musteri",
+    "depo",
+    "marka",
+    "skt",
+    "fatura",
+    "belge",
+    "satılan",
+    "satilan",
+    "satış",
+    "satis",
+    "satıldı",
+    "satildi",
+    "mama",
+)
+# Gerçek kapsam dışı — ciro kelimesi geçse bile oos kalır (rakip cirosu).
+_EXPLICIT_OOS_NEEDLES = (
+    "rakip",
+    "kredi notu",
+    "maaş",
+    "maas",
+    "competitor",
+    "salary",
+    "çalışan",
+    "calisan",
+)
+_PRODUCTISH = re.compile(
+    r"ürün|urun|stok|satılan|satilan|satıldı|satildi",
+    re.IGNORECASE,
+)
+_SKTISH = re.compile(r"skt|son kullanma", re.IGNORECASE)
+_DOMAIN_NEEDLES: dict[str, tuple[str, ...]] = {
+    "urun": (
+        "ürün",
+        "urun",
+        "satılan",
+        "satilan",
+        "satıldı",
+        "satildi",
+        "marka",
+        "sku",
+        "mama",
+    ),
+    "stok": ("stok", "depo"),
+    "siparis": ("sipariş", "siparis"),
+    "sevk": ("sevk",),
+    "ciro": ("ciro",),
+    "borc": ("borç", "borc", "yaşlandır", "yaslandir"),
+    "musteri": ("müşteri", "musteri"),
+    "skt": ("skt", "son kullanma"),
+    "fatura": ("fatura",),
+}
+
+
+def _folded_has(folded: str, needles: tuple[str, ...]) -> bool:
+    return any(tr_fold(n) in folded for n in needles)
+
+
+def _in_scope(text: str) -> bool:
+    return _folded_has(tr_fold(text), _IN_SCOPE_NEEDLES)
+
+
+def _explicit_oos(text: str) -> bool:
+    return _folded_has(tr_fold(text), _EXPLICIT_OOS_NEEDLES)
+
+
+def _domain_hits(text: str) -> frozenset[str]:
+    folded = tr_fold(text)
+    return frozenset(
+        name
+        for name, needles in _DOMAIN_NEEDLES.items()
+        if _folded_has(folded, needles)
+    )
+
+
+def _compound_query(text: str) -> bool:
+    return len(_domain_hits(text)) >= 2
+
 
 def prefilter_route(text: str) -> Decision | None:
     """Haiku öncesi kilit: eval + güvenlik. None = classify et."""
@@ -83,6 +172,8 @@ def prefilter_route(text: str) -> Decision | None:
     if _WRITE.search(raw):
         return OPUS
     if _OPUS_HINT.search(raw):
+        return OPUS
+    if _compound_query(raw):
         return OPUS
     return None
 
@@ -128,12 +219,16 @@ def parse_decision(raw: str) -> Decision:
 
 
 def normalize_decision(text: str, decision: Decision) -> Decision:
-    """Tuzaklar: çıplak ciro şablona gitmesin; bozuk template → opus."""
+    """Tuzaklar: çıplak ciro / sahte oos / şablon kaçırma → opus."""
     if decision.route == "template":
         tid = decision.template_id or ""
         if tid not in TEMPLATE_IDS:
             return OPUS
         if tid == "net_ciro" and not _NET_CIRO_OK.search(text):
+            return OPUS
+        if tid == "top_ciro_5" and _PRODUCTISH.search(text):
+            return OPUS
+        if tid == "skt_yaklasan" and not _SKTISH.search(text):
             return OPUS
         if tid in {"ilce_teslimat_borc", "son_sevk", "sehir_ozet", "yas_bant"}:
             needed = {
@@ -150,6 +245,10 @@ def normalize_decision(text: str, decision: Decision) -> Decision:
             return OPUS
         return Decision(route="clarify", clarify_key="risk")
     if decision.route == "oos":
+        if _explicit_oos(text):
+            return OOS
+        if _in_scope(text) or _compound_query(text):
+            return OPUS
         return OOS
     return OPUS
 

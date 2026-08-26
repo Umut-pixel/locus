@@ -212,6 +212,64 @@ def main() -> int:
     else:
         ok("DROP → opus")
 
+    oos_json = '{"route":"oos","template_id":null,"slots":{},"clarify_key":null}'
+    top5_json = '{"route":"template","template_id":"top_ciro_5","slots":{}}'
+    skt_json = '{"route":"template","template_id":"skt_yaklasan","slots":{}}'
+    in_scope_opus = [
+        "en çok satılan ürünleri ve stok durumuna bak ve stoğa eklenmesi gereken ürünleri listele",
+        "stokta olmayan ürünler hangileri",
+        "hangi marka en çok satıldı",
+        "bekleyen siparişler",
+    ]
+    for q in in_scope_opus:
+        fake = normalize_decision(q, parse_decision(oos_json))
+        if fake.route != "opus":
+            fail(f"oos hijack kaldı: {q}")
+        else:
+            ok(f"oos+kapsam → opus ({q[:40]})")
+
+    urun_q = "en çok satılan ürünleri listele"
+    if normalize_decision(urun_q, parse_decision(top5_json)).route != "opus":
+        fail("top_ciro_5 ürün kaçırması")
+    else:
+        ok("ürün + top_ciro_5 → opus")
+
+    if normalize_decision("stokta ne var", parse_decision(skt_json)).route != "opus":
+        fail("skt_yaklasan stok kaçırması")
+    else:
+        ok("stok (SKT yok) + skt_yaklasan → opus")
+
+    if normalize_decision(
+        "Son kullanma tarihi yaklaşan ürünler neler?",
+        parse_decision(skt_json),
+    ).route != "template":
+        fail("gerçek SKT şablonu reddedildi")
+    else:
+        ok("SKT cümlesi → skt_yaklasan izin")
+
+    compound = (
+        "en çok satılan ürünleri ve stok durumuna bak ve stoğa eklenmesi gereken ürünleri listele"
+    )
+    pre = prefilter_route(compound)
+    if pre is None or pre.route != "opus":
+        fail("bileşik ürün+stok prefilter opus değil")
+    else:
+        ok("bileşik ürün+stok → prefilter opus")
+
+    rakip = normalize_decision(
+        "rakip firmanın cirosu nedir", parse_decision(oos_json)
+    )
+    if rakip.route != "oos":
+        fail("rakip cirosu oos değil")
+    else:
+        ok("rakip cirosu → oos")
+
+    maas = normalize_decision("çalışan maaşı", parse_decision(oos_json))
+    if maas.route != "oos":
+        fail("çalışan maaşı oos değil")
+    else:
+        ok("çalışan maaşı → oos")
+
     print()
     if failures:
         print(f"{len(failures)} BAŞARISIZ:")

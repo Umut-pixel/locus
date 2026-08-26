@@ -35,12 +35,16 @@ Müşteri bazlı, tek satır = tek müşteri. Çoğu soru buradan cevaplanır.
 > Finansal toplamlarda **`musteriler_rapor` kullan** — harita view'ı koordinatsız
 > müşterileri dışlar ve ciro eksik çıkar (2026-08-18: 12 müşteri / ₺240.626).
 
-## 2. `v_panorama_belge_detay_raporu_guncel` — satır bazlı ciro
+## 2. `v_panorama_belge_detay_raporu_guncel` — satır bazlı ciro (5450)
 Belge kalemi seviyesi. Ürün/temsilci kırılımı ve iade analizi için.
-`islem_tarihi`, `nettutar` (KDV dahil!), `brut_tutar`, `iskonto`, `belge_tip`,
-`islem_tip`, `urun_grup`, `satis_temsilcisi`
+`islem_tarihi`, `urun_kodu`, `urun`, `miktar`, `nettutar` (KDV dahil!),
+`brut_tutar`, `iskonto`, `belge_tip`, `islem_tip`, `urun_grup`,
+`satis_temsilcisi`
 
 - Gerçek net satış = `brut_tutar − iskonto` (nettutar'ı ciroda kullanma)
+- Ürün bazlı satış: `GROUP BY urun_kodu` (ad için `urun`). `urun_grup` marka/grup —
+  SKU değil.
+- Belge tipi: `Satış`, `Konsinye Satış`, `Satış - İade`, `Satış-İade`
 - `islem_tip` içinde "iade" geçen satırlar iade — ciroya negatif girer ama
   aktivite kırılımlarına (temsilci/ürün) girmez
 - Türkçe İ/I tuzağı: `lower()` yerine `islem_tip ILIKE '%iade%'` güvenli değil,
@@ -68,6 +72,8 @@ Satır bazlı açık fatura. `musteri_kod`, `musteri`, `belge_kod`, `gun` (gecik
 `urun_kodu`, `urun`, `depo_ad`, `grup` (marka), `urun_hiyerarsi1` (kategori),
 `birim`, `kdv`, `fiyat`, `miktar`, `brut_tutar`, `kdvli_tutar`
 > `urun_hiyerarsi2` tüm satırlarda boş — kullanma. `miktar <= 0` = stokta yok.
+> Satış hızı + stok: 5450 ile `urun_kodu` join. Hizmet/POP satırlarını
+> (`grup` Hizmet, fiyat ~0) sipariş listesine koyma.
 
 ## 7. `urun_skt` — son kullanma tarihi
 Fabrikanın 15 günde bir gönderdiği alış raporundan. Otomatik tazelenmez —

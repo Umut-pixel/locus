@@ -191,6 +191,9 @@ evals/                güvenlik + davranış testleri
 
 ## Bilinen sınırlar
 
+- **Router değişince VPS restart.** `oos`/şablon tuzakları `agent/router/`
+  içinde; frontend yetmez. `git pull` sonra LangGraph veya
+  `docs/vps-setting.md` docker compose restart. Eski süreç eski classify tutar.
 - **Kişi bazlı kimlik yok.** Locus tek paylaşımlı giriş kullanıyor
   (`frontend/lib/auth.ts`), bu yüzden audit log "kim sordu"yu ayırt edemez.
   Gerçek kullanıcı sistemi eklenirse `auth.py` kullanıcı JWT'sine döner.

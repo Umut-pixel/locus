@@ -44,3 +44,10 @@ ORDER BY stok_degeri DESC
 
 Yaklaşan SKT sorularında kalan gün sayısını hesapla ve hangi tarihte
 yüklendiğini söyle. Önce `schema_lookup` ile kolon adlarını doğrula.
+
+## Satış hızı + stok
+
+Canlı stok 5430 anlık görüntü. "En çok satılan / stoğa ekle" için
+`v_panorama_belge_detay_raporu_guncel` (5450) `urun_kodu` join — o view
+son sync penceresidir, çok yıllı trend değil. Join SQL'i ciro-analizi
+skill'inde.

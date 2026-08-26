@@ -44,6 +44,26 @@ GROUP BY satis_temsilcisi
 ORDER BY net_satis DESC
 ```
 
+### En çok satılan ürün (SKU)
+
+`urun_grup` markadır. Ürün = `urun_kodu` + `urun`.
+
+```sql
+SELECT urun_kodu, urun,
+       SUM(brut_tutar - iskonto) AS net_satis,
+       SUM(miktar) AS adet
+FROM v_panorama_belge_detay_raporu_guncel
+WHERE btrim(belge_tip) IN ('Satış', 'Konsinye Satış', 'Satış - İade', 'Satış-İade')
+  AND coalesce(btrim(urun_kodu), '') <> ''
+  AND NOT (replace(replace(coalesce(islem_tip,''), 'İ', 'i'), 'I', 'ı') ILIKE '%iade%')
+GROUP BY urun_kodu, urun
+ORDER BY net_satis DESC
+```
+
+Stoğa eklenecekler: aynı kümeyi `v_panorama_detayli_stok_raporu_guncel`
+ile `urun_kodu` join et, `miktar <= 0`. `grup = 'Hizmet'` veya fiyat ~0
+(POP / prim / lojistik) satırlarını listeleme.
+
 ## İade
 
 `islem_tip` içinde "iade" geçen satırlar. Türkçe İ/I tuzağı var —
