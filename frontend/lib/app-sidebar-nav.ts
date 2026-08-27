@@ -137,8 +137,3 @@ export function isNavItemActive(
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-/** README.md geocode kapsam özeti — statik. */
-export const HARITA_KAPSAMI = {
-  konumlanan: 1203,
-  toplam: 1292,
-} as const;

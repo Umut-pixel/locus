@@ -27,11 +27,8 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { KonusmalarNav } from "@/components/sidebar/KonusmalarNav";
-import {
-  FOOTER_NAV,
-  HARITA_KAPSAMI,
-  NAV_SECTIONS,
-} from "@/lib/app-sidebar-nav";
+import { FOOTER_NAV, NAV_SECTIONS } from "@/lib/app-sidebar-nav";
+import { useHaritaKapsami } from "@/hooks/useHaritaKapsami";
 import { usePanoramaSyncStatus } from "@/hooks/usePanoramaSyncStatus";
 import { useAgentSession } from "@/hooks/useAgentSession";
 import {
@@ -116,6 +113,7 @@ function SidebarBody({
   const { status } = usePanoramaSyncStatus();
   const panoramaLive = status.transformPending || Boolean(status.syncError);
   const { busy: analystBusy } = useAgentSession();
+  const { data: kapsami } = useHaritaKapsami();
 
   const defaultCollapsed = useMemo(() => {
     const map: Record<string, boolean> = {};
@@ -256,8 +254,8 @@ function SidebarBody({
           ))}
           <SidebarCoverage
             open={open}
-            located={HARITA_KAPSAMI.konumlanan}
-            total={HARITA_KAPSAMI.toplam}
+            located={kapsami?.konumlanan ?? null}
+            total={kapsami?.toplam ?? null}
           />
         </div>
         <SidebarProfileFooter open={open} />

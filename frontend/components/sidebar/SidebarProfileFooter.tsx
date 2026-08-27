@@ -143,10 +143,11 @@ export function SidebarCoverage({
   total,
 }: {
   open: boolean;
-  located: number;
-  total: number;
+  located: number | null;
+  total: number | null;
 }) {
-  const pct = Math.round((located / total) * 100);
+  const ready = located != null && total != null && total > 0;
+  const pct = ready ? Math.round((located / total) * 100) : 0;
   return (
     <motion.div
       initial={false}
@@ -161,7 +162,7 @@ export function SidebarCoverage({
           <div className="mb-1.5 flex items-center justify-between gap-3 text-[10px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
             <span>Kapsam</span>
             <span className="font-mono font-medium tracking-normal tabular-nums">
-              {located}/{total}
+              {ready ? `${located}/${total}` : "—"}
             </span>
           </div>
           <div className="h-1 w-full overflow-hidden rounded-full bg-foreground/10">

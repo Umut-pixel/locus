@@ -149,7 +149,7 @@ function tokenToplam(g: { uncachedInput: number; cacheRead: number; cacheCreate:
 
 export function UsageTablolar({ ozet }: { ozet: UsageOzet }) {
   return (
-    <div className="grid min-h-0 flex-1 grid-cols-1 gap-px overflow-auto bg-border lg:grid-cols-2">
+    <div className="grid grid-cols-1 gap-px bg-border lg:grid-cols-2">
       <section className="bg-background">
         <h2 className="border-b border-border px-3.5 py-2.5 text-[13px] font-medium">
           Modele göre
