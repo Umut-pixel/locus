@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 
+import { AgentFollowCard } from "@/components/agent/AgentFollowCard";
 import { AgentRuntimeProvider } from "@/hooks/useAgentSession";
 import { LoginEnterTransition } from "@/components/auth/LoginEnterTransition";
 import { AppSidebar } from "@/components/sidebar/AppSidebar";
@@ -12,6 +13,7 @@ export default function AppShellLayout({ children }: { children: ReactNode }) {
         <LoginEnterTransition />
         <AppSidebar />
         {children}
+        <AgentFollowCard />
       </div>
     </AgentRuntimeProvider>
   );
