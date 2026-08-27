@@ -69,7 +69,7 @@ export function UsageOzetSerit({ ozet, loading }: { ozet: UsageOzet; loading: bo
         icon={CoinsIcon}
         etiket="Önbellek isabeti"
         deger={yuzde(ozet.cacheIsabet)}
-        altBilgi="cache read / tüm girdi"
+        altBilgi="önbellek okuma / taze girdi (yazma hariç)"
         loading={loading}
       />
     </div>
@@ -120,17 +120,19 @@ export function UsageGunCubugu({ ozet }: { ozet: UsageOzet }) {
       <p className="mb-3 text-[12px] tracking-[0.06em] text-muted-foreground uppercase">
         {maliyetVar ? "Günlük maliyet" : "Günlük token"}
       </p>
-      <div className="flex h-28 items-end gap-1">
+      <div className="flex h-32 gap-1">
         {ozet.gunler.map((g, i) => {
-          const h = Math.max(4, Math.round((degerler[i]! / max) * 100));
+          const h = degerler[i]! > 0 ? Math.max(6, Math.round((degerler[i]! / max) * 100)) : 0;
           return (
-            <div key={g.gun} className="flex min-w-0 flex-1 flex-col items-center gap-1">
-              <div
-                className="w-full max-w-7 rounded-sm bg-foreground/80"
-                style={{ height: `${h}%` }}
-                title={`${gunEtiket(g.gun)} · ${formatUsd(g.maliyetUsd)}`}
-              />
-              <span className="truncate font-mono text-[10px] text-muted-foreground">
+            <div key={g.gun} className="flex min-w-0 flex-1 flex-col">
+              <div className="flex min-h-0 flex-1 items-end justify-center">
+                <div
+                  className="w-full max-w-7 rounded-sm bg-foreground/80"
+                  style={{ height: `${h}%` }}
+                  title={`${gunEtiket(g.gun)} · ${formatUsd(g.maliyetUsd)}`}
+                />
+              </div>
+              <span className="mt-1 truncate text-center font-mono text-[10px] text-muted-foreground">
                 {gunEtiket(g.gun)}
               </span>
             </div>

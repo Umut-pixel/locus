@@ -12,6 +12,7 @@ const USAGE_URL = "https://api.anthropic.com/v1/organizations/usage_report/messa
 const COST_URL = "https://api.anthropic.com/v1/organizations/cost_report";
 const MAX_PAGES = 8;
 const CACHE_TTL_MS = 60_000;
+const CACHE_VER = "cents-v1";
 
 export type UsageGunAraligi = 7 | 31;
 
@@ -108,11 +109,14 @@ function cacheCreateTokens(row: UsageResult): number {
   return n(c.ephemeral_1h_input_tokens) + n(c.ephemeral_5m_input_tokens);
 }
 
-/** Cost API `amount` USD ondalık dize. */
+/**
+ * Cost API `amount`: en küçük birim (sent) ondalık dize.
+ * `"123.45"` USD → $1.23 — https://platform.claude.com/docs/en/api/admin/cost_report
+ */
 function usd(amount: string | undefined): number {
   if (!amount) return 0;
   const v = Number.parseFloat(amount);
-  return Number.isFinite(v) ? v : 0;
+  return Number.isFinite(v) ? v / 100 : 0;
 }
 
 function isoGun(startingAt: string): string {
@@ -228,7 +232,7 @@ export async function loadUsageOzet(
     };
   }
 
-  const cacheKey = `d${days}`;
+  const cacheKey = `${CACHE_VER}:d${days}`;
   const hit = memoryCache.get(cacheKey);
   if (!opts?.fresh && hit && Date.now() - hit.at < CACHE_TTL_MS) return hit.payload;
 
@@ -324,14 +328,21 @@ export async function loadUsageOzet(
       gunMap.set(gun, day);
     }
 
-    const inputAll = totals.uncachedInput + totals.cacheRead + totals.cacheCreate;
+    const cachePayda = totals.uncachedInput + totals.cacheRead;
+    const cursor = new Date(startingAt);
+    const end = new Date(endingAt);
+    while (cursor < end) {
+      const gun = cursor.toISOString().slice(0, 10);
+      if (!gunMap.has(gun)) gunMap.set(gun, emptyGun(gun));
+      cursor.setUTCDate(cursor.getUTCDate() + 1);
+    }
     const ozet: UsageOzet = {
       gunAraligi: days,
       startingAt,
       endingAt,
       cekildi: new Date().toISOString(),
       ...totals,
-      cacheIsabet: inputAll > 0 ? totals.cacheRead / inputAll : null,
+      cacheIsabet: cachePayda > 0 ? totals.cacheRead / cachePayda : null,
       gunler: [...gunMap.values()].sort((a, b) => a.gun.localeCompare(b.gun)),
       modeller: [...modelMap.values()].sort((a, b) => b.maliyetUsd - a.maliyetUsd || b.output - a.output),
       kalemler: [...kalemMap.values()]
