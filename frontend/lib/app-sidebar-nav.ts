@@ -117,7 +117,7 @@ export const NAV_SECTIONS: NavSectionConfig[] = [
 ];
 
 export const FOOTER_NAV: SidebarNavLeaf[] = [
-  { id: "ayarlar", label: "Ayarlar", icon: SettingsIcon },
+  { id: "ayarlar", label: "Ayarlar", icon: SettingsIcon, href: "/ayarlar" },
 ];
 
 /** @deprecated NAV_SECTIONS kullanın — geriye dönük düz liste. */

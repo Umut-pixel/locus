@@ -46,6 +46,24 @@ export function formatCurrencyPrecise(value: number): string {
   return currencyPreciseFormatter.format(value);
 }
 
+const usdFormatter = new Intl.NumberFormat("tr-TR", {
+  style: "currency",
+  currency: "USD",
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+
+/** Anthropic Cost API — USD. */
+export function formatUsd(value: number): string {
+  return usdFormatter.format(value);
+}
+
+export function formatCompactToken(value: number): string {
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1).replace(".", ",")} M`;
+  if (value >= 1_000) return `${(value / 1_000).toFixed(1).replace(".", ",")} B`;
+  return numberFormatter.format(Math.round(value));
+}
+
 export function formatNumber(value: number): string {
   return numberFormatter.format(value);
 }
