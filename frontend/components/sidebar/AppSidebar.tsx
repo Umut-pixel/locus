@@ -33,6 +33,7 @@ import {
   NAV_SECTIONS,
 } from "@/lib/app-sidebar-nav";
 import { usePanoramaSyncStatus } from "@/hooks/usePanoramaSyncStatus";
+import { useAgentSession } from "@/hooks/useAgentSession";
 import {
   ICON_RAIL_WIDTH,
   SIDEBAR_EXPANDED_WIDTH,
@@ -114,6 +115,7 @@ function SidebarBody({
 }: SidebarBodyProps) {
   const { status } = usePanoramaSyncStatus();
   const panoramaLive = status.transformPending || Boolean(status.syncError);
+  const { busy: analystBusy } = useAgentSession();
 
   const defaultCollapsed = useMemo(() => {
     const map: Record<string, boolean> = {};
@@ -230,7 +232,13 @@ function SidebarBody({
                         key={item.id}
                         item={item}
                         open={open}
-                        live={item.liveKey === "panorama" ? panoramaLive : false}
+                        live={
+                          item.id === "analyst"
+                            ? analystBusy
+                            : item.liveKey === "panorama"
+                              ? panoramaLive
+                              : false
+                        }
                       />
                     ))}
                   </div>

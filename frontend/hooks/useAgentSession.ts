@@ -1,6 +1,16 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  createContext,
+  createElement,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 
 import type { AgentStreamEvent } from "@/lib/agent-stream";
 import { streamAgent } from "@/lib/agent-stream";
@@ -9,6 +19,8 @@ import {
   applyTraceEvent,
   contextsFromTrace,
   tasksFromTrace,
+  type AgentTask,
+  type ContextChunk,
   type TraceRow,
 } from "@/lib/agent-trace";
 import {
@@ -104,27 +116,45 @@ async function appendMessages(
   });
 }
 
-export function useAgentSession(opts?: {
-  persist?: boolean;
-  threadId?: string | null;
-  onThread?: (id: string) => void;
-}) {
-  const persist = Boolean(opts?.persist);
-  const urlThread = opts?.threadId ?? null;
-  const onThread = opts?.onThread;
+export type AgentSessionValue = {
+  threadId: string | null;
+  messages: ChatMessage[];
+  draft: string;
+  setDraft: (value: string) => void;
+  busy: boolean;
+  trace: TraceRow[];
+  tasks: AgentTask[];
+  contexts: ContextChunk[];
+  revealed: string;
+  revealing: boolean;
+  revealId: string | null;
+  answerId: string | null;
+  pendingQuote: string | null;
+  setPendingQuote: (quote: string | null) => void;
+  send: (question: string) => void;
+  stop: () => void;
+  reset: () => void;
+  loadThread: (id: string) => Promise<void>;
+};
 
+const AgentRuntimeContext = createContext<AgentSessionValue | null>(null);
+
+function useAgentRuntimeState(): AgentSessionValue {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
   const [trace, setTrace] = useState<TraceRow[]>([]);
   const [answerId, setAnswerId] = useState<string | null>(null);
   const [pendingQuote, setPendingQuoteState] = useState<string | null>(null);
+  const [threadId, setThreadId] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const traceRef = useRef<TraceRow[]>([]);
   const quoteRef = useRef<string | null>(null);
-  const threadRef = useRef<string | null>(urlThread);
+  const threadRef = useRef<string | null>(null);
   const skipLoadRef = useRef(false);
   const purposeSetRef = useRef(false);
+  const busyRef = useRef(false);
+  const suppressLoadRef = useRef(false);
 
   const [revealId, setRevealId] = useState<string | null>(null);
   const revealMsg = messages.find((m) => m.id === revealId);
@@ -136,6 +166,16 @@ export function useAgentSession(opts?: {
     !busy && messages.some((m) => m.role === "assistant" && m.text.length > 0);
   const tasks = tasksFromTrace(trace, replySettled, busy);
   const contexts = contextsFromTrace(trace);
+
+  const setBusyBoth = useCallback((next: boolean) => {
+    busyRef.current = next;
+    setBusy(next);
+  }, []);
+
+  const setThreadBoth = useCallback((id: string | null) => {
+    threadRef.current = id;
+    setThreadId(id);
+  }, []);
 
   const setTraceBoth = useCallback(
     (next: TraceRow[] | ((rows: TraceRow[]) => TraceRow[])) => {
@@ -167,75 +207,73 @@ export function useAgentSession(opts?: {
   const stop = useCallback(() => {
     abortRef.current?.abort();
     abortRef.current = null;
-    setBusy(false);
+    setBusyBoth(false);
     setAnswerId(null);
     setRevealId(null);
     sealLive(null);
-  }, [sealLive]);
+  }, [sealLive, setBusyBoth]);
 
   const reset = useCallback(() => {
     abortRef.current?.abort();
     abortRef.current = null;
-    threadRef.current = null;
+    skipLoadRef.current = false;
+    suppressLoadRef.current = true;
     purposeSetRef.current = false;
-    setBusy(false);
+    setBusyBoth(false);
     setAnswerId(null);
     setRevealId(null);
     setMessages([]);
     setTrace([]);
     traceRef.current = [];
     setPendingQuote(null);
-  }, [setPendingQuote]);
+    setThreadBoth(null);
+  }, [setBusyBoth, setPendingQuote, setThreadBoth]);
 
-  useEffect(() => () => abortRef.current?.abort(), []);
+  const loadThread = useCallback(
+    async (id: string) => {
+      const target = id.trim();
+      if (!target) return;
+      if (suppressLoadRef.current) {
+        suppressLoadRef.current = false;
+        return;
+      }
+      if (target === threadRef.current) {
+        if (busyRef.current) return;
+        if (skipLoadRef.current) {
+          skipLoadRef.current = false;
+          return;
+        }
+        return;
+      }
 
-  useEffect(() => {
-    if (!persist) return;
-    if (skipLoadRef.current && urlThread && urlThread === threadRef.current) {
-      skipLoadRef.current = false;
-      return;
-    }
-    if (!urlThread) {
       abortRef.current?.abort();
       abortRef.current = null;
-      threadRef.current = null;
-      purposeSetRef.current = false;
-      setBusy(false);
-      setMessages([]);
-      setTrace([]);
-      traceRef.current = [];
+      setBusyBoth(false);
       setAnswerId(null);
       setRevealId(null);
-      return;
-    }
-    if (urlThread === threadRef.current && messages.length > 0) return;
+      setTrace([]);
+      traceRef.current = [];
+      setThreadBoth(target);
 
-    let cancelled = false;
-    threadRef.current = urlThread;
-    void (async () => {
       try {
-        const res = await fetch(`/api/agent/konusmalar/${urlThread}`);
-        if (!res.ok || cancelled) return;
+        const res = await fetch(`/api/agent/konusmalar/${target}`);
+        if (!res.ok) return;
+        if (threadRef.current !== target) return;
         const body = (await res.json()) as { mesajlar?: KonusmaMesaj[] };
-        if (cancelled) return;
+        if (threadRef.current !== target) return;
         setMessages((body.mesajlar ?? []).map(fromStored));
         purposeSetRef.current = (body.mesajlar ?? []).some(
           (m) => m.rol === "assistant"
         );
-        setTrace([]);
-        traceRef.current = [];
-        setAnswerId(null);
-        setRevealId(null);
       } catch {
-        /* yüklenemezse boş thread */
+        /* yüklenemezse mevcut ekran kalsın */
       }
-    })();
-    return () => {
-      cancelled = true;
-    };
-    // messages.length kasıtlı dışarıda — her eklemede reload olmasın
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [persist, urlThread]);
+    },
+    [setBusyBoth, setThreadBoth]
+  );
+
+  // Kabuk unmount (çıkış) — sayfa değişimi değil.
+  useEffect(() => () => abortRef.current?.abort(), []);
 
   const send = useCallback(
     (question: string) => {
@@ -251,7 +289,7 @@ export function useAgentSession(opts?: {
 
       setDraft("");
       setPendingQuote(null);
-      setBusy(true);
+      setBusyBoth(true);
       traceRef.current = [];
       setTrace([]);
       setAnswerId(null);
@@ -336,15 +374,14 @@ export function useAgentSession(opts?: {
       };
 
       void (async () => {
-        let threadId = persist ? threadRef.current : undefined;
-        if (persist && !threadId) {
+        let nextThread = threadRef.current;
+        if (!nextThread) {
           try {
             const created = await createKonusma(konusmaBasligi(q), konusmaOzeti(q));
             if (created) {
-              threadId = created;
-              threadRef.current = created;
+              nextThread = created;
               skipLoadRef.current = true;
-              onThread?.(created);
+              setThreadBoth(created);
               notifyKonusmalarChanged();
             }
           } catch {
@@ -352,9 +389,9 @@ export function useAgentSession(opts?: {
           }
         }
 
-        if (persist && threadId) {
+        if (nextThread) {
           try {
-            await appendMessages(threadId, [
+            await appendMessages(nextThread, [
               { id: userId, role: "user", text: q, quote: alinti },
             ]);
             notifyKonusmalarChanged();
@@ -365,7 +402,7 @@ export function useAgentSession(opts?: {
 
         await streamAgent({
           message: outbound,
-          threadId: persist ? threadId ?? undefined : undefined,
+          threadId: nextThread ?? undefined,
           signal: controller.signal,
           onEvent,
         });
@@ -387,11 +424,11 @@ export function useAgentSession(opts?: {
           reportAgentOk();
         }
         sealLive(yanitId);
-        setBusy(false);
+        setBusyBoth(false);
         setAnswerId(null);
         abortRef.current = null;
 
-        if (persist && threadId) {
+        if (nextThread) {
           const toSave: {
             id: string;
             role: ChatRole;
@@ -421,7 +458,7 @@ export function useAgentSession(opts?: {
               !purposeSetRef.current && yanitMetin.trim()
                 ? { ozet: konusmaAmaci(q, yanitMetin) }
                 : undefined;
-            void appendMessages(threadId, toSave, meta).then(() => {
+            void appendMessages(nextThread, toSave, meta).then(() => {
               if (meta) purposeSetRef.current = true;
               notifyKonusmalarChanged();
             });
@@ -429,25 +466,61 @@ export function useAgentSession(opts?: {
         }
       })();
     },
-    [onThread, persist, sealLive, setPendingQuote, setTraceBoth]
+    [sealLive, setBusyBoth, setPendingQuote, setThreadBoth, setTraceBoth]
   );
 
-  return {
-    messages,
-    draft,
-    setDraft,
-    busy,
-    trace,
-    tasks,
-    contexts,
-    revealed,
-    revealing,
-    revealId,
-    answerId,
-    pendingQuote,
-    setPendingQuote,
-    send,
-    stop,
-    reset,
-  };
+  return useMemo(
+    () => ({
+      threadId,
+      messages,
+      draft,
+      setDraft,
+      busy,
+      trace,
+      tasks,
+      contexts,
+      revealed,
+      revealing,
+      revealId,
+      answerId,
+      pendingQuote,
+      setPendingQuote,
+      send,
+      stop,
+      reset,
+      loadThread,
+    }),
+    [
+      threadId,
+      messages,
+      draft,
+      busy,
+      trace,
+      tasks,
+      contexts,
+      revealed,
+      revealing,
+      revealId,
+      answerId,
+      pendingQuote,
+      setPendingQuote,
+      send,
+      stop,
+      reset,
+      loadThread,
+    ]
+  );
+}
+
+export function AgentRuntimeProvider({ children }: { children: ReactNode }) {
+  const value = useAgentRuntimeState();
+  return createElement(AgentRuntimeContext.Provider, { value }, children);
+}
+
+export function useAgentSession(): AgentSessionValue {
+  const ctx = useContext(AgentRuntimeContext);
+  if (!ctx) {
+    throw new Error("useAgentSession AgentRuntimeProvider içinde kullanılmalı");
+  }
+  return ctx;
 }

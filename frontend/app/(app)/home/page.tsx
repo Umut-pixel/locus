@@ -55,8 +55,9 @@ export default function HomePage() {
 function HomeChat() {
   const router = useRouter();
   const params = useSearchParams();
-  const threadId = params.get("k");
+  const urlThread = params.get("k");
   const {
+    threadId,
     messages,
     draft,
     setDraft,
@@ -73,13 +74,21 @@ function HomeChat() {
     send,
     stop,
     reset,
-  } = useAgentSession({
-    persist: true,
-    threadId,
-    onThread: (id) => {
-      router.replace(`/home?k=${id}`);
-    },
-  });
+    loadThread,
+  } = useAgentSession();
+
+  useEffect(() => {
+    if (urlThread && urlThread !== threadId) {
+      void loadThread(urlThread);
+    }
+  }, [urlThread, threadId, loadThread]);
+
+  useEffect(() => {
+    if (!threadId || urlThread === threadId) return;
+    if (urlThread) return;
+    router.replace(`/home?k=${threadId}`);
+  }, [threadId, urlThread, router]);
+
   const sonRef = useRef<HTMLDivElement | null>(null);
   const sohbet = messages.length > 0;
   const waiting = busy && !answerId;
@@ -130,13 +139,13 @@ function HomeChat() {
       <header
         className={cn(
           "pointer-events-none absolute inset-x-0 top-0 z-20 flex items-center gap-2 px-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-2 sm:px-4",
-          threadId || sohbet ? "bg-background/90 backdrop-blur-sm" : null
+          urlThread || sohbet ? "bg-background/90 backdrop-blur-sm" : null
         )}
       >
         <div className="pointer-events-auto">
           <AppSidebarMobileTrigger />
         </div>
-        {threadId || sohbet ? (
+        {urlThread || sohbet ? (
           <Link
             href="/home"
             aria-label="Ana sayfaya dön"
@@ -151,11 +160,8 @@ function HomeChat() {
                 return;
               }
               event.preventDefault();
-              if (threadId) {
-                router.push("/home");
-                return;
-              }
               reset();
+              router.push("/home");
             }}
             className="pointer-events-auto inline-flex h-10 min-w-0 max-w-[min(100%,16rem)] items-center gap-1.5 rounded-lg px-2.5 text-[13px] font-medium text-ink outline-none hover:bg-hover focus-visible:ring-2 focus-visible:ring-ring sm:h-9"
           >
@@ -223,7 +229,7 @@ function HomeChat() {
               <div className="mx-auto w-full max-w-2xl">{composer}</div>
             </motion.div>
           </>
-        ) : threadId ? (
+        ) : urlThread ? (
           <div className="flex min-h-0 flex-1 flex-col">
             <div className="min-h-0 flex-1" />
             <div className="relative z-20 shrink-0 border-t border-line px-4 py-3">

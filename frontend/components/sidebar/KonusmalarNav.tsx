@@ -15,6 +15,7 @@ import { motion } from "motion/react";
 
 import { SidebarIconCell, SidebarLabel } from "@/components/sidebar/AppSidebarNavItem";
 import { useKonusmalar } from "@/hooks/useKonusmalar";
+import { useAgentSession } from "@/hooks/useAgentSession";
 import { SIDEBAR_KONUSMA_PREVIEW } from "@/lib/agent-konusma";
 import {
   ICON_RAIL_WIDTH,
@@ -38,8 +39,10 @@ function KonusmalarNavInner({ open }: { open: boolean }) {
   const pathname = usePathname();
   const params = useSearchParams();
   const router = useRouter();
-  const activeId = pathname === "/home" ? params.get("k") : null;
-  const onFreshHome = pathname === "/home" && !activeId;
+  const { threadId: runtimeThread, reset } = useAgentSession();
+  const urlK = pathname === "/home" ? params.get("k") : null;
+  const activeId = urlK ?? (pathname === "/home" ? null : runtimeThread);
+  const onFreshHome = pathname === "/home" && !urlK && !runtimeThread;
   const { items, loading, remove, togglePin } = useKonusmalar();
   const [expanded, setExpanded] = useState(false);
 
@@ -54,7 +57,11 @@ function KonusmalarNavInner({ open }: { open: boolean }) {
         icon={activeId ? HouseIcon : MessageSquarePlusIcon}
         active={onFreshHome}
         open={open}
-        clearQuery
+        onNavigate={() => {
+          if (pathname === "/home" && (urlK || runtimeThread)) {
+            reset();
+          }
+        }}
       />
       {open ? (
         <>
@@ -77,8 +84,11 @@ function KonusmalarNavInner({ open }: { open: boolean }) {
               pinned={item.sabitlendi}
               onPin={() => void togglePin(item.id, !item.sabitlendi)}
               onDelete={() => {
+                if (item.id === (urlK ?? runtimeThread)) {
+                  reset();
+                }
                 void remove(item.id);
-                if (activeId === item.id) router.push("/home");
+                if (urlK === item.id) router.push("/home");
               }}
             />
           ))}
@@ -111,14 +121,14 @@ function RailLink({
   icon: Icon,
   active,
   open,
-  clearQuery = false,
+  onNavigate,
 }: {
   href: string;
   label: string;
   icon: LucideIcon;
   active: boolean;
   open: boolean;
-  clearQuery?: boolean;
+  onNavigate?: () => void;
 }) {
   const router = useRouter();
   return (
@@ -127,8 +137,8 @@ function RailLink({
       aria-current={active ? "page" : undefined}
       title={open ? undefined : label}
       onClick={(e) => {
-        if (!clearQuery) return;
         e.preventDefault();
+        onNavigate?.();
         router.push(href);
       }}
       className={cn(
