@@ -8,7 +8,7 @@ import {
   useState,
   type CSSProperties,
 } from "react";
-import { ChevronDownIcon, MenuIcon, PanelLeftCloseIcon, PanelLeftOpenIcon } from "lucide-react";
+import { ChevronDownIcon, PanelLeftCloseIcon, PanelLeftOpenIcon } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 import Link from "next/link";
 
@@ -382,9 +382,9 @@ export function AppSidebar({ className }: { className?: string }) {
 
 export function AppSidebarMobileTrigger({
   className,
-  embedded = false,
 }: {
   className?: string;
+  /** Harita overlay — görsel artık her yerde aynı marka kutusu. */
   embedded?: boolean;
 }) {
   const [open, setOpen] = useState(false);
@@ -394,20 +394,18 @@ export function AppSidebarMobileTrigger({
       <SheetTrigger
         render={
           <Button
-            variant={embedded ? "ghost" : "secondary"}
+            variant="secondary"
             size="icon"
             className={cn(
-              "pointer-events-auto size-9 lg:hidden",
-              embedded
-                ? "rounded-full text-muted-foreground shadow-none hover:bg-muted/45 hover:text-foreground"
-                : "rounded-lg border shadow-md",
+              "pointer-events-auto size-9 rounded-lg border-0 bg-[#14b8a6] text-white shadow-md lg:hidden",
+              "hover:bg-[#0d9488] hover:text-white",
               className
             )}
             aria-label="Menüyü aç"
           />
         }
       >
-        <MenuIcon />
+        <CelixionMark size={18} className="size-[18px] text-white" />
       </SheetTrigger>
       <SheetContent
         side="left"

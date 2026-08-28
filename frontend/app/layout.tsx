@@ -38,6 +38,13 @@ export const metadata: Metadata = {
   title: "Patigo · Müşteri Haritası",
   description:
     "Ege bölgesi petshop/veteriner müşterileri — konum ve risk durumu haritası",
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "48x48" },
+      { url: "/icon.svg", type: "image/svg+xml" },
+    ],
+    apple: "/apple-icon",
+  },
 };
 
 export const viewport: Viewport = {
