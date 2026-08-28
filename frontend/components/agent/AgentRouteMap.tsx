@@ -5,15 +5,16 @@ import { ArrowUpRightIcon } from "lucide-react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 
+import { useTheme } from "@/components/theme/ThemeProvider";
 import type { MapBlock, MapPoint } from "@/lib/agent-blocks";
 import { DEPOT, googleMapsDirUrl } from "@/lib/depot";
 import { snapSegmentsToRoads } from "@/lib/mapbox-directions";
 import {
   applyMapRuntimeTuning,
-  MAP_RENDER_OPTIONS,
+  mapRenderOptions,
   observeMapContainer,
 } from "@/lib/mapbox-init";
-import { MAPBOX_TOKEN } from "@/lib/mapbox-style";
+import { MAPBOX_TOKEN, currentDocumentMapTheme } from "@/lib/mapbox-style";
 
 const LINE_SOURCE = "agent-route-line";
 const LINE_LAYER = "agent-route-line";
@@ -108,6 +109,7 @@ function popupHtml(title: string, subtitle?: string): string {
 }
 
 export function AgentRouteMap({ block }: { block: MapBlock }) {
+  const { theme } = useTheme();
   const containerRef = useRef<HTMLDivElement>(null);
   const pointsKey = useMemo(
     () =>
@@ -136,7 +138,7 @@ export function AgentRouteMap({ block }: { block: MapBlock }) {
     const center = fitTargets[0] ?? DEPOT.lngLat;
     const map = new mapboxgl.Map({
       container: el,
-      ...MAP_RENDER_OPTIONS,
+      ...mapRenderOptions(currentDocumentMapTheme()),
       center,
       zoom: fitTargets.length <= 1 ? 13 : 7,
       attributionControl: false,
@@ -251,7 +253,7 @@ export function AgentRouteMap({ block }: { block: MapBlock }) {
       for (const m of markers) m.remove();
       map.remove();
     };
-  }, [block.includeDepot, pointsKey]);
+  }, [block.includeDepot, pointsKey, theme]);
 
   const title = block.title ?? "Rota";
   const stopCount = block.points.length;

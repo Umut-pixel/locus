@@ -5,11 +5,17 @@ import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { Typography } from "@heroui/react";
 
+import { useTheme } from "@/components/theme/ThemeProvider";
 import { DEPOT } from "@/lib/depot";
-import { DEFAULT_MAP_VIEW, MAPBOX_TOKEN } from "@/lib/mapbox-style";
+import {
+  DEFAULT_MAP_VIEW,
+  MAPBOX_TOKEN,
+  currentDocumentMapTheme,
+  mapboxStyleForTheme,
+} from "@/lib/mapbox-style";
 import {
   applyMapRuntimeTuning,
-  MAP_RENDER_OPTIONS,
+  mapRenderOptions,
   observeMapContainer,
 } from "@/lib/mapbox-init";
 import { STABLE_CLUSTER_CONFIG, type ClusterConfig } from "@/lib/map-clusters";
@@ -151,6 +157,8 @@ export const PetshopMap = memo(function PetshopMap({
   const selectedPotansiyelIdRef = useRef<string | null>(null);
   const depotMarkerRef = useRef<mapboxgl.Marker | null>(null);
   const mountOverlaysRef = useRef<(() => void) | null>(null);
+  const styleUrlRef = useRef(mapboxStyleForTheme("dark"));
+  const { theme } = useTheme();
 
   useEffect(() => {
     dataRef.current = data;
@@ -281,9 +289,11 @@ export const PetshopMap = memo(function PetshopMap({
 
     mapboxgl.accessToken = MAPBOX_TOKEN;
     const startView = initialMapViewFromUserLocation(DEFAULT_MAP_VIEW);
+    const initialTheme = currentDocumentMapTheme();
+    styleUrlRef.current = mapboxStyleForTheme(initialTheme);
     const map = new mapboxgl.Map({
       container: containerRef.current,
-      ...MAP_RENDER_OPTIONS,
+      ...mapRenderOptions(initialTheme),
       center: startView.center,
       zoom: startView.zoom,
       attributionControl: true,
@@ -656,6 +666,15 @@ export const PetshopMap = memo(function PetshopMap({
       mapRef.current = null;
     };
   }, []);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    const next = mapboxStyleForTheme(theme);
+    if (!map || styleUrlRef.current === next) return;
+    styleUrlRef.current = next;
+    loadedRef.current = false;
+    map.setStyle(next);
+  }, [theme]);
 
   useEffect(() => {
     const map = mapRef.current;

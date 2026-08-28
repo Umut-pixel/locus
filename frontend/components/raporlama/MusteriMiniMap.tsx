@@ -4,7 +4,9 @@ import { useEffect, useRef } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 
-import { MAPBOX_STYLE_URL, MAPBOX_TOKEN } from "@/lib/mapbox-style";
+import { useTheme } from "@/components/theme/ThemeProvider";
+import { mapRenderOptions } from "@/lib/mapbox-init";
+import { MAPBOX_TOKEN, currentDocumentMapTheme } from "@/lib/mapbox-style";
 import { RISK_COLORS } from "@/lib/risk-style";
 import type { RiskDurumu } from "@/lib/types";
 
@@ -18,6 +20,7 @@ export function MusteriMiniMap({
   risk: RiskDurumu;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const { theme } = useTheme();
 
   useEffect(() => {
     if (!containerRef.current || !MAPBOX_TOKEN) return;
@@ -26,7 +29,7 @@ export function MusteriMiniMap({
 
     const map = new mapboxgl.Map({
       container: containerRef.current,
-      style: MAPBOX_STYLE_URL,
+      ...mapRenderOptions(currentDocumentMapTheme()),
       center: [lon, lat],
       zoom: 14,
       attributionControl: false,
@@ -50,7 +53,7 @@ export function MusteriMiniMap({
     return () => {
       map.remove();
     };
-  }, [lat, lon, risk]);
+  }, [lat, lon, risk, theme]);
 
   return <div ref={containerRef} className="h-full w-full" />;
 }

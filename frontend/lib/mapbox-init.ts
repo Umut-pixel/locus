@@ -1,7 +1,12 @@
 import mapboxgl from "mapbox-gl";
 import type { Map as MapboxMap, MapOptions } from "mapbox-gl";
 
-import { MAPBOX_STYLE_URL } from "@/lib/mapbox-style";
+import {
+  currentDocumentMapTheme,
+  mapboxBasemapConfig,
+  mapboxStyleForTheme,
+  type MapTheme,
+} from "@/lib/mapbox-style";
 
 if (typeof window !== "undefined") {
   mapboxgl.prewarm();
@@ -14,9 +19,11 @@ if (typeof window !== "undefined") {
  * basemap tile'ları bellek cache'inde tutulur, süre dolmuş tile yeniden
  * çekilmez (oturum boyunca aynı basemap).
  */
-export const MAP_RENDER_OPTIONS: Omit<MapOptions, "container" | "center" | "zoom"> =
-  {
-    style: MAPBOX_STYLE_URL,
+export function mapRenderOptions(
+  theme: MapTheme = currentDocumentMapTheme()
+): Omit<MapOptions, "container" | "center" | "zoom"> {
+  return {
+    style: mapboxStyleForTheme(theme),
     projection: "mercator",
     antialias: true,
     fadeDuration: 400,
@@ -27,11 +34,10 @@ export const MAP_RENDER_OPTIONS: Omit<MapOptions, "container" | "center" | "zoom
     trackResize: true,
     maxPitch: 45,
     config: {
-      basemap: {
-        show3dObjects: false,
-      },
+      basemap: mapboxBasemapConfig(theme),
     },
   };
+}
 
 /** Stil yüklendikten sonra da zorla — Studio globe import'u constructor'ı ezer. */
 export function applyMapRuntimeTuning(map: MapboxMap): boolean {
@@ -46,10 +52,14 @@ export function applyMapRuntimeTuning(map: MapboxMap): boolean {
     map.setProjection("mercator");
     projectionChanged = true;
   }
-  try {
-    map.setConfigProperty("basemap", "show3dObjects", false);
-  } catch {
-    // Import id `basemap` değilse Standard config yok sayılır.
+  const theme = currentDocumentMapTheme();
+  const cfg = mapboxBasemapConfig(theme);
+  for (const [key, value] of Object.entries(cfg)) {
+    try {
+      map.setConfigProperty("basemap", key, value);
+    } catch {
+      // Import id `basemap` değilse Standard config yok sayılır.
+    }
   }
   return projectionChanged;
 }

@@ -4,10 +4,11 @@ import { useEffect, useRef } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 
-import { DEFAULT_MAP_VIEW, MAPBOX_TOKEN } from "@/lib/mapbox-style";
+import { useTheme } from "@/components/theme/ThemeProvider";
+import { DEFAULT_MAP_VIEW, MAPBOX_TOKEN, currentDocumentMapTheme } from "@/lib/mapbox-style";
 import {
   applyMapRuntimeTuning,
-  MAP_RENDER_OPTIONS,
+  mapRenderOptions,
   observeMapContainer,
 } from "@/lib/mapbox-init";
 
@@ -15,14 +16,15 @@ import {
 export function LoginMapPreview() {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
+  const { theme } = useTheme();
 
   useEffect(() => {
-    if (!containerRef.current || mapRef.current || !MAPBOX_TOKEN) return;
+    if (!containerRef.current || !MAPBOX_TOKEN) return;
 
     mapboxgl.accessToken = MAPBOX_TOKEN;
     const map = new mapboxgl.Map({
       container: containerRef.current,
-      ...MAP_RENDER_OPTIONS,
+      ...mapRenderOptions(currentDocumentMapTheme()),
       center: DEFAULT_MAP_VIEW.center,
       zoom: DEFAULT_MAP_VIEW.zoom,
       interactive: false,
@@ -42,12 +44,10 @@ export function LoginMapPreview() {
       map.remove();
       mapRef.current = null;
     };
-  }, []);
+  }, [theme]);
 
   if (!MAPBOX_TOKEN) {
-    return (
-      <div className="size-full bg-[oklch(0.16_0.004_260)]" aria-hidden />
-    );
+    return <div className="size-full bg-background" aria-hidden />;
   }
 
   return <div ref={containerRef} className="size-full" aria-hidden />;

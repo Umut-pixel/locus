@@ -2,7 +2,7 @@ import gsap from "gsap";
 
 type Theme = "light" | "dark";
 
-const LIGHT_BG = "oklch(0.9821 0 0)";
+const LIGHT_BG = "#f7f7f7";
 const DARK_BG = "oklch(0.1776 0 0)";
 
 let overlay: HTMLDivElement | null = null;
