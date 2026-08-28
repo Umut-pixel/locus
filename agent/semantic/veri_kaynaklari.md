@@ -58,6 +58,10 @@ Bir belge = bir sevkiyat. `belge_tarihi` = aracın yüklendiği gün (gerçek).
 `musteri_kodu`, `musteri_unvani`, `belge_kod`, `belge_tarihi`, `net_fiyat`,
 `agirlik` (gram! kg için /1000), `plaka`, `odeme_tip`
 
+Tur / Google Maps: `musteriler_harita` ile `musteri_kodu` join, `lat`/`lon`.
+Ana Depo SQL'de yok (Menderes, Yeni Keresteciler Sitesi No:71 —
+38.28801183350053, 27.141092424481496).
+
 ## 4. `v_panorama_siparis_detay_raporu_guncel` — sipariş belge detay (5450 HTTP / 5451 sync)
 
 Grain = kalem. Kimlik = `siparis_no` (Belgekod yok). Tam snapshot: guncel view

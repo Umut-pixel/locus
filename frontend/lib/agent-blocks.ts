@@ -53,6 +53,21 @@ export type RecommendBlock = {
   options: RecommendOption[];
 };
 
+export type MapPoint = {
+  lat: number;
+  lon: number;
+  label?: string;
+  meta?: string;
+};
+
+export type MapBlock = {
+  type: "map";
+  title?: string;
+  includeDepot: boolean;
+  mapsUrl?: string;
+  points: MapPoint[];
+};
+
 export type MarkdownBlock = { type: "markdown"; text: string };
 export type PendingBlock = { type: "pending"; label: string };
 
@@ -62,6 +77,7 @@ export type AgentBlock =
   | FilterBlock
   | ChartBlock
   | RecommendBlock
+  | MapBlock
   | PendingBlock;
 
 const FENCE = /```locus[\w-]*[ \t]*\r?\n([\s\S]*?)```/g;
@@ -105,6 +121,36 @@ function asRecordRows(table: TableBlock): Record<string, string>[] {
 function looksCompleteTable(text: string): boolean {
   const lines = text.trim().split(/\r?\n/).filter((l) => l.trim().startsWith("|"));
   return lines.length >= 3 && isSeparator(lines[1] ?? "");
+}
+
+function isFiniteCoord(n: unknown): n is number {
+  return typeof n === "number" && Number.isFinite(n);
+}
+
+function parseMapPoint(raw: unknown): MapPoint | null {
+  if (!raw || typeof raw !== "object") return null;
+  const o = raw as Record<string, unknown>;
+  const lat = Number(o.lat);
+  const lon = Number(o.lon ?? o.lng);
+  if (!isFiniteCoord(lat) || !isFiniteCoord(lon)) return null;
+  if (Math.abs(lat) > 90 || Math.abs(lon) > 180) return null;
+  const point: MapPoint = { lat, lon };
+  if (typeof o.label === "string" && o.label.trim()) point.label = o.label.trim();
+  if (typeof o.meta === "string" && o.meta.trim()) point.meta = o.meta.trim();
+  return point;
+}
+
+function parseHttpsUrl(raw: unknown): string | undefined {
+  if (typeof raw !== "string") return undefined;
+  const s = raw.trim();
+  if (!/^https:\/\//i.test(s)) return undefined;
+  try {
+    const u = new URL(s);
+    if (u.protocol !== "https:") return undefined;
+    return u.toString();
+  } catch {
+    return undefined;
+  }
 }
 
 function parseLocusJson(raw: string): AgentBlock | null {
@@ -236,6 +282,24 @@ function parseLocusJson(raw: string): AgentBlock | null {
       if (typeof data.question === "string" && options.length) {
         return { type: "recommend", question: data.question, options };
       }
+    }
+    if (kind === "map" || kind === "route") {
+      const points = Array.isArray(data.points)
+        ? data.points.flatMap((p) => {
+            const parsed = parseMapPoint(p);
+            return parsed ? [parsed] : [];
+          })
+        : [];
+      const includeDepot = data.includeDepot !== false;
+      if (points.length === 0 && !includeDepot) return null;
+      const mapsUrl = parseHttpsUrl(data.mapsUrl ?? data.maps_url);
+      return {
+        type: "map",
+        title: typeof data.title === "string" ? data.title : undefined,
+        includeDepot,
+        mapsUrl,
+        points,
+      };
     }
   } catch {
     return null;

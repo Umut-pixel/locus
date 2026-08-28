@@ -4,6 +4,7 @@ import { memo } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
+import { AgentRouteMap } from "@/components/agent/AgentRouteMap";
 import { AgentTable } from "@/components/agent/AgentTable";
 import { FilterTable } from "@/components/agent/FilterTable";
 import { InsightChart } from "@/components/agent/InsightChart";
@@ -115,6 +116,8 @@ function BlockView({
       return <InsightChart block={block} />;
     case "recommend":
       return <RecommendCard block={block} onAccept={onAccept} />;
+    case "map":
+      return <AgentRouteMap block={block} />;
     case "markdown":
       if (streamingTail) {
         return <StreamingWords text={block.text} />;

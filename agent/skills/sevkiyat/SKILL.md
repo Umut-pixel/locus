@@ -74,3 +74,41 @@ ORDER BY islem_tarihi ASC
 ```
 
 > `nettutar` = 5450 Nettutar (**KDV dahil**). Alış / Verilen Sipariş hariç.
+
+## Ana Depo
+
+SQL'de yok. Konumu uydurma.
+
+- Hürriyet, Yeni Keresteciler Sitesi No:71, 35473 Menderes/İzmir
+- lat `38.28801183350053`, lon `27.141092424481496`
+
+## Tur / harita
+
+"Haritada göster", "Google Maps", "nokta bazında", "tur", "rota", "güzergâh":
+
+1. 5130 satırlarını `musteriler_harita` ile `musteri_kodu` üzerinden join et.
+2. `lat`/`lon` NULL olanları düş (uydurma).
+3. `kind: "map"` bas + aynı Google `dir` linkini markdown'da ver.
+4. Rota isteniyorsa `includeDepot: true` — origin/destination = Ana Depo.
+5. Yalnız noktalar (rota değil): `includeDepot: false`.
+
+```sql
+SELECT s.musteri_kodu, h.unvan, h.ilce, h.sehir, h.lat, h.lon,
+       s.belge_kod, s.belge_tarihi, s.net_fiyat,
+       s.agirlik / 1000.0 AS agirlik_kg
+FROM v_panorama_sevkiyat_raporu_kup_guncel s
+JOIN musteriler_harita h ON h.musteri_kodu = s.musteri_kodu
+WHERE s.belge_tarihi = '2026.08.27'
+  AND h.lat IS NOT NULL AND h.lon IS NOT NULL
+```
+
+```locus
+{
+  "kind": "map",
+  "title": "27.08 turu",
+  "includeDepot": true,
+  "points": [
+    { "lat": 38.32, "lon": 26.76, "label": "GAMZE GENCELLİ", "meta": "225 kg" }
+  ]
+}
+```
