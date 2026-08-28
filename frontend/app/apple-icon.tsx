@@ -3,7 +3,7 @@ import { ImageResponse } from "next/og";
 export const size = { width: 180, height: 180 };
 export const contentType = "image/png";
 
-/** iOS / PWA — turkuaz mask + beyaz Celixion mark. */
+/** iOS / PWA — koyu Locus mavisi + beyaz Celixion mark. */
 export default function AppleIcon() {
   return new ImageResponse(
     (
@@ -14,7 +14,7 @@ export default function AppleIcon() {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          background: "#14b8a6",
+          background: "#005670",
           borderRadius: 36,
         }}
       >

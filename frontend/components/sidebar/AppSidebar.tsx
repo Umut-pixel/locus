@@ -397,8 +397,8 @@ export function AppSidebarMobileTrigger({
             variant="secondary"
             size="icon"
             className={cn(
-              "pointer-events-auto size-9 rounded-lg border-0 bg-[#14b8a6] text-white shadow-md lg:hidden",
-              "hover:bg-[#0d9488] hover:text-white",
+              "pointer-events-auto size-9 rounded-lg border-0 bg-[var(--locus-blue-deep)] text-white shadow-md lg:hidden",
+              "hover:bg-[#00485c] hover:text-white",
               className
             )}
             aria-label="Menüyü aç"
