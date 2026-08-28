@@ -5,7 +5,7 @@ import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 
 import { useTheme } from "@/components/theme/ThemeProvider";
-import { mapRenderOptions } from "@/lib/mapbox-init";
+import { mapRenderOptions, observeMapContainer } from "@/lib/mapbox-init";
 import { MAPBOX_TOKEN } from "@/lib/mapbox-style";
 import { RISK_COLORS } from "@/lib/risk-style";
 import type { RiskDurumu } from "@/lib/types";
