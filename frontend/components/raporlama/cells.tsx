@@ -37,14 +37,13 @@ export function RiskPill({
   const color = RISK_COLORS[risk];
   const Icon = RISK_ICONS[risk];
   return (
-    <Badge
-      variant="outline"
-      className={cn(DENSE_BADGE, "gap-1.5 [&>svg]:size-3!")}
-      style={{ backgroundColor: `${color}1f`, color, borderColor: `${color}4d` }}
+    <span
+      className="inline-flex h-6 max-w-full items-center gap-1.5 rounded-[6px] border px-2 text-[12px] leading-none font-medium"
+      style={{ backgroundColor: `color-mix(in oklab, ${color} 16%, transparent)`, color, borderColor: `color-mix(in oklab, ${color} 38%, transparent)` }}
     >
-      <Icon />
-      {labels[risk]}
-    </Badge>
+      <Icon className="size-3 shrink-0" />
+      <span className="truncate">{labels[risk]}</span>
+    </span>
   );
 }
 

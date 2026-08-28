@@ -7,7 +7,7 @@ import {
   clusterStrokeOpacityExpr,
   type ClusterConfig,
 } from "@/lib/map-clusters";
-import { RISK_COLORS } from "@/lib/risk-style";
+import { MAP_RISK_COLORS } from "@/lib/risk-style";
 import { tipStrokeColorExpr } from "@/lib/tip-style";
 import type { MusteriFeatureCollection } from "@/lib/geojson";
 
@@ -168,14 +168,14 @@ export function addCustomerLayers(
           "match",
           ["get", "risk_durumu"],
           "saglikli",
-          RISK_COLORS.saglikli,
+          MAP_RISK_COLORS.saglikli,
           "izlenmeli",
-          RISK_COLORS.izlenmeli,
+          MAP_RISK_COLORS.izlenmeli,
           "riskli",
-          RISK_COLORS.riskli,
+          MAP_RISK_COLORS.riskli,
           "hic_teslimat_yok",
-          RISK_COLORS.hic_teslimat_yok,
-          RISK_COLORS.hic_teslimat_yok,
+          MAP_RISK_COLORS.hic_teslimat_yok,
+          MAP_RISK_COLORS.hic_teslimat_yok,
         ],
         // Düşük geocode hassasiyeti → hafif solma (renk okunabilirliği korunur)
         "circle-opacity": [

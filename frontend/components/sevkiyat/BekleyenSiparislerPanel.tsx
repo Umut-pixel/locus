@@ -54,14 +54,14 @@ export function BekleyenSiparislerPanel({
       <header className="flex h-11 shrink-0 items-center gap-3 border-b border-border/60 px-3.5">
         <h2 className="flex min-w-0 items-center gap-1.5 text-[12px] font-medium tracking-[0.06em] text-muted-foreground uppercase">
           <ClipboardListIcon
-            className={cn("size-3.5 shrink-0", !bos && "text-amber-400")}
+            className={cn("size-3.5 shrink-0", !bos && "text-caution")}
             strokeWidth={1.75}
             aria-hidden
           />
           <span className="truncate">Bekleyen siparişler</span>
         </h2>
         {!bos ? (
-          <span className="shrink-0 font-mono text-[12.5px] font-medium text-amber-400 tabular-nums">
+          <span className="shrink-0 font-mono text-[12.5px] font-medium text-caution tabular-nums">
             {formatNumber(satirlar.length)}
           </span>
         ) : null}
@@ -76,7 +76,7 @@ export function BekleyenSiparislerPanel({
           <span className="text-[12px] tracking-[0.06em] text-muted-foreground uppercase">
             Net tutar
           </span>
-          <span className="font-mono text-[13px] font-medium text-amber-400 tabular-nums">
+          <span className="font-mono text-[13px] font-medium text-caution tabular-nums">
             {formatCurrency(toplamTutar)}
           </span>
         </div>
@@ -107,7 +107,7 @@ export function BekleyenSiparislerPanel({
                 <span
                   className={cn(
                     "size-1.5 shrink-0 rounded-full",
-                    s.durum === "bekleyen" ? "bg-amber-400" : "bg-sky-400"
+                    s.durum === "bekleyen" ? "bg-caution" : "bg-locus-blue-mid"
                   )}
                   aria-hidden
                 />
@@ -129,7 +129,7 @@ export function BekleyenSiparislerPanel({
                   <span
                     className={cn(
                       "text-[11px]",
-                      s.durum === "bekleyen" ? "text-amber-400" : "text-sky-400"
+                      s.durum === "bekleyen" ? "text-caution" : "text-locus-blue-mid"
                     )}
                   >
                     {DURUM_ETIKET[s.durum]}

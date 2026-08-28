@@ -47,7 +47,7 @@ export function TahsilatDurumCubugu({
       <span
         className={cn(
           "font-mono font-medium tabular-nums",
-          ozet.odenmemisAdet > 0 ? "text-amber-400" : "text-foreground"
+          ozet.odenmemisAdet > 0 ? "text-caution" : "text-foreground"
         )}
       >
         {loading ? "…" : formatNumber(ozet.odenmemisAdet)}

@@ -33,7 +33,7 @@ export function SegmentBar({
           // kademeli delay soldan sağa dalga etkisi verir.
           className="h-2 min-w-0 flex-1 rounded-[1.5px] transition-colors duration-300 ease-out"
           style={{
-            backgroundColor: i < filled ? color : "var(--secondary)",
+            backgroundColor: i < filled ? color : "var(--muted)",
             transitionDelay: segments > 16 ? `${Math.min(i, 10) * 6}ms` : `${i * 10}ms`,
           }}
         />

@@ -2,7 +2,6 @@
 
 import type { BantDilimi } from "@/hooks/useFinansalRaporu";
 import { formatCurrency } from "@/lib/format";
-import { RISK_COLORS } from "@/lib/risk-style";
 import { cn } from "@/lib/utils";
 
 interface BorcYaslandirmaDagilimiProps {
@@ -26,7 +25,7 @@ export function BorcYaslandirmaDagilimi({
   const toplam = bantlar.reduce((a, b) => a + b.tutar, 0);
 
   return (
-    <section className="flex min-w-0 flex-col">
+    <section className="flex min-w-0 flex-col lg:border-r lg:border-border">
       <header className="flex h-11 shrink-0 items-center justify-between gap-3 border-b border-border/60 px-3.5">
         <h2 className="text-[12px] font-medium tracking-[0.06em] text-muted-foreground uppercase">
           Borç yaşlandırma dağılımı
@@ -42,9 +41,10 @@ export function BorcYaslandirmaDagilimi({
           loading && "opacity-40"
         )}
       >
-        {bantlar.map((b) => {
+        {bantlar.map((b, i) => {
           const riskli = RISKLI_BANT_KOLONLARI.has(b.kolon);
           const oran = b.tutar / enBuyuk;
+          const cool = Math.round((1 - i / Math.max(1, bantlar.length - 1)) * 78 + 22);
           return (
             <div key={b.kolon} className="flex items-center gap-2.5">
               <span className="w-16 shrink-0 text-[12px] text-muted-foreground">
@@ -55,14 +55,14 @@ export function BorcYaslandirmaDagilimi({
                   className="h-full rounded-sm transition-[width] duration-500 ease-out"
                   style={{
                     width: `${Math.max(oran * 100, b.tutar > 0 ? 1.5 : 0)}%`,
-                    backgroundColor: riskli ? RISK_COLORS.riskli : "var(--chart-2)",
+                    backgroundColor: `color-mix(in oklab, var(--locus-blue) ${cool}%, var(--risk-bad))`,
                   }}
                 />
               </div>
               <span
                 className={cn(
                   "w-24 shrink-0 text-right font-mono text-[12.5px] tabular-nums",
-                  riskli ? "text-destructive" : "text-foreground"
+                  riskli ? "text-[color:var(--risk-bad)]" : "text-foreground"
                 )}
               >
                 {formatCurrency(b.tutar)}

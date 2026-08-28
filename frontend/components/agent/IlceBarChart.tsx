@@ -14,8 +14,8 @@ export type IlceBarNokta = {
   prompt: string;
 };
 
-const CIRO_FILL = "var(--ink)";
-const BORC_FILL = "var(--ink-3)";
+const CIRO_FILL = "var(--locus-blue-deep)";
+const BORC_FILL = "var(--locus-blue-mid)";
 const PAD = { top: 28, right: 6, bottom: 28, left: 6 };
 const VB_W = 640;
 const VB_H = 200;

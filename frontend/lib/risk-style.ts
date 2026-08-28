@@ -1,11 +1,19 @@
 import type { GeocodeHassasiyet, RiskDurumu } from "./types";
 
-/** Koyu basemap'te emissive + açık ton — dusk ışığı karartmasın. */
-export const RISK_COLORS: Record<RiskDurumu, string> = {
+/** Mapbox paint — CSS değişkeni kabul etmez. Koyu basemap için emissive palet. */
+export const MAP_RISK_COLORS: Record<RiskDurumu, string> = {
   saglikli: "#86efac",
   izlenmeli: "#facc15",
   riskli: "#fb7185",
   hic_teslimat_yok: "#cbd5e1",
+};
+
+/** UI — light'ta yumuşak, dark'ta harita paletine yakın. */
+export const RISK_COLORS: Record<RiskDurumu, string> = {
+  saglikli: "var(--risk-ok)",
+  izlenmeli: "var(--risk-watch)",
+  riskli: "var(--risk-bad)",
+  hic_teslimat_yok: "var(--risk-none)",
 };
 
 export const RISK_LABELS: Record<RiskDurumu, string> = {

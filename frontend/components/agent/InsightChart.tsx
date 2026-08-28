@@ -6,12 +6,32 @@ import type { ChartBlock, ChartSeries } from "@/lib/agent-blocks";
 import { cn } from "@/lib/utils";
 
 const EASE = "cubic-bezier(0.16, 1, 0.3, 1)";
+
+/** Derin lacivert → açık cyan — bitişik dilimler arasında sert atlama yok. */
+const LOCUS_SCALE = [
+  "var(--locus-blue-deep)",
+  "var(--locus-blue)",
+  "var(--locus-blue-mid)",
+  "var(--locus-blue-soft)",
+] as const;
+
+export function locusScaleColor(index: number, count: number): string {
+  const n = Math.max(1, count);
+  if (n <= 1) return LOCUS_SCALE[1];
+  const t = Math.min(1, Math.max(0, index / (n - 1)));
+  const x = t * (LOCUS_SCALE.length - 1);
+  const i = Math.min(LOCUS_SCALE.length - 2, Math.floor(x));
+  const f = x - i;
+  const a = Math.round((1 - f) * 100);
+  return `color-mix(in oklab, ${LOCUS_SCALE[i]} ${a}%, ${LOCUS_SCALE[i + 1]})`;
+}
+
 export const CHART_COLORS = [
-  "var(--chart-1)",
-  "var(--chart-2)",
-  "var(--chart-3)",
-  "var(--chart-4)",
-  "var(--chart-5)",
+  LOCUS_SCALE[0],
+  LOCUS_SCALE[1],
+  LOCUS_SCALE[2],
+  LOCUS_SCALE[3],
+  "color-mix(in oklab, var(--locus-blue-mid) 55%, var(--locus-blue-soft))",
 ];
 
 function formatValue(v: number, unit?: ChartSeries["unit"]): string {

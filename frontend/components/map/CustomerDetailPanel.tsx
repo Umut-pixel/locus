@@ -1207,7 +1207,7 @@ export const CustomerDetailPanel = memo(function CustomerDetailPanel({
           </div>
         ) : null}
         <Button
-          variant="secondary"
+          variant="outline"
           size="sm"
           className="w-full"
           disabled={!musteri.rut_kod}
@@ -1216,7 +1216,7 @@ export const CustomerDetailPanel = memo(function CustomerDetailPanel({
           Rotada göster
         </Button>
         <Button
-          variant="secondary"
+          variant="outline"
           size="sm"
           nativeButton={false}
           className="w-full"
@@ -2046,7 +2046,7 @@ function RiskMiniBar({
   label: string;
 }) {
   const TOTAL = 24;
-  const colors: string[] = Array(TOTAL).fill("var(--secondary)");
+  const colors: string[] = Array(TOTAL).fill("var(--muted)");
 
   if (onceki && onceki !== yeni) {
     const half = Math.floor(TOTAL / 2);

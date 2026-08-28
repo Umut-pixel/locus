@@ -57,7 +57,7 @@ export function FinansalOzet({ ozet, loading }: FinansalOzetProps) {
         deger={formatCurrency(bekleyenSiparisNetTutar)}
         altBilgi={`${formatNumber(ozet.bekleyenSiparisBelgeSayisi)} belge · KDV dahil`}
         vurgu={ozet.bekleyenSiparisNetTutar > 0}
-        vurguSinif="text-amber-400"
+        vurguSinif="text-caution"
         loading={loading}
       />
 

@@ -29,10 +29,16 @@ import { RISK_COLORS } from "@/lib/risk-style";
 import { cn } from "@/lib/utils";
 
 const DURUM_RENK: Record<HomeDurumSlice["ad"], string> = {
-  Aktif: "var(--chart-3)",
+  Aktif: "var(--locus-blue)",
   Pasif: "var(--muted-foreground)",
   İptal: "var(--destructive)",
-  Diğer: "var(--chart-5)",
+  Diğer: "var(--locus-blue-mid)",
+};
+
+const BORC_ORAN_RENK: Record<string, string> = {
+  saglikli: "var(--locus-blue-soft)",
+  izlenmeli: "var(--locus-blue-mid)",
+  riskli: "var(--locus-blue)",
 };
 
 export function HomeOverviewBento({
@@ -202,7 +208,11 @@ function PortfoyTile({
               }}
               className={cn(
                 "flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] transition-colors",
-                active?.ad === s.ad ? "bg-field text-ink" : "text-ink-2 hover:bg-hover hover:text-ink"
+                active?.ad === s.ad
+                  ? s.ad === "Aktif"
+                    ? "bg-[var(--locus-blue-soft)] text-[var(--locus-blue)] dark:bg-[var(--locus-blue)] dark:text-[#f5f5f5]"
+                    : "bg-field text-ink"
+                  : "text-ink-2 hover:bg-hover hover:text-ink"
               )}
             >
               <span
@@ -393,7 +403,7 @@ function BorcTile({
               >
                 <span
                   className="size-1.5 rounded-full"
-                  style={{ backgroundColor: RISK_COLORS[s.key] }}
+                  style={{ backgroundColor: BORC_ORAN_RENK[s.key] ?? RISK_COLORS[s.key] }}
                   aria-hidden
                 />
                 {s.ad}
@@ -451,8 +461,8 @@ function StatusPill({ label, tone }: { label: string; tone: StatusTone }) {
     tone === "warn"
       ? "bg-red-tint text-ink-red"
       : tone === "wait"
-        ? "bg-accent-tint text-ink-orange"
-        : "bg-green-tint text-ink-green";
+        ? "bg-muted text-caution"
+        : "bg-[var(--locus-blue-soft)] text-[var(--locus-blue)] dark:bg-[var(--locus-blue)] dark:text-[#f5f5f5]";
   return (
     <span
       className={cn(

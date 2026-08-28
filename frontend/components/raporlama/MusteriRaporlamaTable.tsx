@@ -98,7 +98,7 @@ function nextSort(
 
 /** Yoğun tablo başlığı — 2026-08-10: "çok dar" geri bildirimiyle 10px→12px büyütüldü. */
 const TH_BASE =
-  "h-[var(--row-h-head)] px-3 text-[12px] font-medium tracking-[0.06em] whitespace-nowrap uppercase";
+  "h-[var(--row-h-head)] px-3 text-left align-middle text-[12px] font-medium tracking-[0.06em] whitespace-nowrap uppercase";
 
 function SortableHeader({
   alan,
@@ -139,7 +139,11 @@ function SortableHeader({
  * sevkiyat gecikmesine göre değiştirme kaldırıldı (bkz. lib/risk-mode.ts).
  */
 function RiskModeHeader() {
-  return <th scope="col" className={TH_BASE}>Risk</th>;
+  return (
+    <th scope="col" align="left" className={cn(TH_BASE, "w-[8.25rem]")}>
+      Risk
+    </th>
+  );
 }
 
 const COLUMN_COUNT = 8;
@@ -384,8 +388,10 @@ function RaporSatiri({
       <td className={TD_BASE}>
         <TemsilciAvatar ad={row.belge_st_adi} />
       </td>
-      <td className={TD_BASE}>
-        <RiskPill risk={risk} labels={riskShortLabelsForMode(riskMode)} />
+      <td className={cn(TD_BASE, "w-[8.25rem] text-left")} align="left">
+        <div className="flex justify-start">
+          <RiskPill risk={risk} labels={riskShortLabelsForMode(riskMode)} />
+        </div>
       </td>
       <td className={cn(TD_BASE, "text-right")}>
         <CurrencyAmount value={row.belge_net_ciro} />

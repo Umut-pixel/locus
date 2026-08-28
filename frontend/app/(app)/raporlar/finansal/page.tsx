@@ -100,7 +100,7 @@ export default function FinansalRaporlarPage() {
       <div className="min-h-0 flex-1 overflow-y-auto">
         <FinansalOzet ozet={ozet} loading={loading} />
 
-        <div className="grid border-b border-border lg:grid-cols-2 [&>section]:h-[19rem]">
+        <div className="grid divide-y divide-border border-b border-border lg:grid-cols-2 lg:divide-y-0 [&>section]:h-[19rem]">
           <BorcYaslandirmaDagilimi bantlar={bantlar} loading={loading} />
           <TopBorclularPanel satirlar={topBorclular} loading={loading} />
         </div>

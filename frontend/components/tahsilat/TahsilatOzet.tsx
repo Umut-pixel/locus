@@ -56,7 +56,7 @@ export function TahsilatOzet({ ozet, loading }: TahsilatOzetProps) {
         deger={formatCurrency(odenmemis)}
         altBilgi={`${formatNumber(ozet.odenmemisAdet)} çek/senet belgesi`}
         vurgu={ozet.odenmemisTutar > 0}
-        vurguSinif="text-amber-400"
+        vurguSinif="text-caution"
         loading={loading}
       />
 

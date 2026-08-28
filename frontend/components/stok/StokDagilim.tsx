@@ -9,8 +9,8 @@ import {
   type StokSatiri,
 } from "@/hooks/useStokRaporu";
 import { Donut, type DonutDilim } from "@/components/stok/Donut";
+import { SegmentedSwitch } from "@/components/ui/segmented-switch";
 import { formatCurrency } from "@/lib/format";
-import { cn } from "@/lib/utils";
 
 interface StokDagilimProps {
   satirlar: StokSatiri[];
@@ -65,28 +65,17 @@ export function StokDagilim({
         <h2 className="text-[12px] font-medium tracking-[0.06em] text-muted-foreground uppercase">
           Stok değeri dağılımı
         </h2>
-        <div
-          role="group"
-          aria-label="Dağılım kırılımı"
-          className="flex items-center gap-0.5 rounded-md bg-secondary/60 p-0.5"
-        >
-          {(["marka", "kategori"] as const).map((b) => (
-            <button
-              key={b}
-              type="button"
-              onClick={() => onBoyutChange(b)}
-              aria-pressed={boyut === b}
-              className={cn(
-                "h-6 rounded-[5px] px-2 text-[12px] font-medium capitalize transition-colors",
-                boyut === b
-                  ? "bg-background text-foreground"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              {b}
-            </button>
-          ))}
-        </div>
+        <SegmentedSwitch
+          value={boyut}
+          onChange={onBoyutChange}
+          ariaLabel="Dağılım kırılımı"
+          options={
+            [
+              { value: "marka", label: "Marka" },
+              { value: "kategori", label: "Kategori" },
+            ] as const
+          }
+        />
       </header>
 
       <div className="min-h-0 flex-1 px-3.5 py-3">

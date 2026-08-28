@@ -76,7 +76,7 @@ export function OdenmediTable({ satirlar, loading }: OdenmediTableProps) {
                   <td className="px-3 align-middle font-mono text-[13px] whitespace-nowrap tabular-nums text-muted-foreground">
                     {formatDate(s.vadeTarihi)}
                   </td>
-                  <td className="px-3 pr-3.5 text-right align-middle font-mono text-[13.5px] whitespace-nowrap tabular-nums text-amber-400">
+                  <td className="px-3 pr-3.5 text-right align-middle font-mono text-[13.5px] whitespace-nowrap tabular-nums text-caution">
                     {formatCurrency(s.tutar)}
                   </td>
                 </tr>

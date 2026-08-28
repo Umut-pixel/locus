@@ -123,7 +123,7 @@ export function TahsilatTable({
                   className={cn(
                     TD_BASE,
                     "text-right font-mono text-[13.5px] whitespace-nowrap tabular-nums",
-                    s.odenmedi ? "text-amber-400" : "text-foreground"
+                    s.odenmedi ? "text-caution" : "text-foreground"
                   )}
                 >
                   {formatCurrency(s.tutar)}

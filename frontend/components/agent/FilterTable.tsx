@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 
-import { CHART_COLORS, InsightChart } from "@/components/agent/InsightChart";
+import { InsightChart, locusScaleColor } from "@/components/agent/InsightChart";
 import type { FilterBlock } from "@/lib/agent-blocks";
 import { cn } from "@/lib/utils";
 
@@ -83,13 +83,13 @@ export function FilterTable({ title, filters, columns, rows, filterKey, chart }:
   }, [filters, filterKey, moneyCol, rows]);
 
   const segments = useMemo(() => {
-    return filters
-      .filter((f) => f.key !== "all")
+    const bands = filters.filter((f) => f.key !== "all");
+    return bands
       .map((f, i) => ({
         name: f.key,
         label: f.label,
         count: counts.get(f.key) ?? 0,
-        color: f.dot ?? CHART_COLORS[i % CHART_COLORS.length],
+        color: locusScaleColor(i, bands.length),
       }))
       .filter((s) => s.count > 0);
   }, [counts, filters]);
@@ -125,9 +125,12 @@ export function FilterTable({ title, filters, columns, rows, filterKey, chart }:
           {filters.map((f) => {
             const activeChip = filter === f.key;
             const count = f.key === "all" ? rows.length : counts.get(f.key) ?? 0;
-            const bandIndex = filters.filter((x) => x.key !== "all").findIndex((x) => x.key === f.key);
+            const bands = filters.filter((x) => x.key !== "all");
+            const bandIndex = bands.findIndex((x) => x.key === f.key);
             const color =
-              f.key === "all" ? undefined : f.dot ?? CHART_COLORS[Math.max(0, bandIndex) % CHART_COLORS.length];
+              f.key === "all" || bandIndex < 0
+                ? undefined
+                : locusScaleColor(bandIndex, bands.length);
             return (
               <button
                 key={f.key}
@@ -165,7 +168,7 @@ export function FilterTable({ title, filters, columns, rows, filterKey, chart }:
             </span>
             <span className="text-[12px] text-ink-2">{headlineMeta}</span>
           </div>
-          <div className="mt-2.5 flex h-8 gap-0.5 overflow-hidden rounded-full bg-field p-0.5">
+          <div className="mt-2.5 flex h-8 gap-0.5 overflow-hidden rounded-full bg-muted p-0.5">
             {segments.map((s) => (
               <button
                 key={s.name}

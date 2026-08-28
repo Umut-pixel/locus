@@ -21,8 +21,8 @@ const VB_W = 640;
 const VB_H = 200;
 const PLOT_W = VB_W - PAD.left - PAD.right;
 const PLOT_H = VB_H - PAD.top - PAD.bottom;
-const FILL = "var(--ink)";
-const RISK_FILL = "var(--ink-red)";
+const FILL = "var(--locus-blue-deep)";
+const RISK_FILL = "var(--risk-bad)";
 
 function points(data: BorcBantNokta[], max: number) {
   const n = data.length;
