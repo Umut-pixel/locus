@@ -43,6 +43,8 @@ export function mapRenderOptions(
 export function applyMapStyle(map: MapboxMap, theme: MapTheme): void {
   map.setStyle(mapboxStyleForTheme(theme), {
     diff: false,
+    localFontFamily: undefined,
+    localIdeographFontFamily: undefined,
     config: {
       basemap: mapboxBasemapConfig(theme),
     },
