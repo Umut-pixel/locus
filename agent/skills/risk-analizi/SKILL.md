@@ -69,3 +69,23 @@ FROM v_panorama_acik_fatura_vade_kup_guncel
 WHERE hafta <> 'Toplam' AND kalan_tutar > 0
 ORDER BY gun DESC
 ```
+
+## Tahsilat ≠ ciro
+
+`yas_toplam` açık bakiyedir (ne kadar borçlu). Nakit girişi
+`v_panorama_tahsilat_raporu_guncel` (5230) veya `musteriler_rapor.tahsilat_30g`.
+`belge_net_ciro_kdv_dahil` fatura Nettutar'ıdır — tahsilat sanma.
+
+```sql
+SELECT SUM(tutar::numeric) AS odenen
+FROM v_panorama_tahsilat_raporu_guncel
+WHERE odeme_durum = 'Ödendi'
+```
+
+```sql
+SELECT unvan, tahsilat_30g, odenmemis_tutar, yas_toplam
+FROM musteriler_rapor
+WHERE yas_toplam >= 1
+ORDER BY tahsilat_30g ASC NULLS FIRST
+LIMIT 20
+```

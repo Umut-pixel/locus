@@ -17,19 +17,23 @@ import {
   MUSTERILER_RAPOR_VIEW,
   PANORAMA_ACIK_FATURA_VADE_KUP_VIEW,
   PANORAMA_BELGE_DETAY_VIEW,
-  PANORAMA_SIPARIS_DURUM_VIEW,
+  PANORAMA_SIPARIS_DETAY_VIEW,
+  PANORAMA_TAHSILAT_VIEW,
   supabase,
 } from "@/lib/supabase";
 import { fetchAllRows } from "@/lib/supabase-fetch-all";
+import {
+  tahsilatOdendiMi,
+  tahsilatOdenmediMi,
+} from "@/lib/sync/parse-tahsilat";
 
 const BELGE_TIPLERI = [...KEEP_BELGE_TIP];
 /**
- * Belge Detay (5450) view'ında `bekleyen_siparis` kolonu var ama senkron
- * şu an yalnızca fatura satırlarında ve alan boş. Aynı filtrenin dolu
- * karşılığı Sipariş Durum (5140) — KPI'yı buradan topluyoruz.
+ * Belge Detay fatura (5450 / BD2) `bekleyen_siparis` boş. Sipariş kanalı
+ * aynı raporun Edt_R4=1 çekimi (sync 5451) — KPI ve Sevkiyat paneli buradan.
  */
 const BEKLEYEN_SIPARIS_DURUMLARI = ["Bekleyen Sipariş", "İrsaliyeleştirildi"] as const;
-/** Ciro/tahsilat trendi penceresi — açık uçlu bir tarih seçici yerine sabit, makul bir varsayılan. */
+/** Ciro trendi penceresi — açık uçlu bir tarih seçici yerine sabit, makul bir varsayılan. */
 export const CIRO_TREND_GUN_SAYISI = 60;
 const BELGE_DETAY_MAX_BATCHES = 15;
 
@@ -102,10 +106,9 @@ type MusteriFinansalRow = Pick<
 export interface FinansalOzet {
   toplamAcikBakiye: number;
   /**
-   * Henüz faturalaşmamış siparişlerin net tutarı (KDV hariç nettutar).
-   * Kaynak: 5140 bekleyen/irsaliyeli filtresi — Sevkiyat'taki Bekleyen
-   * Siparişler paneliyle aynı küme. genel_toplam (= nettutar+kdv) kullanılmaz;
-   * belge footer'ındaki Net Tutar nettutar toplamıdır.
+   * Henüz faturalaşmamış satış siparişlerinin net tutarı (KDV dahil Nettutar).
+   * Kaynak: 5450 sipariş snapshot (5451) — Sevkiyat'taki Bekleyen Siparişler
+   * ile aynı küme. Alış / Verilen Sipariş ve iptal satırları dışarıda.
    */
   bekleyenSiparisNetTutar: number;
   bekleyenSiparisBelgeSayisi: number;
@@ -114,6 +117,10 @@ export interface FinansalOzet {
   toplamNetCiroKdvDahil: number;
   /** Ay başından bugüne, KDV dahil (Panorama Nettutar; iadeler işaretli girer). */
   aylikNetCiro: number;
+  /** 5230 nakit girişi — ödenen belgeler (fatura cirosu değil). */
+  donemTahsilat: number;
+  odenmemisTahsilatTutar: number;
+  odenmemisTahsilatAdet: number;
   borcluMusteriSayisi: number;
 }
 
@@ -172,8 +179,10 @@ interface BelgeDetayRaw {
 }
 
 interface BekleyenSiparisRaw {
-  belge_kod: string | null;
+  siparis_no: string | null;
   nettutar: string | null;
+  belge_tip: string | null;
+  iptal_neden: string | null;
 }
 
 export interface CiroGunu {
@@ -187,11 +196,17 @@ export interface DagilimDilimi {
   pay: number;
 }
 
+interface TahsilatRaw {
+  tutar: string | null;
+  odeme_durum: string | null;
+}
+
 interface FinansalRaporuState {
   musteriler: MusteriFinansalRow[];
   acikFaturalar: AcikFaturaSatiri[];
   belgeSatirlari: BelgeDetayRaw[];
   bekleyenSiparisSatirlari: BekleyenSiparisRaw[];
+  tahsilatSatirlari: TahsilatRaw[];
   loading: boolean;
   error: string | null;
 }
@@ -201,18 +216,20 @@ interface FinansalRaporuCache {
   acikFaturalar: AcikFaturaSatiri[];
   belgeSatirlari: BelgeDetayRaw[];
   bekleyenSiparisSatirlari: BekleyenSiparisRaw[];
+  tahsilatSatirlari: TahsilatRaw[];
 }
 
-const CACHE_KEY = "finansal-raporu-v3";
+const CACHE_KEY = "finansal-raporu-v5";
 
 /**
- * Finansal Raporlar sayfası — tek seferde dört kaynağı çeker (Stok Raporları'nın
+ * Finansal Raporlar sayfası — tek seferde beş kaynağı çeker (Stok Raporları'nın
  * "single-fetch, client'ta türet" deseni), filtre/kırılım hesapları
  * bellekte yapılır. Kaynaklar:
  *  1. musteriler_rapor  — müşteri bazlı borç/ciro (şirket geneli KPI + bantlar)
  *  2. acik_fatura_vade_kup_guncel — satır bazlı açık fatura (drill-down tablo)
  *  3. belge_detay_raporu_guncel — satır bazlı ciro (trend + temsilci/ürün kırılımı)
- *  4. siparis_durum_raporu_guncel — bekleyen/irsaliyeli sipariş net tutarı
+ *  4. siparis_detay_raporu_guncel — bekleyen/irsaliyeli satış siparişi (5451)
+ *  5. tahsilat_raporu_guncel — dönem nakit + ödenmemiş çek/senet (5230)
  *
  * Sayfalar arası geçişte boş ekran/yeniden fetch olmasın diye harita
  * sayfasıyla (bkz. musteri-cache.ts) aynı modül-seviyesi cache deseni: cache
@@ -225,6 +242,7 @@ export function useFinansalRaporu() {
     acikFaturalar: cached?.acikFaturalar ?? [],
     belgeSatirlari: cached?.belgeSatirlari ?? [],
     bekleyenSiparisSatirlari: cached?.bekleyenSiparisSatirlari ?? [],
+    tahsilatSatirlari: cached?.tahsilatSatirlari ?? [],
     loading: !cached,
     error: null,
   }));
@@ -239,7 +257,7 @@ export function useFinansalRaporu() {
     async function run() {
       if (hasCache) setRefreshing(true);
       try {
-        const [musteriRows, acikFaturaRows, belgeRows, bekleyenRows] =
+        const [musteriRows, acikFaturaRows, belgeRows, bekleyenRows, tahsilatRows] =
           await Promise.all([
           fetchAllRows<MusteriFinansalRow>((from, to) =>
             supabase
@@ -276,11 +294,22 @@ export function useFinansalRaporu() {
           ),
           fetchAllRows<BekleyenSiparisRaw>((from, to) =>
             supabase
-              .from(PANORAMA_SIPARIS_DURUM_VIEW)
-              .select("belge_kod,nettutar")
+              .from(PANORAMA_SIPARIS_DETAY_VIEW)
+              .select("siparis_no,nettutar,belge_tip,iptal_neden")
               .in("bekleyen_siparis", [...BEKLEYEN_SIPARIS_DURUMLARI])
+              .in("belge_tip", BELGE_TIPLERI)
+              .is("iptal_neden", null)
               .range(from, to) as unknown as Promise<{
               data: BekleyenSiparisRaw[] | null;
+              error: { message: string } | null;
+            }>
+          ),
+          fetchAllRows<TahsilatRaw>((from, to) =>
+            supabase
+              .from(PANORAMA_TAHSILAT_VIEW)
+              .select("tutar,odeme_durum")
+              .range(from, to) as unknown as Promise<{
+              data: TahsilatRaw[] | null;
               error: { message: string } | null;
             }>
           ),
@@ -305,6 +334,7 @@ export function useFinansalRaporu() {
           acikFaturalar,
           belgeSatirlari: belgeRows,
           bekleyenSiparisSatirlari: bekleyenRows,
+          tahsilatSatirlari: tahsilatRows,
         };
         setReportCache(CACHE_KEY, next);
         setState({ ...next, loading: false, error: null });
@@ -318,6 +348,7 @@ export function useFinansalRaporu() {
           acikFaturalar: [],
           belgeSatirlari: [],
           bekleyenSiparisSatirlari: [],
+          tahsilatSatirlari: [],
           loading: false,
           error:
             err instanceof Error
@@ -338,6 +369,7 @@ export function useFinansalRaporu() {
     acikFaturalar,
     belgeSatirlari,
     bekleyenSiparisSatirlari,
+    tahsilatSatirlari,
     loading,
     error,
   } = state;
@@ -360,15 +392,32 @@ export function useFinansalRaporu() {
       if ((m.yas_toplam ?? 0) > 0) borcluMusteriSayisi += 1;
     }
 
-    // Kalem satırları belge bazında toplanır (5140 grain = sipariş kalemi).
+    // Kalem satırları sipariş bazında toplanır (5450 grain = kalem, id = siparis_no).
     const belgeTutar = new Map<string, number>();
     for (const r of bekleyenSiparisSatirlari) {
-      const kod = metin(r.belge_kod);
+      if (metin(r.iptal_neden)) continue;
+      const tip = metin(r.belge_tip);
+      if (!tip || !KEEP_BELGE_TIP.has(tip)) continue;
+      const kod = metin(r.siparis_no);
       if (!kod) continue;
       belgeTutar.set(kod, (belgeTutar.get(kod) ?? 0) + sayi(r.nettutar));
     }
     let bekleyenSiparisNetTutar = 0;
     for (const t of belgeTutar.values()) bekleyenSiparisNetTutar += t;
+
+    let donemTahsilat = 0;
+    let odenmemisTahsilatTutar = 0;
+    let odenmemisTahsilatAdet = 0;
+    for (const r of tahsilatSatirlari) {
+      const durum = metin(r.odeme_durum);
+      const amount = sayi(r.tutar);
+      if (tahsilatOdenmediMi(durum)) {
+        odenmemisTahsilatTutar += amount;
+        odenmemisTahsilatAdet += 1;
+      } else if (tahsilatOdendiMi(durum)) {
+        donemTahsilat += amount;
+      }
+    }
 
     return {
       toplamAcikBakiye: Math.round(toplamAcikBakiye * 100) / 100,
@@ -377,9 +426,12 @@ export function useFinansalRaporu() {
       toplamBrutCiro: Math.round(toplamBrutCiro * 100) / 100,
       toplamNetCiroKdvDahil: Math.round(toplamNetCiroKdvDahil * 100) / 100,
       aylikNetCiro: 0,
+      donemTahsilat: Math.round(donemTahsilat * 100) / 100,
+      odenmemisTahsilatTutar: Math.round(odenmemisTahsilatTutar * 100) / 100,
+      odenmemisTahsilatAdet,
       borcluMusteriSayisi,
     };
-  }, [musteriler, bekleyenSiparisSatirlari]);
+  }, [musteriler, bekleyenSiparisSatirlari, tahsilatSatirlari]);
 
   const bantlar = useMemo<BantDilimi[]>(() => {
     return BORC_GECIKME_BANTLARI.map((bant) => {

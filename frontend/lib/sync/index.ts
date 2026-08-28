@@ -27,6 +27,7 @@ export {
 export type { FreshnessGateResult } from "./freshness-gate";
 export { runPanoramaTransform } from "./run-transform";
 export { replaceBelgeOzet } from "./write-belge-ozet";
+export { replaceTahsilatOzet } from "./write-tahsilat-ozet";
 export { replaceYaslandirma } from "./write-yaslandirma";
 export type {
   PanoramaReportId,

@@ -64,10 +64,16 @@ import {
 import {
   MUSTERI_SNAPSHOTLARI_TABLE,
   PANORAMA_ACIK_FATURA_VADE_KUP_VIEW,
+  PANORAMA_TAHSILAT_VIEW,
   supabase,
 } from "@/lib/supabase";
 import type { MusteriHarita, RiskDurumu } from "@/lib/types";
 import { yasTutarCevir } from "@/lib/import/parse-yaslandirma";
+import { parseIslemTarihi } from "@/lib/import/parse-belge-detay";
+import {
+  tahsilatOdendiMi,
+  tahsilatOdenmediMi,
+} from "@/lib/sync/parse-tahsilat";
 import { cn } from "@/lib/utils";
 
 const PANEL_WIDTH = 304;
@@ -1096,6 +1102,22 @@ export const CustomerDetailPanel = memo(function CustomerDetailPanel({
                     />
                   )}
                   <MetricRow
+                    label="Son tahsilat"
+                    value={formatDate(musteri.son_tahsilat_tarihi ?? null)}
+                  />
+                  {musteri.tahsilat_30g != null && Number(musteri.tahsilat_30g) > 0.005 && (
+                    <MetricRow
+                      label="30 günlük nakit"
+                      value={formatCurrencyPrecise(Number(musteri.tahsilat_30g))}
+                    />
+                  )}
+                  {tahsilatSessizUyari(musteri) && (
+                    <MetricRow
+                      label="Tahsilat uyarısı"
+                      value="Açık bakiye var, 45 gündür tahsilat yok"
+                    />
+                  )}
+                  <MetricRow
                     label="Müşteri durumu"
                     value={musteri.durum ?? "—"}
                   />
@@ -1362,16 +1384,35 @@ function RiskPeekSummary({
   );
 }
 
+const TAHSILAT_SESSIZ_GUN = 45;
+
+function tahsilatSessizUyari(musteri: MusteriHarita): boolean {
+  const acik = Number(musteri.yas_toplam ?? 0) > 0.005;
+  if (!acik) return false;
+  const son = musteri.son_tahsilat_tarihi;
+  if (!son) return true;
+  const t = new Date(`${son}T00:00:00`).getTime();
+  if (Number.isNaN(t)) return true;
+  const gun = Math.floor((Date.now() - t) / 86_400_000);
+  return gun >= TAHSILAT_SESSIZ_GUN;
+}
+
 function BorclarPage({ musteri }: { musteri: MusteriHarita }) {
   const [faturalar, setFaturalar] = useState<AcikFaturaRow[] | null>(null);
   const [faturaDurum, setFaturaDurum] = useState<"idle" | "loading" | "ok" | "empty" | "error">(
     "idle"
   );
+  const [tahsilatlar, setTahsilatlar] = useState<MusteriTahsilatRow[] | null>(null);
+  const [tahsilatDurum, setTahsilatDurum] = useState<
+    "idle" | "loading" | "ok" | "empty" | "error"
+  >("idle");
 
   useEffect(() => {
     let cancelled = false;
     setFaturaDurum("loading");
     setFaturalar(null);
+    setTahsilatDurum("loading");
+    setTahsilatlar(null);
 
     void (async () => {
       const { data, error } = await supabase
@@ -1389,7 +1430,6 @@ function BorclarPage({ musteri }: { musteri: MusteriHarita }) {
         return;
       }
       const rows = (data ?? []) as AcikFaturaRow[];
-      // PostgREST neq may still leave whitespace "Toplam" — client filter
       const filtered = rows.filter(
         (r) => String(r.hafta ?? "").trim().toLocaleLowerCase("tr-TR") !== "toplam"
       );
@@ -1402,6 +1442,42 @@ function BorclarPage({ musteri }: { musteri: MusteriHarita }) {
       setFaturaDurum("ok");
     })();
 
+    void (async () => {
+      const { data, error } = await supabase
+        .from(PANORAMA_TAHSILAT_VIEW)
+        .select("belgekod,islem_tarihi,tutar,tahsilat_tur,odeme_durum,vade_tarihi")
+        .eq("musteri_kod", musteri.musteri_kodu)
+        .limit(80);
+
+      if (cancelled) return;
+      if (error) {
+        setTahsilatDurum("error");
+        setTahsilatlar(null);
+        return;
+      }
+      const mapped: MusteriTahsilatRow[] = (data ?? []).map((r) => {
+        const raw = r as Record<string, unknown>;
+        const durum = String(raw.odeme_durum ?? "").trim() || null;
+        return {
+          belgeKod: String(raw.belgekod ?? "").trim(),
+          islemTarihi: parseIslemTarihi(raw.islem_tarihi),
+          vadeTarihi: parseIslemTarihi(raw.vade_tarihi),
+          tutar: yasTutarCevir(raw.tutar),
+          tur: String(raw.tahsilat_tur ?? "").trim() || null,
+          odenmedi: tahsilatOdenmediMi(durum),
+          odendi: tahsilatOdendiMi(durum),
+        };
+      });
+      mapped.sort((a, b) => (b.islemTarihi ?? "").localeCompare(a.islemTarihi ?? ""));
+      if (mapped.length === 0) {
+        setTahsilatDurum("empty");
+        setTahsilatlar([]);
+        return;
+      }
+      setTahsilatlar(mapped);
+      setTahsilatDurum("ok");
+    })();
+
     return () => {
       cancelled = true;
     };
@@ -1409,11 +1485,14 @@ function BorclarPage({ musteri }: { musteri: MusteriHarita }) {
 
   if (musteri.yas_toplam == null) {
     return (
-      <Typography.Paragraph size="xs" color="muted">
-        Henüz yaşlandırma verisi yok. Panorama 5530 sync veya manuel{" "}
-        <span className="text-foreground">ST Yaşlandırma</span> yüklemesinden
-        sonra gecikmeli borç kırılımı burada görünür.
-      </Typography.Paragraph>
+      <div className="space-y-3.5">
+        <Typography.Paragraph size="xs" color="muted">
+          Henüz yaşlandırma verisi yok. Panorama 5530 sync veya manuel{" "}
+          <span className="text-foreground">ST Yaşlandırma</span> yüklemesinden
+          sonra gecikmeli borç kırılımı burada görünür.
+        </Typography.Paragraph>
+        <TahsilatBorcListesi durum={tahsilatDurum} satirlar={tahsilatlar} />
+      </div>
     );
   }
 
@@ -1532,6 +1611,8 @@ function BorclarPage({ musteri }: { musteri: MusteriHarita }) {
         )}
       </div>
 
+      <TahsilatBorcListesi durum={tahsilatDurum} satirlar={tahsilatlar} />
+
       <dl className="border-t border-border/60 pt-3 text-xs">
         <MetricRow
           label="Son güncelleme"
@@ -1550,6 +1631,93 @@ type AcikFaturaRow = {
   hafta: string | null;
   kalan_tutar: string | null;
 };
+
+type MusteriTahsilatRow = {
+  belgeKod: string;
+  islemTarihi: string | null;
+  vadeTarihi: string | null;
+  tutar: number;
+  tur: string | null;
+  odenmedi: boolean;
+  odendi: boolean;
+};
+
+function TahsilatBorcListesi({
+  durum,
+  satirlar,
+}: {
+  durum: "idle" | "loading" | "ok" | "empty" | "error";
+  satirlar: MusteriTahsilatRow[] | null;
+}) {
+  const sonBes = (satirlar ?? []).filter((s) => s.odendi).slice(0, 5);
+  const odenmedi = (satirlar ?? []).filter((s) => s.odenmedi);
+
+  return (
+    <div className="border-t border-border/60 pt-3">
+      <p className="font-mono text-[10px] tracking-[0.12em] text-muted-foreground uppercase">
+        Son tahsilatlar
+      </p>
+      {durum === "loading" && (
+        <p className="mt-2 text-xs text-muted-foreground">Yükleniyor…</p>
+      )}
+      {durum === "error" && (
+        <Typography.Paragraph size="xs" color="muted" className="mt-2">
+          Tahsilat detayı şu an okunamadı.
+        </Typography.Paragraph>
+      )}
+      {durum === "empty" && (
+        <Typography.Paragraph size="xs" color="muted" className="mt-2">
+          Tahsilat belgesi yok.
+        </Typography.Paragraph>
+      )}
+      {durum === "ok" && sonBes.length > 0 && (
+        <ul className="mt-2 flex flex-col gap-1.5">
+          {sonBes.map((s, i) => (
+            <li
+              key={`${s.belgeKod}-${i}`}
+              className="flex items-baseline justify-between gap-2 text-xs"
+            >
+              <span className="min-w-0 truncate text-muted-foreground">
+                {formatDate(s.islemTarihi)}
+                {s.tur ? (
+                  <span className="ml-1.5 text-foreground/80">{s.tur}</span>
+                ) : null}
+              </span>
+              <span className="shrink-0 font-mono tabular-nums">
+                {s.tutar > 0.005 ? formatCurrencyPrecise(s.tutar) : "—"}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {durum === "ok" && odenmedi.length > 0 && (
+        <>
+          <p className="mt-3 font-mono text-[10px] tracking-[0.12em] text-muted-foreground uppercase">
+            Ödenmemiş çek/senet
+          </p>
+          <ul className="mt-2 flex flex-col gap-1.5">
+            {odenmedi.map((s, i) => (
+              <li
+                key={`o-${s.belgeKod}-${i}`}
+                className="flex items-baseline justify-between gap-2 text-xs"
+              >
+                <span className="min-w-0 truncate text-muted-foreground">
+                  {formatDate(s.vadeTarihi ?? s.islemTarihi)}
+                  {s.tur ? (
+                    <span className="ml-1.5 text-amber-400">{s.tur}</span>
+                  ) : null}
+                </span>
+                <span className="shrink-0 font-mono tabular-nums text-amber-400">
+                  {s.tutar > 0.005 ? formatCurrencyPrecise(s.tutar) : "—"}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+    </div>
+  );
+}
 
 function parseGun(raw: string | null | undefined): number | null {
   if (raw == null) return null;

@@ -133,3 +133,15 @@ export interface BelgeOzetUpdateRow {
   st_adi: string | null;
   st_kodu: string | null;
 }
+
+/** TahsilatRaporu (5230) — müşteri bazlı nakit özeti. Ciro değil. */
+export interface TahsilatOzetUpdateRow {
+  musteri_kodu: string;
+  son_tahsilat_tarihi: string | null;
+  tahsilat_7g: number;
+  tahsilat_30g: number;
+  tahsilat_ytd: number;
+  odenmemis_tutar: number;
+  odenmemis_adet: number;
+  satir_sayisi: number;
+}

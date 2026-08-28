@@ -17,7 +17,7 @@ export const KEEP_BELGE_TIP = new Set([
 ]);
 
 /**
- * IslemTarihi: YYYY.MM.DD | dd.mm.yyyy | Excel serial → ISO date (UTC).
+ * IslemTarihi: YYYY.MM.DD | dd.mm.yyyy | dd/mm/yyyy | Excel serial → ISO date (UTC).
  */
 export function parseIslemTarihi(value: unknown): string | null {
   if (value instanceof Date && !Number.isNaN(value.getTime())) {
@@ -40,6 +40,14 @@ export function parseIslemTarihi(value: unknown): string | null {
     return makeIso(Number(m[3]), Number(m[2]), Number(m[1]));
   }
   m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s);
+  if (m) {
+    return makeIso(Number(m[1]), Number(m[2]), Number(m[3]));
+  }
+  m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(s);
+  if (m) {
+    return makeIso(Number(m[3]), Number(m[2]), Number(m[1]));
+  }
+  m = /^(\d{4})\/(\d{1,2})\/(\d{1,2})$/.exec(s);
   if (m) {
     return makeIso(Number(m[1]), Number(m[2]), Number(m[3]));
   }

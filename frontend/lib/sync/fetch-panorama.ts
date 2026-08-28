@@ -9,6 +9,7 @@ export const PANORAMA_BELGE_DETAY_VIEW =
   "v_panorama_belge_detay_raporu_guncel";
 export const PANORAMA_YASLANDIRMA_VIEW =
   "v_panorama_acik_fatura_vade_kup_guncel";
+export const PANORAMA_TAHSILAT_VIEW = "v_panorama_tahsilat_raporu_guncel";
 export const PANORAMA_SYNC_RUNS_TABLE = "panorama_sync_runs";
 export const PANORAMA_SYNC_DOSYA_TIPI = "PanoramaSync";
 
@@ -62,7 +63,7 @@ export async function fetchAllFromView(
 
 export async function fetchLatestCompletedSyncs(
   admin: SupabaseClient,
-  reportIds: number[] = [5020, 5500, 5130, 5450, 5530]
+  reportIds: number[] = [5020, 5500, 5130, 5450, 5530, 5230]
 ): Promise<Map<number, SyncRunSummary>> {
   const map = new Map<number, SyncRunSummary>();
 

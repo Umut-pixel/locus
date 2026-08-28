@@ -46,8 +46,8 @@ değişkenleriyle de beslenebilir.
    `N8N_PANORAMA_MANUAL_WEBHOOK_URL`  
    `N8N_PANORAMA_MANUAL_WEBHOOK_SECRET`
 
-Webhook cron’u değiştirmez. Manuel execution’da zincirler **Wait 60s** ile sırayla gider  
-(Main → YL → BD2 → Sipariş → Stok) — WAF’a paralel login basmamak için.
+Webhook cron’u değiştirmez. Manuel execution’da zincirler **Wait 180s** ile sırayla gider  
+(Main → YL → BD2 fatura → Sipariş 5140 → Stok → Tahsilat → Belge detay sipariş 5451) — WAF’a paralel login basmamak için.
 
 ## Dışa aktarmadan önce kontrol
 

@@ -8,7 +8,7 @@ export const maxDuration = 30;
 
 const COOLDOWN_MS = 60 * 60 * 1000;
 const IN_FLIGHT = ["running", "pending", "in_progress"] as const;
-const REPORT_IDS = [5020, 5500, 5130, 5450, 5530, 5140, 5430] as const;
+const REPORT_IDS = [5020, 5500, 5130, 5450, 5530, 5140, 5430, 5230, 5451] as const;
 const HEADER_SECRET = "X-N8N-Sync-Secret";
 
 function jsonError(message: string, status: number, extra?: Record<string, unknown>) {

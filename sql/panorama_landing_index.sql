@@ -42,8 +42,17 @@ create index if not exists idx_acik_fatura_sync
 create index if not exists idx_siparis_durum_sync
   on public.panorama_siparis_durum_raporu (sync_id);
 
+create index if not exists idx_siparis_detay_sync_id
+  on public.panorama_siparis_detay_raporu (sync_id);
+
 create index if not exists idx_detayli_stok_sync
   on public.panorama_detayli_stok_raporu (sync_id);
+
+create index if not exists idx_tahsilat_sync
+  on public.panorama_tahsilat_raporu (sync_id);
+
+create index if not exists idx_tahsilat_musteri_kod
+  on public.panorama_tahsilat_raporu (musteri_kod);
 
 -- Dogrulama:
 --   explain analyze

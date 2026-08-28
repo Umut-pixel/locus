@@ -105,11 +105,19 @@ select m.musteri_kodu,
        b.son_urun        as belge_son_urun,
        b.st_adi          as belge_st_adi,
        b.st_kodu         as belge_st_kodu,
-       -- Panorama "Nettutar" -- KDV DAHIL tutar, referans icin.
-       b.net_ciro        as belge_net_ciro_kdv_dahil
+       -- Panorama "Nettutar" -- KDV DAHIL tutar, referans icin. Ciro ≠ tahsilat.
+       b.net_ciro        as belge_net_ciro_kdv_dahil,
+       -- 5230 nakit özeti (fatura cirosu değil).
+       t.son_tahsilat_tarihi as son_tahsilat_tarihi,
+       t.tahsilat_7g         as tahsilat_7g,
+       t.tahsilat_30g        as tahsilat_30g,
+       t.tahsilat_ytd        as tahsilat_ytd,
+       t.odenmemis_tutar     as odenmemis_tutar,
+       t.odenmemis_adet      as odenmemis_adet
 from public.musteriler m
   left join public.musteri_yaslandirma y on y.musteri_kodu = m.musteri_kodu
-  left join public.musteri_belge_ozet  b on b.musteri_kodu = m.musteri_kodu;
+  left join public.musteri_belge_ozet  b on b.musteri_kodu = m.musteri_kodu
+  left join public.musteri_tahsilat_ozet t on t.musteri_kodu = m.musteri_kodu;
 
 -- --------------------------------------------------------------------------
 -- 2) Harita katmani -- ayni govde, sadece koordinati olanlar.

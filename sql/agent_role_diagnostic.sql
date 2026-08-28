@@ -61,7 +61,8 @@ where n.nspname = 'public'
     'v_panorama_sevkiyat_raporu_kup_guncel',
     'v_panorama_acik_fatura_vade_kup_guncel',
     'v_panorama_detayli_stok_raporu_guncel',
-    'v_panorama_siparis_durum_raporu_guncel'
+    'v_panorama_siparis_durum_raporu_guncel',
+    'v_panorama_siparis_detay_raporu_guncel'
   )
 order by c.relname;
 

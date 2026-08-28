@@ -29,6 +29,8 @@ Uygula: Supabase Studio → SQL Editor. Önce `sema.sql`, sonra ihtiyaç duyulan
 | Dosya | İş |
 |---|---|
 | `panorama_landing_index.sql` | Landing tabloları indeksleri |
+| `panorama_siparis_detay_sema.sql` | 5450 sipariş kanalı landing + 5451 guncel view |
+| `panorama_tahsilat_sema.sql` | 5230 tahsilat landing + müşteri özeti |
 | `panorama_sync_webhook.sql` | `panorama_sync_runs` → Vercel transform (`pg_net`) |
 
 ## UI / potansiyel

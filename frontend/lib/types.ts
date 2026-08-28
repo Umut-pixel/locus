@@ -73,6 +73,13 @@ export interface MusteriHarita {
   belge_son_urun?: string | null;
   belge_st_adi?: string | null;
   belge_st_kodu?: string | null;
+  /** 5230 nakit özeti — fatura cirosu değil. */
+  son_tahsilat_tarihi?: string | null;
+  tahsilat_7g?: number | null;
+  tahsilat_30g?: number | null;
+  tahsilat_ytd?: number | null;
+  odenmemis_tutar?: number | null;
+  odenmemis_adet?: number | null;
   /** GeoJSON paint — client tarafında favori setinden set edilir. */
   favori?: boolean;
 }

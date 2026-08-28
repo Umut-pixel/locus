@@ -49,13 +49,23 @@ export const PANORAMA_BELGE_DETAY_VIEW = "v_panorama_belge_detay_raporu_guncel";
 /** SevkiyatRaporuKup (5130) satır bazlı — plaka/araç ve ödeme tipi kırılımı. */
 export const PANORAMA_SEVKIYAT_VIEW = "v_panorama_sevkiyat_raporu_kup_guncel";
 /**
- * Sipariş Durum Raporu (5140) satır bazlı — sipariş kalemi + fulfillment
- * durumu (`bekleyen_siparis`: "Bekleyen Sipariş" / "İrsaliyeleştirildi" /
- * "Faturalaştırıldı"). Günlük çekiliyor ama hiçbir view sabitine/UI'a bağlı
- * değildi (2026-08-20 keşfi) — bkz. Sevkiyat Raporları "Bekleyen Siparişler" paneli.
+ * Sipariş Durum Raporu (5140) — upsert landing. İptal/sevk sonrası satır
+ * silmez; bekleyen KPI için kullanma. Yedek / tarihçe.
  */
 export const PANORAMA_SIPARIS_DURUM_VIEW =
   "v_panorama_siparis_durum_raporu_guncel";
+/**
+ * BelgeDetayRaporu sipariş kanalı (Panorama 5450 / sync_runs 5451).
+ * Tam snapshot: guncel view son completed çekim. Kimlik = siparis_no.
+ * Bekleyen sipariş paneli ve finansal KPI buradan okur.
+ */
+export const PANORAMA_SIPARIS_DETAY_VIEW =
+  "v_panorama_siparis_detay_raporu_guncel";
+/**
+ * TahsilatRaporu (5230) satır bazlı — nakit girişi defteri, fatura cirosu değil.
+ * PII kolonları (tc_kimlik_no, vergi_no) UI SELECT'ine girmez.
+ */
+export const PANORAMA_TAHSILAT_VIEW = "v_panorama_tahsilat_raporu_guncel";
 /**
  * Ürün SKT / parti kayıtları — Panorama'dan DEĞİL, fabrikanın 15 günde bir
  * gönderdiği alış raporundan (Veri Yükle akışı). Otomatik tazelenmez;

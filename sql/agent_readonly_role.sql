@@ -102,6 +102,7 @@ grant usage on schema public to locus_agent_ro;
 grant select on public.musteriler           to locus_agent_ro;
 grant select on public.musteri_yaslandirma  to locus_agent_ro;
 grant select on public.musteri_belge_ozet   to locus_agent_ro;
+grant select on public.musteri_tahsilat_ozet to locus_agent_ro;
 
 
 -- 6) RLS politikalari — locus_agent_ro'yu kapsayacak sekilde ------------------
@@ -116,6 +117,7 @@ declare
 begin
   foreach t in array array[
     'musteriler', 'musteri_yaslandirma', 'musteri_belge_ozet',
+    'musteri_tahsilat_ozet',
     'urun_skt', 'musteri_metrik_gecmis',
     'agent_konusmalar', 'agent_konusma_mesajlari'
   ]
@@ -143,6 +145,8 @@ grant select on public.v_panorama_sevkiyat_raporu_kup_guncel     to locus_agent_
 grant select on public.v_panorama_acik_fatura_vade_kup_guncel    to locus_agent_ro;
 grant select on public.v_panorama_detayli_stok_raporu_guncel     to locus_agent_ro;
 grant select on public.v_panorama_siparis_durum_raporu_guncel    to locus_agent_ro;
+grant select on public.v_panorama_siparis_detay_raporu_guncel    to locus_agent_ro;
+grant select on public.v_panorama_tahsilat_raporu_guncel         to locus_agent_ro;
 grant select on public.urun_skt                                  to locus_agent_ro;
 grant select on public.musteri_metrik_gecmis                     to locus_agent_ro;
 grant select on public.rapor_bolge_disi_ozet                     to locus_agent_ro;
@@ -160,6 +164,10 @@ grant select on public.agent_konusma_mesajlari                   to locus_agent_
 --   create policy agent_ro_select on public.panorama_belge_detay_raporu
 --     for select to locus_agent_ro using (true);
 --   -- (digerleri icin de ayni)
+--
+-- 5230 landing: transform invoker zinciri + agent SELECT icin.
+grant select on public.panorama_tahsilat_raporu to locus_agent_ro;
+grant select on public.panorama_siparis_detay_raporu to locus_agent_ro;
 --
 -- Once sql/agent_role_diagnostic.sql bolum 4/6/7 ciktisina bak.
 
@@ -183,6 +191,8 @@ grant select on public.agent_konusma_mesajlari                   to locus_agent_
 --   select count(*) from v_panorama_acik_fatura_vade_kup_guncel;
 --   select count(*) from v_panorama_detayli_stok_raporu_guncel;
 --   select count(*) from v_panorama_siparis_durum_raporu_guncel;
+--   select count(*) from v_panorama_siparis_detay_raporu_guncel;
+--   select count(*) from v_panorama_tahsilat_raporu_guncel;
 --   select count(*) from rapor_bolge_disi_ozet;
 --
 --   ⚠️  0 satir donerse RLS politikasi eksik demektir (bolum 6/8'e bak).

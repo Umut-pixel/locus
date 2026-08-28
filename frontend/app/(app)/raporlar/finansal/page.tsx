@@ -127,7 +127,7 @@ export default function FinansalRaporlarPage() {
   );
 }
 
-/** ST Yaşlandırma (5530), Belge Detay (5450) ve Sipariş Durum (5140). */
+/** ST Yaşlandırma (5530), Belge Detay fatura (5450) ve sipariş (5451). */
 function VeriTazeligi() {
   const yaslandirma = useRaporTazeligi(YASLANDIRMA_REPORT_ID);
   const belgeDetay = useRaporTazeligi(BELGE_DETAY_REPORT_ID);
@@ -151,7 +151,7 @@ function VeriTazeligi() {
   return (
     <span
       className="hidden shrink-0 items-center gap-1.5 md:flex"
-      title="ST Yaşlandırma (5530), Belge Detay (5450) ve Sipariş Durum (5140) — en eski çekimin zamanı."
+      title="ST Yaşlandırma (5530), Belge Detay fatura (5450) ve sipariş (5451) — en eski çekimin zamanı."
     >
       <span
         className={cn(

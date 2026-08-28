@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  BanknoteIcon,
   CalendarRangeIcon,
   CircleDollarSignIcon,
   ClipboardListIcon,
@@ -29,9 +30,10 @@ export function FinansalOzet({ ozet, loading }: FinansalOzetProps) {
   const toplamBrutCiro = useCountUp(ozet.toplamBrutCiro);
   const toplamNetCiroKdvDahil = useCountUp(ozet.toplamNetCiroKdvDahil);
   const aylikNetCiro = useCountUp(ozet.aylikNetCiro);
+  const donemTahsilat = useCountUp(ozet.donemTahsilat);
 
   return (
-    <div className="grid grid-cols-2 gap-px border-b border-border bg-border lg:grid-cols-5">
+    <div className="grid grid-cols-2 gap-px border-b border-border bg-border lg:grid-cols-3 xl:grid-cols-6">
       <div className="flex flex-col justify-center gap-1 bg-background px-3.5 py-4">
         <span className="text-[12px] tracking-[0.06em] text-muted-foreground uppercase">
           Toplam açık bakiye
@@ -53,7 +55,7 @@ export function FinansalOzet({ ozet, loading }: FinansalOzetProps) {
         icon={ClipboardListIcon}
         etiket="Bekleyen sipariş"
         deger={formatCurrency(bekleyenSiparisNetTutar)}
-        altBilgi={`${formatNumber(ozet.bekleyenSiparisBelgeSayisi)} belge · KDV hariç`}
+        altBilgi={`${formatNumber(ozet.bekleyenSiparisBelgeSayisi)} belge · KDV dahil`}
         vurgu={ozet.bekleyenSiparisNetTutar > 0}
         vurguSinif="text-amber-400"
         loading={loading}
@@ -80,6 +82,18 @@ export function FinansalOzet({ ozet, loading }: FinansalOzetProps) {
         etiket="1 aylık ciro"
         deger={formatCurrency(aylikNetCiro)}
         altBilgi="Ay başından bugüne, KDV dahil"
+        loading={loading}
+      />
+
+      <StatKutusu
+        icon={BanknoteIcon}
+        etiket="Dönem tahsilatı"
+        deger={formatCurrency(donemTahsilat)}
+        altBilgi={
+          ozet.odenmemisTahsilatAdet > 0
+            ? `Ödenmemiş çek/senet ${formatNumber(ozet.odenmemisTahsilatAdet)} · ${formatCurrency(ozet.odenmemisTahsilatTutar)}`
+            : "5230 nakit girişi, ciro değil"
+        }
         loading={loading}
       />
     </div>

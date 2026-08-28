@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-import { parseIslemTarihi } from "@/lib/import/parse-belge-detay";
+import { KEEP_BELGE_TIP, parseIslemTarihi } from "@/lib/import/parse-belge-detay";
 import { parseBelgeTarihi } from "@/lib/import/parse-sevkiyat";
 import { sayiyaCevir } from "@/lib/import/utils";
 import {
@@ -14,7 +14,7 @@ import {
   MUSTERILER_RAPOR_VIEW,
   MUSTERI_METRIK_GECMIS_TABLE,
   PANORAMA_SEVKIYAT_VIEW,
-  PANORAMA_SIPARIS_DURUM_VIEW,
+  PANORAMA_SIPARIS_DETAY_VIEW,
   supabase,
 } from "@/lib/supabase";
 import { fetchAllRows } from "@/lib/supabase-fetch-all";
@@ -24,8 +24,10 @@ import type { RiskDurumu } from "@/lib/types";
 export const SEVKIYAT_TREND_GUN_SAYISI = 30;
 /** SevkiyatRaporuKup — tazelik rozeti bu rapor id'sine bakar (bkz. useMusteriRaporlama.ts→useRaporTazeligi). */
 export const SEVKIYAT_REPORT_ID = 5130;
-/** Sipariş Durum Raporu — bekleyen siparişler paneli bu rapor id'sine bakar. */
-export const SIPARIS_DURUM_REPORT_ID = 5140;
+/** Belge detay sipariş (Panorama 5450 / sync_runs 5451) — bekleyen panel tazeliği. */
+export const SIPARIS_DETAY_REPORT_ID = 5451;
+/** Eski ad — tazelik rozetleri 5451'e bakar. */
+export const SIPARIS_DURUM_REPORT_ID = SIPARIS_DETAY_REPORT_ID;
 
 function sayi(value: unknown): number {
   return sayiyaCevir(value) ?? 0;
@@ -152,21 +154,20 @@ export interface OdemeTipiDilimi {
 }
 
 // ---------------------------------------------------------------------------
-// v_panorama_siparis_durum_raporu_guncel — satır bazlı, fulfillment pipeline
+// v_panorama_siparis_detay_raporu_guncel — 5450 sipariş snapshot (kalem)
 // ---------------------------------------------------------------------------
 
 interface SiparisDurumSatirRaw {
   musteri_kod: string | null;
   musteri_unvan: string | null;
-  belge_kod: string | null;
+  siparis_no: string | null;
   islem_tarihi: string | null;
-  sevk_tarihi: string | null;
   bekleyen_siparis: string | null;
-  /** Kalem net tutarı (KDV hariç). genel_toplam = nettutar + kdv; belge
-   *  footer'ındaki "Net Tutar" nettutar toplamıdır — genel_toplam toplanırsa
-   *  %20 şişer. */
+  /** 5450 Nettutar = KDV dahil. */
   nettutar: string | null;
   satis_temsilcisi: string | null;
+  belge_tip: string | null;
+  iptal_neden: string | null;
 }
 
 export type SiparisDurumu = "bekleyen" | "irsaliyeli";
@@ -189,16 +190,11 @@ export interface BekleyenSiparisSatiri {
   ilce: string | null;
   temsilci: string | null;
   islemTarihi: string | null;
-  /**
-   * Panorama'nın verdiği tarih — bekleyen siparişlerde tutarlı biçimde
-   * islemTarihi+1 gözlemlendi (2026-08-20 keşfi), yani muhtemelen
-   * PLANLANAN sevk tarihi, gerçekleşmiş sevkiyat değil. Kesin anlamı
-   * doğrulanmadı, UI'da "gerçekleşti" gibi sunulmamalı.
-   */
+  /** 5450 sipariş Excel'inde sevk_tarihi yok. */
   sevkTarihi: string | null;
   durum: SiparisDurumu;
   kalemSayisi: number;
-  /** Belge net tutarı — kalem `nettutar` toplamı (KDV hariç). */
+  /** Sipariş net tutarı — kalem `nettutar` toplamı (KDV dahil, 5450). */
   toplamTutar: number;
   gecenGun: number | null;
 }
@@ -257,7 +253,7 @@ interface SevkiyatRaporuCache {
   siparisDurumSatirlari: SiparisDurumSatirRaw[];
 }
 
-const CACHE_KEY = "sevkiyat-raporu-v2";
+const CACHE_KEY = "sevkiyat-raporu-v3";
 
 /**
  * Sevkiyat Raporları sayfası — üç kaynak, tek seferde çekilir (Stok
@@ -327,15 +323,17 @@ export function useSevkiyatRaporu() {
               error: { message: string } | null;
             }>
           ).catch(() => []),
-          // Yalnızca henüz tamamlanmamış siparişler — "Faturalaştırıldı" (çoğunluk,
-          // ~8400 satır) sunucuya hiç indirilmiyor.
+          // Açık pipeline + satış belge tipi — Alış (Verilen Sipariş) ve
+          // Faturalaştırıldı sunucuya inmez. Snapshot view; iptal/sevk düşer.
           fetchAllRows<SiparisDurumSatirRaw>((from, to) =>
             supabase
-              .from(PANORAMA_SIPARIS_DURUM_VIEW)
+              .from(PANORAMA_SIPARIS_DETAY_VIEW)
               .select(
-                "musteri_kod,musteri_unvan,belge_kod,islem_tarihi,sevk_tarihi,bekleyen_siparis,nettutar,satis_temsilcisi"
+                "musteri_kod,musteri_unvan,siparis_no,islem_tarihi,bekleyen_siparis,nettutar,satis_temsilcisi,belge_tip,iptal_neden"
               )
               .in("bekleyen_siparis", Object.keys(SIPARIS_DURUM_ETIKETLERI))
+              .in("belge_tip", [...KEEP_BELGE_TIP])
+              .is("iptal_neden", null)
               .range(from, to) as unknown as Promise<{
               data: SiparisDurumSatirRaw[] | null;
               error: { message: string } | null;
@@ -593,7 +591,10 @@ export function useSevkiyatRaporu() {
     >();
 
     for (const r of siparisDurumSatirlari) {
-      const belgeKod = metin(r.belge_kod);
+      if (metin(r.iptal_neden)) continue;
+      const belgeTip = metin(r.belge_tip);
+      if (!belgeTip || !KEEP_BELGE_TIP.has(belgeTip)) continue;
+      const belgeKod = metin(r.siparis_no);
       const durum = r.bekleyen_siparis ? SIPARIS_DURUM_ETIKETLERI[r.bekleyen_siparis] : undefined;
       if (!belgeKod || !durum) continue;
 
@@ -602,7 +603,7 @@ export function useSevkiyatRaporu() {
         musteriAd: metin(r.musteri_unvan),
         temsilci: metin(r.satis_temsilcisi),
         islemTarihi: parseIslemTarihi(r.islem_tarihi),
-        sevkTarihi: parseIslemTarihi(r.sevk_tarihi),
+        sevkTarihi: null,
         durum,
         kalemSayisi: 0,
         toplamTutar: 0,

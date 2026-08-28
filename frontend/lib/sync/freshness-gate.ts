@@ -6,7 +6,7 @@ import { fetchLatestCompletedSyncs } from "./fetch-panorama";
 export const CORE_PANORAMA_REPORT_IDS = [5020, 5500, 5130] as const;
 
 /** Tek başına gelen opsiyonel zincirler — tazelik kapısı yok. */
-export const INDEPENDENT_PANORAMA_REPORT_IDS = [5450, 5530] as const;
+export const INDEPENDENT_PANORAMA_REPORT_IDS = [5450, 5530, 5230] as const;
 
 /** Ana zincir sync'lerinin hepsinin "şimdi"ye göre max yaşı. */
 export const CORE_SYNC_FRESHNESS_MS = 5 * 60 * 1000;

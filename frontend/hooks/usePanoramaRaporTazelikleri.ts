@@ -18,10 +18,12 @@ export const AYARLAR_RAPORLARI: readonly AyarlarRaporSatiri[] = [
   { id: 5020, ad: "Müşteri listesi", bagimsiz: false },
   { id: 5500, ad: "Rota", bagimsiz: false },
   { id: 5130, ad: "Sevkiyat", bagimsiz: false },
-  { id: 5450, ad: "Belge detay", bagimsiz: false },
+  { id: 5450, ad: "Belge detay (fatura)", bagimsiz: false },
+  { id: 5451, ad: "Belge detay (sipariş)", bagimsiz: true },
   { id: 5530, ad: "ST Yaşlandırma", bagimsiz: false },
   { id: 5430, ad: "Stok", bagimsiz: true },
   { id: 5140, ad: "Sipariş durum", bagimsiz: true },
+  { id: 5230, ad: "Tahsilat", bagimsiz: true },
 ];
 
 export type RaporTazelikSatiri = AyarlarRaporSatiri & {

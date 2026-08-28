@@ -251,7 +251,7 @@ async function fetchAllFiltered<T>(
 
 export interface RaporlamaSummary {
   toplamNetCiro: number;
-  /** Ayni kumenin KDV DAHIL toplami — tahsilat tarafi (bkz. belge_net_ciro_kdv_dahil). */
+  /** Ayni kumenin KDV DAHIL toplami (Panorama Nettutar). Ciro ≠ tahsilat. */
   toplamNetCiroKdvDahil: number;
   /**
    * Filtreye uyan TÜM satırların açık bakiye toplamı (görünen sayfa değil).

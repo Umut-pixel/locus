@@ -6,14 +6,14 @@ export const MANUAL_SYNC_COOLDOWN_MS = 60 * 60 * 1000;
 
 /** Zincirler arası n8n Wait. */
 export const MANUAL_CHAIN_WAIT_SEC = 60;
-const WAIT_COUNT = 4;
-const CHAIN_COUNT = 5;
+const WAIT_COUNT = 6;
+const CHAIN_COUNT = 7;
 const SCRAPE_SEC_PER_CHAIN = 180;
 export const MANUAL_ESTIMATE_MS =
   (WAIT_COUNT * MANUAL_CHAIN_WAIT_SEC + CHAIN_COUNT * SCRAPE_SEC_PER_CHAIN) *
   1000;
 
-const LAST_REPORT_ID = 5430;
+const LAST_REPORT_ID = 5451;
 const POLL_MS = 15_000;
 const DEADLINE_MS = 90 * 60 * 1000;
 
@@ -31,7 +31,7 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-/** Son zincir (stok 5430) tetikten sonra completed olana kadar bekler. */
+/** Son zincir (sipariş belge detay 5451) tetikten sonra completed olana kadar bekler. */
 export async function waitForManualPipeline(startedAt: number): Promise<string> {
   const deadline = startedAt + DEADLINE_MS;
   while (Date.now() < deadline) {

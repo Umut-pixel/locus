@@ -24,11 +24,9 @@ const DURUM_ETIKET: Record<BekleyenSiparisSatiri["durum"], string> = {
 };
 
 /**
- * Sipariş Durum Raporu'ndan (5140) — henüz faturalaştırılmamış siparişler.
- * "Bekleyen Sipariş" (işlenmedi) ve "İrsaliyeleştirildi" (sevk edildi,
- * faturalanmadı) durumları; "Faturalaştırıldı" (çoğunluk, ~8400 satır)
- * hook seviyesinde zaten filtreleniyor. Ranked-list deseni (SktYaklasanPanel
- * ile aynı) — sevkiyat sayfasındaki grid sütun düzenine uyar.
+ * Belge detay sipariş (5450 / 5451 snapshot) — henüz faturalaştırılmamış
+ * satış siparişleri. "Bekleyen Sipariş" ve "İrsaliyeleştirildi"; Alış ve
+ * Faturalaştırıldı hook'ta elenir. İptal/sevk olanlar yeni çekimde yoksa düşer.
  */
 export function BekleyenSiparislerPanel({
   satirlar,

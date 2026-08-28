@@ -1,7 +1,7 @@
 -- Panorama sync_runs → Locus transform webhook (pg_net)
 -- Fires when durum transitions to 'completed'.
 -- Core reports (5020/5500/5130): POST only if all three completed within 5 minutes.
--- Independent reports (5450/5530): POST immediately.
+-- Independent reports (5450/5530/5230): POST immediately.
 -- URL + Authorization live in vault:
 --   panorama_transform_url  = https://locus-two-delta.vercel.app/api/sync/panorama
 --   panorama_transform_auth = Bearer <CRON_SECRET>

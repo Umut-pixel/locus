@@ -133,6 +133,8 @@ with hedef(nesne, beklenen) as (
     ('v_panorama_acik_fatura_vade_kup_guncel','ERISEBILMELI'),
     ('v_panorama_detayli_stok_raporu_guncel','ERISEBILMELI'),
     ('v_panorama_siparis_durum_raporu_guncel','ERISEBILMELI'),
+    ('v_panorama_siparis_detay_raporu_guncel','ERISEBILMELI'),
+    ('v_panorama_tahsilat_raporu_guncel','ERISEBILMELI'),
     ('rapor_bolge_disi_ozet','ERISEBILMELI'),
     ('entity_notlar','ERISEMEMELI'),
     ('musteri_favoriler','ERISEMEMELI'),

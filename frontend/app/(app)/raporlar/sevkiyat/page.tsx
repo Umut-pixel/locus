@@ -115,7 +115,7 @@ export default function SevkiyatRaporlariPage() {
   );
 }
 
-/** SevkiyatRaporuKup (5130) ve Sipariş Durum Raporu (5140) — ikisinin en eskisi gösterilir. */
+/** SevkiyatRaporuKup (5130) ve sipariş belge detay (5451). */
 function VeriTazeligi() {
   const sevkiyat = useRaporTazeligi(SEVKIYAT_REPORT_ID);
   const siparisDurum = useRaporTazeligi(SIPARIS_DURUM_REPORT_ID);
@@ -135,7 +135,7 @@ function VeriTazeligi() {
   return (
     <span
       className="hidden shrink-0 items-center gap-1.5 md:flex"
-      title="SevkiyatRaporuKup (5130) ve Sipariş Durum Raporu (5140) — en eski çekimin zamanı."
+      title="SevkiyatRaporuKup (5130) ve Belge detay sipariş (5451) — en eski çekimin zamanı."
     >
       <span
         className={cn(

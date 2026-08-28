@@ -120,8 +120,16 @@ async function handle(request: Request) {
   try {
     const admin = createSupabaseAdmin();
 
-    // Ana zincir (5020/5500/5130): üçü de taze olmadan transform yok.
-    // 5450/5530 bağımsız — kapıyı atla. force=1 her şeyi atlar.
+    // 5450/5530/5230 bağımsız — kapıyı atla. 5451 sipariş landing-only.
+    // force=1 her şeyi atlar.
+    if (webhook.fromWebhook && webhook.reportId === 5451) {
+      return NextResponse.json({
+        skipped: true,
+        reason: "landing_only_siparis_5450",
+        reportId: webhook.reportId,
+      });
+    }
+
     const bypassFreshness =
       force || isIndependentPanoramaReport(webhook.reportId);
 

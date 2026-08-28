@@ -16,6 +16,7 @@ import {
   PANORAMA_MUSTERI_VIEW,
   PANORAMA_RUT_VIEW,
   PANORAMA_SEVKIYAT_VIEW,
+  PANORAMA_TAHSILAT_VIEW,
   PANORAMA_YASLANDIRMA_VIEW,
   PANORAMA_SYNC_DOSYA_TIPI,
   fetchAllFromView,
@@ -29,8 +30,10 @@ import {
   panoramaSevkiyatToExcelRows,
 } from "./panorama-to-rows";
 import { parseYaslandirma5530 } from "./parse-yaslandirma-5530";
+import { parseTahsilatOzet } from "./parse-tahsilat";
 import type { PanoramaSyncIds, PanoramaTransformResult } from "./types";
 import { replaceBelgeOzet } from "./write-belge-ozet";
+import { replaceTahsilatOzet } from "./write-tahsilat-ozet";
 import { replaceYaslandirma } from "./write-yaslandirma";
 
 const BATCH = 250;
@@ -118,7 +121,8 @@ function syncIdsEqual(
     a["5500"] === b["5500"] &&
     a["5130"] === b["5130"] &&
     (a["5450"] ?? null) === b["5450"] &&
-    (a["5530"] ?? null) === b["5530"]
+    (a["5530"] ?? null) === b["5530"] &&
+    (a["5230"] ?? null) === b["5230"]
   );
 }
 
@@ -136,6 +140,14 @@ const EMPTY_BELGE_OZET: PanoramaTransformResult["belgeOzet"] = {
   islenenSatir: 0,
   yazilan: 0,
   eslesmeyen: 0,
+};
+
+const EMPTY_TAHSILAT_OZET: PanoramaTransformResult["tahsilatOzet"] = {
+  skipped: true,
+  islenenSatir: 0,
+  yazilan: 0,
+  eslesmeyen: 0,
+  tarihBozuk: 0,
 };
 
 export interface RunTransformOptions {
@@ -167,6 +179,7 @@ export async function runPanoramaTransform(
     "5130": syncs.get(5130)!.id,
     "5450": syncs.get(5450)?.id ?? null,
     "5530": syncs.get(5530)?.id ?? null,
+    "5230": syncs.get(5230)?.id ?? null,
   };
 
   const last = await fetchLastPanoramaTransformMeta(admin);
@@ -194,6 +207,7 @@ export async function runPanoramaTransform(
       },
       belgeOzet: { ...EMPTY_BELGE_OZET },
       yaslandirma: { ...EMPTY_YASLANDIRMA },
+      tahsilatOzet: { ...EMPTY_TAHSILAT_OZET },
       uyarilar: [],
     };
   }
@@ -453,6 +467,50 @@ export async function runPanoramaTransform(
     };
   }
 
+  // --- 5230 Tahsilat özeti (opsiyonel — 5140/5430 gibi core trio'ya girmez) ---
+  let tahsilatOzetResult: PanoramaTransformResult["tahsilatOzet"] = {
+    ...EMPTY_TAHSILAT_OZET,
+  };
+  let rawTahsilatLength = 0;
+
+  if (!syncIds["5230"]) {
+    uyarilar.push(
+      "Rapor 5230 için tamamlanmış sync yok — tahsilat özeti atlandı."
+    );
+  } else {
+    const rawTahsilat = await fetchAllFromView(admin, PANORAMA_TAHSILAT_VIEW);
+    rawTahsilatLength = rawTahsilat.length;
+    const parsedTahsilat = parseTahsilatOzet(rawTahsilat);
+    const tahsilatCodes = parsedTahsilat.rows.map((r) => r.musteri_kodu);
+    const tahsilatExisting = await fetchExistingCodes(admin, tahsilatCodes);
+    const tahsilatEslesen = parsedTahsilat.rows.filter((r) =>
+      tahsilatExisting.has(r.musteri_kodu)
+    );
+    const tahsilatEslesmeyen =
+      parsedTahsilat.rows.length - tahsilatEslesen.length;
+
+    await replaceTahsilatOzet(admin, tahsilatEslesen);
+
+    if (tahsilatEslesmeyen > 0) {
+      uyarilar.push(
+        `${tahsilatEslesmeyen} tahsilat özeti müşterisi tabloda yok — atlandı.`
+      );
+    }
+    if (parsedTahsilat.tarihBozuk > 0) {
+      uyarilar.push(
+        `${parsedTahsilat.tarihBozuk} tahsilat satırında işlem tarihi parse edilemedi.`
+      );
+    }
+
+    tahsilatOzetResult = {
+      skipped: false,
+      islenenSatir: parsedTahsilat.islenenSatir,
+      yazilan: tahsilatEslesen.length,
+      eslesmeyen: tahsilatEslesmeyen,
+      tarihBozuk: parsedTahsilat.tarihBozuk,
+    };
+  }
+
   const dosyaAdi = `panorama-sync-${syncIds["5020"].slice(0, 8)}`;
   const { data: log, error: logError } = await admin
     .from(YUKLEME_LOGLARI_TABLE)
@@ -465,20 +523,23 @@ export async function runPanoramaTransform(
         parsedRut.islenenSatir +
         parsedSevk.islenenSatir +
         belgeOzetResult.islenenSatir +
-        yaslandirmaResult.islenenSatir,
+        yaslandirmaResult.islenenSatir +
+        tahsilatOzetResult.islenenSatir,
       yeni_musteri: yeni,
       guncellenen_musteri:
         guncellenen +
         rutEslesen.length +
         sevkEslesen.length +
         belgeOzetResult.yazilan +
-        yaslandirmaResult.yazilan,
+        yaslandirmaResult.yazilan +
+        tahsilatOzetResult.yazilan,
       geocode_basarisiz: geocodeBasarisiz,
       eslesmeyen_kod_sayisi:
         rutEslesmeyen +
         sevkEslesmeyen +
         belgeOzetResult.eslesmeyen +
-        yaslandirmaResult.eslesmeyen,
+        yaslandirmaResult.eslesmeyen +
+        tahsilatOzetResult.eslesmeyen,
       uyarilar: {
         messages: uyarilar,
         sync_ids: syncIds,
@@ -488,6 +549,7 @@ export async function runPanoramaTransform(
           sevkiyat: rawSevk.length,
           belge: rawBelgeLength,
           yaslandirma: rawYasLength,
+          tahsilat: rawTahsilatLength,
         },
       },
       durum: "ok",
@@ -528,6 +590,7 @@ export async function runPanoramaTransform(
     },
     belgeOzet: belgeOzetResult,
     yaslandirma: yaslandirmaResult,
+    tahsilatOzet: tahsilatOzetResult,
     yuklemeId: log.id as string,
     yuklenmeZamani: log.yuklenme_zamani as string,
     uyarilar,

@@ -9,6 +9,7 @@ import {
   SparklesIcon,
   TruckIcon,
   UsersIcon,
+  WalletIcon,
   type LucideIcon,
 } from "lucide-react";
 
@@ -90,6 +91,12 @@ export const NAV_SECTIONS: NavSectionConfig[] = [
             label: "Finansal Raporlar",
             icon: BanknoteIcon,
             href: "/raporlar/finansal",
+          },
+          {
+            id: "raporlar-tahsilat",
+            label: "Tahsilat",
+            icon: WalletIcon,
+            href: "/raporlar/tahsilat",
           },
           {
             id: "raporlar-sevkiyat",

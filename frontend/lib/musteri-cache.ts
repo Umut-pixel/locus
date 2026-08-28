@@ -83,4 +83,10 @@ export const MUSTERI_HARITA_SELECT = [
   "belge_son_urun",
   "belge_st_adi",
   "belge_st_kodu",
+  "son_tahsilat_tarihi",
+  "tahsilat_7g",
+  "tahsilat_30g",
+  "tahsilat_ytd",
+  "odenmemis_tutar",
+  "odenmemis_adet",
 ].join(",");
