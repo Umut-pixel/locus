@@ -6,7 +6,7 @@ import "mapbox-gl/dist/mapbox-gl.css";
 
 import { useTheme } from "@/components/theme/ThemeProvider";
 import { mapRenderOptions } from "@/lib/mapbox-init";
-import { MAPBOX_TOKEN, currentDocumentMapTheme } from "@/lib/mapbox-style";
+import { MAPBOX_TOKEN } from "@/lib/mapbox-style";
 import { RISK_COLORS } from "@/lib/risk-style";
 import type { RiskDurumu } from "@/lib/types";
 
@@ -29,7 +29,7 @@ export function MusteriMiniMap({
 
     const map = new mapboxgl.Map({
       container: containerRef.current,
-      ...mapRenderOptions(currentDocumentMapTheme()),
+      ...mapRenderOptions(theme),
       center: [lon, lat],
       zoom: 14,
       attributionControl: false,

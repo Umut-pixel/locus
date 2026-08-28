@@ -329,12 +329,12 @@
 }
 
 /*
- * Dark-mode CSS filter / mix-blend (ör. glow, heroui) canvas'a sızmasın.
- * Mapbox Standard dusk ışığı daireleri ayrıca circle-emissive-strength ile
+ * Dark/light CSS filter / mix-blend (ör. glow, heroui) canvas'a sızmasın.
+ * Mapbox Standard dusk/day ışığı daireleri ayrıca circle-emissive-strength ile
  * bypass edilir; burada yalnızca CSS katmanını izole ediyoruz.
  */
-.dark .mapboxgl-canvas-container,
-.dark .mapboxgl-canvas {
+.mapboxgl-canvas-container,
+.mapboxgl-canvas {
   filter: none !important;
   mix-blend-mode: normal !important;
 }

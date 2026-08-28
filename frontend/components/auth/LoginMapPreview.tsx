@@ -5,7 +5,7 @@ import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 
 import { useTheme } from "@/components/theme/ThemeProvider";
-import { DEFAULT_MAP_VIEW, MAPBOX_TOKEN, currentDocumentMapTheme } from "@/lib/mapbox-style";
+import { DEFAULT_MAP_VIEW, MAPBOX_TOKEN } from "@/lib/mapbox-style";
 import {
   applyMapRuntimeTuning,
   mapRenderOptions,
@@ -24,7 +24,7 @@ export function LoginMapPreview() {
     mapboxgl.accessToken = MAPBOX_TOKEN;
     const map = new mapboxgl.Map({
       container: containerRef.current,
-      ...mapRenderOptions(currentDocumentMapTheme()),
+      ...mapRenderOptions(theme),
       center: DEFAULT_MAP_VIEW.center,
       zoom: DEFAULT_MAP_VIEW.zoom,
       interactive: false,
@@ -35,7 +35,7 @@ export function LoginMapPreview() {
     const unobserveSize = observeMapContainer(map, containerRef.current);
 
     const onStyle = () => {
-      applyMapRuntimeTuning(map);
+      applyMapRuntimeTuning(map, theme);
     };
     map.on("style.load", onStyle);
 

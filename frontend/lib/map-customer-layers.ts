@@ -23,7 +23,15 @@ export const POINT_LAYER = "unclustered-point";
 export const POINT_HIT_LAYER = "unclustered-point-hit";
 export const SELECTED_LAYER = "selected-point";
 
-/** Son yüklemede güncellenen müşteri — koyu basemap'te net açık halka. */
+/** Son yüklemede güncellenen müşteri halkası — koyu basemap'te açık, faded'de lacivert. */
+export function updatedRingColor(): string {
+  if (typeof document !== "undefined" && !document.documentElement.classList.contains("dark")) {
+    return "#226f87";
+  }
+  return "#f4f4f5";
+}
+
+/** Eski sabit — koyu basemap. */
 export const UPDATED_RING_COLOR = "#f4f4f5";
 /** "Sonra bak" favori — nokta üzerinde Airbnb Rausch halka. */
 export const MUSTERI_FAVORI_STROKE = "#ff385c";
@@ -119,7 +127,7 @@ export function addCustomerLayers(
         "circle-radius": 12,
         "circle-color": "rgba(0,0,0,0)",
         "circle-stroke-width": 2.5,
-        "circle-stroke-color": UPDATED_RING_COLOR,
+        "circle-stroke-color": updatedRingColor(),
         "circle-stroke-opacity": 0.95,
         "circle-opacity": 1,
         "circle-emissive-strength": 1,

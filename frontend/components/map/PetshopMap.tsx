@@ -15,6 +15,7 @@ import {
 } from "@/lib/mapbox-style";
 import {
   applyMapRuntimeTuning,
+  applyMapStyle,
   mapRenderOptions,
   observeMapContainer,
 } from "@/lib/mapbox-init";
@@ -490,8 +491,13 @@ export const PetshopMap = memo(function PetshopMap({
       // Globe import stili ezerse setProjection stili yeniden yükler.
       // Overlay'leri o reload bitmeden eklemek her karede
       // `undefined.paint` üretir.
-      const projectionChanged = applyMapRuntimeTuning(map);
+      const projectionChanged = applyMapRuntimeTuning(map, currentDocumentMapTheme());
       if (!projectionChanged) mountOverlays();
+    });
+    map.on("idle", () => {
+      if (!loadedRef.current && map.getProjection()?.name === "mercator") {
+        mountOverlays();
+      }
     });
     map.on("load", () => {
       if (
@@ -673,7 +679,7 @@ export const PetshopMap = memo(function PetshopMap({
     if (!map || styleUrlRef.current === next) return;
     styleUrlRef.current = next;
     loadedRef.current = false;
-    map.setStyle(next);
+    applyMapStyle(map, theme);
   }, [theme]);
 
   useEffect(() => {

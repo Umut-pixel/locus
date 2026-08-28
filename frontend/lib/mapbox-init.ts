@@ -39,8 +39,21 @@ export function mapRenderOptions(
   };
 }
 
+/** Light/dark Studio stili + Standard config. `diff: false` iki URL arasında yama denemesin. */
+export function applyMapStyle(map: MapboxMap, theme: MapTheme): void {
+  map.setStyle(mapboxStyleForTheme(theme), {
+    diff: false,
+    config: {
+      basemap: mapboxBasemapConfig(theme),
+    },
+  });
+}
+
 /** Stil yüklendikten sonra da zorla — Studio globe import'u constructor'ı ezer. */
-export function applyMapRuntimeTuning(map: MapboxMap): boolean {
+export function applyMapRuntimeTuning(
+  map: MapboxMap,
+  theme: MapTheme = currentDocumentMapTheme()
+): boolean {
   let projectionChanged = false;
   try {
     const name = map.getProjection()?.name;
@@ -52,7 +65,6 @@ export function applyMapRuntimeTuning(map: MapboxMap): boolean {
     map.setProjection("mercator");
     projectionChanged = true;
   }
-  const theme = currentDocumentMapTheme();
   const cfg = mapboxBasemapConfig(theme);
   for (const [key, value] of Object.entries(cfg)) {
     try {

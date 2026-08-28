@@ -115,10 +115,10 @@ sipariş durumu. Örnek — Bornova teslimat + borç:
   "filterKey": "band",
   "filters": [
     { "key": "all", "label": "Tümü" },
-    { "key": "odendi", "label": "Ödendi", "dot": "#25a878" },
-    { "key": "g30", "label": "30+ gün", "dot": "#f09a2f" },
-    { "key": "g40", "label": "40+ gün", "dot": "#f09a2f" },
-    { "key": "g50", "label": "50+ gün", "dot": "#ee5c61" }
+    { "key": "odendi", "label": "Ödendi" },
+    { "key": "g30", "label": "30+ gün" },
+    { "key": "g40", "label": "40+ gün" },
+    { "key": "g50", "label": "50+ gün" }
   ],
   "columns": ["Müşteri", "Son teslimat", "Borç", "Gün"],
   "rows": [
@@ -129,9 +129,10 @@ sipariş durumu. Örnek — Bornova teslimat + borç:
 
 Filtre anahtarı satırda `filterKey` kolonunda durur (`odendi` / `g30` / `g40` /
 `g50`). 50+ / 40+ / 30+ bantları `hf_*` yaşlandırma kolonlarından gelir;
-`borc_riskli` boolean kullanma. UI chip sayılarından dağılım çubuğunu kendisi
-çizer — ayrı `kind: "chart"` allocation ekleme. Trend (line/compare) varsa
-filtre bloğunun hemen önüne veya arkasına koy; aynı karta alınır.
+`borc_riskli` boolean kullanma. Chip rengi (`dot`) verme — UI mavi skalayı
+kendisi atar ve chip sayılarından dağılım çubuğunu çizer; ayrı `kind: "chart"`
+allocation ekleme. Trend (line/compare) varsa filtre bloğunun hemen önüne
+veya arkasına koy; aynı karta alınır.
 
 ### `kind: "chart"`
 Zaman serisi, 2–5 grubun karşılaştırması, pay dağılımı.
