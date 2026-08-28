@@ -339,6 +339,31 @@
   mix-blend-mode: normal !important;
 }
 
+/* GPU perde — yalnız opacity / compositor katmanı */
+.locus-map-veil {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  pointer-events: none;
+  opacity: 0;
+  background: var(--background);
+  transform: translateZ(0);
+}
+
+.locus-map-stage {
+  position: relative;
+  isolation: isolate;
+}
+
+.locus-map-stage-veil {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background: var(--background);
+  transform: translateZ(0);
+}
+
 .mapboxgl-ctrl-top-right {
   top: max(0.5rem, env(safe-area-inset-top, 0px));
   right: max(0.5rem, env(safe-area-inset-right, 0px));

@@ -19,6 +19,7 @@ import {
   mapRenderOptions,
   observeMapContainer,
 } from "@/lib/mapbox-init";
+import { revealStageVeil } from "@/lib/map-curtain";
 import { STABLE_CLUSTER_CONFIG, type ClusterConfig } from "@/lib/map-clusters";
 import {
   CLUSTER_COUNT_LAYER,
@@ -142,8 +143,10 @@ export const PetshopMap = memo(function PetshopMap({
   onSelectPotansiyel,
 }: PetshopMapProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const stageVeilRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const loadedRef = useRef(false);
+  const stageRevealedRef = useRef(false);
   const dataRef = useRef(data);
   const potansiyelDataRef = useRef(potansiyelData);
   const potansiyelVisibleRef = useRef(potansiyelVisible);
@@ -498,6 +501,10 @@ export const PetshopMap = memo(function PetshopMap({
       if (!loadedRef.current && map.getProjection()?.name === "mercator") {
         mountOverlays();
       }
+      if (loadedRef.current && !stageRevealedRef.current) {
+        stageRevealedRef.current = true;
+        revealStageVeil(stageVeilRef.current);
+      }
     });
     map.on("load", () => {
       if (
@@ -679,6 +686,11 @@ export const PetshopMap = memo(function PetshopMap({
     if (!map || styleUrlRef.current === next) return;
     styleUrlRef.current = next;
     loadedRef.current = false;
+    try {
+      map.stop();
+    } catch {
+      /* kamera tween yok */
+    }
     applyMapStyle(map, theme);
   }, [theme]);
 
@@ -923,7 +935,12 @@ export const PetshopMap = memo(function PetshopMap({
     );
   }
 
-  return <div ref={containerRef} className="h-full w-full" />;
+  return (
+    <div className="locus-map-stage h-full w-full">
+      <div ref={containerRef} className="h-full w-full" />
+      <div ref={stageVeilRef} className="locus-map-stage-veil" aria-hidden />
+    </div>
+  );
 });
 
 function escapeHtml(value: string): string {

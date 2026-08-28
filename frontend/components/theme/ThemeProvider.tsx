@@ -43,17 +43,14 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const toggleTheme = useCallback(() => {
-    setTheme((prev) => {
-      const next: Theme = prev === "dark" ? "light" : "dark";
-      try {
-        window.localStorage.setItem(THEME_STORAGE_KEY, next);
-      } catch {
-        // localStorage erişilemez
-      }
-      transitionTheme(next);
-      return next;
-    });
-  }, []);
+    const next: Theme = theme === "dark" ? "light" : "dark";
+    try {
+      window.localStorage.setItem(THEME_STORAGE_KEY, next);
+    } catch {
+      // localStorage erişilemez
+    }
+    transitionTheme(next, () => setTheme(next));
+  }, [theme]);
 
   return (
     <ThemeContext.Provider value={{ theme, toggleTheme }}>

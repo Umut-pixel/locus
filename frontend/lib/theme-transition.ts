@@ -1,5 +1,7 @@
 import gsap from "gsap";
 
+import { hasLiveMapCanvas, withMapVeil } from "@/lib/map-curtain";
+
 type Theme = "light" | "dark";
 
 const LIGHT_BG = "#f7f7f7";
@@ -22,9 +24,8 @@ export function applyThemeClass(theme: Theme): void {
 function ensureOverlay(): HTMLDivElement {
   if (overlay?.isConnected) return overlay;
   overlay = document.createElement("div");
+  overlay.className = "locus-map-veil";
   overlay.setAttribute("aria-hidden", "true");
-  overlay.style.cssText =
-    "position:fixed;inset:0;z-index:2147483000;pointer-events:none;opacity:0";
   document.body.appendChild(overlay);
   return overlay;
 }
@@ -36,22 +37,26 @@ function teardownOverlay(): void {
 }
 
 /**
- * Tema sınıfını uygular. Hareket: tek katman, yalnız opacity (compositor).
- * View Transition varsa onu kullanır — tam sayfa CSS değişken tween'i yok.
+ * Tema sınıfını uygular. Harita varken GPU perdesi: in → commit → idle → kalk.
+ * Harita yoksa View Transition veya aynı compositor opacity perdesi.
  */
-export function transitionTheme(next: Theme): void {
+export function transitionTheme(next: Theme, commit?: () => void): void {
+  const apply = () => {
+    applyThemeClass(next);
+    commit?.();
+  };
+
   if (reducedMotion()) {
     running?.kill();
     teardownOverlay();
-    applyThemeClass(next);
+    apply();
     return;
   }
 
-  // Mapbox canvas'ı View Transition / tam ekran overlay ile kasma.
-  if (document.querySelector(".mapboxgl-canvas")) {
+  if (hasLiveMapCanvas()) {
     running?.kill();
     teardownOverlay();
-    applyThemeClass(next);
+    void withMapVeil(next, apply);
     return;
   }
 
@@ -61,7 +66,7 @@ export function transitionTheme(next: Theme): void {
   if (typeof doc.startViewTransition === "function") {
     running?.kill();
     teardownOverlay();
-    doc.startViewTransition(() => applyThemeClass(next));
+    doc.startViewTransition(apply);
     return;
   }
 
@@ -76,10 +81,10 @@ export function transitionTheme(next: Theme): void {
       teardownOverlay();
     },
   });
-  running.set(el, { opacity: 0 });
-  running.to(el, { opacity: 1, duration: 0.14, ease: "power2.in" });
-  running.add(() => applyThemeClass(next));
-  running.to(el, { opacity: 0, duration: 0.18, ease: "power2.out" });
+  running.set(el, { autoAlpha: 0, force3D: true });
+  running.to(el, { autoAlpha: 1, duration: 0.14, ease: "power2.in" });
+  running.add(apply);
+  running.to(el, { autoAlpha: 0, duration: 0.18, ease: "power2.out" });
 }
 
 export function spinThemeIcon(node: HTMLElement | null, toDark: boolean): void {
@@ -88,6 +93,6 @@ export function spinThemeIcon(node: HTMLElement | null, toDark: boolean): void {
   gsap.fromTo(
     node,
     { rotate: toDark ? 40 : -40, scale: 0.82 },
-    { rotate: 0, scale: 1, duration: 0.32, ease: "power3.out", overwrite: true }
+    { rotate: 0, scale: 1, duration: 0.32, ease: "power3.out", overwrite: true, force3D: true }
   );
 }

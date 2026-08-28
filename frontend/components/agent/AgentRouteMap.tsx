@@ -10,10 +10,12 @@ import { DEPOT, googleMapsDirUrl } from "@/lib/depot";
 import { snapSegmentsToRoads } from "@/lib/mapbox-directions";
 import {
   applyMapRuntimeTuning,
+  applyMapStyle,
   mapRenderOptions,
   observeMapContainer,
 } from "@/lib/mapbox-init";
-import { MAPBOX_TOKEN } from "@/lib/mapbox-style";
+import { revealStageVeil } from "@/lib/map-curtain";
+import { MAPBOX_TOKEN, mapboxStyleForTheme } from "@/lib/mapbox-style";
 import { useTheme } from "@/components/theme/ThemeProvider";
 
 const LINE_SOURCE = "agent-route-line";
@@ -110,7 +112,12 @@ function popupHtml(title: string, subtitle?: string): string {
 
 export function AgentRouteMap({ block }: { block: MapBlock }) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const stageVeilRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<mapboxgl.Map | null>(null);
+  const styleUrlRef = useRef<string | null>(null);
   const { theme } = useTheme();
+  const themeRef = useRef(theme);
+  themeRef.current = theme;
   const pointsKey = useMemo(
     () =>
       JSON.stringify(
@@ -138,19 +145,23 @@ export function AgentRouteMap({ block }: { block: MapBlock }) {
     const center = fitTargets[0] ?? DEPOT.lngLat;
     const map = new mapboxgl.Map({
       container: el,
-      ...mapRenderOptions(theme),
+      ...mapRenderOptions(themeRef.current),
       center,
       zoom: fitTargets.length <= 1 ? 13 : 7,
       attributionControl: false,
       cooperativeGestures: true,
       logoPosition: "bottom-left",
     });
+    mapRef.current = map;
+    styleUrlRef.current = mapboxStyleForTheme(themeRef.current);
     map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), "bottom-right");
     const unobserve = observeMapContainer(map, el);
     const markers: mapboxgl.Marker[] = [];
     const ac = new AbortController();
 
     const addMarkers = () => {
+      for (const m of markers) m.remove();
+      markers.length = 0;
       if (block.includeDepot) {
         markers.push(
           new mapboxgl.Marker({ element: createDepotEl(), anchor: "bottom" })
@@ -230,7 +241,7 @@ export function AgentRouteMap({ block }: { block: MapBlock }) {
     };
 
     const onStyle = () => {
-      applyMapRuntimeTuning(map, theme);
+      applyMapRuntimeTuning(map, themeRef.current);
       ensureLineLayers();
       addMarkers();
       fit();
@@ -246,14 +257,29 @@ export function AgentRouteMap({ block }: { block: MapBlock }) {
         });
     };
     map.on("style.load", onStyle);
+    map.once("idle", () => revealStageVeil(stageVeilRef.current));
 
     return () => {
       ac.abort();
       unobserve();
       for (const m of markers) m.remove();
       map.remove();
+      mapRef.current = null;
     };
-  }, [block.includeDepot, pointsKey, theme]);
+  }, [block.includeDepot, pointsKey]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    const next = mapboxStyleForTheme(theme);
+    if (!map || styleUrlRef.current === next) return;
+    styleUrlRef.current = next;
+    try {
+      map.stop();
+    } catch {
+      /* yok */
+    }
+    applyMapStyle(map, theme);
+  }, [theme]);
 
   const title = block.title ?? "Rota";
   const stopCount = block.points.length;
@@ -278,12 +304,15 @@ export function AgentRouteMap({ block }: { block: MapBlock }) {
         </a>
       </div>
       {MAPBOX_TOKEN ? (
-        <div
-          ref={containerRef}
-          className="h-[min(20rem,46svh)] min-h-[16rem] w-full @min-[32rem]:h-[min(32rem,58svh)] @min-[32rem]:min-h-[24rem]"
-          role="img"
-          aria-label={title}
-        />
+        <div className="locus-map-stage h-[min(20rem,46svh)] min-h-[16rem] w-full @min-[32rem]:h-[min(32rem,58svh)] @min-[32rem]:min-h-[24rem]">
+          <div
+            ref={containerRef}
+            className="h-full w-full"
+            role="img"
+            aria-label={title}
+          />
+          <div ref={stageVeilRef} className="locus-map-stage-veil" aria-hidden />
+        </div>
       ) : (
         <div className="flex h-24 items-center px-4 text-[12.5px] text-ink-3">
           Harita token yok — rotayı Google Maps’te aç.

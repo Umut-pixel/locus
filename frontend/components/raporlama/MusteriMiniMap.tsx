@@ -39,6 +39,7 @@ export function MusteriMiniMap({
       new mapboxgl.NavigationControl({ showCompass: false }),
       "bottom-right"
     );
+    const unobserve = observeMapContainer(map, containerRef.current);
 
     const el = document.createElement("div");
     el.style.cssText = `
@@ -51,6 +52,7 @@ export function MusteriMiniMap({
     new mapboxgl.Marker({ element: el }).setLngLat([lon, lat]).addTo(map);
 
     return () => {
+      unobserve();
       map.remove();
     };
   }, [lat, lon, risk, theme]);

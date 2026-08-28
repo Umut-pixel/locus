@@ -7,6 +7,7 @@ import {
   mapboxStyleForTheme,
   type MapTheme,
 } from "@/lib/mapbox-style";
+import { registerLiveMap } from "@/lib/map-curtain";
 
 if (typeof window !== "undefined") {
   mapboxgl.prewarm();
@@ -22,17 +23,24 @@ if (typeof window !== "undefined") {
 export function mapRenderOptions(
   theme: MapTheme = currentDocumentMapTheme()
 ): Omit<MapOptions, "container" | "center" | "zoom"> {
+  const dpr = typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
   return {
     style: mapboxStyleForTheme(theme),
     projection: "mercator",
-    antialias: true,
-    fadeDuration: 400,
+    // Retina zaten örnekler; MSAA yalnızca 1x ekranda. GPU fill rate düşer.
+    antialias: dpr < 1.5,
+    fadeDuration: 120,
     renderWorldCopies: false,
-    minTileCacheSize: 128,
-    maxTileCacheSize: 750,
+    minTileCacheSize: 64,
+    maxTileCacheSize: 384,
     refreshExpiredTiles: false,
     trackResize: true,
     maxPitch: 45,
+    preserveDrawingBuffer: false,
+    collectResourceTiming: false,
+    performanceMetricsCollection: false,
+    precompilePrograms: true,
+    respectPrefersReducedMotion: true,
     config: {
       basemap: mapboxBasemapConfig(theme),
     },
@@ -86,8 +94,10 @@ export function observeMapContainer(
   map: MapboxMap,
   el: HTMLElement
 ): () => void {
+  const unreg = registerLiveMap(map);
   let lastW = 0;
   let lastH = 0;
+  let resizeQueued = false;
   const ro = new ResizeObserver((entries) => {
     const cr = entries[0]?.contentRect;
     if (!cr) return;
@@ -101,13 +111,21 @@ export function observeMapContainer(
     }
     lastW = w;
     lastH = h;
-    try {
-      if (!map.getStyle()) return;
-      map.resize();
-    } catch {
-      // Stil yenilenirken resize paint hatası üretebiliyor.
-    }
+    if (resizeQueued) return;
+    resizeQueued = true;
+    requestAnimationFrame(() => {
+      resizeQueued = false;
+      try {
+        if (!map.getStyle()) return;
+        map.resize();
+      } catch {
+        // Stil yenilenirken resize paint hatası üretebiliyor.
+      }
+    });
   });
   ro.observe(el);
-  return () => ro.disconnect();
+  return () => {
+    unreg();
+    ro.disconnect();
+  };
 }
