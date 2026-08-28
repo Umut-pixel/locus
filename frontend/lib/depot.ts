@@ -13,20 +13,36 @@ export const DEPOT = {
 
 export function googleMapsDirUrl(
   stops: ReadonlyArray<{ lat: number; lon: number }>,
-  opts?: { includeDepot?: boolean }
+  opts?: { includeDepot?: boolean; roundTrip?: boolean }
 ): string {
   const includeDepot = opts?.includeDepot !== false;
+  const roundTrip = opts?.roundTrip === true;
   const stopStr = stops.map((s) => `${s.lat},${s.lon}`);
 
   if (includeDepot) {
-    const origin = `${DEPOT.lat},${DEPOT.lon}`;
+    const depot = `${DEPOT.lat},${DEPOT.lon}`;
+    if (stopStr.length === 0) {
+      return `https://www.google.com/maps/search/?api=1&query=${depot}`;
+    }
+    if (roundTrip) {
+      const params = new URLSearchParams({
+        api: "1",
+        travelmode: "driving",
+        origin: depot,
+        destination: depot,
+      });
+      params.set("waypoints", stopStr.join("|"));
+      return `https://www.google.com/maps/dir/?${params.toString()}`;
+    }
+    const destination = stopStr[stopStr.length - 1]!;
+    const mid = stopStr.slice(0, -1);
     const params = new URLSearchParams({
       api: "1",
       travelmode: "driving",
-      origin,
-      destination: origin,
+      origin: depot,
+      destination,
     });
-    if (stopStr.length > 0) params.set("waypoints", stopStr.join("|"));
+    if (mid.length > 0) params.set("waypoints", mid.join("|"));
     return `https://www.google.com/maps/dir/?${params.toString()}`;
   }
 

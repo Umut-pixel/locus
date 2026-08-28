@@ -89,7 +89,8 @@ SQL'de yok. Konumu uydurma.
 1. 5130 satırlarını `musteriler_harita` ile `musteri_kodu` üzerinden join et.
 2. `lat`/`lon` NULL olanları düş (uydurma).
 3. `kind: "map"` bas + aynı Google `dir` linkini markdown'da ver.
-4. Rota isteniyorsa `includeDepot: true` — origin/destination = Ana Depo.
+4. Rota isteniyorsa `includeDepot: true` — çizgi depodan başlar, `points`
+   sırasıyla 1, 2, 3… duraklarına gider (depoya dönüş yok).
 5. Yalnız noktalar (rota değil): `includeDepot: false`.
 
 ```sql

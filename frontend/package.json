@@ -10,7 +10,7 @@
     "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint",
-    "test:stream": "npx --yes tsx lib/agent-stream.test.ts && npx --yes tsx lib/agent-blocks.test.ts && npx --yes tsx lib/agent-status.test.ts && npx --yes tsx lib/agent-playbook.test.ts && npx --yes tsx lib/agent-reveal.test.ts"
+    "test:stream": "npx --yes tsx lib/agent-stream.test.ts && npx --yes tsx lib/agent-blocks.test.ts && npx --yes tsx lib/depot.test.ts && npx --yes tsx lib/agent-status.test.ts && npx --yes tsx lib/agent-playbook.test.ts && npx --yes tsx lib/agent-reveal.test.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",

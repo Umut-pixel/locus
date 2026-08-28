@@ -7,7 +7,7 @@ import "mapbox-gl/dist/mapbox-gl.css";
 
 import type { MapBlock, MapPoint } from "@/lib/agent-blocks";
 import { DEPOT, googleMapsDirUrl } from "@/lib/depot";
-import { fetchDrivingRoute } from "@/lib/mapbox-directions";
+import { snapSegmentsToRoads } from "@/lib/mapbox-directions";
 import {
   applyMapRuntimeTuning,
   MAP_RENDER_OPTIONS,
@@ -30,34 +30,42 @@ function escapeHtml(value: string): string {
     .replaceAll('"', "&quot;");
 }
 
-function drivingWaypoints(points: MapPoint[], includeDepot: boolean): LngLat[] {
+/** Depo → 1 → 2 → … (dönüş yok). Numaralar `points` sırası. */
+function orderedWaypoints(points: MapPoint[], includeDepot: boolean): LngLat[] {
   const stops: LngLat[] = points.map((p) => [p.lon, p.lat]);
   if (!includeDepot) return stops;
-  return [DEPOT.lngLat, ...stops, DEPOT.lngLat];
+  return [DEPOT.lngLat, ...stops];
 }
 
-function lineCollection(coords: LngLat[]): GeoJSON.FeatureCollection<GeoJSON.LineString> {
-  if (coords.length < 2) {
-    return { type: "FeatureCollection", features: [] };
+function hopSegments(coords: LngLat[]): LngLat[][] {
+  const segs: LngLat[][] = [];
+  for (let i = 0; i < coords.length - 1; i++) {
+    segs.push([coords[i]!, coords[i + 1]!]);
   }
+  return segs;
+}
+
+function lineCollection(
+  segments: LngLat[][]
+): GeoJSON.FeatureCollection<GeoJSON.LineString> {
   return {
     type: "FeatureCollection",
-    features: [
-      {
-        type: "Feature",
-        properties: {},
-        geometry: { type: "LineString", coordinates: coords },
-      },
-    ],
+    features: segments
+      .filter((coords) => coords.length >= 2)
+      .map((coords, i) => ({
+        type: "Feature" as const,
+        properties: { segment: i },
+        geometry: { type: "LineString" as const, coordinates: coords },
+      })),
   };
 }
 
 function setLineData(
   map: mapboxgl.Map,
-  coords: LngLat[]
+  data: GeoJSON.FeatureCollection<GeoJSON.LineString>
 ): void {
   const src = map.getSource(LINE_SOURCE) as mapboxgl.GeoJSONSource | undefined;
-  src?.setData(lineCollection(coords));
+  src?.setData(data);
 }
 
 function createDepotEl(): HTMLButtonElement {
@@ -66,15 +74,15 @@ function createDepotEl(): HTMLButtonElement {
   el.setAttribute("aria-label", DEPOT.label);
   el.title = `${DEPOT.label} — ${DEPOT.address}`;
   el.style.cssText =
-    "display:flex;flex-direction:column;align-items:center;gap:3px;border:0;background:transparent;padding:0;cursor:pointer;filter:drop-shadow(0 2px 6px rgba(28,29,32,0.35))";
+    "display:flex;flex-direction:column;align-items:center;gap:3px;border:0;background:transparent;padding:0;cursor:pointer;filter:drop-shadow(0 2px 8px rgba(28,29,32,0.38))";
   el.innerHTML = `
-    <span style="display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:8px;background:#1c1d20;border:2px solid #f4f4f5;color:#f4f4f5">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <span style="display:flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:9px;background:#1c1d20;border:2px solid #f4f4f5;color:#f4f4f5">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
         <path d="M3 10.5 12 4l9 6.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-9.5Z" stroke="currentColor" stroke-width="1.75" stroke-linejoin="round"/>
         <path d="M9 21v-7h6v7" stroke="currentColor" stroke-width="1.75" stroke-linejoin="round"/>
       </svg>
     </span>
-    <span style="font:600 10px/1.3 var(--font-geist-sans),system-ui,sans-serif;color:#1c1d20;background:#f4f4f5;padding:1px 6px;border-radius:999px;border:1px solid rgba(28,29,32,0.12);white-space:nowrap">Depo</span>
+    <span style="font:600 11px/1.3 var(--font-geist-sans),system-ui,sans-serif;color:#1c1d20;background:#f4f4f5;padding:2px 7px;border-radius:999px;border:1px solid rgba(28,29,32,0.12);white-space:nowrap">Depo</span>
   `;
   return el;
 }
@@ -85,7 +93,7 @@ function createStopEl(index: number, label: string): HTMLButtonElement {
   el.setAttribute("aria-label", `${index}. ${label}`);
   el.title = `${index}. ${label}`;
   el.style.cssText =
-    "display:flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:999px;border:2px solid #fff;background:#4285F4;color:#fff;font:700 11px/1 var(--font-geist-sans),system-ui,sans-serif;padding:0;cursor:pointer;box-shadow:0 1px 4px rgba(28,29,32,0.35)";
+    "display:flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:999px;border:2px solid #fff;background:#4285F4;color:#fff;font:700 12px/1 var(--font-geist-sans),system-ui,sans-serif;padding:0;cursor:pointer;box-shadow:0 1px 5px rgba(28,29,32,0.35)";
   el.textContent = String(index);
   return el;
 }
@@ -118,7 +126,9 @@ export function AgentRouteMap({ block }: { block: MapBlock }) {
     if (!el || !MAPBOX_TOKEN) return;
 
     mapboxgl.accessToken = MAPBOX_TOKEN;
-    const waypoints = drivingWaypoints(block.points, block.includeDepot);
+    const waypoints = orderedWaypoints(block.points, block.includeDepot);
+    const hops = hopSegments(waypoints);
+    const fallbackLine = lineCollection(hops);
     const fitTargets: LngLat[] = block.includeDepot
       ? [DEPOT.lngLat, ...block.points.map((p) => [p.lon, p.lat] as LngLat)]
       : block.points.map((p) => [p.lon, p.lat] as LngLat);
@@ -144,7 +154,7 @@ export function AgentRouteMap({ block }: { block: MapBlock }) {
           new mapboxgl.Marker({ element: createDepotEl(), anchor: "bottom" })
             .setLngLat(DEPOT.lngLat)
             .setPopup(
-              new mapboxgl.Popup({ offset: 14, closeButton: false }).setHTML(
+              new mapboxgl.Popup({ offset: 16, closeButton: false }).setHTML(
                 popupHtml(DEPOT.label, DEPOT.address)
               )
             )
@@ -158,7 +168,7 @@ export function AgentRouteMap({ block }: { block: MapBlock }) {
           new mapboxgl.Marker({ element: createStopEl(i + 1, label), anchor: "center" })
             .setLngLat([p.lon, p.lat])
             .setPopup(
-              new mapboxgl.Popup({ offset: 12, closeButton: false }).setHTML(
+              new mapboxgl.Popup({ offset: 14, closeButton: false }).setHTML(
                 popupHtml(`${i + 1}. ${label}`, meta)
               )
             )
@@ -175,14 +185,18 @@ export function AgentRouteMap({ block }: { block: MapBlock }) {
       }
       const bounds = new mapboxgl.LngLatBounds();
       for (const c of fitTargets) bounds.extend(c);
-      map.fitBounds(bounds, { padding: 36, maxZoom: 12, duration: 0 });
+      map.fitBounds(bounds, {
+        padding: { top: 56, bottom: 48, left: 48, right: 56 },
+        maxZoom: 12,
+        duration: 0,
+      });
     };
 
     const ensureLineLayers = () => {
       if (!map.getSource(LINE_SOURCE)) {
         map.addSource(LINE_SOURCE, {
           type: "geojson",
-          data: lineCollection(waypoints),
+          data: fallbackLine,
         });
       }
       if (!map.getLayer(LINE_CASING)) {
@@ -193,8 +207,8 @@ export function AgentRouteMap({ block }: { block: MapBlock }) {
           layout: { "line-cap": "round", "line-join": "round" },
           paint: {
             "line-color": "#1a4f9c",
-            "line-width": 6,
-            "line-opacity": 0.35,
+            "line-width": 7,
+            "line-opacity": 0.32,
           },
         });
       }
@@ -206,7 +220,7 @@ export function AgentRouteMap({ block }: { block: MapBlock }) {
           layout: { "line-cap": "round", "line-join": "round" },
           paint: {
             "line-color": ROUTE_COLOR,
-            "line-width": 3.5,
+            "line-width": 4,
             "line-opacity": 0.95,
           },
         });
@@ -218,11 +232,12 @@ export function AgentRouteMap({ block }: { block: MapBlock }) {
       ensureLineLayers();
       addMarkers();
       fit();
-      if (waypoints.length < 2) return;
-      void fetchDrivingRoute(waypoints, ac.signal)
-        .then((road) => {
-          if (ac.signal.aborted || !road) return;
-          setLineData(map, road);
+      if (hops.length === 0) return;
+      void snapSegmentsToRoads(hops, ac.signal)
+        .then((roads) => {
+          if (ac.signal.aborted) return;
+          if (roads.features.length === 0) return;
+          setLineData(map, roads);
         })
         .catch((err: unknown) => {
           if ((err as Error).name === "AbortError") return;
@@ -242,9 +257,9 @@ export function AgentRouteMap({ block }: { block: MapBlock }) {
   const stopCount = block.points.length;
 
   return (
-    <div className="agent-table-shell my-3 w-full max-w-xl">
-      <div className="flex h-11 items-center gap-3 border-b border-border/60 px-3.5">
-        <p className="min-w-0 truncate text-[13px] font-medium text-ink">{title}</p>
+    <div className="agent-table-shell @container my-5 mx-auto w-full max-w-none">
+      <div className="flex h-12 items-center gap-3 border-b border-border/60 px-4">
+        <p className="min-w-0 truncate text-[14px] font-medium text-ink">{title}</p>
         {stopCount > 0 ? (
           <span className="shrink-0 font-mono text-[12px] text-ink-3 tabular-nums">
             {stopCount} durak
@@ -263,12 +278,12 @@ export function AgentRouteMap({ block }: { block: MapBlock }) {
       {MAPBOX_TOKEN ? (
         <div
           ref={containerRef}
-          className="h-64 w-full"
+          className="h-[min(20rem,46svh)] min-h-[16rem] w-full @min-[32rem]:h-[min(32rem,58svh)] @min-[32rem]:min-h-[24rem]"
           role="img"
           aria-label={title}
         />
       ) : (
-        <div className="flex h-24 items-center px-3.5 text-[12.5px] text-ink-3">
+        <div className="flex h-24 items-center px-4 text-[12.5px] text-ink-3">
           Harita token yok — rotayı Google Maps’te aç.
         </div>
       )}

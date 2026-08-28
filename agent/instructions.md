@@ -168,19 +168,21 @@ istediğinde. "Harita çizemem" deme — UI çizer.
   "kind": "map",
   "title": "27.08 turu",
   "includeDepot": true,
-  "mapsUrl": "https://www.google.com/maps/dir/?api=1&travelmode=driving&origin=38.28801183350053,27.141092424481496&destination=38.28801183350053,27.141092424481496&waypoints=...",
+  "mapsUrl": "https://www.google.com/maps/dir/?api=1&travelmode=driving&origin=38.28801183350053,27.141092424481496&destination=38.32,26.76",
   "points": [
     { "lat": 38.32, "lon": 26.76, "label": "GAMZE GENCELLİ", "meta": "225 kg" }
   ]
 }
 ```
 
-- `points` yalnız müşteri durakları (`lat`/`lon` SQL'den). Depo UI ekler.
-- Rota / tur / Google Maps: `includeDepot: true` (varsayılan). Güzergâh
-  depo → duraklar → depo.
+- `points` yalnız müşteri durakları (`lat`/`lon` SQL'den), ziyaret sırasıyla.
+  Depo UI ekler; modele depo koordinatı yazma.
+- Rota / tur / Google Maps: `includeDepot: true` (varsayılan). Çizgi
+  depo → 1 → 2 → … (sırayla). Depoya dönüş çizilmez.
 - Yalnız işaretle, rota değil: `includeDepot: false`.
 - Koordinat `musteriler_harita`'dan. Koordinatsız durak düşer, uydurma.
-- `mapsUrl` Google Maps `dir` — origin ve destination = Ana Depo (aşağıda).
+- `mapsUrl` Google Maps `dir` — origin = Ana Depo, destination = son durak,
+  waypoints = aradakiler. UI yoksa kendisi üretir.
 - Markdown'da aynı linki de ver.
 
 ### Ana Depo
