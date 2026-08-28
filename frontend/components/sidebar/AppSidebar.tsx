@@ -17,6 +17,7 @@ import {
   SidebarCoverage,
   SidebarProfileFooter,
 } from "@/components/sidebar/SidebarProfileFooter";
+import { SidebarThemeToggle } from "@/components/sidebar/SidebarThemeToggle";
 import { CelixionMark } from "@/components/brand/CelixionMark";
 import { Button } from "@/components/ui/button";
 import {
@@ -249,6 +250,7 @@ function SidebarBody({
 
       <div className="shrink-0">
         <div className="px-0">
+          <SidebarThemeToggle open={open} />
           {FOOTER_NAV.map((item) => (
             <AppSidebarNavItem key={item.id} item={item} open={open} />
           ))}

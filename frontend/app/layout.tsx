@@ -5,10 +5,10 @@ import "./globals.css";
 import { ThemeProvider, THEME_STORAGE_KEY } from "@/components/theme/ThemeProvider";
 import { ToastProvider } from "@/components/ui/toast";
 
-/** Hydration öncesi .dark class'ı uygulanır — FOUC (yanlış tema flaşı) yok. Light mode şimdilik kapalı. */
-const THEME_INIT_SCRIPT = `(function(){try{document.documentElement.classList.add("dark");document.documentElement.setAttribute("data-theme","dark");localStorage.setItem(${JSON.stringify(
+/** Hydration öncesi kayıtlı tema uygulanır — FOUC yok. Kayıt yoksa koyu. */
+const THEME_INIT_SCRIPT = `(function(){try{var k=${JSON.stringify(
   THEME_STORAGE_KEY
-)},"dark");}catch(e){}})();`;
+)};var t=localStorage.getItem(k);if(t!=="light"&&t!=="dark")t="dark";var r=document.documentElement;r.classList.toggle("dark",t==="dark");r.setAttribute("data-theme",t);r.style.colorScheme=t;}catch(e){document.documentElement.classList.add("dark");document.documentElement.setAttribute("data-theme","dark");}})();`;
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -44,8 +44,11 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: "#141517",
-  colorScheme: "dark",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f9f9f9" },
+    { media: "(prefers-color-scheme: dark)", color: "#141517" },
+  ],
+  colorScheme: "dark light",
 };
 
 export default function RootLayout({

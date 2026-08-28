@@ -9,6 +9,8 @@ import {
   type ReactNode,
 } from "react";
 
+import { applyThemeClass, transitionTheme } from "@/lib/theme-transition";
+
 export type Theme = "light" | "dark";
 
 export const THEME_STORAGE_KEY = "locus-theme";
@@ -20,26 +22,28 @@ interface ThemeContextValue {
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
-function applyTheme(theme: Theme) {
-  document.documentElement.classList.toggle("dark", theme === "dark");
-  document.documentElement.setAttribute("data-theme", theme);
-}
-
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  // Light mode şimdilik kapalı — her zaman koyu tema.
-  const [theme] = useState<Theme>("dark");
+  const [theme, setTheme] = useState<Theme>("dark");
 
   useEffect(() => {
-    applyTheme("dark");
-    try {
-      window.localStorage.setItem(THEME_STORAGE_KEY, "dark");
-    } catch {
-      // localStorage erişilemez (gizli mod / devre dışı)
-    }
+    const next: Theme = document.documentElement.classList.contains("dark")
+      ? "dark"
+      : "light";
+    setTheme(next);
+    applyThemeClass(next);
   }, []);
 
   const toggleTheme = useCallback(() => {
-    // Light mode geri gelene kadar no-op.
+    setTheme((prev) => {
+      const next: Theme = prev === "dark" ? "light" : "dark";
+      try {
+        window.localStorage.setItem(THEME_STORAGE_KEY, next);
+      } catch {
+        // localStorage erişilemez
+      }
+      transitionTheme(next);
+      return next;
+    });
   }, []);
 
   return (
