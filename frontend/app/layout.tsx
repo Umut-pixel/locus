@@ -1,14 +1,17 @@
 import type { Metadata, Viewport } from "next";
+import { cookies } from "next/headers";
 import { Geist, Geist_Mono, Inter, Source_Serif_4 } from "next/font/google";
 import "./globals.css";
 
-import { ThemeProvider, THEME_STORAGE_KEY } from "@/components/theme/ThemeProvider";
+import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import { ToastProvider } from "@/components/ui/toast";
-
-/** Hydration öncesi kayıtlı tema uygulanır — FOUC yok. Kayıt yoksa koyu. */
-const THEME_INIT_SCRIPT = `(function(){try{var k=${JSON.stringify(
-  THEME_STORAGE_KEY
-)};var t=localStorage.getItem(k);if(t!=="light"&&t!=="dark")t="dark";var r=document.documentElement;r.classList.toggle("dark",t==="dark");r.setAttribute("data-theme",t);r.style.colorScheme=t;}catch(e){document.documentElement.classList.add("dark");document.documentElement.setAttribute("data-theme","dark");}})();`;
+import { APP_NAME } from "@/lib/site";
+import {
+  readThemeCookie,
+  THEME_CRITICAL_CSS,
+  THEME_INIT_SCRIPT,
+  THEME_STORAGE_KEY,
+} from "@/lib/theme-preference";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -35,7 +38,10 @@ const sourceSerif = Source_Serif_4({
 });
 
 export const metadata: Metadata = {
-  title: "Patigo · Müşteri Haritası",
+  title: {
+    default: APP_NAME,
+    template: `${APP_NAME} · %s`,
+  },
   description:
     "Ege bölgesi petshop/veteriner müşterileri — konum ve risk durumu haritası",
   icons: {
@@ -47,35 +53,43 @@ export const metadata: Metadata = {
   },
 };
 
-export const viewport: Viewport = {
-  width: "device-width",
-  initialScale: 1,
-  viewportFit: "cover",
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f7f7f7" },
-    { media: "(prefers-color-scheme: dark)", color: "#141517" },
-  ],
-  colorScheme: "dark light",
-};
+export async function generateViewport(): Promise<Viewport> {
+  const known = readThemeCookie((await cookies()).get(THEME_STORAGE_KEY)?.value);
+  return {
+    width: "device-width",
+    initialScale: 1,
+    viewportFit: "cover",
+    ...(known
+      ? {
+          colorScheme: known,
+          themeColor: known === "dark" ? "#141517" : "#f7f7f7",
+        }
+      : { themeColor: "#f7f7f7" }),
+  };
+}
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const known = readThemeCookie((await cookies()).get(THEME_STORAGE_KEY)?.value);
+  const theme = known ?? "dark";
+
   return (
     <html
       lang="tr"
-      data-theme="dark"
-      // Blocking script hydration öncesi .dark class'ını/data-theme'i değiştirebilir;
-      // React bu tek attribute mismatch'ini görmezden gelsin, kendi (temasız)
-      // değerine geri almasın.
+      data-theme={known}
       suppressHydrationWarning
-      className={`${geistSans.variable} ${geistMono.variable} ${inter.variable} ${sourceSerif.variable} dark h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${inter.variable} ${sourceSerif.variable} h-full antialiased${known === "dark" ? " dark" : ""}`}
+      style={known ? { colorScheme: known } : undefined}
     >
-      <body className="flex h-dvh min-h-dvh flex-col overflow-hidden overscroll-none">
+      <head>
+        <style dangerouslySetInnerHTML={{ __html: THEME_CRITICAL_CSS }} />
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
-        <ThemeProvider>
+      </head>
+      <body className="flex h-dvh min-h-dvh flex-col overflow-hidden overscroll-none">
+        <ThemeProvider initialTheme={theme}>
           <ToastProvider position="bottom-right">{children}</ToastProvider>
         </ThemeProvider>
       </body>

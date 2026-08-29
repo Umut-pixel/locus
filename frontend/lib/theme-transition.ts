@@ -1,8 +1,9 @@
 import gsap from "gsap";
 
 import { hasLiveMapCanvas, withMapVeil } from "@/lib/map-curtain";
+import { THEME_STORAGE_KEY, type ThemeName } from "@/lib/theme-preference";
 
-type Theme = "light" | "dark";
+type Theme = ThemeName;
 
 const LIGHT_BG = "#f7f7f7";
 const DARK_BG = "oklch(0.1776 0 0)";
@@ -19,6 +20,11 @@ export function applyThemeClass(theme: Theme): void {
   root.classList.toggle("dark", theme === "dark");
   root.setAttribute("data-theme", theme);
   root.style.colorScheme = theme;
+  try {
+    document.cookie = `${THEME_STORAGE_KEY}=${theme}; path=/; max-age=31536000; SameSite=Lax`;
+  } catch {
+    /* private mode */
+  }
 }
 
 function ensureOverlay(): HTMLDivElement {

@@ -7,6 +7,7 @@ import {
   useRef,
   useState,
   type CSSProperties,
+  type ReactNode,
 } from "react";
 import { ChevronDownIcon, PanelLeftCloseIcon, PanelLeftOpenIcon } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
@@ -103,28 +104,16 @@ interface SidebarBodyProps {
   pinned?: boolean;
   onTogglePin?: () => void;
   showExpandToggle?: boolean;
+  children?: ReactNode;
 }
 
-function SidebarBody({
+function SidebarShell({
   open = true,
   pinned = true,
   onTogglePin,
   showExpandToggle = true,
+  children,
 }: SidebarBodyProps) {
-  const { status } = usePanoramaSyncStatus();
-  const panoramaLive = status.transformPending || Boolean(status.syncError);
-  const { busy: analystBusy } = useAgentSession();
-  const { data: kapsami } = useHaritaKapsami();
-
-  const defaultCollapsed = useMemo(() => {
-    const map: Record<string, boolean> = {};
-    for (const section of NAV_SECTIONS) {
-      if (section.collapsible) map[section.id] = Boolean(section.defaultCollapsed);
-    }
-    return map;
-  }, []);
-  const [collapsedSections, toggleSection] = useCollapsedSections(defaultCollapsed);
-
   return (
     <div
       className="flex h-full min-h-0 flex-col bg-sidebar text-sidebar-foreground"
@@ -141,7 +130,7 @@ function SidebarBody({
         <div className="min-w-0 flex-1">
           <Link
             href="/home"
-            aria-label="Analyst"
+            aria-label="Patinfo"
             className={cn(
               SIDEBAR_ROW,
               "h-12 outline-none",
@@ -150,11 +139,16 @@ function SidebarBody({
             )}
           >
             <SidebarIconCell className="h-12">
-              <CelixionMark size={18} className="text-sidebar-foreground" />
+              {/* Stays mounted across hydrate — remount kills the layer anim and the rail. */}
+              <CelixionMark
+                size={18}
+                animate="layers"
+                className="text-sidebar-foreground"
+              />
             </SidebarIconCell>
             <SidebarLabel visible={open} className="min-w-0 pr-1">
               <span className="block truncate text-[13.5px] font-semibold tracking-tight text-sidebar-foreground">
-                Locus
+                Patinfo
               </span>
               <span className="block truncate text-[11px] font-normal text-muted-foreground">
                 Peritas ekibi
@@ -187,7 +181,28 @@ function SidebarBody({
           </button>
         ) : null}
       </div>
+      {children}
+    </div>
+  );
+}
 
+function SidebarNavAndFooter({ open }: { open: boolean }) {
+  const { status } = usePanoramaSyncStatus();
+  const panoramaLive = status.transformPending || Boolean(status.syncError);
+  const { busy: analystBusy } = useAgentSession();
+  const { data: kapsami } = useHaritaKapsami();
+
+  const defaultCollapsed = useMemo(() => {
+    const map: Record<string, boolean> = {};
+    for (const section of NAV_SECTIONS) {
+      if (section.collapsible) map[section.id] = Boolean(section.defaultCollapsed);
+    }
+    return map;
+  }, []);
+  const [collapsedSections, toggleSection] = useCollapsedSections(defaultCollapsed);
+
+  return (
+    <>
       <nav className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain pt-2 pb-3">
         {NAV_SECTIONS.map((section, sectionIndex) => {
           const sectionCollapsed =
@@ -262,7 +277,25 @@ function SidebarBody({
         </div>
         <SidebarProfileFooter open={open} />
       </div>
-    </div>
+    </>
+  );
+}
+
+function SidebarBody({
+  open = true,
+  pinned = true,
+  onTogglePin,
+  showExpandToggle = true,
+}: SidebarBodyProps) {
+  return (
+    <SidebarShell
+      open={open}
+      pinned={pinned}
+      onTogglePin={onTogglePin}
+      showExpandToggle={showExpandToggle}
+    >
+      <SidebarNavAndFooter open={open} />
+    </SidebarShell>
   );
 }
 
@@ -274,13 +307,15 @@ function SidebarBody({
 export function AppSidebar({ className }: { className?: string }) {
   const [pinned, setPinned, hydrated] = usePinnedPreference();
   const [peek, setPeek] = useState(false);
+  const [allowWidthTween, setAllowWidthTween] = useState(false);
   const reduceMotion = useReducedMotion();
   const openTimeoutRef = useRef<number | null>(null);
   const closeTimeoutRef = useRef<number | null>(null);
   const open = pinned || peek;
   const railWidth = pinned ? SIDEBAR_EXPANDED_WIDTH : ICON_RAIL_WIDTH;
   const panelWidth = open ? SIDEBAR_EXPANDED_WIDTH : ICON_RAIL_WIDTH;
-  const tween = reduceMotion ? { duration: 0 } : sidebarTween(open);
+  const widthTween =
+    reduceMotion || !allowWidthTween ? { duration: 0 } : sidebarTween(open);
 
   const clearHoverTimers = useCallback(() => {
     if (openTimeoutRef.current !== null) {
@@ -298,6 +333,10 @@ export function AppSidebar({ className }: { className?: string }) {
   useEffect(() => {
     if (pinned) setPeek(true);
   }, [pinned]);
+
+  useEffect(() => {
+    if (hydrated) setAllowWidthTween(true);
+  }, [hydrated]);
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
@@ -331,10 +370,6 @@ export function AppSidebar({ className }: { className?: string }) {
     else closeTimeoutRef.current = id;
   }
 
-  if (!hydrated) {
-    return <div className="hidden w-[52px] shrink-0 lg:block" aria-hidden />;
-  }
-
   return (
     <>
       <motion.div
@@ -342,7 +377,7 @@ export function AppSidebar({ className }: { className?: string }) {
         className="hidden shrink-0 lg:block"
         initial={false}
         animate={{ width: railWidth }}
-        transition={tween}
+        transition={widthTween}
       />
       <motion.aside
         className={cn(
@@ -356,7 +391,7 @@ export function AppSidebar({ className }: { className?: string }) {
         )}
         initial={false}
         animate={{ width: panelWidth }}
-        transition={tween}
+        transition={widthTween}
         onPointerEnter={() => schedulePeek(true)}
         onPointerLeave={() => schedulePeek(false)}
         onFocusCapture={() => schedulePeek(true)}
@@ -367,14 +402,17 @@ export function AppSidebar({ className }: { className?: string }) {
         }}
         aria-expanded={open}
       >
-        <SidebarBody
+        <SidebarShell
           open={open}
           pinned={pinned}
+          showExpandToggle={hydrated}
           onTogglePin={() => {
             if (pinned) setPeek(true);
             setPinned(!pinned);
           }}
-        />
+        >
+          {hydrated ? <SidebarNavAndFooter open={open} /> : null}
+        </SidebarShell>
       </motion.aside>
     </>
   );

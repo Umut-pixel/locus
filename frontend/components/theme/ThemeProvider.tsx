@@ -10,10 +10,14 @@ import {
 } from "react";
 
 import { applyThemeClass, transitionTheme } from "@/lib/theme-transition";
+import {
+  THEME_STORAGE_KEY,
+  type ThemeName,
+} from "@/lib/theme-preference";
 
-export type Theme = "light" | "dark";
+export type Theme = ThemeName;
 
-export const THEME_STORAGE_KEY = "locus-theme";
+export { THEME_STORAGE_KEY };
 
 interface ThemeContextValue {
   theme: Theme;
@@ -33,8 +37,14 @@ function readStoredTheme(): Theme {
   return document.documentElement.classList.contains("dark") ? "dark" : "light";
 }
 
-export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setTheme] = useState<Theme>(readStoredTheme);
+export function ThemeProvider({
+  children,
+  initialTheme,
+}: {
+  children: ReactNode;
+  initialTheme: Theme;
+}) {
+  const [theme, setTheme] = useState<Theme>(initialTheme);
 
   useLayoutEffect(() => {
     const next = readStoredTheme();

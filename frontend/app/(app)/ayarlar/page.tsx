@@ -17,7 +17,7 @@ export default function AyarlarPage() {
             Ayarlar
           </Typography.Heading>
           <Typography.Paragraph size="sm" color="muted" truncate className="hidden sm:block">
-            Locus, Panorama ERP’sinin yerini almaz.
+            Patinfo, Panorama ERP’sinin yerini almaz.
           </Typography.Paragraph>
         </div>
       </div>

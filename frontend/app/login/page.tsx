@@ -1,4 +1,7 @@
 import { LoginShell } from "@/components/auth/LoginShell";
+import { pageMetadata } from "@/lib/site";
+
+export const metadata = pageMetadata("Giriş");
 
 type LoginPageProps = {
   searchParams: Promise<{ next?: string }>;
