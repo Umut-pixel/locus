@@ -163,8 +163,8 @@ interface SiparisDurumSatirRaw {
   siparis_no: string | null;
   islem_tarihi: string | null;
   bekleyen_siparis: string | null;
-  /** 5450 Nettutar = KDV dahil. */
-  nettutar: string | null;
+  /** 5140 BrutTutar = iskonto ve KDV hariç. 5451 brut_tutar ile birebir. */
+  brut_tutar: string | null;
   satis_temsilcisi: string | null;
   belge_tip: string | null;
   iptal_neden: string | null;
@@ -173,13 +173,12 @@ interface SiparisDurumSatirRaw {
 export type SiparisDurumu = "bekleyen" | "irsaliyeli";
 
 /**
- * Panorama'nın `bekleyen_siparis` alanındaki 3 durumdan yalnızca henüz
- * tamamlanmamış ikisi — "Faturalaştırıldı" (tamamlandı) bilinçli olarak
- * dışlanıyor, panel yalnızca aksiyon gerektiren siparişleri gösteriyor.
+ * Panorama `bekleyen_siparis`: KPI ve panel yalnız henüz sevk/irsaliye
+ * edilmemiş satış siparişleri. "İrsaliyeleştirildi" ve "Faturalaştırıldı"
+ * 5140 ham Excel'de bu kümeye girmez.
  */
 const SIPARIS_DURUM_ETIKETLERI: Record<string, SiparisDurumu> = {
   "Bekleyen Sipariş": "bekleyen",
-  "İrsaliyeleştirildi": "irsaliyeli",
 };
 
 export interface BekleyenSiparisSatiri {
@@ -194,7 +193,7 @@ export interface BekleyenSiparisSatiri {
   sevkTarihi: string | null;
   durum: SiparisDurumu;
   kalemSayisi: number;
-  /** Sipariş net tutarı — kalem `nettutar` toplamı (KDV dahil, 5450). */
+  /** Sipariş brüt tutarı — kalem `brut_tutar` toplamı (iskonto ve KDV hariç). */
   toplamTutar: number;
   gecenGun: number | null;
 }
@@ -253,7 +252,7 @@ interface SevkiyatRaporuCache {
   siparisDurumSatirlari: SiparisDurumSatirRaw[];
 }
 
-const CACHE_KEY = "sevkiyat-raporu-v3";
+const CACHE_KEY = "sevkiyat-raporu-v4";
 
 /**
  * Sevkiyat Raporları sayfası — üç kaynak, tek seferde çekilir (Stok
@@ -323,15 +322,15 @@ export function useSevkiyatRaporu() {
               error: { message: string } | null;
             }>
           ).catch(() => []),
-          // Açık pipeline + satış belge tipi — Alış (Verilen Sipariş) ve
-          // Faturalaştırıldı sunucuya inmez. Snapshot view; iptal/sevk düşer.
+          // Bekleyen satış — 5140 ham Excel kümesi. Alış ve irsaliye/konsinye
+          // düşer. Snapshot view; iptal/sevk yeni çekimde yoksa listeden iner.
           fetchAllRows<SiparisDurumSatirRaw>((from, to) =>
             supabase
               .from(PANORAMA_SIPARIS_DETAY_VIEW)
               .select(
-                "musteri_kod,musteri_unvan,siparis_no,islem_tarihi,bekleyen_siparis,nettutar,satis_temsilcisi,belge_tip,iptal_neden"
+                "musteri_kod,musteri_unvan,siparis_no,islem_tarihi,bekleyen_siparis,brut_tutar,satis_temsilcisi,belge_tip,iptal_neden"
               )
-              .in("bekleyen_siparis", Object.keys(SIPARIS_DURUM_ETIKETLERI))
+              .eq("bekleyen_siparis", "Bekleyen Sipariş")
               .in("belge_tip", [...KEEP_BELGE_TIP])
               .is("iptal_neden", null)
               .range(from, to) as unknown as Promise<{
@@ -609,7 +608,7 @@ export function useSevkiyatRaporu() {
         toplamTutar: 0,
       };
       acc.kalemSayisi += 1;
-      acc.toplamTutar += sayi(r.nettutar);
+      acc.toplamTutar += sayi(r.brut_tutar);
       map.set(belgeKod, acc);
     }
 

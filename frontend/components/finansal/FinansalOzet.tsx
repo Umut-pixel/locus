@@ -55,7 +55,7 @@ export function FinansalOzet({ ozet, loading }: FinansalOzetProps) {
         icon={ClipboardListIcon}
         etiket="Bekleyen sipariş"
         deger={formatCurrency(bekleyenSiparisNetTutar)}
-        altBilgi={`${formatNumber(ozet.bekleyenSiparisBelgeSayisi)} belge · KDV dahil`}
+        altBilgi={`${formatNumber(ozet.bekleyenSiparisBelgeSayisi)} belge · Brüt, iskonto ve KDV hariç`}
         vurgu={ozet.bekleyenSiparisNetTutar > 0}
         vurguSinif="text-caution"
         loading={loading}

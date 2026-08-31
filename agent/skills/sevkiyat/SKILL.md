@@ -15,8 +15,9 @@ description: Sevkiyat, teslimat, rut, plaka/araç ve bekleyen sipariş soruları
 
 > **Tarih tuzağı:** 5140'ın `sevk_tarihi` alanı **planlanan** tarihtir; 5130'un
 > `belge_tarihi` aracın gerçekten yüklendiği gündür. "En son ne sevk edildi"
-> sorusu için **5130** kullan. Bekleyen tutar için 5450 sipariş snapshot
-> (`siparis_no`, Nettutar KDV dahil). 5140 upsert iptal/sevk sonrası satır silmez.
+> sorusu için **5130** kullan. Bekleyen tutar = 5140/5451 **BrutTutar**
+> (iskonto ve KDV hariç). 5451 `nettutar` = 5140 GenelToplam (KDV dahil) —
+> sipariş tutarında kullanma. 5140 guncel view son completed snapshot.
 
 ## Rut performansı
 
@@ -59,21 +60,25 @@ ORDER BY toplam_tutar DESC
 
 ## Bekleyen siparişler
 
-`bekleyen_siparis` üç değer alır. "Faturalaştırıldı" tamamlanmıştır —
-aksiyon gerektirenler ilk ikisi:
+Küme 5140 ham Excel ile aynı: yalnız `Bekleyen Sipariş` × satış belge tipi.
+Tutar **BrutTutar** (iskonto ve KDV hariç). "İrsaliyeleştirildi" / konsinye
+ve "Faturalaştırıldı" bu KPI'ya girmez. 5451 `brut_tutar` = 5140 `brut_tutar`.
 
 ```sql
 SELECT siparis_no, musteri_unvan, islem_tarihi, bekleyen_siparis,
-       SUM(nettutar::numeric) AS net_tutar
+       SUM(brut_tutar::numeric) AS brut_tutar
 FROM v_panorama_siparis_detay_raporu_guncel
-WHERE bekleyen_siparis IN ('Bekleyen Sipariş', 'İrsaliyeleştirildi')
+WHERE bekleyen_siparis = 'Bekleyen Sipariş'
   AND belge_tip IN ('Satış', 'Konsinye Satış', 'Satış - İade', 'Satış-İade')
   AND iptal_neden IS NULL
 GROUP BY siparis_no, musteri_unvan, islem_tarihi, bekleyen_siparis
 ORDER BY islem_tarihi ASC
 ```
 
-> `nettutar` = 5450 Nettutar (**KDV dahil**). Alış / Verilen Sipariş hariç.
+> 5451 `nettutar` = 5140 GenelToplam (**KDV dahil**) — sipariş tutarında kullanma.
+> Alış / Verilen Sipariş hariç.
+> 5140 `v_panorama_siparis_durum_raporu_guncel` son completed snapshot
+> (upsert kalıntısı yok); aynı BrutTutar toplamını verir.
 
 ## Ana Depo
 

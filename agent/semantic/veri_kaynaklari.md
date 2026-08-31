@@ -68,19 +68,20 @@ Grain = kalem. Kimlik = `siparis_no` (Belgekod yok). Tam snapshot: guncel view
 son completed 5451. İptal veya faturalaşmış sipariş yeni Excel'de yoksa
 listeden düşer.
 
-Açık pipeline: `bekleyen_siparis IN ('Bekleyen Sipariş', 'İrsaliyeleştirildi')`.
+Bekleyen KPI: `bekleyen_siparis = 'Bekleyen Sipariş'` + satış belge tipi.
+Tutar = `brut_tutar` (5140 BrutTutar, iskonto ve KDV hariç).
 Satış kümesi: `belge_tip IN ('Satış', 'Konsinye Satış', 'Satış - İade', 'Satış-İade')`
 — Alış / Verilen Sipariş (tedarik) hariç.
 
-> `nettutar` = 5450 Nettutar = **KDV dahil**.
+> `nettutar` = 5450 Nettutar = 5140 **GenelToplam** (KDV dahil). Sipariş
+> tutarında kullanma — `brut_tutar` kullan.
 > `iptal_neden` dolu satırları sayma.
 > Fatura cirosu için `v_panorama_belge_detay_raporu_guncel` (5450 fatura, Edt_R4=0).
-> 5140 `v_panorama_siparis_durum_raporu_guncel` upsert kalıntısı bırakır — bekleyen
-> KPI için **kullanma**.
 
-## 4b. `v_panorama_siparis_durum_raporu_guncel` — eski fulfillment (5140)
+## 4b. `v_panorama_siparis_durum_raporu_guncel` — Sipariş Durum (5140)
 
-Upsert (`belge_kod,kalem_sira`). `sevk_tarihi` **nominal/planlanan** — 5130'un
+Son completed 5140 snapshot (unique `sync_id, belge_kod, kalem_sira`).
+Bekleyen tutar = `brut_tutar`. `sevk_tarihi` **nominal/planlanan** — 5130'un
 `belge_tarihi`'nden farklı olabilir. Gerçekleşmiş sevkiyat için 5130 kullan.
 
 ## 5. `v_panorama_acik_fatura_vade_kup_guncel` — açık fatura

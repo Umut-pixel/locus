@@ -49,15 +49,16 @@ export const PANORAMA_BELGE_DETAY_VIEW = "v_panorama_belge_detay_raporu_guncel";
 /** SevkiyatRaporuKup (5130) satır bazlı — plaka/araç ve ödeme tipi kırılımı. */
 export const PANORAMA_SEVKIYAT_VIEW = "v_panorama_sevkiyat_raporu_kup_guncel";
 /**
- * Sipariş Durum Raporu (5140) — upsert landing. İptal/sevk sonrası satır
- * silmez; bekleyen KPI için kullanma. Yedek / tarihçe.
+ * Sipariş Durum Raporu (5140) — snapshot landing. guncel view son completed
+ * 5140. Bekleyen tutar = BrutTutar (iskonto ve KDV hariç).
  */
 export const PANORAMA_SIPARIS_DURUM_VIEW =
   "v_panorama_siparis_durum_raporu_guncel";
 /**
  * BelgeDetayRaporu sipariş kanalı (Panorama 5450 / sync_runs 5451).
  * Tam snapshot: guncel view son completed çekim. Kimlik = siparis_no.
- * Bekleyen sipariş paneli ve finansal KPI buradan okur.
+ * Bekleyen sipariş paneli ve finansal KPI buradan okur (`brut_tutar` =
+ * 5140 BrutTutar; `nettutar` burada GenelToplam / KDV dahil).
  */
 export const PANORAMA_SIPARIS_DETAY_VIEW =
   "v_panorama_siparis_detay_raporu_guncel";

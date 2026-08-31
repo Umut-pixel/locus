@@ -29,9 +29,10 @@ import {
 const BELGE_TIPLERI = [...KEEP_BELGE_TIP];
 /**
  * Belge Detay fatura (5450 / BD2) `bekleyen_siparis` boş. Sipariş kanalı
- * aynı raporun Edt_R4=1 çekimi (sync 5451) — KPI ve Sevkiyat paneli buradan.
+ * aynı raporun Edt_R4=1 çekimi (sync 5451). KPI = 5140 BrutTutar:
+ * yalnız "Bekleyen Sipariş" × satış belge tipi, iskonto ve KDV hariç.
  */
-const BEKLEYEN_SIPARIS_DURUMLARI = ["Bekleyen Sipariş", "İrsaliyeleştirildi"] as const;
+const BEKLEYEN_SIPARIS_DURUMLARI = ["Bekleyen Sipariş"] as const;
 /** Ciro trendi penceresi — açık uçlu bir tarih seçici yerine sabit, makul bir varsayılan. */
 export const CIRO_TREND_GUN_SAYISI = 60;
 const BELGE_DETAY_MAX_BATCHES = 15;
@@ -105,9 +106,9 @@ type MusteriFinansalRow = Pick<
 export interface FinansalOzet {
   toplamAcikBakiye: number;
   /**
-   * Henüz faturalaşmamış satış siparişlerinin net tutarı (KDV dahil Nettutar).
-   * Kaynak: 5450 sipariş snapshot (5451) — Sevkiyat'taki Bekleyen Siparişler
-   * ile aynı küme. Alış / Verilen Sipariş ve iptal satırları dışarıda.
+   * Henüz sevk/faturalaşmamış satış siparişlerinin brüt tutarı
+   * (iskonto ve KDV hariç). 5140 BrutTutar = 5451 brut_tutar; Sevkiyat
+   * paneli ile aynı küme. Alış, irsaliye/konsinye ve iptal dışarıda.
    */
   bekleyenSiparisNetTutar: number;
   bekleyenSiparisBelgeSayisi: number;
@@ -179,7 +180,7 @@ interface BelgeDetayRaw {
 
 interface BekleyenSiparisRaw {
   siparis_no: string | null;
-  nettutar: string | null;
+  brut_tutar: string | null;
   belge_tip: string | null;
   iptal_neden: string | null;
 }
@@ -218,7 +219,7 @@ interface FinansalRaporuCache {
   tahsilatSatirlari: TahsilatRaw[];
 }
 
-const CACHE_KEY = "finansal-raporu-v6";
+const CACHE_KEY = "finansal-raporu-v7";
 
 /**
  * Finansal Raporlar sayfası — tek seferde beş kaynağı çeker (Stok Raporları'nın
@@ -227,7 +228,7 @@ const CACHE_KEY = "finansal-raporu-v6";
  *  1. musteriler_rapor  — müşteri bazlı borç/ciro (şirket geneli KPI + bantlar)
  *  2. acik_fatura_vade_kup_guncel — satır bazlı açık fatura (drill-down tablo)
  *  3. belge_detay_raporu_guncel — satır bazlı ciro (trend + temsilci/ürün kırılımı)
- *  4. siparis_detay_raporu_guncel — bekleyen/irsaliyeli satış siparişi (5451)
+ *  4. siparis_detay_raporu_guncel — bekleyen satış siparişi (5451 brut_tutar)
  *  5. tahsilat_raporu_guncel — ödenmemiş çek/senet (5230)
  *
  * Sayfalar arası geçişte boş ekran/yeniden fetch olmasın diye harita
@@ -294,7 +295,7 @@ export function useFinansalRaporu() {
           fetchAllRows<BekleyenSiparisRaw>((from, to) =>
             supabase
               .from(PANORAMA_SIPARIS_DETAY_VIEW)
-              .select("siparis_no,nettutar,belge_tip,iptal_neden")
+              .select("siparis_no,brut_tutar,belge_tip,iptal_neden")
               .in("bekleyen_siparis", [...BEKLEYEN_SIPARIS_DURUMLARI])
               .in("belge_tip", BELGE_TIPLERI)
               .is("iptal_neden", null)
@@ -392,6 +393,7 @@ export function useFinansalRaporu() {
     }
 
     // Kalem satırları sipariş bazında toplanır (5450 grain = kalem, id = siparis_no).
+    // Tutar = BrutTutar (5140 ham Excel; iskonto ve KDV hariç).
     const belgeTutar = new Map<string, number>();
     for (const r of bekleyenSiparisSatirlari) {
       if (metin(r.iptal_neden)) continue;
@@ -399,7 +401,7 @@ export function useFinansalRaporu() {
       if (!tip || !KEEP_BELGE_TIP.has(tip)) continue;
       const kod = metin(r.siparis_no);
       if (!kod) continue;
-      belgeTutar.set(kod, (belgeTutar.get(kod) ?? 0) + sayi(r.nettutar));
+      belgeTutar.set(kod, (belgeTutar.get(kod) ?? 0) + sayi(r.brut_tutar));
     }
     let bekleyenSiparisNetTutar = 0;
     for (const t of belgeTutar.values()) bekleyenSiparisNetTutar += t;

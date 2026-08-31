@@ -9,7 +9,7 @@
 --
 -- Snapshot: her sync yeni satır + sync_id. guncel view = son completed 5451.
 -- İptal / faturalaşmış siparişler yeni Excel'de yoksa listeden düşer
--- (5140 upsert'in bırakmadığı silme).
+-- (5140 snapshot view de son completed'e bakıyor; upsert kalıntısı yok).
 --
 -- Uygula: MCP apply_migration / SQL Editor. Idempotent (drop + create).
 -- =============================================================================

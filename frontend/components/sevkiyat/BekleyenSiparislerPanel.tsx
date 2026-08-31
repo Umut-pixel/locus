@@ -24,9 +24,9 @@ const DURUM_ETIKET: Record<BekleyenSiparisSatiri["durum"], string> = {
 };
 
 /**
- * Belge detay sipariş (5450 / 5451 snapshot) — henüz faturalaştırılmamış
- * satış siparişleri. "Bekleyen Sipariş" ve "İrsaliyeleştirildi"; Alış ve
- * Faturalaştırıldı hook'ta elenir. İptal/sevk olanlar yeni çekimde yoksa düşer.
+ * Belge detay sipariş (5450 / 5451 snapshot) — henüz irsaliye/fatura
+ * edilmemiş satış siparişleri. Küme 5140 ham Excel ile aynı: yalnız
+ * "Bekleyen Sipariş" × Satış; tutar BrutTutar. Alış ve iptal hook'ta elenir.
  */
 export function BekleyenSiparislerPanel({
   satirlar,
@@ -71,10 +71,10 @@ export function BekleyenSiparislerPanel({
       {!bos ? (
         <div
           className="flex h-9 shrink-0 items-center justify-between gap-3 border-b border-border/60 px-3.5"
-          aria-label={`Bekleyen siparişlerin net tutarı ${formatCurrency(toplamTutar)}`}
+          aria-label={`Bekleyen siparişlerin brüt tutarı ${formatCurrency(toplamTutar)}`}
         >
           <span className="text-[12px] tracking-[0.06em] text-muted-foreground uppercase">
-            Net tutar
+            Brüt tutar
           </span>
           <span className="font-mono text-[13px] font-medium text-caution tabular-nums">
             {formatCurrency(toplamTutar)}
@@ -97,7 +97,7 @@ export function BekleyenSiparislerPanel({
               aria-hidden
             />
             <p className="text-[13px] text-muted-foreground">
-              Bekleyen veya faturalanmamış sipariş yok.
+              Bekleyen satış siparişi yok.
             </p>
           </div>
         ) : (
