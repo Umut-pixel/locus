@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   BanknoteIcon,
   CalendarRangeIcon,
@@ -10,8 +11,16 @@ import type { LucideIcon } from "lucide-react";
 
 import type { TahsilatOzet as TahsilatOzetVerisi } from "@/hooks/useTahsilatRaporu";
 import { useCountUp } from "@/hooks/useCountUp";
+import { SegmentedSwitch } from "@/components/ui/segmented-switch";
 import { formatCurrency, formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
+
+type SonPencere = "7g" | "1ay";
+
+const SON_PENCERE_SECENEKLERI = [
+  { value: "7g" as const, label: "7 gün", title: "Bugünden geriye 7 gün" },
+  { value: "1ay" as const, label: "1 ay", title: "Bugünden geriye 30 gün" },
+];
 
 interface TahsilatOzetProps {
   ozet: TahsilatOzetVerisi;
@@ -19,9 +28,12 @@ interface TahsilatOzetProps {
 }
 
 export function TahsilatOzet({ ozet, loading }: TahsilatOzetProps) {
+  const [sonPencere, setSonPencere] = useState<SonPencere>("7g");
   const donem = useCountUp(ozet.donemTahsilat);
   const son7 = useCountUp(ozet.son7Gun);
+  const son1Ay = useCountUp(ozet.son1Ay);
   const odenmemis = useCountUp(ozet.odenmemisTutar);
+  const sonTutar = sonPencere === "7g" ? son7 : son1Ay;
 
   return (
     <div className="grid grid-cols-2 gap-px border-b border-border bg-border lg:grid-cols-4">
@@ -42,13 +54,35 @@ export function TahsilatOzet({ ozet, loading }: TahsilatOzetProps) {
         </span>
       </div>
 
-      <StatKutusu
-        icon={CalendarRangeIcon}
-        etiket="Son 7 gün"
-        deger={formatCurrency(son7)}
-        altBilgi="Ödenen nakit girişi"
-        loading={loading}
-      />
+      <div className="flex flex-col justify-center gap-1 bg-background px-3.5 py-4">
+        <span className="flex items-center justify-between gap-2">
+          <span className="flex min-w-0 items-center gap-1.5 text-[12px] tracking-[0.06em] text-muted-foreground uppercase">
+            <CalendarRangeIcon
+              className="size-3.5 shrink-0"
+              strokeWidth={1.75}
+              aria-hidden
+            />
+            Son
+          </span>
+          <SegmentedSwitch
+            value={sonPencere}
+            onChange={setSonPencere}
+            options={SON_PENCERE_SECENEKLERI}
+            ariaLabel="Son tahsilat penceresi"
+          />
+        </span>
+        <span
+          className={cn(
+            "font-sans text-[2rem] leading-none font-semibold text-foreground transition-opacity",
+            loading && "opacity-40"
+          )}
+        >
+          {formatCurrency(sonTutar)}
+        </span>
+        <span className="text-[12px] text-muted-foreground">
+          Ödenen nakit girişi
+        </span>
+      </div>
 
       <StatKutusu
         icon={WalletIcon}

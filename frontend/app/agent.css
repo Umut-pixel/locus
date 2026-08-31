@@ -21,6 +21,7 @@
   --green-tint: color-mix(in oklch, var(--locus-blue-soft) 45%, transparent);
   --red-tint: color-mix(in oklch, var(--destructive) 16%, transparent);
   --chart-grid: color-mix(in oklch, var(--ink) 22%, transparent);
+  --chart-brush-border: var(--chart-grid);
   --shadow-hairline: 0 0 0 1px var(--border);
   --shadow-btn: 0 1px 2px oklch(0 0 0 / 8%);
   --shadow-agent: 0 1px 2px oklch(0 0 0 / 6%), 0 0 0 1px var(--border);

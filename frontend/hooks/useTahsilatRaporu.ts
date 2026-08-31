@@ -124,6 +124,8 @@ export const VARSAYILAN_TAHSILAT_SORT: TahsilatSort = {
 export interface TahsilatOzet {
   donemTahsilat: number;
   son7Gun: number;
+  /** Bugünden geriye 30 gün (son 7 gün ile aynı yuvarlak pencere). */
+  son1Ay: number;
   odenmemisTutar: number;
   odenmemisAdet: number;
   belgeAdet: number;
@@ -335,8 +337,10 @@ export function useTahsilatRaporu(filters: TahsilatFilters, sort: TahsilatSort) 
   const ozet = useMemo<TahsilatOzet>(() => {
     const bugun = istanbulIsoGun();
     const gun7 = gunEkle(bugun, -6);
+    const gun30 = gunEkle(bugun, -29);
     let donemTahsilat = 0;
     let son7Gun = 0;
+    let son1Ay = 0;
     let odenmemisTutar = 0;
     let odenmemisAdet = 0;
     let kk = 0;
@@ -353,6 +357,7 @@ export function useTahsilatRaporu(filters: TahsilatFilters, sort: TahsilatSort) 
       if (!s.odendi) continue;
       donemTahsilat += s.tutar;
       if (s.islemTarihi && s.islemTarihi >= gun7) son7Gun += s.tutar;
+      if (s.islemTarihi && s.islemTarihi >= gun30) son1Ay += s.tutar;
       if (kkMi(s.tahsilatTur)) kk += s.tutar;
       else if (eftMi(s.tahsilatTur)) eft += s.tutar;
       else if (nakitMi(s.tahsilatTur)) nakit += s.tutar;
@@ -361,6 +366,7 @@ export function useTahsilatRaporu(filters: TahsilatFilters, sort: TahsilatSort) 
     return {
       donemTahsilat: Math.round(donemTahsilat * 100) / 100,
       son7Gun: Math.round(son7Gun * 100) / 100,
+      son1Ay: Math.round(son1Ay * 100) / 100,
       odenmemisTutar: Math.round(odenmemisTutar * 100) / 100,
       odenmemisAdet,
       belgeAdet: satirlar.length,

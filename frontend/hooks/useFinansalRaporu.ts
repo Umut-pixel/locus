@@ -457,9 +457,9 @@ export function useFinansalRaporu() {
       .slice(0, 20);
   }, [musteriler]);
 
-  // Satış hareketleri: iade satırları ciroya negatifleriyle girer ama "aktivite"
-  // kırılımlarına (temsilci/ürün/trend) girmez — parse-belge-detay.ts'teki
-  // musteri_belge_ozet agregasyonuyla aynı kural.
+  // Satış hareketleri: iade satırları ciroya negatifleriyle girer. Günlük
+  // kâr/zarar trendi iadeyi işaretli tutar (sıfır çizgisini geçebilsin);
+  // temsilci/ürün kırılımları aktivite olarak kalır — parse-belge-detay.ts.
   const { ciroGunluk, temsilciDagilimi, urunGrubuDagilimi, iadeToplam, satisToplam, aylikNetCiro, belgeBrutCiro } =
     useMemo(() => {
       const gunlukMap = new Map<string, number>();
@@ -498,6 +498,9 @@ export function useFinansalRaporu() {
 
         if (iade) {
           iadeToplam += Math.abs(netHesap);
+          if (tarih && tarih >= trendBaslangicIso) {
+            gunlukMap.set(tarih, (gunlukMap.get(tarih) ?? 0) + netHesap);
+          }
           continue;
         }
         satisToplam += netHesap;
