@@ -112,7 +112,7 @@ export interface FinansalOzet {
    */
   bekleyenSiparisNetTutar: number;
   bekleyenSiparisBelgeSayisi: number;
-  /** İskonto öncesi brüt satış, KDV dahil. */
+  /** İskonto öncesi brüt satış, KDV hariç — BelgeDetay BrutTutar. */
   toplamBrutCiro: number;
   toplamNetCiroKdvDahil: number;
   /** Ay başından bugüne Panorama BrutTutar (iskonto ve KDV hariç). */
@@ -219,7 +219,7 @@ interface FinansalRaporuCache {
   tahsilatSatirlari: TahsilatRaw[];
 }
 
-const CACHE_KEY = "finansal-raporu-v8";
+const CACHE_KEY = "finansal-raporu-v9";
 
 /**
  * Finansal Raporlar sayfası — tek seferde beş kaynağı çeker (Stok Raporları'nın
@@ -376,19 +376,11 @@ export function useFinansalRaporu() {
 
   const ozet = useMemo<FinansalOzet>(() => {
     let toplamAcikBakiye = 0;
-    let toplamBrutCiro = 0;
     let toplamNetCiroKdvDahil = 0;
     let borcluMusteriSayisi = 0;
     for (const m of musteriler) {
       toplamAcikBakiye += m.yas_toplam ?? 0;
-      const brut = m.belge_brut_ciro ?? 0;
-      const netHariç = m.belge_net_ciro ?? 0;
-      const netKdvDahil = m.belge_net_ciro_kdv_dahil ?? 0;
-      // Brüt KPI KDV dahil: müşterinin gerçek KDV çarpanı (Nettutar / net hariç).
-      // Payda yoksa %20 — BelgeDetay'da doğrulanan oran.
-      const kdvCarpani = netHariç !== 0 ? netKdvDahil / netHariç : 1.2;
-      toplamBrutCiro += brut * kdvCarpani;
-      toplamNetCiroKdvDahil += netKdvDahil;
+      toplamNetCiroKdvDahil += m.belge_net_ciro_kdv_dahil ?? 0;
       if ((m.yas_toplam ?? 0) > 0) borcluMusteriSayisi += 1;
     }
 
@@ -422,7 +414,7 @@ export function useFinansalRaporu() {
       toplamAcikBakiye: Math.round(toplamAcikBakiye * 100) / 100,
       bekleyenSiparisNetTutar: Math.round(bekleyenSiparisNetTutar * 100) / 100,
       bekleyenSiparisBelgeSayisi: belgeTutar.size,
-      toplamBrutCiro: Math.round(toplamBrutCiro * 100) / 100,
+      toplamBrutCiro: 0,
       toplamNetCiroKdvDahil: Math.round(toplamNetCiroKdvDahil * 100) / 100,
       aylikNetCiro: 0,
       donemTahsilat,
@@ -461,7 +453,7 @@ export function useFinansalRaporu() {
   // Satış hareketleri: iade satırları ciroya negatifleriyle girer ama "aktivite"
   // kırılımlarına (temsilci/ürün/trend) girmez — parse-belge-detay.ts'teki
   // musteri_belge_ozet agregasyonuyla aynı kural.
-  const { ciroGunluk, temsilciDagilimi, urunGrubuDagilimi, iadeToplam, satisToplam, aylikNetCiro, aylikBrutTutar } =
+  const { ciroGunluk, temsilciDagilimi, urunGrubuDagilimi, iadeToplam, satisToplam, aylikNetCiro, aylikBrutTutar, belgeBrutCiro } =
     useMemo(() => {
       const gunlukMap = new Map<string, number>();
       const temsilciMap = new Map<string, number>();
@@ -470,6 +462,7 @@ export function useFinansalRaporu() {
       let satisToplam = 0;
       let aylikNetCiro = 0;
       let aylikBrutTutar = 0;
+      let belgeBrutCiro = 0;
 
       // Trend penceresi bugünden geriye sayılır (dosyadaki en yeni tarihten
       // değil) — sync durursa grafik boşalarak bunu gösterir, sessizce
@@ -487,13 +480,12 @@ export function useFinansalRaporu() {
         const brut = sayi(r.brut_tutar);
         const iskonto = sayi(r.iskonto);
         const netHesap = Math.round((brut - iskonto) * 100) / 100;
-        const netKdvDahil = Math.round(sayi(r.nettutar) * 100) / 100;
         const iade = iadeMi(metin(r.islem_tip));
         const tarih = parseIslemTarihi(r.islem_tarihi);
 
-        // Aylık KPI: BrutTutar (iskonto ve KDV hariç). İade satırları
-        // işaretleriyle girer (parse-belge-detay.ts). Trend/kırılım aktivite
-        // olduğu için iadeyi aşağıda dışarıda bırakır.
+        // Brüt ciro = BelgeDetay BrutTutar (iskonto ve KDV hariç). İade
+        // satırları işaretleriyle girer (parse-belge-detay.ts).
+        belgeBrutCiro += brut;
         if (tarih && tarih >= aylikBaslangicIso) {
           aylikNetCiro += brut;
           aylikBrutTutar += brut;
@@ -544,14 +536,20 @@ export function useFinansalRaporu() {
         satisToplam: Math.round(satisToplam * 100) / 100,
         aylikNetCiro: Math.round(aylikNetCiro * 100) / 100,
         aylikBrutTutar: Math.round(aylikBrutTutar * 100) / 100,
+        belgeBrutCiro: Math.round(belgeBrutCiro * 100) / 100,
       };
     }, [belgeSatirlari]);
 
   const iadeOrani = satisToplam > 0 ? iadeToplam / satisToplam : 0;
 
   const ozetKpi = useMemo<FinansalOzet>(
-    () => ({ ...ozet, aylikNetCiro, donemTahsilat: aylikBrutTutar }),
-    [ozet, aylikNetCiro, aylikBrutTutar]
+    () => ({
+      ...ozet,
+      toplamBrutCiro: belgeBrutCiro,
+      aylikNetCiro,
+      donemTahsilat: aylikBrutTutar,
+    }),
+    [ozet, belgeBrutCiro, aylikNetCiro, aylikBrutTutar]
   );
 
   return {
