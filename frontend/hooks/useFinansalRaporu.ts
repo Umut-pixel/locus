@@ -38,17 +38,82 @@ const BEKLEYEN_SIPARIS_DURUMLARI = ["Bekleyen Sipariş"] as const;
 export const CIRO_TREND_GUN_SAYISI = 60;
 const BELGE_DETAY_MAX_BATCHES = 15;
 
-/** Yerel takvim günü (UTC `toISOString` TR gece yarısında bir gün kaydırır). */
-function yerelIsoGun(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const gun = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${gun}`;
+/** Operasyon takvimi — tarayıcı TZ / UTC değil, Europe/Istanbul. */
+function istanbulIsoGun(now = new Date()): string {
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Europe/Istanbul",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    })
+      .formatToParts(now)
+      .map((p) => [p.type, p.value])
+  );
+  return `${parts.year}-${parts.month}-${parts.day}`;
 }
 
-/** KPI kartı: içinde bulunulan takvim ayının 1'i (month-to-date). */
+/** KPI kartı: İstanbul takvim ayının 1'i. */
 export function buAyinBasiIso(now = new Date()): string {
-  return yerelIsoGun(new Date(now.getFullYear(), now.getMonth(), 1));
+  return `${istanbulIsoGun(now).slice(0, 7)}-01`;
+}
+
+function oncekiAyBasiIso(ayBasi: string): string {
+  const [y, m] = ayBasi.split("-").map(Number);
+  const d = new Date(Date.UTC(y!, m! - 1, 1));
+  d.setUTCMonth(d.getUTCMonth() - 1);
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-01`;
+}
+
+function ayUzunEtiket(ayBasiIso: string): string {
+  const [y, m] = ayBasiIso.split("-").map(Number);
+  return new Intl.DateTimeFormat("tr-TR", {
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(new Date(Date.UTC(y!, m! - 1, 1)));
+}
+
+export interface FinansalKpiPencere {
+  bas: string;
+  /** Exclusive upper bound; null = açık uç (bugüne kadar). */
+  bitisHaric: string | null;
+  altBilgiOnEk: string;
+}
+
+/**
+ * Ayın 1'inde MTD boş görünmesin: İstanbul ayında henüz belge/tahsilat
+ * yoksa bir önceki takvim ayının tamamı. Tarihler parse edilmiş ISO olmalı
+ * (`YYYY.MM.DD` ham metinle kıyaslama).
+ */
+export function finansalKpiPencere(
+  satirTarihleri: Iterable<string | null | undefined>,
+  now = new Date()
+): FinansalKpiPencere {
+  const buAy = buAyinBasiIso(now);
+  let buAyda = false;
+  for (const t of satirTarihleri) {
+    if (t && t >= buAy) {
+      buAyda = true;
+      break;
+    }
+  }
+  if (buAyda) {
+    return { bas: buAy, bitisHaric: null, altBilgiOnEk: "Ay başından bugüne" };
+  }
+  const onceki = oncekiAyBasiIso(buAy);
+  return {
+    bas: onceki,
+    bitisHaric: buAy,
+    altBilgiOnEk: `${ayUzunEtiket(onceki)} · bu ay henüz hareket yok`,
+  };
+}
+
+function tarihKpiPencerede(iso: string | null, p: FinansalKpiPencere): boolean {
+  if (!iso) return false;
+  if (iso < p.bas) return false;
+  if (p.bitisHaric && iso >= p.bitisHaric) return false;
+  return true;
 }
 
 function sayi(value: unknown): number {
@@ -116,10 +181,12 @@ export interface FinansalOzet {
   /** İskonto öncesi brüt satış, KDV hariç — BelgeDetay BrutTutar. */
   toplamBrutCiro: number;
   toplamNetCiroKdvDahil: number;
-  /** Ay başından bugüne Panorama BrutTutar (iskonto ve KDV hariç). */
+  /** Seçilen KPI penceresinde Panorama BrutTutar (iskonto ve KDV hariç). */
   aylikNetCiro: number;
-  /** Ay başından bugüne 5230 Ödendi tutar (nakit girişi, ciro değil). */
+  /** Seçilen KPI penceresinde 5230 Ödendi tutar (nakit girişi, ciro değil). */
   donemTahsilat: number;
+  /** 1 aylık ciro / dönem tahsilatı alt metninin dönem kısmı. */
+  kpiDonemAciklama: string;
   odenmemisTahsilatTutar: number;
   odenmemisTahsilatAdet: number;
   borcluMusteriSayisi: number;
@@ -231,7 +298,8 @@ const CACHE_KEY = "finansal-raporu-v10";
  *  2. acik_fatura_vade_kup_guncel — satır bazlı açık fatura (drill-down tablo)
  *  3. belge_detay_raporu_guncel — satır bazlı ciro (trend + temsilci/ürün kırılımı)
  *  4. siparis_detay_raporu_guncel — bekleyen satış siparişi (5451 brut_tutar)
- *  5. tahsilat_raporu_guncel — dönem tahsilatı (MTD Ödendi) + ödenmemiş çek/senet (5230)
+ *  5. tahsilat_raporu_guncel — dönem tahsilatı (İstanbul MTD; ayın 1'inde
+ *     henüz hareket yoksa önceki ay) + ödenmemiş çek/senet (5230)
  *
  * Sayfalar arası geçişte boş ekran/yeniden fetch olmasın diye harita
  * sayfasıyla (bkz. musteri-cache.ts) aynı modül-seviyesi cache deseni: cache
@@ -376,6 +444,15 @@ export function useFinansalRaporu() {
     error,
   } = state;
 
+  const kpiPencere = useMemo(() => {
+    const tarihler: (string | null)[] = [];
+    for (const r of belgeSatirlari) tarihler.push(parseIslemTarihi(r.islem_tarihi));
+    for (const r of tahsilatSatirlari) {
+      tarihler.push(parseIslemTarihi(r.islem_tarihi));
+    }
+    return finansalKpiPencere(tarihler);
+  }, [belgeSatirlari, tahsilatSatirlari]);
+
   const ozet = useMemo<FinansalOzet>(() => {
     let toplamAcikBakiye = 0;
     let toplamNetCiroKdvDahil = 0;
@@ -403,7 +480,6 @@ export function useFinansalRaporu() {
     let donemTahsilat = 0;
     let odenmemisTahsilatTutar = 0;
     let odenmemisTahsilatAdet = 0;
-    const aylikBaslangicIso = buAyinBasiIso();
     for (const r of tahsilatSatirlari) {
       const durum = metin(r.odeme_durum);
       const amount = sayi(r.tutar);
@@ -414,7 +490,7 @@ export function useFinansalRaporu() {
       }
       if (!tahsilatOdendiMi(durum)) continue;
       const tarih = parseIslemTarihi(r.islem_tarihi);
-      if (tarih && tarih >= aylikBaslangicIso) donemTahsilat += amount;
+      if (tarihKpiPencerede(tarih, kpiPencere)) donemTahsilat += amount;
     }
 
     return {
@@ -425,11 +501,12 @@ export function useFinansalRaporu() {
       toplamNetCiroKdvDahil: Math.round(toplamNetCiroKdvDahil * 100) / 100,
       aylikNetCiro: 0,
       donemTahsilat: Math.round(donemTahsilat * 100) / 100,
+      kpiDonemAciklama: kpiPencere.altBilgiOnEk,
       odenmemisTahsilatTutar: Math.round(odenmemisTahsilatTutar * 100) / 100,
       odenmemisTahsilatAdet,
       borcluMusteriSayisi,
     };
-  }, [musteriler, bekleyenSiparisSatirlari, tahsilatSatirlari]);
+  }, [musteriler, bekleyenSiparisSatirlari, tahsilatSatirlari, kpiPencere]);
 
   const bantlar = useMemo<BantDilimi[]>(() => {
     return BORC_GECIKME_BANTLARI.map((bant) => {
@@ -477,8 +554,6 @@ export function useFinansalRaporu() {
       trendBaslangic.setDate(trendBaslangic.getDate() - CIRO_TREND_GUN_SAYISI);
       const trendBaslangicIso = trendBaslangic.toISOString().slice(0, 10);
 
-      const aylikBaslangicIso = buAyinBasiIso();
-
       for (const r of belgeSatirlari) {
         // KDV hariç gerçek net satış = brüt - iskonto (Panorama'nın "Nettutar"ı
         // KDV dahildir — trend/kırılım KDV hariç kalır, 1 aylık ciro BrutTutar).
@@ -492,7 +567,7 @@ export function useFinansalRaporu() {
         // Brüt ciro = BelgeDetay BrutTutar (iskonto ve KDV hariç). İade
         // satırları işaretleriyle girer (parse-belge-detay.ts).
         belgeBrutCiro += brut;
-        if (tarih && tarih >= aylikBaslangicIso) {
+        if (tarihKpiPencerede(tarih, kpiPencere)) {
           aylikNetCiro += brut;
         }
 
@@ -545,7 +620,7 @@ export function useFinansalRaporu() {
         aylikNetCiro: Math.round(aylikNetCiro * 100) / 100,
         belgeBrutCiro: Math.round(belgeBrutCiro * 100) / 100,
       };
-    }, [belgeSatirlari]);
+    }, [belgeSatirlari, kpiPencere]);
 
   const iadeOrani = satisToplam > 0 ? iadeToplam / satisToplam : 0;
 

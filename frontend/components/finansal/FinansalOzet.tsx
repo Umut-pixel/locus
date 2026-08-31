@@ -81,7 +81,7 @@ export function FinansalOzet({ ozet, loading }: FinansalOzetProps) {
         icon={CalendarRangeIcon}
         etiket="1 aylık ciro"
         deger={formatCurrency(aylikNetCiro)}
-        altBilgi="Ay başından bugüne, iskonto öncesi brüt"
+        altBilgi={`${ozet.kpiDonemAciklama}, iskonto öncesi brüt`}
         loading={loading}
       />
 
@@ -89,7 +89,7 @@ export function FinansalOzet({ ozet, loading }: FinansalOzetProps) {
         icon={BanknoteIcon}
         etiket="Dönem tahsilatı"
         deger={formatCurrency(donemTahsilat)}
-        altBilgi="Ay başından bugüne, ödenen (5230)"
+        altBilgi={`${ozet.kpiDonemAciklama}, ödenen (5230)`}
         loading={loading}
       />
     </div>
