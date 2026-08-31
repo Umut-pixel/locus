@@ -89,7 +89,7 @@ export function FinansalOzet({ ozet, loading }: FinansalOzetProps) {
         icon={BanknoteIcon}
         etiket="Dönem tahsilatı"
         deger={formatCurrency(donemTahsilat)}
-        altBilgi="Ay başından bugüne, iskonto öncesi brüt"
+        altBilgi="Ay başından bugüne, ödenen (5230)"
         loading={loading}
       />
     </div>

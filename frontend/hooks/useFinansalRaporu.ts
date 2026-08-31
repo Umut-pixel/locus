@@ -23,6 +23,7 @@ import {
 } from "@/lib/supabase";
 import { fetchAllRows } from "@/lib/supabase-fetch-all";
 import {
+  tahsilatOdendiMi,
   tahsilatOdenmediMi,
 } from "@/lib/sync/parse-tahsilat";
 
@@ -117,7 +118,7 @@ export interface FinansalOzet {
   toplamNetCiroKdvDahil: number;
   /** Ay başından bugüne Panorama BrutTutar (iskonto ve KDV hariç). */
   aylikNetCiro: number;
-  /** Ay başından bugüne Panorama BrutTutar (iskonto öncesi). */
+  /** Ay başından bugüne 5230 Ödendi tutar (nakit girişi, ciro değil). */
   donemTahsilat: number;
   odenmemisTahsilatTutar: number;
   odenmemisTahsilatAdet: number;
@@ -199,6 +200,7 @@ export interface DagilimDilimi {
 interface TahsilatRaw {
   tutar: string | null;
   odeme_durum: string | null;
+  islem_tarihi: string | null;
 }
 
 interface FinansalRaporuState {
@@ -219,7 +221,7 @@ interface FinansalRaporuCache {
   tahsilatSatirlari: TahsilatRaw[];
 }
 
-const CACHE_KEY = "finansal-raporu-v9";
+const CACHE_KEY = "finansal-raporu-v10";
 
 /**
  * Finansal Raporlar sayfası — tek seferde beş kaynağı çeker (Stok Raporları'nın
@@ -229,7 +231,7 @@ const CACHE_KEY = "finansal-raporu-v9";
  *  2. acik_fatura_vade_kup_guncel — satır bazlı açık fatura (drill-down tablo)
  *  3. belge_detay_raporu_guncel — satır bazlı ciro (trend + temsilci/ürün kırılımı)
  *  4. siparis_detay_raporu_guncel — bekleyen satış siparişi (5451 brut_tutar)
- *  5. tahsilat_raporu_guncel — ödenmemiş çek/senet (5230)
+ *  5. tahsilat_raporu_guncel — dönem tahsilatı (MTD Ödendi) + ödenmemiş çek/senet (5230)
  *
  * Sayfalar arası geçişte boş ekran/yeniden fetch olmasın diye harita
  * sayfasıyla (bkz. musteri-cache.ts) aynı modül-seviyesi cache deseni: cache
@@ -307,7 +309,7 @@ export function useFinansalRaporu() {
           fetchAllRows<TahsilatRaw>((from, to) =>
             supabase
               .from(PANORAMA_TAHSILAT_VIEW)
-              .select("tutar,odeme_durum")
+              .select("tutar,odeme_durum,islem_tarihi")
               .range(from, to) as unknown as Promise<{
               data: TahsilatRaw[] | null;
               error: { message: string } | null;
@@ -401,13 +403,18 @@ export function useFinansalRaporu() {
     let donemTahsilat = 0;
     let odenmemisTahsilatTutar = 0;
     let odenmemisTahsilatAdet = 0;
+    const aylikBaslangicIso = buAyinBasiIso();
     for (const r of tahsilatSatirlari) {
       const durum = metin(r.odeme_durum);
       const amount = sayi(r.tutar);
       if (tahsilatOdenmediMi(durum)) {
         odenmemisTahsilatTutar += amount;
         odenmemisTahsilatAdet += 1;
+        continue;
       }
+      if (!tahsilatOdendiMi(durum)) continue;
+      const tarih = parseIslemTarihi(r.islem_tarihi);
+      if (tarih && tarih >= aylikBaslangicIso) donemTahsilat += amount;
     }
 
     return {
@@ -417,7 +424,7 @@ export function useFinansalRaporu() {
       toplamBrutCiro: 0,
       toplamNetCiroKdvDahil: Math.round(toplamNetCiroKdvDahil * 100) / 100,
       aylikNetCiro: 0,
-      donemTahsilat,
+      donemTahsilat: Math.round(donemTahsilat * 100) / 100,
       odenmemisTahsilatTutar: Math.round(odenmemisTahsilatTutar * 100) / 100,
       odenmemisTahsilatAdet,
       borcluMusteriSayisi,
@@ -453,7 +460,7 @@ export function useFinansalRaporu() {
   // Satış hareketleri: iade satırları ciroya negatifleriyle girer ama "aktivite"
   // kırılımlarına (temsilci/ürün/trend) girmez — parse-belge-detay.ts'teki
   // musteri_belge_ozet agregasyonuyla aynı kural.
-  const { ciroGunluk, temsilciDagilimi, urunGrubuDagilimi, iadeToplam, satisToplam, aylikNetCiro, aylikBrutTutar, belgeBrutCiro } =
+  const { ciroGunluk, temsilciDagilimi, urunGrubuDagilimi, iadeToplam, satisToplam, aylikNetCiro, belgeBrutCiro } =
     useMemo(() => {
       const gunlukMap = new Map<string, number>();
       const temsilciMap = new Map<string, number>();
@@ -461,7 +468,6 @@ export function useFinansalRaporu() {
       let iadeToplam = 0;
       let satisToplam = 0;
       let aylikNetCiro = 0;
-      let aylikBrutTutar = 0;
       let belgeBrutCiro = 0;
 
       // Trend penceresi bugünden geriye sayılır (dosyadaki en yeni tarihten
@@ -488,7 +494,6 @@ export function useFinansalRaporu() {
         belgeBrutCiro += brut;
         if (tarih && tarih >= aylikBaslangicIso) {
           aylikNetCiro += brut;
-          aylikBrutTutar += brut;
         }
 
         if (iade) {
@@ -535,7 +540,6 @@ export function useFinansalRaporu() {
         iadeToplam: Math.round(iadeToplam * 100) / 100,
         satisToplam: Math.round(satisToplam * 100) / 100,
         aylikNetCiro: Math.round(aylikNetCiro * 100) / 100,
-        aylikBrutTutar: Math.round(aylikBrutTutar * 100) / 100,
         belgeBrutCiro: Math.round(belgeBrutCiro * 100) / 100,
       };
     }, [belgeSatirlari]);
@@ -547,9 +551,8 @@ export function useFinansalRaporu() {
       ...ozet,
       toplamBrutCiro: belgeBrutCiro,
       aylikNetCiro,
-      donemTahsilat: aylikBrutTutar,
     }),
-    [ozet, belgeBrutCiro, aylikNetCiro, aylikBrutTutar]
+    [ozet, belgeBrutCiro, aylikNetCiro]
   );
 
   return {
