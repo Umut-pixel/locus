@@ -28,10 +28,18 @@ npm run sync-env             # veya doğrudan: npm run dev
 Vercel dosya okumaz — aynı anahtarları **Project → Settings → Environment Variables** olarak ekleyin (Production + Preview).  
 Root Directory: `frontend`. Build: `npm run build`, Output: Next varsayılan.
 
-Cron (Europe/Istanbul ≈ UTC+3): `04:15` ve `16:15` UTC → n8n 07:00 / 19:00 sonrası transform.  
+n8n landing (Europe/Istanbul) günde 3 dalga: **07:00 / 13:00 / 19:00**. Dalga içinde
+zincirler 1'er dakika arayla akar (Main :00, Sipariş 5140 :01, Tahsilat 5230 :02,
+Stok 5430 :03, Belge detay sipariş 5451 :04, Yaşlandırma 5530 :05); Belge detay
+5450 yalnız sabah dalgasında (:06). Aynı IP'den paralel login Panorama'nın önündeki
+F5 WAF'ı tetiklediği için eşzamanlı çalıştırılmaz.
+
 `CRON_SECRET` tanımlı olmalı; aksi halde production’da endpoint 401 döner.
 Vercel Cron kaldırıldı — tetik `panorama_sync_runs` → `completed` Database Webhook
 (`pg_net`). Ana zincirde tazelik kapısı (5020/5500/5130 son 5 dk) vardır.
+Yarım kalan `running` satırları `panorama_sync_stale_sweep` pg_cron job'ı 15 dakikada
+bir `failed`a çeker (`sql/panorama_sync_stale_sweep.sql`) — yoksa manuel çekim
+butonu kalıcı kilitleniyordu.
 
 > **Tech debt:** 2026-08-06 akşam cron’u düşmedi — landing geldi, transform yok.  
 > Takip: [`docs/tech-debt.md`](../docs/tech-debt.md#panorama-transform-cron-güvenilir-değil-2026-08-06).

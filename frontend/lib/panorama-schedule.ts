@@ -1,9 +1,11 @@
 /**
- * n8n landing ~07:00 / 19:00 Europe/Istanbul; transform shortly after
- * (frontend/README.md). Türkiye 2016'dan beri yıl boyu UTC+3.
+ * n8n landing günde 3 dalga: 07:00 / 13:00 / 19:00 Europe/Istanbul; transform
+ * hemen sonrasında (frontend/README.md). Zincirler dalga içinde 1'er dakika
+ * arayla akar (:00–:06) — burada dalganın başlangıcı gösterilir.
+ * Türkiye 2016'dan beri yıl boyu UTC+3.
  */
 const IST_OFFSET_MS = 3 * 60 * 60 * 1000;
-const SLOT_MINUTES = [7 * 60, 19 * 60] as const;
+const SLOT_MINUTES = [7 * 60, 13 * 60, 19 * 60] as const;
 
 const stampFormatter = new Intl.DateTimeFormat("tr-TR", {
   timeZone: "Europe/Istanbul",

@@ -3,7 +3,7 @@
   "nodes": [
     {
       "parameters": {
-        "content": "## AcikFaturaVadeKup (5530)\n\nManual Trigger Yaslandirma ile test et.\nCron YOK bu round.\nFiltre: Borc -> Islem -> ExcelAktar (bugun).\nNOT: Tarih sahasi = Islem (1), Vade (0) DEGIL — 7 Agustos duzeltmesi.\nLanding: panorama_acik_fatura_vade_kup\n",
+        "content": "## AcikFaturaVadeKup (5530)\n\nManual Trigger Yaslandirma ile test et.\nCron: 5 7,13,19 * * * (Schedule Yaslandirma 5530) -- gunde 3x.\nFiltre: Borc -> Islem -> ExcelAktar (bugun).\nNOT: Tarih sahasi = Islem (1), Vade (0) DEGIL — 7 Agustos duzeltmesi.\nLanding: panorama_acik_fatura_vade_kup\n",
         "height": 360,
         "width": 380,
         "color": 4
@@ -887,8 +887,8 @@
     },
     {
       "parameters": {
-        "content": "## Panorama -> Supabase\n\nTimezone: Europe/Istanbul (workflow settings).\nMain Schedule: 07:00 + 19:00 TR daily (aktif).\n5450 Schedule: Pzt/Car/Cum/Paz 07:15 TR — DEAKTIF.\n5130 insert: on_conflict=matbu_no ignore-duplicates.\nManuel: Webhook Manuel Sync (UI butonu) -> Config, sonra\nWait 180s ile YL -> BD2 -> SD -> STK. Cron IF false.\nDOSYAYI PAYLASMA — JWT duz metin.\n",
-        "height": 420,
+        "content": "## Panorama -> Supabase\n\nTimezone: Europe/Istanbul (workflow settings).\n\nCRON: gunde 3 dalga, 07:00 / 13:00 / 19:00 TR.\nZincirler 1'er dakika ARAYLA -- ayni IP'den 7 esZamanli\nlogin F5 WAF'a bot gibi gorunur, paralel calistirma.\n\n  :00  Main            5020 / 5500 / 5130\n  :01  Siparis Detay   5140\n  :02  Tahsilat        5230\n  :03  Stok            5430\n  :04  Belge Detay BDS 5451\n  :05  Yaslandirma     5530\n  :06  Belge Detay BD2 5450  -- YALNIZ 07:xx (gunde 1x, en agir scrape)\n\nDEAKTIF: Schedule Belge Detay PZT-CAR-CUM-PAZ (eski BD zinciri).\n\n5130 insert: on_conflict=matbu_no ignore-duplicates.\nManuel: Webhook Manuel Sync (UI butonu) -> Config, sonra\nWait 180s ile YL -> BD2 -> SD -> STK -> TH -> BDS. Cron IF false.\nDOSYAYI PAYLASMA -- JWT duz metin.\n",
+        "height": 560,
         "width": 420,
         "color": 5
       },
@@ -2559,13 +2559,13 @@
           "interval": [
             {
               "field": "cronExpression",
-              "expression": "0 7,19 * * *"
+              "expression": "0 7,13,19 * * *"
             }
           ]
         }
       },
       "id": "6cf2ab45-b7e1-462e-8d5d-2a97185c3e84",
-      "name": "Schedule Main 07/19 TR",
+      "name": "Schedule Main 07/13/19",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
       "position": [
@@ -2592,7 +2592,7 @@
           "interval": [
             {
               "field": "cronExpression",
-              "expression": "20 7 * * *"
+              "expression": "1 7,13,19 * * *"
             }
           ]
         }
@@ -3387,7 +3387,7 @@
           "interval": [
             {
               "field": "cronExpression",
-              "expression": "40 7 * * *"
+              "expression": "3 7,13,19 * * *"
             }
           ]
         }
@@ -4182,13 +4182,13 @@
           "interval": [
             {
               "field": "cronExpression",
-              "expression": "0 8,20 * * *"
+              "expression": "5 7,13,19 * * *"
             }
           ]
         }
       },
       "id": "39a0c417-1147-43ea-9555-7cb3a5a709b6",
-      "name": "Schedule Main 08/20 TR1",
+      "name": "Schedule Yaslandirma 5530",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
       "position": [
@@ -4198,7 +4198,7 @@
     },
     {
       "parameters": {
-        "content": "## BelgeDetayRaporu (5450) - Mutlak Tarih Araligi\n\nTek aktif zincir: BD2. Ana BD zincirinin schedule node'u DEAKTIF\n(o zincirin 26 node'u olu kod - silinmedi, yedek duruyor).\n\nAkis SADECE 2 DML istegi (tarayici oturumu HAR ile birebir dogrulandi):\n\n  1 Build/POST Belge Durumu BD2  sChange Edt_R2_C1_122\n      Edt_R2_C1_122 = '0'  (Aktif - ZORUNLU alan, bos birakilamaz)\n      Edt_R3_C4_160 = Edt_R3_C5_160 = '-'\n      Edt_R8_C1_187 = Edt_R13_C1_163 = Edt_R17_C1_131 = '-'\n\n  2 Build/POST Excel Aktar BD2   reqSender=MainNvg, reqSenderData=ExcelAktar\n      Edt_R3_C2_160 = 2022-1-1-0-0-0-0        (baslangic)\n      Edt_R3_C3_160 = <Europe/Istanbul bugun> (bitis)\n      Edt_R3_C4_160 = Edt_R3_C5_160 = '-'     (goreli secenek kapali)\n      Edt_R4_C1_186 = '0'   (Belge Tip)\n      Edt_R5_C1_175 = '99'  (Belge Tur)\n      Edt_R8_C1_187 = Edt_R13_C1_163 = Edt_R17_C1_131 = '-'\n\nTUZAKLAR (hepsi canli test edildi):\n\n  * Edt_R3_C6_160 GONDERILMEZ. Gonderilirse Panorama goreli tarih modunu\n    bekliyor ve HTTP 500 \"Tarih Araligi Kriteri Eksiksiz Girilmelidir\"\n    donuyor. Eski zincirdeki C6=1 bu hatanin kaynagiydi.\n\n  * InitialID daima ClientID ile AYNI olmali ('reportGrid_' onekli).\n    Onek dusunce alan SESSIZCE yok sayiliyor: HTTP 200 doner ama deger\n    uygulanmaz. Ilk yanlis tarih araliginin sebebi buydu.\n\n  * Dropdown'larda deger '-' olarak gonderilir. Sayfa metadata'sindaki\n    getListItems \"-\" -> \"null\" eslemesine ALDANMAYIN; tarayici '-' yolluyor,\n    'null' yollanirsa \"Zorunlu Sahalar Bos Gecilemez\" hatasi geliyor.\n\n  * Tarih formati sifir dolgusuz: YYYY-M-D-0-0-0-0 (2022-1-1-0-0-0-0).\n\n  * Goreli tarih sChange adimlari (Build/POST Tarih Start-End BD2) DEVRE\n    DISI ve baglantisiz. Tarayici bu adimlari hic yapmiyor.\n\nDogrulama (2026-08-18 canli test): 8826 satir, IslemTarihi 2025.02.03 ->\n2026.08.18, gelecek tarihli satir yok.\n\nParse XLSX Rows BD2 icinde iki koruma:\n  - gelecek tarihli IslemTarihi satirlari atiliyor (gelecekTarihliAtlanan)\n  - donen en eski IslemTarihi 60 gunden yeniyse hata firlatiliyor\n    (mutlak filtre uygulanmamis demektir, SQL'e yazilmaz)\n\nCAKISMA ANAHTARI (2026-08-18'de degisti):\n  unified_doc + sira + islem_tarihi\n  Index: panorama_belge_detay_raporu_dogal_anahtar_key (NULLS NOT DISTINCT)\n  unified_doc = matbu_no ?? siparis_no ?? fatura_no\n\n  Neden islem_tarihi eklendi: Panorama \"Satis - Iade\" belgelerinde MatbuNo'yu\n  tekrar kullaniyor (orn. GIB2026000000002 ayni Sira ile 4 farkli musteri/\n  urun/tarihte). Tam gecmis cekiminde 17 anahtar cakisiyor, 36 iade satiri\n  kayboluyor ve batch upsert hata veriyordu.\n\n  Build Insert Batches BD2 icinde batch-ici dedup savunmasi var; anahtari\n  degistirirseniz oradaki CONFLICT_KEYS dizisini de guncelleyin.\n\nINSERT ES ZAMANLILIGI:\n  Insert Rows Batch BD2 -> options.batching.batch.batchSize = 1\n  n8n HTTP Request node'u girdi item'larini VARSAYILAN OLARAK PARALEL\n  gonderiyor. 23 batch ayni anda upsert yapinca satir/index kilitlerinde\n  bekleyip 8s statement_timeout'a takiliyordu. batchSize=1 ile sirali.\n  Supabase tarafinda da service_role statement_timeout 8s -> 120s yapildi.\n  Batch boyutu 400 -> 250.\n\nSchedule: Pzt/Car/Cum/Paz 07:25 TR.\nLanding: panorama_belge_detay_raporu.",
+        "content": "## BelgeDetayRaporu (5450) - Mutlak Tarih Araligi\n\nTek aktif zincir: BD2 -- cron 6 7 * * * (gunde 1x, sabah dalgasinin sonu). Ana BD zincirinin schedule node'u DEAKTIF\n(o zincirin 26 node'u olu kod - silinmedi, yedek duruyor).\n\nAkis SADECE 2 DML istegi (tarayici oturumu HAR ile birebir dogrulandi):\n\n  1 Build/POST Belge Durumu BD2  sChange Edt_R2_C1_122\n      Edt_R2_C1_122 = '0'  (Aktif - ZORUNLU alan, bos birakilamaz)\n      Edt_R3_C4_160 = Edt_R3_C5_160 = '-'\n      Edt_R8_C1_187 = Edt_R13_C1_163 = Edt_R17_C1_131 = '-'\n\n  2 Build/POST Excel Aktar BD2   reqSender=MainNvg, reqSenderData=ExcelAktar\n      Edt_R3_C2_160 = 2022-1-1-0-0-0-0        (baslangic)\n      Edt_R3_C3_160 = <Europe/Istanbul bugun> (bitis)\n      Edt_R3_C4_160 = Edt_R3_C5_160 = '-'     (goreli secenek kapali)\n      Edt_R4_C1_186 = '0'   (Belge Tip)\n      Edt_R5_C1_175 = '99'  (Belge Tur)\n      Edt_R8_C1_187 = Edt_R13_C1_163 = Edt_R17_C1_131 = '-'\n\nTUZAKLAR (hepsi canli test edildi):\n\n  * Edt_R3_C6_160 GONDERILMEZ. Gonderilirse Panorama goreli tarih modunu\n    bekliyor ve HTTP 500 \"Tarih Araligi Kriteri Eksiksiz Girilmelidir\"\n    donuyor. Eski zincirdeki C6=1 bu hatanin kaynagiydi.\n\n  * InitialID daima ClientID ile AYNI olmali ('reportGrid_' onekli).\n    Onek dusunce alan SESSIZCE yok sayiliyor: HTTP 200 doner ama deger\n    uygulanmaz. Ilk yanlis tarih araliginin sebebi buydu.\n\n  * Dropdown'larda deger '-' olarak gonderilir. Sayfa metadata'sindaki\n    getListItems \"-\" -> \"null\" eslemesine ALDANMAYIN; tarayici '-' yolluyor,\n    'null' yollanirsa \"Zorunlu Sahalar Bos Gecilemez\" hatasi geliyor.\n\n  * Tarih formati sifir dolgusuz: YYYY-M-D-0-0-0-0 (2022-1-1-0-0-0-0).\n\n  * Goreli tarih sChange adimlari (Build/POST Tarih Start-End BD2) DEVRE\n    DISI ve baglantisiz. Tarayici bu adimlari hic yapmiyor.\n\nDogrulama (2026-08-18 canli test): 8826 satir, IslemTarihi 2025.02.03 ->\n2026.08.18, gelecek tarihli satir yok.\n\nParse XLSX Rows BD2 icinde iki koruma:\n  - gelecek tarihli IslemTarihi satirlari atiliyor (gelecekTarihliAtlanan)\n  - donen en eski IslemTarihi 60 gunden yeniyse hata firlatiliyor\n    (mutlak filtre uygulanmamis demektir, SQL'e yazilmaz)\n\nCAKISMA ANAHTARI (2026-08-18'de degisti):\n  unified_doc + sira + islem_tarihi\n  Index: panorama_belge_detay_raporu_dogal_anahtar_key (NULLS NOT DISTINCT)\n  unified_doc = matbu_no ?? siparis_no ?? fatura_no\n\n  Neden islem_tarihi eklendi: Panorama \"Satis - Iade\" belgelerinde MatbuNo'yu\n  tekrar kullaniyor (orn. GIB2026000000002 ayni Sira ile 4 farkli musteri/\n  urun/tarihte). Tam gecmis cekiminde 17 anahtar cakisiyor, 36 iade satiri\n  kayboluyor ve batch upsert hata veriyordu.\n\n  Build Insert Batches BD2 icinde batch-ici dedup savunmasi var; anahtari\n  degistirirseniz oradaki CONFLICT_KEYS dizisini de guncelleyin.\n\nINSERT ES ZAMANLILIGI:\n  Insert Rows Batch BD2 -> options.batching.batch.batchSize = 1\n  n8n HTTP Request node'u girdi item'larini VARSAYILAN OLARAK PARALEL\n  gonderiyor. 23 batch ayni anda upsert yapinca satir/index kilitlerinde\n  bekleyip 8s statement_timeout'a takiliyordu. batchSize=1 ile sirali.\n  Supabase tarafinda da service_role statement_timeout 8s -> 120s yapildi.\n  Batch boyutu 400 -> 250.\n\nSchedule: Pzt/Car/Cum/Paz 07:25 TR.\nLanding: panorama_belge_detay_raporu.",
         "height": 360,
         "width": 380,
         "color": 4
@@ -4218,13 +4218,13 @@
           "interval": [
             {
               "field": "cronExpression",
-              "expression": "25 7 * * 0,1,3,5"
+              "expression": "6 7 * * *"
             }
           ]
         }
       },
       "id": "2a8ebaf3-a253-4a0f-a2e5-f9206fb5a707",
-      "name": "Schedule Belge Detay BD2 PZT-CAR-CUM-PAZ",
+      "name": "Schedule Belge Detay BD2 Gunluk",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
       "position": [
@@ -5989,7 +5989,7 @@
     },
     {
       "parameters": {
-        "content": "## 5230 - Tahsilat Raporu\n\nKaynak: panorama.armailac.com.tr.har (2026-08-28).\nCron YOK — yalniz manuel zincir (STK sonrasi Wait 180s).\n\nAkis 2 DML (HAR birebir):\n  1 Build/POST Filtre TH  sChange Edt_R1_C1_224\n      Edt_R1_C1_224 = '0'           (Aktif)\n      Edt_R2_C1_225 = '0,2,4,6,13,1' (tahsilat kodlari, List 1316 multi)\n      Edt_R3_C2_160 = 2025-1-1-0-0-0-0   (sabit baslangic)\n      Edt_R3_C3_160 = <Europe/Istanbul bugun>\n      Edt_R3_C4_160 = Edt_R3_C5_160 = '-'\n  2 Build/POST Excel Aktar TH  reqSender=MainNvg, reqSenderData=ExcelAktar\n      HAR'daki gibi yalniz C4/C5 = '-'\n\nLanding: panorama_tahsilat_raporu (id, sync_id, payload jsonb).\nInsert: satiri payload'a sarar; kolon kilidi ilk basarili cekimden sonra.",
+        "content": "## 5230 - Tahsilat Raporu\n\nKaynak: panorama.armailac.com.tr.har (2026-08-28).\nCron: 2 7,13,19 * * * (Schedule Tahsilat Gunluk) -- gunde 3x.\nManuel zincirde de var (STK sonrasi Wait 180s).\n\nAkis 2 DML (HAR birebir):\n  1 Build/POST Filtre TH  sChange Edt_R1_C1_224\n      Edt_R1_C1_224 = '0'           (Aktif)\n      Edt_R2_C1_225 = '0,2,4,6,13,1' (tahsilat kodlari, List 1316 multi)\n      Edt_R3_C2_160 = 2025-1-1-0-0-0-0   (sabit baslangic)\n      Edt_R3_C3_160 = <Europe/Istanbul bugun>\n      Edt_R3_C4_160 = Edt_R3_C5_160 = '-'\n  2 Build/POST Excel Aktar TH  reqSender=MainNvg, reqSenderData=ExcelAktar\n      HAR'daki gibi yalniz C4/C5 = '-'\n\nLanding: panorama_tahsilat_raporu (id, sync_id, payload jsonb).\nInsert: satiri payload'a sarar; kolon kilidi ilk basarili cekimden sonra.",
         "height": 340,
         "width": 400,
         "color": 5
@@ -6057,7 +6057,7 @@
           "interval": [
             {
               "field": "cronExpression",
-              "expression": "30 7 * * *"
+              "expression": "2 7,13,19 * * *"
             }
           ]
         }
@@ -6864,7 +6864,7 @@
           "interval": [
             {
               "field": "cronExpression",
-              "expression": "35 7 * * *"
+              "expression": "4 7,13,19 * * *"
             }
           ]
         }
@@ -7691,17 +7691,6 @@
         ]
       ]
     },
-    "Schedule Main 07/19 TR": {
-      "main": [
-        [
-          {
-            "node": "Config",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Extract Stream URL BD": {
       "main": [
         [
@@ -8180,28 +8169,6 @@
         [
           {
             "node": "Confirm Sync STK",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Schedule Main 08/20 TR1": {
-      "main": [
-        [
-          {
-            "node": "Config Yaslandirma",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Schedule Belge Detay BD2 PZT-CAR-CUM-PAZ": {
-      "main": [
-        [
-          {
-            "node": "Config Belge Detay BD2",
             "type": "main",
             "index": 0
           }
@@ -9071,6 +9038,39 @@
         [
           {
             "node": "Config Belge Detay BDS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Main 07/13/19": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Yaslandirma 5530": {
+      "main": [
+        [
+          {
+            "node": "Config Yaslandirma",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Belge Detay BD2 Gunluk": {
+      "main": [
+        [
+          {
+            "node": "Config Belge Detay BD2",
             "type": "main",
             "index": 0
           }

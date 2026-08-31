@@ -70,7 +70,7 @@ export function VeriDurumu() {
         <Kpi
           etiket="Sonraki pencere"
           deger={nextStamp ?? "—"}
-          alt="07:00 / 19:00 Istanbul"
+          alt="07:00 / 13:00 / 19:00 Istanbul"
           loading={false}
         />
       </div>

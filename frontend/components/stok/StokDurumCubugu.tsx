@@ -5,7 +5,7 @@ import { useRaporTazeligi } from "@/hooks/useMusteriRaporlama";
 import { formatCurrency, formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-/** Stok günlük çekiliyor (5430, 07:40 TR) — bir günü aşarsa envanter bayat. */
+/** Stok günde 3x çekiliyor (5430, 07:03 / 13:03 / 19:03 TR) — bir günü aşarsa envanter bayat. */
 const TAZELIK_UYARI_SAAT = 24;
 const TAZELIK_KRITIK_SAAT = 48;
 
