@@ -23,7 +23,6 @@ import {
 } from "@/lib/supabase";
 import { fetchAllRows } from "@/lib/supabase-fetch-all";
 import {
-  tahsilatOdendiMi,
   tahsilatOdenmediMi,
 } from "@/lib/sync/parse-tahsilat";
 
@@ -117,7 +116,7 @@ export interface FinansalOzet {
   toplamNetCiroKdvDahil: number;
   /** Ay başından bugüne, KDV dahil (Panorama Nettutar; iadeler işaretli girer). */
   aylikNetCiro: number;
-  /** 5230 nakit girişi — ödenen belgeler (fatura cirosu değil). */
+  /** Ay başından bugüne Panorama BrutTutar (iskonto öncesi). */
   donemTahsilat: number;
   odenmemisTahsilatTutar: number;
   odenmemisTahsilatAdet: number;
@@ -219,7 +218,7 @@ interface FinansalRaporuCache {
   tahsilatSatirlari: TahsilatRaw[];
 }
 
-const CACHE_KEY = "finansal-raporu-v5";
+const CACHE_KEY = "finansal-raporu-v6";
 
 /**
  * Finansal Raporlar sayfası — tek seferde beş kaynağı çeker (Stok Raporları'nın
@@ -229,7 +228,7 @@ const CACHE_KEY = "finansal-raporu-v5";
  *  2. acik_fatura_vade_kup_guncel — satır bazlı açık fatura (drill-down tablo)
  *  3. belge_detay_raporu_guncel — satır bazlı ciro (trend + temsilci/ürün kırılımı)
  *  4. siparis_detay_raporu_guncel — bekleyen/irsaliyeli satış siparişi (5451)
- *  5. tahsilat_raporu_guncel — dönem nakit + ödenmemiş çek/senet (5230)
+ *  5. tahsilat_raporu_guncel — ödenmemiş çek/senet (5230)
  *
  * Sayfalar arası geçişte boş ekran/yeniden fetch olmasın diye harita
  * sayfasıyla (bkz. musteri-cache.ts) aynı modül-seviyesi cache deseni: cache
@@ -414,8 +413,6 @@ export function useFinansalRaporu() {
       if (tahsilatOdenmediMi(durum)) {
         odenmemisTahsilatTutar += amount;
         odenmemisTahsilatAdet += 1;
-      } else if (tahsilatOdendiMi(durum)) {
-        donemTahsilat += amount;
       }
     }
 
@@ -426,7 +423,7 @@ export function useFinansalRaporu() {
       toplamBrutCiro: Math.round(toplamBrutCiro * 100) / 100,
       toplamNetCiroKdvDahil: Math.round(toplamNetCiroKdvDahil * 100) / 100,
       aylikNetCiro: 0,
-      donemTahsilat: Math.round(donemTahsilat * 100) / 100,
+      donemTahsilat,
       odenmemisTahsilatTutar: Math.round(odenmemisTahsilatTutar * 100) / 100,
       odenmemisTahsilatAdet,
       borcluMusteriSayisi,
@@ -462,7 +459,7 @@ export function useFinansalRaporu() {
   // Satış hareketleri: iade satırları ciroya negatifleriyle girer ama "aktivite"
   // kırılımlarına (temsilci/ürün/trend) girmez — parse-belge-detay.ts'teki
   // musteri_belge_ozet agregasyonuyla aynı kural.
-  const { ciroGunluk, temsilciDagilimi, urunGrubuDagilimi, iadeToplam, satisToplam, aylikNetCiro } =
+  const { ciroGunluk, temsilciDagilimi, urunGrubuDagilimi, iadeToplam, satisToplam, aylikNetCiro, aylikBrutTutar } =
     useMemo(() => {
       const gunlukMap = new Map<string, number>();
       const temsilciMap = new Map<string, number>();
@@ -470,6 +467,7 @@ export function useFinansalRaporu() {
       let iadeToplam = 0;
       let satisToplam = 0;
       let aylikNetCiro = 0;
+      let aylikBrutTutar = 0;
 
       // Trend penceresi bugünden geriye sayılır (dosyadaki en yeni tarihten
       // değil) — sync durursa grafik boşalarak bunu gösterir, sessizce
@@ -491,11 +489,12 @@ export function useFinansalRaporu() {
         const iade = iadeMi(metin(r.islem_tip));
         const tarih = parseIslemTarihi(r.islem_tarihi);
 
-        // Aylık KPI: Nettutar (KDV dahil). İade satırları işaretleriyle girer
-        // (parse-belge-detay.ts). Trend/kırılım aktivite olduğu için iadeyi
-        // aşağıda dışarıda bırakır.
+        // Aylık KPI: Nettutar (KDV dahil) ve BrutTutar. İade satırları
+        // işaretleriyle girer (parse-belge-detay.ts). Trend/kırılım aktivite
+        // olduğu için iadeyi aşağıda dışarıda bırakır.
         if (tarih && tarih >= aylikBaslangicIso) {
           aylikNetCiro += netKdvDahil;
+          aylikBrutTutar += brut;
         }
 
         if (iade) {
@@ -542,14 +541,15 @@ export function useFinansalRaporu() {
         iadeToplam: Math.round(iadeToplam * 100) / 100,
         satisToplam: Math.round(satisToplam * 100) / 100,
         aylikNetCiro: Math.round(aylikNetCiro * 100) / 100,
+        aylikBrutTutar: Math.round(aylikBrutTutar * 100) / 100,
       };
     }, [belgeSatirlari]);
 
   const iadeOrani = satisToplam > 0 ? iadeToplam / satisToplam : 0;
 
   const ozetKpi = useMemo<FinansalOzet>(
-    () => ({ ...ozet, aylikNetCiro }),
-    [ozet, aylikNetCiro]
+    () => ({ ...ozet, aylikNetCiro, donemTahsilat: aylikBrutTutar }),
+    [ozet, aylikNetCiro, aylikBrutTutar]
   );
 
   return {

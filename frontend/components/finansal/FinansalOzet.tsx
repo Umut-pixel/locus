@@ -89,11 +89,7 @@ export function FinansalOzet({ ozet, loading }: FinansalOzetProps) {
         icon={BanknoteIcon}
         etiket="Dönem tahsilatı"
         deger={formatCurrency(donemTahsilat)}
-        altBilgi={
-          ozet.odenmemisTahsilatAdet > 0
-            ? `Ödenmemiş çek/senet ${formatNumber(ozet.odenmemisTahsilatAdet)} · ${formatCurrency(ozet.odenmemisTahsilatTutar)}`
-            : "5230 nakit girişi, ciro değil"
-        }
+        altBilgi="Ay başından bugüne, iskonto öncesi brüt"
         loading={loading}
       />
     </div>
