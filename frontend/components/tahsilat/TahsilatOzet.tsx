@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import {
   BanknoteIcon,
   CalendarRangeIcon,
@@ -10,8 +10,8 @@ import {
 import type { LucideIcon } from "lucide-react";
 
 import type { TahsilatOzet as TahsilatOzetVerisi } from "@/hooks/useTahsilatRaporu";
-import { useCountUp } from "@/hooks/useCountUp";
 import { SegmentedSwitch } from "@/components/ui/segmented-switch";
+import { TickerNumber } from "@/components/ui/ticker-number";
 import { formatCurrency, formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -29,11 +29,9 @@ interface TahsilatOzetProps {
 
 export function TahsilatOzet({ ozet, loading }: TahsilatOzetProps) {
   const [sonPencere, setSonPencere] = useState<SonPencere>("7g");
-  const donem = useCountUp(ozet.donemTahsilat);
-  const son7 = useCountUp(ozet.son7Gun);
-  const son1Ay = useCountUp(ozet.son1Ay);
-  const odenmemis = useCountUp(ozet.odenmemisTutar);
-  const sonTutar = sonPencere === "7g" ? son7 : son1Ay;
+  // İki ayrı sayacı takas etmek yerine tek hedef: pencere değişince sayaç
+  // eski değerden yenisine sayıyor, sert kesme olmuyor.
+  const sonHedef = sonPencere === "7g" ? ozet.son7Gun : ozet.son1Ay;
 
   return (
     <div className="grid grid-cols-2 gap-px border-b border-border bg-border lg:grid-cols-4">
@@ -47,7 +45,7 @@ export function TahsilatOzet({ ozet, loading }: TahsilatOzetProps) {
             loading && "opacity-40"
           )}
         >
-          {formatCurrency(donem)}
+          <TickerNumber value={ozet.donemTahsilat} format={formatCurrency} />
         </span>
         <span className="text-[12px] text-muted-foreground">
           Ödenen belgeler · {formatNumber(ozet.musteriAdet)} müşteri
@@ -77,7 +75,7 @@ export function TahsilatOzet({ ozet, loading }: TahsilatOzetProps) {
             loading && "opacity-40"
           )}
         >
-          {formatCurrency(sonTutar)}
+          <TickerNumber value={sonHedef} format={formatCurrency} />
         </span>
         <span className="text-[12px] text-muted-foreground">
           Ödenen nakit girişi
@@ -87,7 +85,7 @@ export function TahsilatOzet({ ozet, loading }: TahsilatOzetProps) {
       <StatKutusu
         icon={WalletIcon}
         etiket="Ödenmedi"
-        deger={formatCurrency(odenmemis)}
+        deger={<TickerNumber value={ozet.odenmemisTutar} format={formatCurrency} />}
         altBilgi={`${formatNumber(ozet.odenmemisAdet)} çek/senet belgesi`}
         vurgu={ozet.odenmemisTutar > 0}
         vurguSinif="text-caution"
@@ -123,7 +121,7 @@ function StatKutusu({
 }: {
   icon: LucideIcon;
   etiket: string;
-  deger: string;
+  deger: ReactNode;
   altBilgi: string;
   loading: boolean;
   vurgu?: boolean;

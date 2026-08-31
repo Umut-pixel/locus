@@ -89,6 +89,7 @@ export function SegmentedSwitch<T extends string>({
           title={s.title}
           className={cn(
             "relative z-[1] h-6 rounded-[5px] px-2 text-[12px] font-medium",
+            "transition-colors duration-200 ease-out",
             value === s.value ? "text-foreground" : "text-muted-foreground hover:text-foreground"
           )}
         >

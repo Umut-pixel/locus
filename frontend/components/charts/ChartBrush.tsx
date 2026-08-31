@@ -71,6 +71,9 @@ export function ChartBrush({
   onChangeRef.current = onSelectionChange;
   const stopDragRef = useRef<(() => void) | null>(null);
   const [dragging, setDragging] = useState(false);
+  // pointermove 120Hz'e kadar tetiklenebiliyor; kareye bir güncelleme yeter.
+  const rafRef = useRef(0);
+  const bekleyenXRef = useRef(0);
 
   const fracFromClientX = useCallback((clientX: number) => {
     const el = trackRef.current;
@@ -151,13 +154,22 @@ export function ChartBrush({
     // EventListener'a düşüyor; işleyicileri EventTarget seviyesinde tutuyoruz.
     const move: EventListener = (event) => {
       event.preventDefault();
-      applyDragRef.current((event as PointerEvent).clientX);
+      bekleyenXRef.current = (event as PointerEvent).clientX;
+      if (rafRef.current) return;
+      rafRef.current = requestAnimationFrame(() => {
+        rafRef.current = 0;
+        applyDragRef.current(bekleyenXRef.current);
+      });
     };
     const up: EventListener = () => stop();
     const target: EventTarget = useWindowMoveEvents
       ? window
       : trackRef.current ?? window;
     const stop = () => {
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = 0;
+      }
       target.removeEventListener("pointermove", move);
       target.removeEventListener("pointerup", up);
       target.removeEventListener("pointercancel", up);
@@ -171,11 +183,20 @@ export function ChartBrush({
     target.addEventListener("pointercancel", up);
   };
 
-  useEffect(() => () => stopDragRef.current?.(), []);
+  useEffect(
+    () => () => {
+      stopDragRef.current?.();
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    },
+    []
+  );
 
   const leftPct = `${paintStart * 100}%`;
   const widthPct = `${(paintEnd - paintStart) * 100}%`;
-  const blur = Math.max(0, Math.min(5, blurPx));
+  // Sürüklerken backdrop-filter kapalı: genişliği her karede değişen bir
+  // bulanıklık katmanı GPU'yu boşuna yeniden bulandırıyor. 1.5px'lik fark
+  // hareket hâlinde zaten görünmüyor, bırakınca geri geliyor.
+  const blur = dragging ? 0 : Math.max(0, Math.min(5, blurPx));
 
   return (
     <div
@@ -208,7 +229,11 @@ export function ChartBrush({
           "absolute inset-y-0 cursor-grab",
           dragging && "cursor-grabbing"
         )}
-        style={{ left: leftPct, width: widthPct }}
+        style={{
+          left: leftPct,
+          width: widthPct,
+          willChange: dragging ? "left, width" : undefined,
+        }}
         onPointerDown={(event) => {
           if (event.button !== 0) return;
           event.preventDefault();
@@ -410,7 +435,7 @@ function fullLayout(n: number): BrushLayout {
 function clampSelection(sel: BrushSelection, n: number): BrushSelection {
   const minSpan =
     Math.max(2, Math.min(7, Math.round(n * 0.05))) / Math.max(1, n - 1);
-  let start = clamp01(sel.start);
+  const start = clamp01(sel.start);
   let end = clamp01(sel.end);
   if (end - start < minSpan) end = clamp01(start + minSpan);
   return { start, end };

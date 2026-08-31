@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { memo, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import gsap from "gsap";
 import { useReducedMotion } from "motion/react";
 
@@ -138,7 +138,13 @@ function ZoomedTrend({
   const pencereMax = useMemo(() => {
     const a = Math.max(0, Math.floor(f0));
     const b = Math.min(son, Math.ceil(f1));
-    return Math.max(1, ...gunler.slice(a, b + 1).map((g) => g.tutar));
+    // Her karede çalışıyor: slice + map + spread yerine düz döngü.
+    let max = 1;
+    for (let i = a; i <= b; i += 1) {
+      const t = gunler[i]?.tutar ?? 0;
+      if (t > max) max = t;
+    }
+    return max;
   }, [gunler, f0, f1, son]);
   const hedef = useMemo(() => niceDomain(0, pencereMax, 4), [pencereMax]);
   const olcek = useTweenedDomain(hedef.min, hedef.max, Boolean(reduced));
@@ -324,30 +330,23 @@ function BrushStrip({
   gunler: TahsilatGunu[];
   layout: BrushLayout;
 }) {
-  const uid = useId().replace(/:/g, "");
-
   // Şerit, üstteki plot alanıyla aynı hizada başlasın: y ekseni oluğu ne kadar
   // genişse şeridi de o kadar içeri al.
   const lo = Math.min(layout.startIndex, layout.endIndex);
   const hi = Math.max(layout.startIndex, layout.endIndex);
-  const gutter =
-    SECTION_PAD +
-    yGutter(
-      niceDomain(0, Math.max(1, ...gunler.slice(lo, hi + 1).map((g) => g.tutar)), 4)
-        .ticks
-    );
+  const gutter = useMemo(() => {
+    let max = 1;
+    for (let i = lo; i <= hi; i += 1) {
+      const t = gunler[i]?.tutar ?? 0;
+      if (t > max) max = t;
+    }
+    return SECTION_PAD + yGutter(niceDomain(0, max, 4).ticks);
+  }, [gunler, lo, hi]);
 
-  const max = Math.max(1, ...gunler.map((g) => g.tutar));
-  const n = gunler.length;
-  const stepX = n > 1 ? STRIP_PLOT_W / (n - 1) : 0;
-  const pts: Pt[] = gunler.map((g, i) => ({
-    x: STRIP_PAD.left + (n > 1 ? i * stepX : STRIP_PLOT_W / 2),
-    y: STRIP_PAD.top + (1 - g.tutar / max) * STRIP_PLOT_H,
-  }));
-  const line = monotoneLine(pts);
-  const area = closeToBaseline(line, pts, STRIP_PAD.top + STRIP_PLOT_H);
-  const minSpan =
-    Math.max(2, Math.min(7, Math.round(n * 0.05))) / Math.max(1, n - 1);
+  const minSpan = useMemo(() => {
+    const n = gunler.length;
+    return Math.max(2, Math.min(7, Math.round(n * 0.05))) / Math.max(1, n - 1);
+  }, [gunler]);
 
   return (
     <div className="relative h-full border-t border-border/60">
@@ -355,39 +354,7 @@ function BrushStrip({
         className="relative h-full"
         style={{ marginLeft: gutter, marginRight: SECTION_PAD + PAD.right }}
       >
-        <svg
-          viewBox={`0 0 ${STRIP_VB_W} ${STRIP_H}`}
-          preserveAspectRatio="none"
-          className="h-full w-full"
-          aria-hidden
-        >
-          <defs>
-            <linearGradient
-              id={`${uid}-strip`}
-              gradientUnits="userSpaceOnUse"
-              x1={0}
-              y1={STRIP_PAD.top}
-              x2={0}
-              y2={STRIP_PAD.top + STRIP_PLOT_H}
-            >
-              <stop offset={0} stopColor={STROKE} stopOpacity={0.18} />
-              <stop offset={1} stopColor={STROKE} stopOpacity={0.01} />
-            </linearGradient>
-          </defs>
-          {area ? <path d={area} fill={`url(#${uid}-strip)`} stroke="none" /> : null}
-          {line ? (
-            <path
-              d={line}
-              fill="none"
-              stroke={STROKE}
-              strokeWidth={1.25}
-              strokeOpacity={0.85}
-              strokeLinejoin="round"
-              strokeLinecap="round"
-              vectorEffect="non-scaling-stroke"
-            />
-          ) : null}
-        </svg>
+        <StripSparkline gunler={gunler} />
         <div
           className="absolute inset-x-0"
           style={{
@@ -406,6 +373,67 @@ function BrushStrip({
     </div>
   );
 }
+
+/**
+ * Şeridin eğrisi yalnızca veriye bağlı — fırça her karede yeniden render
+ * olurken 92 noktalık kübik path'i yeniden kurmanın anlamı yok. `memo` +
+ * `useMemo` ile sürükleme boyunca hiç dokunulmuyor.
+ */
+const StripSparkline = memo(function StripSparkline({
+  gunler,
+}: {
+  gunler: TahsilatGunu[];
+}) {
+  const uid = useId().replace(/:/g, "");
+  const { line, area } = useMemo(() => {
+    const n = gunler.length;
+    let max = 1;
+    for (const g of gunler) if (g.tutar > max) max = g.tutar;
+    const stepX = n > 1 ? STRIP_PLOT_W / (n - 1) : 0;
+    const pts: Pt[] = gunler.map((g, i) => ({
+      x: STRIP_PAD.left + (n > 1 ? i * stepX : STRIP_PLOT_W / 2),
+      y: STRIP_PAD.top + (1 - g.tutar / max) * STRIP_PLOT_H,
+    }));
+    const line = monotoneLine(pts);
+    return { line, area: closeToBaseline(line, pts, STRIP_PAD.top + STRIP_PLOT_H) };
+  }, [gunler]);
+
+  return (
+    <svg
+      viewBox={`0 0 ${STRIP_VB_W} ${STRIP_H}`}
+      preserveAspectRatio="none"
+      className="h-full w-full"
+      aria-hidden
+    >
+      <defs>
+        <linearGradient
+          id={`${uid}-strip`}
+          gradientUnits="userSpaceOnUse"
+          x1={0}
+          y1={STRIP_PAD.top}
+          x2={0}
+          y2={STRIP_PAD.top + STRIP_PLOT_H}
+        >
+          <stop offset={0} stopColor={STROKE} stopOpacity={0.18} />
+          <stop offset={1} stopColor={STROKE} stopOpacity={0.01} />
+        </linearGradient>
+      </defs>
+      {area ? <path d={area} fill={`url(#${uid}-strip)`} stroke="none" /> : null}
+      {line ? (
+        <path
+          d={line}
+          fill="none"
+          stroke={STROKE}
+          strokeWidth={1.25}
+          strokeOpacity={0.85}
+          strokeLinejoin="round"
+          strokeLinecap="round"
+          vectorEffect="non-scaling-stroke"
+        />
+      ) : null}
+    </svg>
+  );
+});
 
 function TrendHeader({
   toplam,
