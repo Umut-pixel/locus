@@ -1,8 +1,8 @@
 "use client";
 
-import { Suspense, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
 import {
   HouseIcon,
@@ -16,7 +16,11 @@ import { motion } from "motion/react";
 import { SidebarIconCell, SidebarLabel } from "@/components/sidebar/AppSidebarNavItem";
 import { useKonusmalar } from "@/hooks/useKonusmalar";
 import { useAgentSession } from "@/hooks/useAgentSession";
-import { SIDEBAR_KONUSMA_PREVIEW } from "@/lib/agent-konusma";
+import {
+  SIDEBAR_KONUSMA_PREVIEW,
+  konusmaHref,
+  siraNoFromSlug,
+} from "@/lib/agent-konusma";
 import {
   ICON_RAIL_WIDTH,
   RAIL_PILL_INSET,
@@ -27,22 +31,18 @@ import {
 } from "@/lib/sidebar-layout";
 import { cn } from "@/lib/utils";
 
-export function KonusmalarNav({ open }: { open: boolean }) {
-  return (
-    <Suspense fallback={null}>
-      <KonusmalarNavInner open={open} />
-    </Suspense>
-  );
-}
+const SOHBET_ONEK = "/sohbet/";
 
-function KonusmalarNavInner({ open }: { open: boolean }) {
+export function KonusmalarNav({ open }: { open: boolean }) {
   const pathname = usePathname();
-  const params = useSearchParams();
   const router = useRouter();
-  const { threadId: runtimeThread, reset } = useAgentSession();
-  const urlK = pathname === "/home" ? params.get("k") : null;
-  const activeId = urlK ?? (pathname === "/home" ? null : runtimeThread);
-  const onFreshHome = pathname === "/home" && !urlK && !runtimeThread;
+  const { reset } = useAgentSession();
+  // Aktif konuşma artık URL'in kendisinde: /sohbet/{slug}-{siraNo}
+  const sohbetteyiz = pathname.startsWith(SOHBET_ONEK);
+  const aktifSiraNo = sohbetteyiz
+    ? siraNoFromSlug(pathname.slice(SOHBET_ONEK.length))
+    : null;
+  const onFreshHome = pathname === "/home";
   const { items, loading, remove, togglePin } = useKonusmalar();
   const [expanded, setExpanded] = useState(false);
 
@@ -53,15 +53,11 @@ function KonusmalarNavInner({ open }: { open: boolean }) {
     <div className="flex flex-col gap-0.5 pb-1">
       <RailLink
         href="/home"
-        label={activeId ? "Ana sayfa" : "Yeni konuşma"}
-        icon={activeId ? HouseIcon : MessageSquarePlusIcon}
+        label={sohbetteyiz ? "Ana sayfa" : "Yeni konuşma"}
+        icon={sohbetteyiz ? HouseIcon : MessageSquarePlusIcon}
         active={onFreshHome}
         open={open}
-        onNavigate={() => {
-          if (pathname === "/home" && (urlK || runtimeThread)) {
-            reset();
-          }
-        }}
+        onNavigate={reset}
       />
       {open ? (
         <>
@@ -78,17 +74,16 @@ function KonusmalarNavInner({ open }: { open: boolean }) {
           {visible.map((item) => (
             <ChatLink
               key={item.id}
-              href={`/home?k=${item.id}`}
+              href={konusmaHref(item.baslik, item.siraNo)}
               label={item.baslik}
-              active={activeId === item.id}
+              active={aktifSiraNo === item.siraNo}
               pinned={item.sabitlendi}
               onPin={() => void togglePin(item.id, !item.sabitlendi)}
               onDelete={() => {
-                if (item.id === (urlK ?? runtimeThread)) {
-                  reset();
-                }
+                const acikOlan = aktifSiraNo === item.siraNo;
+                if (acikOlan) reset();
                 void remove(item.id);
-                if (urlK === item.id) router.push("/home");
+                if (acikOlan) router.push("/home");
               }}
             />
           ))}

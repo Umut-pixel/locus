@@ -14,7 +14,8 @@ import {
 
 export const runtime = "nodejs";
 
-const HEAD_SELECT = "id,baslik,ozet,mesaj_sayisi,guncelleme,sabitlendi";
+const HEAD_SELECT =
+  "id,sira_no,baslik,ozet,mesaj_sayisi,guncelleme,sabitlendi";
 const MSG_SELECT = "id,sira,rol,metin,alinti,olusturulma,model";
 const ROLES = new Set<KonusmaRol>(["user", "assistant", "error"]);
 

@@ -7,6 +7,7 @@ import { ArrowUpRightIcon, XIcon } from "lucide-react";
 
 import { LoadingState } from "@/components/agent/LoadingState";
 import { useAgentSession, type ChatMessage } from "@/hooks/useAgentSession";
+import { konusmaHref } from "@/lib/agent-konusma";
 import { thinkingHeadline, type AgentTask } from "@/lib/agent-trace";
 import { cn } from "@/lib/utils";
 
@@ -73,17 +74,28 @@ function TaskDot({ status }: { status: AgentTask["status"] }) {
 }
 
 /**
- * /home dışındayken Analyst turunu takip kartı.
+ * Sohbet ekranı dışındayken Analyst turunu takip kartı.
  * Çalışırken adımlar; bittiğinde yanıt özeti + sohbete dönüş.
  */
 export function AgentFollowCard() {
   const pathname = usePathname();
   const router = useRouter();
   const reduced = useReducedMotion();
-  const { busy, tasks, trace, messages, threadId, revealed, revealId, stop } =
-    useAgentSession();
+  const {
+    busy,
+    tasks,
+    trace,
+    messages,
+    threadId,
+    threadSiraNo,
+    threadBaslik,
+    revealed,
+    revealId,
+    stop,
+  } = useAgentSession();
 
-  const onHome = pathname === "/home";
+  // Sohbet artık kendi route'unda; kart yalnız oranın dışında görünür.
+  const sohbetteyiz = pathname.startsWith("/sohbet/");
   const [dismissed, setDismissed] = useState(true);
   const wasBusy = useRef(false);
   const followRun = useRef(false);
@@ -97,13 +109,13 @@ export function AgentFollowCard() {
   }, [busy]);
 
   useEffect(() => {
-    if (onHome && !busy) {
+    if (sohbetteyiz && !busy) {
       followRun.current = false;
       setDismissed(true);
     }
-  }, [onHome, busy]);
+  }, [sohbetteyiz, busy]);
 
-  const visible = !onHome && !dismissed && followRun.current;
+  const visible = !sohbetteyiz && !dismissed && followRun.current;
   const turn = latestTurn(messages);
   const head = thinkingHeadline(trace, busy);
   const streaming =
@@ -111,7 +123,10 @@ export function AgentFollowCard() {
       ? revealed || turn.assistant.text
       : "";
   const outcomeError = Boolean(turn.error) && !turn.assistant?.text;
-  const href = threadId ? `/home?k=${threadId}` : "/home";
+  const href =
+    threadId && threadSiraNo && threadBaslik
+      ? konusmaHref(threadBaslik, threadSiraNo)
+      : "/home";
 
   const openHome = () => {
     router.push(href);

@@ -8,7 +8,8 @@ import { konusmaBasligi, konusmaOzetFromRow } from "@/lib/agent-konusma";
 
 export const runtime = "nodejs";
 
-const LIST_SELECT = "id,baslik,ozet,mesaj_sayisi,guncelleme,sabitlendi";
+const LIST_SELECT =
+  "id,sira_no,baslik,ozet,mesaj_sayisi,guncelleme,sabitlendi";
 
 /** GET — sabitlenenler önde, sonra yeniden eskiye. */
 export async function GET() {

@@ -32,11 +32,15 @@ Uygula: Supabase Studio → SQL Editor. Önce `sema.sql`, sonra ihtiyaç duyulan
 | `panorama_siparis_detay_sema.sql` | 5450 sipariş kanalı landing + 5451 guncel view |
 | `panorama_tahsilat_sema.sql` | 5230 tahsilat landing + müşteri özeti |
 | `panorama_sync_webhook.sql` | `panorama_sync_runs` → Vercel transform (`pg_net`) |
+| `panorama_sync_stale_sweep.sql` | Yarım kalan `running` satırlarını `failed` işaretler (`pg_cron`, 15 dk) |
 
 ## UI / potansiyel
 
 | Dosya | İş |
 |---|---|
+| `agent_konusmalar.sql` | Asistan sohbetleri + mesajları |
+| `agent_konusma_mesaj_model.sql` | Mesaj satırına `model` kolonu |
+| `agent_konusma_sira_no.sql` | `sira_no` — sohbet URL numarası (`/sohbet/{slug}-{no}`) |
 | `entity_notlar.sql` | Müşteri + potansiyel notları |
 | `musteri_gizlenenler.sql` | Haritadan gizlenen müşteriler |
 | `potansiyel_musteri_bayrak.sql` | Potansiyel bayrağı + harita view |

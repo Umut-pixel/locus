@@ -28,6 +28,7 @@ import {
   konusmaOzeti,
   notifyKonusmalarChanged,
   type KonusmaMesaj,
+  type KonusmaOzet,
 } from "@/lib/agent-konusma";
 import { konusmaAmaci } from "@/lib/agent-playbook";
 import { reportAgentDown, reportAgentOk } from "@/lib/agent-status";
@@ -77,15 +78,18 @@ function fromStored(row: KonusmaMesaj): ChatMessage {
   };
 }
 
-async function createKonusma(baslik: string, ozet: string): Promise<string | null> {
+async function createKonusma(
+  baslik: string,
+  ozet: string
+): Promise<KonusmaOzet | null> {
   const res = await fetch("/api/agent/konusmalar", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ baslik, ozet }),
   });
   if (!res.ok) return null;
-  const body = (await res.json()) as { konusma?: { id?: string } };
-  return body.konusma?.id ?? null;
+  const body = (await res.json()) as { konusma?: KonusmaOzet | null };
+  return body.konusma?.id ? body.konusma : null;
 }
 
 async function appendMessages(
@@ -118,6 +122,9 @@ async function appendMessages(
 
 export type AgentSessionValue = {
   threadId: string | null;
+  /** Aktif konuşmanın URL numarası — /sohbet/{slug}-{siraNo} kurmak için. */
+  threadSiraNo: number | null;
+  threadBaslik: string | null;
   messages: ChatMessage[];
   draft: string;
   setDraft: (value: string) => void;
@@ -139,6 +146,9 @@ export type AgentSessionValue = {
 
 const AgentRuntimeContext = createContext<AgentSessionValue | null>(null);
 
+type ThreadMeta = { siraNo: number | null; baslik: string | null };
+const BOS_META: ThreadMeta = { siraNo: null, baslik: null };
+
 function useAgentRuntimeState(): AgentSessionValue {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState("");
@@ -147,6 +157,7 @@ function useAgentRuntimeState(): AgentSessionValue {
   const [answerId, setAnswerId] = useState<string | null>(null);
   const [pendingQuote, setPendingQuoteState] = useState<string | null>(null);
   const [threadId, setThreadId] = useState<string | null>(null);
+  const [threadMeta, setThreadMeta] = useState<ThreadMeta>(BOS_META);
   const abortRef = useRef<AbortController | null>(null);
   const traceRef = useRef<TraceRow[]>([]);
   const quoteRef = useRef<string | null>(null);
@@ -227,6 +238,7 @@ function useAgentRuntimeState(): AgentSessionValue {
     traceRef.current = [];
     setPendingQuote(null);
     setThreadBoth(null);
+    setThreadMeta(BOS_META);
   }, [setBusyBoth, setPendingQuote, setThreadBoth]);
 
   const loadThread = useCallback(
@@ -259,8 +271,17 @@ function useAgentRuntimeState(): AgentSessionValue {
         const res = await fetch(`/api/agent/konusmalar/${target}`);
         if (!res.ok) return;
         if (threadRef.current !== target) return;
-        const body = (await res.json()) as { mesajlar?: KonusmaMesaj[] };
+        const body = (await res.json()) as {
+          mesajlar?: KonusmaMesaj[];
+          konusma?: KonusmaOzet | null;
+        };
         if (threadRef.current !== target) return;
+        if (body.konusma) {
+          setThreadMeta({
+            siraNo: body.konusma.siraNo,
+            baslik: body.konusma.baslik,
+          });
+        }
         setMessages((body.mesajlar ?? []).map(fromStored));
         purposeSetRef.current = (body.mesajlar ?? []).some(
           (m) => m.rol === "assistant"
@@ -379,9 +400,10 @@ function useAgentRuntimeState(): AgentSessionValue {
           try {
             const created = await createKonusma(konusmaBasligi(q), konusmaOzeti(q));
             if (created) {
-              nextThread = created;
+              nextThread = created.id;
               skipLoadRef.current = true;
-              setThreadBoth(created);
+              setThreadBoth(created.id);
+              setThreadMeta({ siraNo: created.siraNo, baslik: created.baslik });
               notifyKonusmalarChanged();
             }
           } catch {
@@ -472,6 +494,8 @@ function useAgentRuntimeState(): AgentSessionValue {
   return useMemo(
     () => ({
       threadId,
+      threadSiraNo: threadMeta.siraNo,
+      threadBaslik: threadMeta.baslik,
       messages,
       draft,
       setDraft,
@@ -492,6 +516,7 @@ function useAgentRuntimeState(): AgentSessionValue {
     }),
     [
       threadId,
+      threadMeta,
       messages,
       draft,
       busy,
