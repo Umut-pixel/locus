@@ -115,7 +115,7 @@ export interface FinansalOzet {
   /** İskonto öncesi brüt satış, KDV dahil. */
   toplamBrutCiro: number;
   toplamNetCiroKdvDahil: number;
-  /** Ay başından bugüne, KDV dahil (Panorama Nettutar; iadeler işaretli girer). */
+  /** Ay başından bugüne Panorama BrutTutar (iskonto ve KDV hariç). */
   aylikNetCiro: number;
   /** Ay başından bugüne Panorama BrutTutar (iskonto öncesi). */
   donemTahsilat: number;
@@ -219,7 +219,7 @@ interface FinansalRaporuCache {
   tahsilatSatirlari: TahsilatRaw[];
 }
 
-const CACHE_KEY = "finansal-raporu-v7";
+const CACHE_KEY = "finansal-raporu-v8";
 
 /**
  * Finansal Raporlar sayfası — tek seferde beş kaynağı çeker (Stok Raporları'nın
@@ -482,7 +482,7 @@ export function useFinansalRaporu() {
 
       for (const r of belgeSatirlari) {
         // KDV hariç gerçek net satış = brüt - iskonto (Panorama'nın "Nettutar"ı
-        // KDV dahildir — trend/kırılım KDV hariç kalır, aylık KPI KDV dahil).
+        // KDV dahildir — trend/kırılım KDV hariç kalır, 1 aylık ciro BrutTutar).
         // bkz. sql/net_ciro_kdv_haric.sql
         const brut = sayi(r.brut_tutar);
         const iskonto = sayi(r.iskonto);
@@ -491,11 +491,11 @@ export function useFinansalRaporu() {
         const iade = iadeMi(metin(r.islem_tip));
         const tarih = parseIslemTarihi(r.islem_tarihi);
 
-        // Aylık KPI: Nettutar (KDV dahil) ve BrutTutar. İade satırları
+        // Aylık KPI: BrutTutar (iskonto ve KDV hariç). İade satırları
         // işaretleriyle girer (parse-belge-detay.ts). Trend/kırılım aktivite
         // olduğu için iadeyi aşağıda dışarıda bırakır.
         if (tarih && tarih >= aylikBaslangicIso) {
-          aylikNetCiro += netKdvDahil;
+          aylikNetCiro += brut;
           aylikBrutTutar += brut;
         }
 

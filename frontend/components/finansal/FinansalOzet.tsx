@@ -81,7 +81,7 @@ export function FinansalOzet({ ozet, loading }: FinansalOzetProps) {
         icon={CalendarRangeIcon}
         etiket="1 aylık ciro"
         deger={formatCurrency(aylikNetCiro)}
-        altBilgi="Ay başından bugüne, KDV dahil"
+        altBilgi="Ay başından bugüne, iskonto öncesi brüt"
         loading={loading}
       />
 
