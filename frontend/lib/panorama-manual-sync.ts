@@ -4,8 +4,12 @@ import { PANORAMA_SYNC_RUNS_TABLE, supabase } from "@/lib/supabase";
 export const MANUAL_SYNC_STORAGE_KEY = "locus:panorama-manual-sync-at";
 export const MANUAL_SYNC_COOLDOWN_MS = 60 * 60 * 1000;
 
-/** Zincirler arası n8n Wait. */
-export const MANUAL_CHAIN_WAIT_SEC = 60;
+/**
+ * Zincirler arası n8n Wait. n8n'deki Wait node'ları `amount: 180`,
+ * typeVersion 1.1 — v1.1+ varsayılan birim `seconds`, yani gerçekte 180 sn.
+ * Sabit 60'ta kaldığı için toast yanlış bitiş saati gösteriyordu.
+ */
+export const MANUAL_CHAIN_WAIT_SEC = 180;
 const WAIT_COUNT = 6;
 const CHAIN_COUNT = 7;
 const SCRAPE_SEC_PER_CHAIN = 180;

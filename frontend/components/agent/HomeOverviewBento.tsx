@@ -635,13 +635,15 @@ function SyncTile({
     });
   }, [manualBusy, remainingMs, toast]);
 
-  const guncel = !loading && !error && !pending;
   const cooldownLabel =
     remainingMs > 0
       ? `${Math.max(1, Math.ceil(remainingMs / 60_000))} dk`
       : null;
 
-  const manualAction = guncel ? (
+  // Sync bozulduğu an manuel tetik en çok gereken şey — süpürücü `hata`
+  // kolonunu doldurmaya başlayınca kutucuk "Uyarı"ya düşüyor; butonu
+  // "Güncel" durumunun arkasına koymak onu tam o anda gizliyordu.
+  const manualAction = !loading ? (
     <Button
       type="button"
       variant="outline"

@@ -7,6 +7,15 @@ export const runtime = "nodejs";
 export const maxDuration = 30;
 
 const COOLDOWN_MS = 60 * 60 * 1000;
+/**
+ * n8n zincirlerinde Create Sync Run ile Complete Sync Run arasinda hicbir
+ * Wait node yok; olculen en uzun gercek pencere 108 sn (rapor 5450). Zincir
+ * ortada coktugunde satir kalici olarak `running` kaliyor (n8n hicbir yerde
+ * `failed` yazmiyor) ve butonu sonsuza kadar kilitliyordu. Bu esikten eski
+ * satirlari kilit saymiyoruz; ayrica pg_cron'daki panorama_sync_stale_sweep
+ * onlari `failed`a cekiyor (sql/panorama_sync_stale_sweep.sql).
+ */
+const STALE_LOCK_MS = 30 * 60 * 1000;
 const IN_FLIGHT = ["running", "pending", "in_progress"] as const;
 const REPORT_IDS = [5020, 5500, 5130, 5450, 5530, 5140, 5430, 5230, 5451] as const;
 const HEADER_SECRET = "X-N8N-Sync-Secret";
@@ -38,6 +47,7 @@ export async function POST() {
       .from(PANORAMA_SYNC_RUNS_TABLE)
       .select("id,durum,report_id")
       .in("durum", [...IN_FLIGHT])
+      .gte("cekildi_at", new Date(Date.now() - STALE_LOCK_MS).toISOString())
       .limit(1);
 
     if (inFlightError) {
