@@ -24,6 +24,17 @@ Uygula: Supabase Studio → SQL Editor. Önce `sema.sql`, sonra ihtiyaç duyulan
 | `yaslandirma_sema.sql` | ST yaşlandırma tablosu |
 | `belge_ozet_sema.sql` | BelgeDetay müşteri aggregate |
 
+## Rota planlama & araç doluluk
+
+Sırayla uygulanır — `siparis_yuk_view.sql` `urun_olcu`'ya, plan şeması `araclar`'a bağlı.
+
+| Dosya | İş |
+|---|---|
+| `urun_olcu_sema.sql` | SKU paket ölçüsü (kg / koli içi adet / çuval eşdeğeri) + ad-parse seed fonksiyonu |
+| `siparis_yuk_view.sql` | `v_siparis_satir_yuk`, `v_musteri_bekleyen_yuk` + mutabakat sorgusu |
+| `araclar_sema.sql` | Filo tanımı — ERP'de araç verisi olmadığı için tek kaynak |
+| `sevkiyat_plani_sema.sql` | Kaydedilen araç planları — araç/yük geçmişi burada birikir |
+
 ## Panorama sync
 
 | Dosya | İş |

@@ -74,3 +74,22 @@ export const PANORAMA_TAHSILAT_VIEW = "v_panorama_tahsilat_raporu_guncel";
  * bkz. sql/urun_skt_sema.sql
  */
 export const URUN_SKT_TABLE = "urun_skt";
+/**
+ * SKU paket ölçüsü — kg / koli içi adet / çuval eşdeğeri. Ürün adından parse
+ * edilip elle düzeltilir (kaynak='manuel' satırlar seed'de korunur).
+ * bkz. sql/urun_olcu_sema.sql
+ */
+export const URUN_OLCU_TABLE = "urun_olcu";
+/**
+ * Bekleyen siparişi olan müşteriler + kg/çuval yükü — rota planlayıcısının
+ * TEK kaynağı. kg/hacim matematiği view'da; uygulamada tekrarlanmaz.
+ * Koordinatsız müşteri lat/lon NULL ile gelir, sessizce düşmez.
+ * bkz. sql/siparis_yuk_view.sql
+ */
+export const MUSTERI_BEKLEYEN_YUK_VIEW = "v_musteri_bekleyen_yuk";
+/**
+ * Filo tanımı. Panorama'da araç verisi YOK (1.979 sevk belgesinin hepsi aynı
+ * sahte plaka '35AAA3535'), bu yüzden tek kaynak bu tablo.
+ * bkz. sql/araclar_sema.sql
+ */
+export const ARACLAR_TABLE = "araclar";

@@ -67,7 +67,7 @@ export const NAV_SECTIONS: NavSectionConfig[] = [
           },
         ],
       },
-      { id: "rotalar", label: "Rotalar", icon: RouteIcon },
+      { id: "rotalar", label: "Rotalar", icon: RouteIcon, href: "/rotalar" },
     ],
   },
   {
