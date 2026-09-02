@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useState, useSyncExternalStore } from "react";
 import { Typography } from "@heroui/react";
 import {
   CheckIcon,
@@ -13,7 +13,10 @@ import {
 
 import { AracKarti, type RotaBilgisi } from "@/components/rota/AracKarti";
 import { DurakHavuzu } from "@/components/rota/DurakHavuzu";
+import { EtkiPaneli, type EtkiSecenegi } from "@/components/rota/EtkiPaneli";
+import { FiloKadroPaneli } from "@/components/rota/FiloKadroPaneli";
 import { RotaOzetSeridi } from "@/components/rota/RotaOzetSeridi";
+import { TercihCubugu } from "@/components/rota/TercihCubugu";
 import {
   RotaHaritasi,
   aracRengi,
@@ -28,14 +31,52 @@ import {
 } from "@/hooks/useRotaPlani";
 import { DEPOT, googleMapsDirUrl } from "@/lib/depot";
 import { formatNumber } from "@/lib/format";
-import { dolulukHesapla, sweepKumele } from "@/lib/rota/atama";
+import { dolulukHesapla, filoSec } from "@/lib/rota/atama";
+import { sonrakiKalkis } from "@/lib/rota/operasyon";
+import { planMetrigi, planOlustur } from "@/lib/rota/planla";
+import {
+  tercihAbone,
+  tercihAnlik,
+  tercihGuncelle,
+  tercihSunucuAnlik,
+  type Tercihler,
+} from "@/lib/rota/tercihler";
 import { cn } from "@/lib/utils";
 
 /** aracKod → sıralı musteriKodu listesi. Sıra = durak numarası. */
 type Plan = Record<string, string[]>;
 
 export default function RotalarPage() {
-  const { loading, error, duraklar, araclar, ozet } = useRotaPlani();
+  /**
+   * Tercihler localStorage'da, yani sunucuda yok. `useSyncExternalStore` ilk
+   * kareyi varsayılanla çizip hemen ardından kaydedilmiş değere geçiyor —
+   * `useState(oku)` ile başlatmak hydration uyuşmazlığı üretiyordu (client
+   * component'ler de sunucuda prerender ediliyor).
+   */
+  const tercihler = useSyncExternalStore(
+    tercihAbone,
+    tercihAnlik,
+    tercihSunucuAnlik
+  );
+
+  const tercihDegis = useCallback(
+    (yeni: Partial<Tercihler>) => tercihGuncelle(yeni),
+    []
+  );
+
+  const { loading, error, duraklar, araclar, soforler, filo, ozet, tazele } =
+    useRotaPlani(tercihler.gunPenceresi);
+
+  /**
+   * O gün çıkabilecek araçlar. Tercihte elle seçim varsa o geçerli — ama
+   * şoför kısıtı yine uygulanır, geçersiz kombinasyon seçilemez.
+   */
+  const cikanAraclar = useMemo(() => {
+    if (tercihler.aracKodlari == null) return filo.secilen;
+    const istenen = new Set(tercihler.aracKodlari);
+    const elle = araclar.filter((a) => istenen.has(a.kod));
+    return filoSec(duraklar, elle, soforler).secilen;
+  }, [tercihler.aracKodlari, filo, araclar, duraklar, soforler]);
 
   const [plan, setPlan] = useState<Plan>({});
   const [seciliArac, setSeciliArac] = useState<string | null>(null);
@@ -46,6 +87,7 @@ export default function RotalarPage() {
   const [optimizeHatalari, setOptimizeHatalari] = useState<
     Record<string, string>
   >({});
+  const [filoPaneliAcik, setFiloPaneliAcik] = useState(false);
   const [kaydediliyor, setKaydediliyor] = useState(false);
   const [kayitDurumu, setKayitDurumu] = useState<
     { tur: "ok" | "hata"; mesaj: string } | null
@@ -77,13 +119,13 @@ export default function RotalarPage() {
 
   const rotalar = useMemo<HaritaRotasi[]>(
     () =>
-      araclar.map((a, i) => ({
+      cikanAraclar.map((a, i) => ({
         aracKod: a.kod,
         aracAd: a.ad,
         renk: aracRengi(i),
         duraklar: aracDuraklari(a.kod),
       })),
-    [araclar, aracDuraklari]
+    [cikanAraclar, aracDuraklari]
   );
 
   /** Atama değişti — o araç için eski güzergâh süresi geçersiz. */
@@ -104,12 +146,22 @@ export default function RotalarPage() {
 
   /**
    * Sweep kümeleme — depodan kutupsal açıya göre dizip kapasite dolana kadar
-   * aynı araca yükler. Panorama rut'unun `ziyaret_sira` alanı coğrafi
-   * olmadığı için (gün tutarlılığı %18, sıra TSP alt sınırının 4,5–37 katı)
-   * duraklar koordinattan yeniden kümeleniyor.
+   * aynı araca yükler. Panorama rut'u kullanılmıyor: Melih "o öylesine
+   * yapılmış bir rut, düzenlenecek" dedi, ölçüm de doğrulamıştı (gün
+   * tutarlılığı %18, sıra TSP alt sınırının 4,5–37 katı).
+   *
+   * Yalnız `cikanAraclar`'a dağıtır — filonun tamamına değil. `araclar` yine
+   * de geçilir ki artan durak "araç yok" yerine "şoför yok" diyebilsin.
    */
   const otomatikDagit = useCallback(() => {
-    const sonuc = sweepKumele(duraklar, araclar, DEPOT);
+    const sonuc = planOlustur({
+      duraklar,
+      araclar: cikanAraclar,
+      tumFilo: araclar,
+      depo: DEPOT,
+      strateji: tercihler.strateji,
+      uzakAyir: tercihler.uzakAyir,
+    });
     const sonraki: Plan = {};
     for (const yuk of sonuc.yukler) {
       sonraki[yuk.arac.kod] = yuk.duraklar.map((d) => d.musteriKodu);
@@ -117,7 +169,65 @@ export default function RotalarPage() {
     setPlan(sonraki);
     setRotaBilgileri({});
     setOptimizeHatalari({});
-  }, [duraklar, araclar]);
+  }, [duraklar, cikanAraclar, araclar, tercihler.strateji, tercihler.uzakAyir]);
+
+  /**
+   * Ekrandaki planın ölçümü. Elle düzenlenmiş plan da dahil — kullanıcı bir
+   * durağı taşıdığında doluluk ve güzergâh anında güncellenir.
+   */
+  const mevcutMetrik = useMemo(
+    () =>
+      planMetrigi(
+        {
+          yukler: cikanAraclar.map((arac) => {
+            const d = aracDuraklari(arac.kod);
+            return { arac, duraklar: d, doluluk: dolulukHesapla(arac, d) };
+          }),
+          yerlesmeyen: havuz.map((durak) => ({ durak, neden: "arac-yok" as const })),
+        }
+      ),
+    [cikanAraclar, aracDuraklari, havuz]
+  );
+
+  /**
+   * Tercih alternatiflerinin ölçülen etkisi. Hiçbiri ağ çağrısı yapmaz —
+   * "coğrafi mi doluluk mu" sorusu denemeden cevaplanabilsin diye.
+   */
+  const etkiSecenekleri = useMemo<EtkiSecenegi[]>(() => {
+    const uret = (strateji: Tercihler["strateji"], uzakAyir: boolean) =>
+      planMetrigi(
+        planOlustur({
+          duraklar,
+          araclar: cikanAraclar,
+          tumFilo: araclar,
+          depo: DEPOT,
+          strateji,
+          uzakAyir,
+        })
+      );
+
+    return [
+      {
+        etiket: "Coğrafi",
+        metrik: uret("sweep", tercihler.uzakAyir),
+        secili: tercihler.strateji === "sweep",
+        onSec: () => tercihDegis({ strateji: "sweep" }),
+      },
+      {
+        etiket: "Doluluk",
+        metrik: uret("ffd", tercihler.uzakAyir),
+        secili: tercihler.strateji === "ffd",
+        onSec: () => tercihDegis({ strateji: "ffd" }),
+      },
+    ];
+  }, [
+    duraklar,
+    cikanAraclar,
+    araclar,
+    tercihler.strateji,
+    tercihler.uzakAyir,
+    tercihDegis,
+  ]);
 
   const hepsiniTemizle = useCallback(() => {
     setPlan({});
@@ -181,6 +291,12 @@ export default function RotalarPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             duraklar: liste.map((d) => ({ lat: d.lat, lon: d.lon })),
+            // Araç günün sonunda depoya dönüyor (Melih) — güzergâh kapalı
+            // halka, dönüş bacağı da süreye giriyor.
+            depoyaDonus: true,
+            // Trafik tahmini kalkış saatine göre yapılır. "Şimdi" göndermek
+            // akşam yapılan planlamada yanlış süre üretiyordu.
+            kalkis: sonrakiKalkis().toISOString(),
           }),
         });
         const json = (await res.json()) as {
@@ -227,14 +343,19 @@ export default function RotalarPage() {
    * yeniden yazılır, çift kayıt olmaz.
    */
   const planiKaydet = useCallback(async () => {
-    const gonderilecek = araclar
+    const gonderilecek = cikanAraclar
       .map((a) => {
         const liste = aracDuraklari(a.kod);
         if (liste.length === 0) return null;
         const d = dolulukHesapla(a, liste);
         const bilgi = rotaBilgileri[a.kod];
+        const sofor = filo.atamalar[a.kod];
         return {
           aracKod: a.kod,
+          // ERP'de araç verisi yok — "kim neyi sürdü" geçmişinin tek kaynağı
+          // bu kayıt. Ad dondurularak yazılıyor ki kadro değişse de kalsın.
+          soforKod: sofor?.kod ?? null,
+          soforAd: sofor?.ad ?? null,
           duraklar: liste.map((x) => ({
             musteriKodu: x.musteriKodu,
             kg: x.kg,
@@ -276,10 +397,11 @@ export default function RotalarPage() {
     } finally {
       setKaydediliyor(false);
     }
-  }, [araclar, aracDuraklari, rotaBilgileri]);
+  }, [cikanAraclar, aracDuraklari, rotaBilgileri, filo.atamalar]);
 
   const atananSayisi = atananlar.size;
-  const seciliAracAdi = araclar.find((a) => a.kod === seciliArac)?.ad ?? null;
+  const seciliAracAdi =
+    cikanAraclar.find((a) => a.kod === seciliArac)?.ad ?? null;
 
   return (
     <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden bg-background">
@@ -313,7 +435,7 @@ export default function RotalarPage() {
           <button
             type="button"
             onClick={otomatikDagit}
-            disabled={loading || duraklar.length === 0 || araclar.length === 0}
+            disabled={loading || duraklar.length === 0 || cikanAraclar.length === 0}
             className={cn(
               "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md border border-border px-2.5 text-[12.5px] font-medium transition-colors",
               "hover:bg-accent disabled:cursor-not-allowed disabled:opacity-40"
@@ -386,7 +508,24 @@ export default function RotalarPage() {
       ) : null}
 
       <div className="min-h-0 flex-1 overflow-y-auto">
-        <RotaOzetSeridi ozet={ozet} loading={loading} />
+        <RotaOzetSeridi ozet={ozet} filo={filo} loading={loading} />
+
+        <TercihCubugu
+          tercihler={tercihler}
+          onDegis={tercihDegis}
+          araclar={araclar}
+          otomatikSecim={filo.secilen}
+          atamalar={filo.atamalar}
+          soforSayisi={ozet.soforSayisi.B + ozet.soforSayisi.C}
+          onFiloDuzenle={() => setFiloPaneliAcik(true)}
+          loading={loading}
+        />
+
+        <EtkiPaneli
+          mevcut={mevcutMetrik}
+          secenekler={etkiSecenekleri}
+          loading={loading}
+        />
 
         <div className="grid border-b border-border lg:grid-cols-3 [&>section]:h-[26rem]">
           <DurakHavuzu
@@ -397,17 +536,19 @@ export default function RotalarPage() {
           />
 
           <section className="flex min-w-0 flex-col overflow-y-auto border-b border-border lg:border-r lg:border-b-0">
-            {araclar.length === 0 ? (
+            {cikanAraclar.length === 0 ? (
               <div className="flex h-full items-center justify-center px-6 text-center">
                 <p className="text-[13px] text-muted-foreground">
                   {loading ? "Filo yükleniyor…" : "Aktif araç tanımlı değil."}
                 </p>
               </div>
             ) : (
-              araclar.map((a) => (
+              cikanAraclar.map((a) => (
                 <AracKarti
                   key={a.kod}
                   arac={a}
+                  sofor={filo.atamalar[a.kod] ?? null}
+                  dolulukEsigi={tercihler.dolulukEsigi}
                   duraklar={aracDuraklari(a.kod)}
                   secili={seciliArac === a.kod}
                   onSec={() =>
@@ -431,6 +572,13 @@ export default function RotalarPage() {
 
         <GuzergahLinkleri rotalar={rotalar} />
       </div>
+
+      {filoPaneliAcik ? (
+        <FiloKadroPaneli
+          onKapat={() => setFiloPaneliAcik(false)}
+          onDegisti={tazele}
+        />
+      ) : null}
     </div>
   );
 }
@@ -451,7 +599,7 @@ function GuzergahLinkleri({ rotalar }: { rotalar: HaritaRotasi[] }) {
         return (
           <a
             key={r.aracKod}
-            href={googleMapsDirUrl(konumlu, { includeDepot: true })}
+            href={googleMapsDirUrl(konumlu, { includeDepot: true, roundTrip: true })}
             target="_blank"
             rel="noopener noreferrer nofollow"
             className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-[12.5px] text-foreground transition-colors hover:bg-accent"

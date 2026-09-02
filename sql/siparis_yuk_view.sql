@@ -73,6 +73,12 @@ comment on view public.v_siparis_satir_yuk is
 -- Müşteri kaynağı `musteriler_rapor` — koordinat filtresi YOK. Koordinatsız
 -- müşteri sessizce düşmez, lat/lon NULL gelir ve UI "plana giremez" uyarısı
 -- verir. (Koordinat filtresinin sessizce ciro düşürdüğü daha önce yaşandı.)
+--
+-- RUT ALANLARI YOK. Melih (2026-09-02): "şuan bu veriyi dikkate almayalım, o
+-- öylesine yapılmış bir rut, düzenlenecek." Zaten ölçülmüştü: gün tutarlılığı
+-- %10-36, ziyaret_sira'yı takip eden yol TSP alt sınırının 4,5-37 katı. Rut
+-- satış temsilcisi portföyü, sevkiyat rotası değil. `musteriler_rapor`'daki
+-- rut_kod duruyor — Sevkiyat Raporları sayfası onu kullanmaya devam ediyor.
 create view public.v_musteri_bekleyen_yuk
 with (security_invoker = true) as
 select
@@ -82,8 +88,6 @@ select
     r.sehir,
     r.lat,
     r.lon,
-    r.rut_kod,
-    r.rut_aciklama,
     r.risk_durumu,
     count(distinct y.siparis_no)                    as siparis_sayisi,
     count(*)                                        as satir_sayisi,
@@ -99,8 +103,7 @@ where y.bekleyen_siparis = 'Bekleyen Sipariş'
   and y.belge_tip in ('Satış', 'Konsinye Satış', 'Satış - İade', 'Satış-İade')
   and y.iptal_neden is null
 group by
-    r.musteri_kodu, r.unvan, r.ilce, r.sehir, r.lat, r.lon,
-    r.rut_kod, r.rut_aciklama, r.risk_durumu;
+    r.musteri_kodu, r.unvan, r.ilce, r.sehir, r.lat, r.lon, r.risk_durumu;
 
 comment on view public.v_musteri_bekleyen_yuk is
   'Bekleyen siparişi olan müşteriler + kg/çuval yükü. Koordinatsız müşteri lat/lon NULL ile gelir, düşmez.';
@@ -156,3 +159,76 @@ end $$;
 --                                                             as sapma_5_alti
 --   from hesap h join gercek g using (belge_kod)
 --  where g.gercek_kg > 0;
+
+-- ---------------------------------------------------------------------------
+-- Tarih penceresi parametreli hâl — planlayıcı bunu çağırır
+-- ---------------------------------------------------------------------------
+-- View'da tarih filtresi YOK; Panorama'nın "Bekleyen Sipariş" dediği her şey
+-- gelir ve raporun kendi penceresi 9 ay (2025.12 – 2026.09 ölçüldü). Aylardır
+-- bekleyen "zombi" sipariş her plana girmesin diye ekranda ayarlanabilir
+-- pencere var; matematik yine burada, uygulamada tekrarlanmıyor.
+--
+-- TARİH TUZAĞI: `islem_tarihi` 'YYYY.MM.DD' (5451). SevkiyatRaporuKup 5130 ise
+-- 'DD.MM.YYYY' kullanıyor — aynı sanıp yanlış parse etme.
+create or replace function public.musteri_bekleyen_yuk(p_gun integer default null)
+returns table (
+    musteri_kodu           text,
+    unvan                  text,
+    ilce                   text,
+    sehir                  text,
+    lat                    double precision,
+    lon                    double precision,
+    risk_durumu            text,
+    siparis_sayisi         bigint,
+    satir_sayisi           bigint,
+    olcusuz_satir          bigint,
+    kg                     numeric,
+    cuval_esdeger          numeric,
+    brut_tutar             numeric,
+    en_eski_siparis_tarihi date,
+    en_yeni_siparis_tarihi date
+)
+language sql
+stable
+security invoker
+set search_path = public
+as $$
+    select
+        r.musteri_kodu, r.unvan, r.ilce, r.sehir, r.lat, r.lon, r.risk_durumu,
+        count(distinct y.siparis_no)                as siparis_sayisi,
+        count(*)                                    as satir_sayisi,
+        count(*) filter (where y.olcusuz)           as olcusuz_satir,
+        round(coalesce(sum(y.kg), 0), 1)            as kg,
+        round(coalesce(sum(y.cuval_esdeger), 0), 2) as cuval_esdeger,
+        round(coalesce(sum(y.brut_tutar), 0), 2)    as brut_tutar,
+        min(t.tarih)                                as en_eski_siparis_tarihi,
+        max(t.tarih)                                as en_yeni_siparis_tarihi
+    from public.v_siparis_satir_yuk y
+    join public.musteriler_rapor r
+      on r.musteri_kodu = y.musteri_kod
+    cross join lateral (
+        select case
+                 when y.islem_tarihi ~ '^\d{4}\.\d{2}\.\d{2}$'
+                   then to_date(y.islem_tarihi, 'YYYY.MM.DD')
+               end as tarih
+    ) t
+    where y.bekleyen_siparis = 'Bekleyen Sipariş'
+      and y.belge_tip in ('Satış', 'Konsinye Satış', 'Satış - İade', 'Satış-İade')
+      and y.iptal_neden is null
+      -- Tarihi okunamayan satır pencereye takılmaz, hep içeride kalır:
+      -- sessizce yük düşürmektense fazladan göstermek yeğ.
+      and (p_gun is null or t.tarih is null or t.tarih >= current_date - p_gun)
+    group by
+        r.musteri_kodu, r.unvan, r.ilce, r.sehir, r.lat, r.lon, r.risk_durumu;
+$$;
+
+comment on function public.musteri_bekleyen_yuk(integer) is
+  'Bekleyen yük, p_gun günlük pencereyle (null = hepsi). v_musteri_bekleyen_yuk ile aynı matematik + en_yeni_siparis_tarihi.';
+
+grant execute on function public.musteri_bekleyen_yuk(integer)
+  to anon, authenticated, service_role;
+
+do $$ begin
+  grant execute on function public.musteri_bekleyen_yuk(integer) to locus_agent_ro;
+exception when undefined_object then null;
+end $$;

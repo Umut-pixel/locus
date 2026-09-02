@@ -1,20 +1,29 @@
 "use client";
 
-import { MapPinOffIcon, PackageIcon, TruckIcon } from "lucide-react";
+import {
+  AlertTriangleIcon,
+  MapPinOffIcon,
+  PackageIcon,
+  TruckIcon,
+  UserIcon,
+} from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 import type { RotaOzeti } from "@/hooks/useRotaPlani";
 import { useCountUp } from "@/hooks/useCountUp";
+import type { FiloSecimi } from "@/lib/rota/atama";
 import { formatKg, formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 interface RotaOzetSeridiProps {
   ozet: RotaOzeti;
+  /** O gün çıkabilecek filo — şoför sınırı uygulanmış. */
+  filo: FiloSecimi;
   loading: boolean;
 }
 
 /** SevkiyatOzet.tsx'teki KPI şeridi iskeletiyle aynı — hero figür bekleyen yük. */
-export function RotaOzetSeridi({ ozet, loading }: RotaOzetSeridiProps) {
+export function RotaOzetSeridi({ ozet, filo, loading }: RotaOzetSeridiProps) {
   const kg = useCountUp(ozet.toplamKg);
   const cuval = useCountUp(ozet.toplamCuval);
   const durak = useCountUp(ozet.durakSayisi);
@@ -24,7 +33,10 @@ export function RotaOzetSeridi({ ozet, loading }: RotaOzetSeridiProps) {
       ? Math.round((ozet.toplamCuval / ozet.filoCuvalKapasitesi) * 100)
       : null;
 
+  const toplamSofor = ozet.soforSayisi.B + ozet.soforSayisi.C;
+
   return (
+    <>
     <div className="grid grid-cols-2 gap-px border-b border-border bg-border lg:grid-cols-4">
       <div className="flex flex-col justify-center gap-1 bg-background px-3.5 py-4">
         <span className="text-[12px] tracking-[0.06em] text-muted-foreground uppercase">
@@ -73,6 +85,37 @@ export function RotaOzetSeridi({ ozet, loading }: RotaOzetSeridiProps) {
         vurgu={ozet.koordinatsizSayisi > 0}
       />
     </div>
+
+    {/*
+      Günlük filo araç sayısıyla değil ŞOFÖR sayısıyla sınırlı: 3 şoför var ve
+      sınıflar arası geçmiyorlar, yani Kangoo ile Transit aynı gün çıkamaz.
+      Planlayıcının hangi kombinasyonu neden seçtiği burada görünür olmalı,
+      yoksa "neden 4. araç boş duruyor" sorusu cevapsız kalır.
+    */}
+    <div
+      className={cn(
+        "flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-border px-3.5 py-2 text-[12px]",
+        filo.yeterli ? "text-muted-foreground" : "text-amber-400"
+      )}
+    >
+      {filo.yeterli ? (
+        <UserIcon className="size-3.5 shrink-0" strokeWidth={1.75} aria-hidden />
+      ) : (
+        <AlertTriangleIcon className="size-3.5 shrink-0" strokeWidth={2} aria-hidden />
+      )}
+      <span className="font-medium text-foreground">
+        {formatNumber(toplamSofor)} şoför · {formatNumber(filo.secilen.length)} araç
+      </span>
+      {filo.secilen.length > 0 ? (
+        <span className="text-muted-foreground">
+          {filo.secilen.map((a) => a.ad).join(" · ")}
+        </span>
+      ) : null}
+      <span className={filo.yeterli ? "text-muted-foreground" : undefined}>
+        {filo.gerekce}
+      </span>
+    </div>
+    </>
   );
 }
 

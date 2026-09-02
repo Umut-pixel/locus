@@ -5,6 +5,15 @@ import { AlertTriangleIcon, CheckCircle2Icon, MapPinOffIcon, PackageIcon } from 
 import { ScrollBottomFade } from "@/components/ui/ScrollBottomFade";
 import type { RotaDuragi } from "@/hooks/useRotaPlani";
 import { useScrollBottomFade } from "@/hooks/useScrollBottomFade";
+import { depoyaKm } from "@/lib/depot";
+import { UZAK_ESIGI_KM } from "@/lib/rota/planla";
+
+/**
+ * Bu yaştan eski bekleyen sipariş sarı yanar. Tarih penceresi "hepsi"ndeyken
+ * aylardır bekleyen bir sipariş sessizce her plana girebilir — filtrelemek
+ * yerine görünür kılıyoruz, kararı planlayıcı verir.
+ */
+const BAYAT_GUN = 30;
 import { formatKg, formatNumber } from "@/lib/format";
 import { RISK_COLORS, RISK_SHORT_LABELS } from "@/lib/risk-style";
 import { cn } from "@/lib/utils";
@@ -109,6 +118,10 @@ function DurakSatiri({
   onSec: () => void;
 }) {
   const konumsuz = durak.lat == null || durak.lon == null;
+  const uzaklikKm =
+    durak.lat != null && durak.lon != null
+      ? depoyaKm({ lat: durak.lat, lon: durak.lon })
+      : null;
 
   return (
     <li>
@@ -151,6 +164,36 @@ function DurakSatiri({
           <span className="shrink-0 tabular-nums">
             {formatNumber(Math.round(durak.cuvalEsdeger))} çuval
           </span>
+          {uzaklikKm != null ? (
+            <span
+              className={cn(
+                "shrink-0 tabular-nums",
+                uzaklikKm >= UZAK_ESIGI_KM && "text-amber-400"
+              )}
+              title={
+                uzaklikKm >= UZAK_ESIGI_KM
+                  ? "Bölge dışı — sipariş birikince ayrı araçla gidiyor"
+                  : "Depoya kuş uçuşu mesafe"
+              }
+            >
+              {formatNumber(Math.round(uzaklikKm))} km
+            </span>
+          ) : null}
+          {durak.yasGun != null && durak.yasGun >= 1 ? (
+            <span
+              className={cn(
+                "shrink-0 tabular-nums",
+                durak.yasGun >= BAYAT_GUN && "text-amber-400"
+              )}
+              title={
+                durak.yasGun >= BAYAT_GUN
+                  ? `En eski siparişi ${durak.yasGun} günlük — hâlâ geçerli mi kontrol edin`
+                  : "En eski bekleyen siparişin yaşı"
+              }
+            >
+              {formatNumber(durak.yasGun)} günlük
+            </span>
+          ) : null}
           {konumsuz ? (
             <span className="flex shrink-0 items-center gap-1 text-destructive">
               <MapPinOffIcon className="size-3" strokeWidth={2} aria-hidden />

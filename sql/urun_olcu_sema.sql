@@ -150,23 +150,32 @@ begin
       case
         -- Kedi kumu AD satılıyor; koli çarpanı devrede değil
         when lt_ham is not null then 1
-        -- Oran tam sayıya oturuyorsa (±0,02) ona güven: canlı veride 1,00 /
-        -- 12,00 / 24,00 nokta atışı çıkıyor. 8,70 veya 31,60 gibi gürültülü
-        -- oranlar (farklı iskonto kademeleri) bu testten geçemez.
+        -- MELİH TEYİTLİ (2026-09-02) — fiyat oranından ÖNCE gelir, çünkü teyitli
+        -- bilgi türetilmiş orandan üstündür. Bir iskonto değişikliği oranı
+        -- yanlışlıkla tam sayıya oturtursa bu satırlar korunmuş olur.
+        --   çuval (≥10 kg) → 1   ("KL" Panorama'da çuvalın kendisi, oran 1,00)
+        --   3 kg           → 6   (Melih: "3 kg : 6 adet")
+        --   2 kg           → 8   (Melih: "2 kg : 8 adet")
+        when paket_kg >= 10  then 1
+        when paket_kg >= 2.5 then 6
+        when paket_kg >= 1.5 then 8
+        -- Kalan küçük kalemler (400 g yaş mama, 85 g mousse): AD/KL fiyat oranı
+        -- tam sayıya oturuyorsa (±0,02) ona güven — canlı veride 12,00 ve 24,00
+        -- nokta atışı çıkıyor. Gürültülü oranlar bu testten geçemez.
         when kl_ad_orani between 0.9 and 40
          and abs(kl_ad_orani - round(kl_ad_orani)) <= 0.02
              then greatest(round(kl_ad_orani)::integer, 1)
-        -- Aksi halde kg aralığı (Melih teyidi bekleyen varsayımlar)
-        when paket_kg >= 10                     then 1
-        when paket_kg >= 2.5                    then 6
-        when paket_kg >= 1.5                    then 8
-        when paket_kg is not null               then 24
+        when paket_kg is not null then 24
         else 1
       end as koli_ici_adet,
-      -- Hacim, ağırlık oranıyla yaklaşık hesaplanıyor. Kuru mamada doğru
-      -- (hepsi aynı yoğunlukta); KEDİ KUMUNDA hacmi ABARTIR — kum ağır ama
-      -- küçük hacimli. Melih'in "palete kaç kum torbası dizilir" cevabı
-      -- gelince kum satırları kaynak='manuel' ile düzeltilmeli.
+      -- Çuval (≥10 kg) → 1,0. Melih palet başına 60 çuvalı yalnız 15 kg için
+      -- teyit etti; 10 ve 12 kg çuvallar (sevk edilenlerin %11,8'i) de 1 yer
+      -- sayılıyor. Bilinçli olarak GÜVENLİ taraf: torba boyutu ağırlıkla
+      -- orantılı küçülmüyor, oranla saymak aracı fazla doldurma riski taşırdı.
+      --
+      -- Küçük paketler ağırlık oranıyla yaklaşık — kuru mamada doğru, hepsi
+      -- aynı yoğunlukta. KEDİ KUMUNDA bu formül hacmi abartıyordu; kum satırları
+      -- artık aşağıdaki manuel blokta Melih'in palet cevabıyla ezilir.
       case
         when lt_ham is not null   then round(paket_kg / 14.56, 3)
         when paket_kg >= 10       then 1.0
@@ -209,14 +218,48 @@ exception when undefined_object then null;
 end $$;
 
 -- =============================================================================
--- Melih'ten cevap gelince — örnek manuel giriş (kaynak='manuel' seed'i bloklar)
+-- Melih teyitleri (2026-09-02) — kaynak='manuel', seed bir daha ezmez
 -- =============================================================================
 --
--- insert into public.urun_olcu
---     (urun_kodu, urun_adi, paket_kg, koli_ici_adet, cuval_esdeger, hacim_sinifi, kaynak)
--- values
---     ('10000007', 'Fresh Paty Kedi Kumu Classic 10 lt torba', 8.5, 1, 0.60, 'kum', 'manuel')
--- on conflict (urun_kodu) do update set
---     paket_kg = excluded.paket_kg, koli_ici_adet = excluded.koli_ici_adet,
---     cuval_esdeger = excluded.cuval_esdeger, hacim_sinifi = excluded.hacim_sinifi,
---     kaynak = 'manuel', guncellendi = now();
+-- Kedi kumu hacmi: "palete 110-120 adet arası" → orta değer 115. Palet 60 çuval
+-- aldığına göre 1 torba = 60/115 = 0,522 çuval. Ağırlık oranıyla hesaplanan
+-- 0,598 hacmi %15 abartıyordu — kum ağır ama küçük hacimli.
+-- 6 lt torba için ayrı cevap yok; 10 lt'nin hacim oranıyla ölçeklendi (×0,6).
+--
+-- Boş palet ve POP malzemesi araçta yer KAPLAMIYOR (Melih: "evet boş palet
+-- araçta ekstra yer kaplamıyor, ürünleri onun üstüne diziyoruz" / reklam
+-- dubası için "hayır gerek yok"). paket_kg=0 vererek hem yükten düşüyorlar hem
+-- de "ölçüsüz satır" uyarısından çıkıyorlar — NULL bırakılsa her planda
+-- "ölçüsü bilinmeyen kalem var" uyarısı verirdi.
+insert into public.urun_olcu
+    (urun_kodu, urun_adi, paket_kg, koli_ici_adet, cuval_esdeger, hacim_sinifi, kaynak)
+values
+    ('10000004', 'Fresh Paty Kedi Kumu Kokusuz - 10 lt',              8.700, 1, 0.522, 'kum',   'manuel'),
+    ('10000005', 'Fresh Paty Kedi Kumu Clinic - 10 lt',               8.700, 1, 0.522, 'kum',   'manuel'),
+    ('10000006', 'Fresh Paty Kedi Kumu Aloe Vera Kokulu - 10 lt',     8.700, 1, 0.522, 'kum',   'manuel'),
+    ('10000007', 'Fresh Paty Kedi Kumu Classic (Active Carbon) 10 lt',8.700, 1, 0.522, 'kum',   'manuel'),
+    ('10000001', 'Fresh Paty Kedi Kumu Kokusuz - 6 lt',               5.220, 1, 0.313, 'kum',   'manuel'),
+    ('10000002', 'Fresh Paty Kedi Kumu Aloe Vera Kokulu - 6 lt',      5.220, 1, 0.313, 'kum',   'manuel'),
+    ('10000003', 'Fresh Paty Kedi Kumu Clinic - 6 lt',                5.220, 1, 0.313, 'kum',   'manuel'),
+    ('09394',    'PET MAMA PALET',                                    0.000, 1, 0.000, 'diger', 'manuel'),
+    ('POP0003',  'SIGNATURE REKLAM DUBASI',                           0.000, 1, 0.000, 'diger', 'manuel')
+on conflict (urun_kodu) do update set
+    paket_kg      = excluded.paket_kg,
+    koli_ici_adet = excluded.koli_ici_adet,
+    cuval_esdeger = excluded.cuval_esdeger,
+    hacim_sinifi  = excluded.hacim_sinifi,
+    kaynak        = 'manuel',
+    guncellendi   = now();
+
+-- =============================================================================
+-- Hâlâ ölçüsüz — Melih'e sorulacak
+-- =============================================================================
+--
+-- 10000008  Fresh Paty Health Indicator - Erken Teşhis Kumu
+--   Adında ne kg ne litre var; kolide 24 adet olduğu fiyat oranından biliniyor
+--   ama tek adedin ağırlığı/hacmi bilinmiyor. TAHMİN EDİLMEDİ — geocode'daki
+--   "ilçe boşsa uydurma" kuralının aynısı. Planda "ölçüsüz satır" uyarısı
+--   verir; cevap gelince yukarıdaki bloğa manuel satır olarak eklenir.
+--
+-- Yeni ölçüsüz kalem çıktı mı:
+--   select urun_kodu, urun_adi from public.urun_olcu where paket_kg is null;

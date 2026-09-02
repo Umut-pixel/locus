@@ -3,7 +3,13 @@
 import { AlertTriangleIcon, LoaderIcon, RouteIcon, TruckIcon, XIcon } from "lucide-react";
 
 import type { RotaAraci, RotaDuragi } from "@/hooks/useRotaPlani";
-import { dolulukHesapla, kalanKapasite } from "@/lib/rota/atama";
+import { dolulukHesapla, kalanKapasite, type Sofor } from "@/lib/rota/atama";
+import {
+  gunUzunlugu,
+  saatMetni,
+  sonrakiKalkis,
+  varisZamani,
+} from "@/lib/rota/operasyon";
 import { formatKg, formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -16,6 +22,10 @@ export interface RotaBilgisi {
 
 interface AracKartiProps {
   arac: RotaAraci;
+  /** Bu aracı sürecek şoför — kadroda karşılığı yoksa null. */
+  sofor: Sofor | null;
+  /** "Yarı boş çıkıyor" uyarı eşiği — tercih çubuğundan gelir. */
+  dolulukEsigi: number;
   duraklar: RotaDuragi[];
   /** Kart tıklanınca havuzdaki seçili durak buraya eklenir. */
   secili: boolean;
@@ -49,6 +59,8 @@ function yuzdeMetni(deger: number | null): string {
  */
 export function AracKarti({
   arac,
+  sofor,
+  dolulukEsigi,
   duraklar,
   secili,
   onSec,
@@ -65,6 +77,27 @@ export function AracKarti({
   const agirlikBaglayici = doluluk.baglayiciKisit === "agirlik";
   const kgAsim = doluluk.kgYuzde != null && doluluk.kgYuzde > 100;
   const cuvalAsim = doluluk.cuvalYuzde > 100;
+
+  /**
+   * Google yalnız SÜRÜŞ süresini veriyor. Boşaltma (durak × 15 dk) ve
+   * takograf molası eklenmezse tur olduğundan kısa görünür, "bu güne sığar mı"
+   * sorusu yanlış cevaplanır.
+   */
+  const gun = rotaBilgi
+    ? gunUzunlugu({
+        surusSaniye: rotaBilgi.saniye,
+        durakSayisi: duraklar.length,
+        takograf: arac.takograf,
+      })
+    : null;
+  const varis = gun ? varisZamani(sonrakiKalkis(), gun.toplamSaniye) : null;
+
+  /** Melih: araçlar dolmadan çıkmasın. Engel değil, uyarı. */
+  const bagliyiciYuzde = agirlikBaglayici
+    ? (doluluk.kgYuzde ?? doluluk.cuvalYuzde)
+    : doluluk.cuvalYuzde;
+  const dusukDoluluk =
+    duraklar.length > 0 && !doluluk.asim && bagliyiciYuzde < dolulukEsigi;
 
   return (
     <section
@@ -96,6 +129,14 @@ export function AracKarti({
           <span className="truncate text-[12px] font-medium tracking-[0.06em] text-foreground uppercase">
             {arac.ad}
           </span>
+          {sofor ? (
+            <span
+              className="shrink-0 truncate text-[11.5px] text-muted-foreground"
+              title={`${sofor.ad} — ${sofor.ehliyetSinifi} sınıfı ehliyet`}
+            >
+              {sofor.ad}
+            </span>
+          ) : null}
           {doluluk.asim ? (
             <span className="shrink-0 rounded bg-destructive/15 px-1.5 py-0.5 text-[11px] font-medium text-destructive">
               aşım
@@ -168,14 +209,34 @@ export function AracKarti({
           </p>
         ) : null}
 
-        {rotaBilgi ? (
-          <p className="text-[11.5px] text-muted-foreground tabular-nums">
-            Güzergâh {sureMetni(rotaBilgi.saniye)} ·{" "}
-            {formatNumber(Math.round(rotaBilgi.metre / 1000))} km
-            <span className="ml-1 opacity-70">
-              ({rotaBilgi.trafik === "TRAFFIC_AWARE_OPTIMAL" ? "trafik" : "trafik~"})
+        {dusukDoluluk ? (
+          <p className="flex items-start gap-1.5 text-[11.5px] text-amber-400">
+            <AlertTriangleIcon className="mt-px size-3 shrink-0" strokeWidth={2} aria-hidden />
+            <span>
+              Yarı boş çıkıyor (%{Math.round(bagliyiciYuzde)}) — durak eklemeyi
+              veya daha küçük araç kullanmayı düşün.
             </span>
           </p>
+        ) : null}
+
+        {rotaBilgi && gun && varis ? (
+          <div className="flex flex-col gap-0.5 text-[11.5px] text-muted-foreground tabular-nums">
+            <p>
+              Depoya dönüşle {sureMetni(gun.toplamSaniye)} ·{" "}
+              {formatNumber(Math.round(rotaBilgi.metre / 1000))} km ·{" "}
+              {saatMetni(sonrakiKalkis())} → {saatMetni(varis)}
+              <span className="ml-1 opacity-70">
+                ({rotaBilgi.trafik === "TRAFFIC_AWARE_OPTIMAL" ? "trafik" : "trafik~"})
+              </span>
+            </p>
+            <p className="opacity-70">
+              {sureMetni(gun.surusSaniye)} sürüş +{" "}
+              {sureMetni(gun.servisSaniye)} boşaltma
+              {gun.molaSaniye > 0
+                ? ` + ${sureMetni(gun.molaSaniye)} takograf molası`
+                : ""}
+            </p>
+          </div>
         ) : null}
 
         {optimizeHatasi ? (

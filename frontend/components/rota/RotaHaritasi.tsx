@@ -119,14 +119,19 @@ function lineFeature(
   };
 }
 
-/** Depo → 1 → 2 → … (dönüş yok — AgentRouteMap ile aynı kural). */
+/**
+ * Depo → 1 → 2 → … → depo. Kapalı halka, çünkü araç günün sonunda depoya
+ * dönüyor (Melih 2026-09-02) ve dönüş bacağı hem mesafeye hem süreye giriyor.
+ * Google isteğinde de `depoyaDonus: true` gönderiliyor; harita onunla aynı
+ * güzergâhı çizmeli.
+ */
 function rotaNoktalari(duraklar: RotaDuragi[]): LngLat[] {
   const stops: LngLat[] = [];
   for (const d of duraklar) {
     if (d.lat == null || d.lon == null) continue;
     stops.push([d.lon, d.lat]);
   }
-  return stops.length > 0 ? [DEPOT.lngLat, ...stops] : [];
+  return stops.length > 0 ? [DEPOT.lngLat, ...stops, DEPOT.lngLat] : [];
 }
 
 /**

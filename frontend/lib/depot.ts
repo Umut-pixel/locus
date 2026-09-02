@@ -11,6 +11,26 @@ export const DEPOT = {
   lngLat: [27.141092424481496, 38.28801183350053] as [number, number],
 } as const;
 
+/**
+ * Depoya kuş uçuşu mesafe (km).
+ *
+ * Sevkiyat her yere gidiyor — Bandırma gibi uzak müşteriler sipariş birikince
+ * ayrı bir araca yükleniyor (Melih). Havuzda bu sayı görünmezse 300 km'lik
+ * bir durak İzmir içi turla aynı listede kaybolur.
+ */
+export function depoyaKm(nokta: { lat: number; lon: number }): number {
+  const R = 6371;
+  const rad = Math.PI / 180;
+  const dLat = (nokta.lat - DEPOT.lat) * rad;
+  const dLon = (nokta.lon - DEPOT.lon) * rad;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(DEPOT.lat * rad) *
+      Math.cos(nokta.lat * rad) *
+      Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.asin(Math.sqrt(a));
+}
+
 export function googleMapsDirUrl(
   stops: ReadonlyArray<{ lat: number; lon: number }>,
   opts?: { includeDepot?: boolean; roundTrip?: boolean }

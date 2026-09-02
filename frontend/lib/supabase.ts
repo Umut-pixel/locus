@@ -88,8 +88,22 @@ export const URUN_OLCU_TABLE = "urun_olcu";
  */
 export const MUSTERI_BEKLEYEN_YUK_VIEW = "v_musteri_bekleyen_yuk";
 /**
+ * Aynı hesabın tarih penceresi parametreli hâli: `musteri_bekleyen_yuk(p_gun)`.
+ * p_gun = null → filtre yok. Panorama'nın kendi penceresi 9 ay olduğu için
+ * filtresiz havuzda aylardır bekleyen sipariş de görünür.
+ * bkz. sql/siparis_yuk_view.sql
+ */
+export const BEKLEYEN_YUK_RPC = "musteri_bekleyen_yuk";
+/**
  * Filo tanımı. Panorama'da araç verisi YOK (1.979 sevk belgesinin hepsi aynı
  * sahte plaka '35AAA3535'), bu yüzden tek kaynak bu tablo.
  * bkz. sql/araclar_sema.sql
  */
 export const ARACLAR_TABLE = "araclar";
+/**
+ * Şoför kadrosu. Günlük araç sayısını filo değil BU tablo sınırlıyor.
+ * Ehliyet KAPSAYICI: C tüm araçları sürer, B yalnız Kangoo/Transit. Pratikte
+ * günde en fazla 3 araç ve en fazla 2 Isuzu.
+ * bkz. sql/soforler_sema.sql
+ */
+export const SOFORLER_TABLE = "soforler";

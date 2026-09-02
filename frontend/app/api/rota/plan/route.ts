@@ -15,6 +15,10 @@ interface GelenDurak {
 
 interface GelenPlan {
   aracKod: string;
+  /** Bu turu sürecek şoför — kadroda karşılığı yoksa null. */
+  soforKod: string | null;
+  /** Plan anındaki ad; şoför sonradan silinse bile geçmişte kalsın. */
+  soforAd: string | null;
   duraklar: GelenDurak[];
   kgDoluluk: number | null;
   cuvalDoluluk: number | null;
@@ -31,6 +35,12 @@ function sayiVeyaNull(v: unknown): number | null {
   if (v == null) return null;
   const n = Number(v);
   return Number.isFinite(n) ? n : null;
+}
+
+function metinVeyaNull(v: unknown, enFazla: number): string | null {
+  if (typeof v !== "string") return null;
+  const t = v.trim();
+  return t.length > 0 && t.length <= enFazla ? t : null;
 }
 
 function planCoz(raw: unknown): GelenPlan | null {
@@ -57,6 +67,8 @@ function planCoz(raw: unknown): GelenPlan | null {
 
   return {
     aracKod,
+    soforKod: metinVeyaNull(o.soforKod, 100),
+    soforAd: metinVeyaNull(o.soforAd, 120),
     duraklar,
     kgDoluluk: sayiVeyaNull(o.kgDoluluk),
     cuvalDoluluk: sayiVeyaNull(o.cuvalDoluluk),
@@ -96,6 +108,7 @@ export async function POST(request: Request) {
   }
 
   const planlar: GelenPlan[] = [];
+  const gorulenSoforler = new Set<string>();
   for (const p of o.planlar) {
     const cozulen = planCoz(p);
     if (!cozulen) {
@@ -103,6 +116,19 @@ export async function POST(request: Request) {
         { error: "Plan gövdesi geçersiz (aracKod / duraklar)." },
         { status: 400 }
       );
+    }
+    // Araç günde tek sefer yapıyor — bir şoför iki araca binemez. Veritabanında
+    // da kısıt var; burada yakalayıp anlaşılır bir hata dönüyoruz.
+    if (cozulen.soforKod) {
+      if (gorulenSoforler.has(cozulen.soforKod)) {
+        return NextResponse.json(
+          {
+            error: `Aynı şoför birden fazla araca atanmış (${cozulen.soforAd ?? cozulen.soforKod}).`,
+          },
+          { status: 400 }
+        );
+      }
+      gorulenSoforler.add(cozulen.soforKod);
     }
     planlar.push(cozulen);
   }
@@ -121,12 +147,26 @@ export async function POST(request: Request) {
       );
     if (silmeHatasi) throw new Error(silmeHatasi.message);
 
+    // Şoför başka bir araca kaydırıldıysa eski satırı da temizle — yoksa
+    // (plan_tarihi, sofor_kod) benzersizlik kısıtı kaydı reddederdi.
+    const soforKodlari = [...gorulenSoforler];
+    if (soforKodlari.length > 0) {
+      const { error: soforSilmeHatasi } = await admin
+        .from(PLANLAR_TABLE)
+        .delete()
+        .eq("plan_tarihi", planTarihi)
+        .in("sofor_kod", soforKodlari);
+      if (soforSilmeHatasi) throw new Error(soforSilmeHatasi.message);
+    }
+
     const { data: eklenen, error: eklemeHatasi } = await admin
       .from(PLANLAR_TABLE)
       .insert(
         planlar.map((p) => ({
           plan_tarihi: planTarihi,
           arac_kod: p.aracKod,
+          sofor_kod: p.soforKod,
+          sofor_ad: p.soforAd,
           durak_sayisi: p.duraklar.length,
           toplam_kg: p.duraklar.reduce((t, d) => t + d.kg, 0),
           toplam_cuval: p.duraklar.reduce((t, d) => t + d.cuvalEsdeger, 0),
