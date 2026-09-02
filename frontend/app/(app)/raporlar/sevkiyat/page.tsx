@@ -13,16 +13,19 @@ import { SevkiyatOzet } from "@/components/sevkiyat/SevkiyatOzet";
 import { SevkiyatSikligiTrendi } from "@/components/sevkiyat/SevkiyatSikligiTrendi";
 import { SonSevkiyatlarPanel } from "@/components/sevkiyat/SonSevkiyatlarPanel";
 import { AppSidebarMobileTrigger } from "@/components/sidebar/AppSidebar";
+import { DonemSecici } from "@/components/ui/donem-secici";
 import { useRaporTazeligi } from "@/hooks/useMusteriRaporlama";
 import {
   SEVKIYAT_REPORT_ID,
   SIPARIS_DURUM_REPORT_ID,
   useSevkiyatRaporu,
 } from "@/hooks/useSevkiyatRaporu";
+import { VARSAYILAN_DONEM, donemAraligi, type DonemAraligi } from "@/lib/donem";
 import { formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 export default function SevkiyatRaporlariPage() {
+  const [aralik, setAralik] = useState<DonemAraligi>(() => donemAraligi(VARSAYILAN_DONEM));
   const {
     loading,
     error,
@@ -35,7 +38,7 @@ export default function SevkiyatRaporlariPage() {
     bekleyenSiparisler,
     sonSevkiyatlar,
     rutSiparisDoluluk,
-  } = useSevkiyatRaporu();
+  } = useSevkiyatRaporu(aralik);
 
   /** Orta panel iki veri kümesini paylaşıyor — tek tuşla geçiş. */
   const [ortaPanel, setOrtaPanel] = useState<OperasyonPaneli>("bekleyen");
@@ -62,6 +65,14 @@ export default function SevkiyatRaporlariPage() {
         <div className="ml-auto flex items-center gap-3">
           <VeriTazeligi />
         </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3 border-b border-border px-3.5 py-2.5">
+        <DonemSecici deger={aralik} onChange={setAralik} />
+        <Typography.Paragraph size="sm" color="muted" className="hidden lg:block">
+          Sevkiyat sıklığı, plaka/ödeme kırılımı ve son sevkiyatlar seçili
+          dönemi gösterir; bekleyen siparişler anlık durumdur.
+        </Typography.Paragraph>
       </div>
 
       {error ? (

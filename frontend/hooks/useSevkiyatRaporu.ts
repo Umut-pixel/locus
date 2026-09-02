@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 
+import { type DonemAraligi, donemdeMi, istanbulIsoGun } from "@/lib/donem";
 import { KEEP_BELGE_TIP, parseIslemTarihi } from "@/lib/import/parse-belge-detay";
 import { parseBelgeTarihi } from "@/lib/import/parse-sevkiyat";
 import { sayiyaCevir } from "@/lib/import/utils";
@@ -20,8 +21,6 @@ import {
 import { fetchAllRows } from "@/lib/supabase-fetch-all";
 import type { RiskDurumu } from "@/lib/types";
 
-/** Şirket geneli günlük sevkiyat sıklığı trendi — pencere. */
-export const SEVKIYAT_TREND_GUN_SAYISI = 30;
 /** SevkiyatRaporuKup — tazelik rozeti bu rapor id'sine bakar (bkz. useMusteriRaporlama.ts→useRaporTazeligi). */
 export const SEVKIYAT_REPORT_ID = 5130;
 /** Belge detay sipariş (Panorama 5450 / sync_runs 5451) — bekleyen panel tazeliği. */
@@ -229,7 +228,9 @@ const RUTSUZ_KEY = "__rutsuz";
  */
 function gunFarki(isoTarih: string | null, bugunIso?: string): number | null {
   if (!isoTarih) return null;
-  const bugun = bugunIso ?? new Date().toISOString().slice(0, 10);
+  // İstanbul takvim günü — toISOString() (UTC) TR'de 00:00-03:00 arası
+  // günü bir geri kaydırıyordu.
+  const bugun = bugunIso ?? istanbulIsoGun();
   const a = Date.parse(`${bugun}T00:00:00Z`);
   const b = Date.parse(`${isoTarih}T00:00:00Z`);
   if (Number.isNaN(a) || Number.isNaN(b)) return null;
@@ -252,7 +253,13 @@ interface SevkiyatRaporuCache {
   siparisDurumSatirlari: SiparisDurumSatirRaw[];
 }
 
-const CACHE_KEY = "sevkiyat-raporu-v4";
+/**
+ * Dönem cache anahtarına giriyor: metrikGecmis sunucu tarafında
+ * `snapshot_tarihi >= aralik.bas` ile çekiliyor, yani farklı dönem = farklı
+ * veri kümesi. Ortak bir anahtar kullanılsa dönem değişince eski pencere
+ * gösterilirdi.
+ */
+const CACHE_KEY_ONEK = "sevkiyat-raporu-v5";
 
 /**
  * Sevkiyat Raporları sayfası — üç kaynak, tek seferde çekilir (Stok
@@ -263,8 +270,9 @@ const CACHE_KEY = "sevkiyat-raporu-v4";
  *  3. v_panorama_sevkiyat_raporu_kup_guncel — plaka/araç bazlı hacim (yalnızca
  *     mevcut sync penceresi — çoklu-sync trend için değil, bkz. #2)
  */
-export function useSevkiyatRaporu() {
-  const cached = getReportCache<SevkiyatRaporuCache>(CACHE_KEY);
+export function useSevkiyatRaporu(aralik: DonemAraligi) {
+  const cacheKey = `${CACHE_KEY_ONEK}:${aralik.bas}`;
+  const cached = getReportCache<SevkiyatRaporuCache>(cacheKey);
   const [state, setState] = useState<SevkiyatRaporuState>(() => ({
     musteriler: cached?.musteriler ?? [],
     metrikGecmis: cached?.metrikGecmis ?? [],
@@ -276,17 +284,21 @@ export function useSevkiyatRaporu() {
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
-    const hasCache = Boolean(getReportCache<SevkiyatRaporuCache>(CACHE_KEY));
-    if (hasCache && isReportCacheFresh(CACHE_KEY)) return;
+    const hasCache = Boolean(getReportCache<SevkiyatRaporuCache>(cacheKey));
+    if (hasCache && isReportCacheFresh(cacheKey)) return;
 
     let cancelled = false;
 
     async function run() {
       if (hasCache) setRefreshing(true);
       try {
-        const cutoff = new Date();
-        cutoff.setDate(cutoff.getDate() - SEVKIYAT_TREND_GUN_SAYISI);
-        const cutoffStr = cutoff.toISOString().slice(0, 10);
+        // Trend penceresi seçili dönemi izler. snapshot_tarihi GERÇEK bir
+        // `date` kolonu olduğu için sunucu tarafında filtrelenebiliyor —
+        // Panorama'nın metin tarihlerindeki kıyas tuzağı burada yok.
+        //
+        // Yerel getDate() + UTC toISOString() karışımı bir gün kaydırıyordu;
+        // pencere baştan sona İstanbul takvimiyle hesaplanıyor.
+        const cutoffStr = aralik.bas;
 
         const [musteriRows, metrikRows, sevkiyatRows, siparisDurumRows] = await Promise.all([
           fetchAllRows<MusteriSevkiyatRaw>((from, to) =>
@@ -347,7 +359,7 @@ export function useSevkiyatRaporu() {
           sevkiyatSatirlari: sevkiyatRows,
           siparisDurumSatirlari: siparisDurumRows,
         };
-        setReportCache(CACHE_KEY, next);
+        setReportCache(cacheKey, next);
         setState({ ...next, loading: false, error: null });
         setRefreshing(false);
       } catch (err) {
@@ -372,7 +384,7 @@ export function useSevkiyatRaporu() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [cacheKey, aralik.bas]);
 
   const { musteriler, metrikGecmis, sevkiyatSatirlari, siparisDurumSatirlari, loading, error } =
     state;
@@ -493,7 +505,7 @@ export function useSevkiyatRaporu() {
     >();
     const odemeMap = new Map<string, number>();
     const sevkiyatlar: SevkiyatSatiri[] = [];
-    const bugunIso = new Date().toISOString().slice(0, 10);
+    const bugunIso = istanbulIsoGun();
     let sonTarih: string | null = null;
     const ilceByKod = new Map<string, string | null>();
     for (const m of musteriler) {
@@ -501,6 +513,11 @@ export function useSevkiyatRaporu() {
     }
 
     for (const r of sevkiyatSatirlari) {
+      // Plaka/ödeme kırılımı ve son sevkiyat listesi seçili dönemi gösterir.
+      const belgeTarihi = parseBelgeTarihi(r.belge_tarihi);
+      const belgeTarihiIso = belgeTarihi ? belgeTarihi.toISOString().slice(0, 10) : null;
+      if (!donemdeMi(belgeTarihiIso, aralik)) continue;
+
       const plaka = metin(r.plaka);
       const tutar = sayi(r.net_fiyat);
       const agirlikKg = sayi(r.agirlik) / 1000;
@@ -519,8 +536,7 @@ export function useSevkiyatRaporu() {
       if (odemeTip) {
         odemeMap.set(odemeTip, (odemeMap.get(odemeTip) ?? 0) + tutar);
       }
-      const tarih = parseBelgeTarihi(r.belge_tarihi);
-      const tarihStr = tarih ? tarih.toISOString().slice(0, 10) : null;
+      const tarihStr = belgeTarihiIso;
       if (tarihStr && (!sonTarih || tarihStr > sonTarih)) sonTarih = tarihStr;
 
       const belgeKod = metin(r.belge_kod);
@@ -572,7 +588,7 @@ export function useSevkiyatRaporu() {
       sonSyncTarihi: sonTarih,
       sonSevkiyatlar: sevkiyatlar,
     };
-  }, [sevkiyatSatirlari, musteriler]);
+  }, [sevkiyatSatirlari, musteriler, aralik]);
 
   const { bekleyenSiparisler, bekleyenOzet } = useMemo(() => {
     const map = new Map<

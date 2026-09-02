@@ -11,6 +11,7 @@ import { FinansalOzet } from "@/components/finansal/FinansalOzet";
 import { TemsilciUrunDagilimi } from "@/components/finansal/TemsilciUrunDagilimi";
 import { TopBorclularPanel } from "@/components/finansal/TopBorclularPanel";
 import { AppSidebarMobileTrigger } from "@/components/sidebar/AppSidebar";
+import { DonemSecici } from "@/components/ui/donem-secici";
 import {
   BELGE_DETAY_REPORT_ID,
   YASLANDIRMA_REPORT_ID,
@@ -18,10 +19,15 @@ import {
 } from "@/hooks/useMusteriRaporlama";
 import { useFinansalRaporu } from "@/hooks/useFinansalRaporu";
 import { SIPARIS_DURUM_REPORT_ID } from "@/hooks/useSevkiyatRaporu";
+import { VARSAYILAN_DONEM, donemAraligi, type DonemAraligi } from "@/lib/donem";
 import { formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 export default function FinansalRaporlarPage() {
+  // Dönem state'te tutulur: hook'un useMemo bağımlılıkları referansa bakıyor,
+  // render içinde yeniden üretilirse her render'da yeniden hesaplanır.
+  const [aralik, setAralik] = useState<DonemAraligi>(() => donemAraligi(VARSAYILAN_DONEM));
+
   const {
     loading,
     error,
@@ -32,7 +38,7 @@ export default function FinansalRaporlarPage() {
     ciroGunluk,
     temsilciDagilimi,
     urunGrubuDagilimi,
-  } = useFinansalRaporu();
+  } = useFinansalRaporu(aralik);
 
   const [filters, setFilters] = useState<FinansalFiltersTipi>(EMPTY_FINANSAL_FILTERS);
   const [sort, setSort] = useState<AcikFaturaSort>(VARSAYILAN_ACIK_FATURA_SORT);
@@ -84,6 +90,14 @@ export default function FinansalRaporlarPage() {
         <div className="ml-auto flex items-center gap-3">
           <VeriTazeligi />
         </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3 border-b border-border px-3.5 py-2.5">
+        <DonemSecici deger={aralik} onChange={setAralik} />
+        <Typography.Paragraph size="sm" color="muted" className="hidden lg:block">
+          Ciro, tahsilat, trend ve kırılımlar seçili dönemi gösterir; açık bakiye
+          ve bekleyen sipariş anlık durumdur.
+        </Typography.Paragraph>
       </div>
 
       <FinansalFilters filters={filters} onChange={setFilters} />

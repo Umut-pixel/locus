@@ -2,6 +2,14 @@
 
 import { useEffect, useMemo, useState } from "react";
 
+import {
+  type DonemAraligi,
+  degisimOrani,
+  donemdeMi,
+  gunEkle,
+  istanbulIsoGun,
+  oncekiDonem,
+} from "@/lib/donem";
 import { parseIslemTarihi } from "@/lib/import/parse-belge-detay";
 import { sayiyaCevir } from "@/lib/import/utils";
 import {
@@ -19,8 +27,6 @@ import {
 /** TahsilatRaporu (5230) — tazelik rozeti bu rapor id'sine bakar. */
 export const TAHSILAT_REPORT_ID = 5230;
 
-export const TAHSILAT_TREND_GUN_SAYISI = 60;
-
 /**
  * PII (tc_kimlik_no, vergi_no) BİLEREK yok — landing'de durur, UI çekmez.
  */
@@ -37,29 +43,6 @@ function metin(value: unknown): string | null {
   if (value == null) return null;
   const s = String(value).trim();
   return s === "" ? null : s;
-}
-
-function istanbulIsoGun(now = new Date()): string {
-  const parts = Object.fromEntries(
-    new Intl.DateTimeFormat("en-CA", {
-      timeZone: "Europe/Istanbul",
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    })
-      .formatToParts(now)
-      .map((p) => [p.type, p.value])
-  );
-  return `${parts.year}-${parts.month}-${parts.day}`;
-}
-
-function gunEkle(iso: string, delta: number): string {
-  const [y, m, d] = iso.split("-").map(Number);
-  const dt = new Date(Date.UTC(y!, m! - 1, d! + delta));
-  const yy = dt.getUTCFullYear();
-  const mm = String(dt.getUTCMonth() + 1).padStart(2, "0");
-  const dd = String(dt.getUTCDate()).padStart(2, "0");
-  return `${yy}-${mm}-${dd}`;
 }
 
 export interface TahsilatSatiri {
@@ -122,7 +105,10 @@ export const VARSAYILAN_TAHSILAT_SORT: TahsilatSort = {
 };
 
 export interface TahsilatOzet {
+  /** Seçili dönemde ödenen tutar — Finansal sayfadaki KPI ile AYNI tanım. */
   donemTahsilat: number;
+  /** Bir önceki eşit uzunluktaki döneme göre değişim; null = önceki dönem 0. */
+  donemDegisim: number | null;
   son7Gun: number;
   /** Bugünden geriye 30 gün (son 7 gün ile aynı yuvarlak pencere). */
   son1Ay: number;
@@ -219,7 +205,11 @@ function grupla(satirlar: TahsilatSatiri[], key: (s: TahsilatSatiri) => string |
     .sort((a, b) => b.tutar - a.tutar);
 }
 
-export function useTahsilatRaporu(filters: TahsilatFilters, sort: TahsilatSort) {
+export function useTahsilatRaporu(
+  filters: TahsilatFilters,
+  sort: TahsilatSort,
+  aralik: DonemAraligi
+) {
   const cached = getReportCache<TahsilatSatiri[]>(CACHE_KEY);
   const [state, setState] = useState<TahsilatRaporuState>(() => ({
     tumSatirlar: cached ?? [],
@@ -241,6 +231,7 @@ export function useTahsilatRaporu(filters: TahsilatFilters, sort: TahsilatSort) 
           supabase
             .from(PANORAMA_TAHSILAT_VIEW)
             .select(SELECT_KOLONLARI)
+            .order("id", { ascending: true })
             .range(from, to) as unknown as Promise<{
             data: Record<string, unknown>[] | null;
             error: { message: string } | null;
@@ -334,11 +325,17 @@ export function useTahsilatRaporu(filters: TahsilatFilters, sort: TahsilatSort) 
     });
   }, [tumSatirlar, filters, sort]);
 
+  const onceki = useMemo(() => oncekiDonem(aralik), [aralik]);
+
   const ozet = useMemo<TahsilatOzet>(() => {
     const bugun = istanbulIsoGun();
     const gun7 = gunEkle(bugun, -6);
     const gun30 = gunEkle(bugun, -29);
+    // Dönem tahsilatı seçili pencereye bağlı. Eskiden TÜM ödenen satırların
+    // toplamıydı; Finansal sayfa aynı isimli KPI'ı ay penceresiyle
+    // hesapladığı için iki sayfa farklı rakam gösteriyordu.
     let donemTahsilat = 0;
+    let oncekiTahsilat = 0;
     let son7Gun = 0;
     let son1Ay = 0;
     let odenmemisTutar = 0;
@@ -355,7 +352,8 @@ export function useTahsilatRaporu(filters: TahsilatFilters, sort: TahsilatSort) 
         continue;
       }
       if (!s.odendi) continue;
-      donemTahsilat += s.tutar;
+      if (donemdeMi(s.islemTarihi, aralik)) donemTahsilat += s.tutar;
+      else if (donemdeMi(s.islemTarihi, onceki)) oncekiTahsilat += s.tutar;
       if (s.islemTarihi && s.islemTarihi >= gun7) son7Gun += s.tutar;
       if (s.islemTarihi && s.islemTarihi >= gun30) son1Ay += s.tutar;
       if (kkMi(s.tahsilatTur)) kk += s.tutar;
@@ -365,6 +363,7 @@ export function useTahsilatRaporu(filters: TahsilatFilters, sort: TahsilatSort) 
     const payPayda = donemTahsilat > 0 ? donemTahsilat : 1;
     return {
       donemTahsilat: Math.round(donemTahsilat * 100) / 100,
+      donemDegisim: degisimOrani(donemTahsilat, oncekiTahsilat),
       son7Gun: Math.round(son7Gun * 100) / 100,
       son1Ay: Math.round(son1Ay * 100) / 100,
       odenmemisTutar: Math.round(odenmemisTutar * 100) / 100,
@@ -375,18 +374,18 @@ export function useTahsilatRaporu(filters: TahsilatFilters, sort: TahsilatSort) 
       eftPay: eft / payPayda,
       nakitPay: nakit / payPayda,
     };
-  }, [satirlar]);
+  }, [satirlar, aralik, onceki]);
 
+  // Trend seçili dönemi izler — grafik ile KPI kartı aynı pencereyi anlatsın.
+  // Boş günler 0 ile doldurulur ki grafik gerçek boşlukları göstersin.
   const gunluk = useMemo<TahsilatGunu[]>(() => {
-    const bugun = istanbulIsoGun();
-    const bas = gunEkle(bugun, -(TAHSILAT_TREND_GUN_SAYISI - 1));
     const map = new Map<string, number>();
-    for (let i = 0; i < TAHSILAT_TREND_GUN_SAYISI; i++) {
-      map.set(gunEkle(bas, i), 0);
+    for (let g = aralik.bas; g < aralik.bitisHaric; g = gunEkle(g, 1)) {
+      map.set(g, 0);
     }
     for (const s of satirlar) {
       if (!s.odendi || !s.islemTarihi) continue;
-      if (s.islemTarihi < bas) continue;
+      if (!donemdeMi(s.islemTarihi, aralik)) continue;
       map.set(s.islemTarihi, (map.get(s.islemTarihi) ?? 0) + s.tutar);
     }
     return [...map.entries()]
@@ -395,7 +394,7 @@ export function useTahsilatRaporu(filters: TahsilatFilters, sort: TahsilatSort) 
         tarih,
         tutar: Math.round(tutar * 100) / 100,
       }));
-  }, [satirlar]);
+  }, [satirlar, aralik]);
 
   const odendiSatirlar = useMemo(
     () => satirlar.filter((s) => s.odendi),

@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
+import { DegisimRozeti } from "@/components/ui/degisim-rozeti";
 import { type FinansalOzet as FinansalOzetVerisi } from "@/hooks/useFinansalRaporu";
 import { useCountUp } from "@/hooks/useCountUp";
 import { formatCurrency, formatNumber } from "@/lib/format";
@@ -65,7 +66,7 @@ export function FinansalOzet({ ozet, loading }: FinansalOzetProps) {
         icon={CircleDollarSignIcon}
         etiket="Brüt ciro"
         deger={formatCurrency(toplamBrutCiro)}
-        altBilgi="İskonto öncesi, KDV hariç"
+        altBilgi="Tüm dönem · iskonto öncesi, KDV hariç"
         loading={loading}
       />
 
@@ -73,15 +74,16 @@ export function FinansalOzet({ ozet, loading }: FinansalOzetProps) {
         icon={WalletIcon}
         etiket="Net ciro (KDV dahil)"
         deger={formatCurrency(toplamNetCiroKdvDahil)}
-        altBilgi="KDV dahil, güncel senkron"
+        altBilgi="Tüm dönem · KDV dahil, güncel senkron"
         loading={loading}
       />
 
       <StatKutusu
         icon={CalendarRangeIcon}
-        etiket="1 aylık ciro"
+        etiket="Dönem cirosu"
         deger={formatCurrency(aylikNetCiro)}
-        altBilgi={`${ozet.kpiDonemAciklama}, iskonto öncesi brüt`}
+        altBilgi={`${ozet.kpiDonemAciklama} · iskonto öncesi brüt`}
+        degisim={ozet.ciroDegisim}
         loading={loading}
       />
 
@@ -89,7 +91,8 @@ export function FinansalOzet({ ozet, loading }: FinansalOzetProps) {
         icon={BanknoteIcon}
         etiket="Dönem tahsilatı"
         deger={formatCurrency(donemTahsilat)}
-        altBilgi={`${ozet.kpiDonemAciklama}, ödenen (5230)`}
+        altBilgi={`${ozet.kpiDonemAciklama} · ödenen (5230)`}
+        degisim={ozet.tahsilatDegisim}
         loading={loading}
       />
     </div>
@@ -102,6 +105,7 @@ function StatKutusu({
   deger,
   altBilgi,
   loading,
+  degisim,
   vurgu = false,
   vurguSinif = "text-destructive",
 }: {
@@ -110,6 +114,7 @@ function StatKutusu({
   deger: string;
   altBilgi: string;
   loading: boolean;
+  degisim?: number | null;
   vurgu?: boolean;
   vurguSinif?: string;
 }) {
@@ -132,7 +137,10 @@ function StatKutusu({
       >
         {deger}
       </span>
-      <span className="text-[12px] text-muted-foreground">{altBilgi}</span>
+      <span className="flex flex-wrap items-center gap-x-1.5 text-[12px] text-muted-foreground">
+        {degisim !== undefined ? <DegisimRozeti oran={degisim} /> : null}
+        {altBilgi}
+      </span>
     </div>
   );
 }

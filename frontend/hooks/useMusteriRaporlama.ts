@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 
+import { gunEkle, istanbulIsoGun } from "@/lib/donem";
 import {
   BORC_ONEMLILIK_ESIGI,
   debtRiskDurumu,
@@ -674,9 +675,9 @@ export function useMusteriTrend(musteriKodlari: readonly string[]): {
     let cancelled = false;
     setLoading(true);
 
-    const cutoff = new Date();
-    cutoff.setDate(cutoff.getDate() - TREND_GUN_SAYISI);
-    const cutoffStr = cutoff.toISOString().slice(0, 10);
+    // İstanbul takvimi — aynı düzeltme istanbulTarihi()'nde zaten yapılmıştı,
+    // bu pencereye uygulanmamıştı (UTC gece yarısı bir gün geri kaydırıyordu).
+    const cutoffStr = gunEkle(istanbulIsoGun(), -TREND_GUN_SAYISI);
 
     async function run() {
       const { data, error } = await supabase
@@ -710,10 +711,8 @@ export function useMusteriTrend(musteriKodlari: readonly string[]): {
   return { trendMap, loading };
 }
 
-/** Tarayıcı UTC'sinden bağımsız İstanbul takvim günü (YYYY-MM-DD) — bkz. useNetCiroTrendi. */
-function istanbulTarihi(): string {
-  return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Istanbul" }).format(new Date());
-}
+/** Tarayıcı UTC'sinden bağımsız İstanbul takvim günü (YYYY-MM-DD) — bkz. lib/donem.ts. */
+const istanbulTarihi = istanbulIsoGun;
 
 export interface NetCiroTrendi {
   /** Bugünden önceki en son snapshot günü (musteri_metrik_gecmis) — yoksa null. */

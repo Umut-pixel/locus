@@ -10,6 +10,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 
 import type { TahsilatOzet as TahsilatOzetVerisi } from "@/hooks/useTahsilatRaporu";
+import { DegisimRozeti } from "@/components/ui/degisim-rozeti";
 import { SegmentedSwitch } from "@/components/ui/segmented-switch";
 import { TickerNumber } from "@/components/ui/ticker-number";
 import { formatCurrency, formatNumber } from "@/lib/format";
@@ -25,9 +26,11 @@ const SON_PENCERE_SECENEKLERI = [
 interface TahsilatOzetProps {
   ozet: TahsilatOzetVerisi;
   loading: boolean;
+  /** Seçili dönemin okunabilir etiketi — KPI'ın hangi pencereyi anlattığı. */
+  donemEtiketi: string;
 }
 
-export function TahsilatOzet({ ozet, loading }: TahsilatOzetProps) {
+export function TahsilatOzet({ ozet, loading, donemEtiketi }: TahsilatOzetProps) {
   const [sonPencere, setSonPencere] = useState<SonPencere>("7g");
   // İki ayrı sayacı takas etmek yerine tek hedef: pencere değişince sayaç
   // eski değerden yenisine sayıyor, sert kesme olmuyor.
@@ -47,8 +50,9 @@ export function TahsilatOzet({ ozet, loading }: TahsilatOzetProps) {
         >
           <TickerNumber value={ozet.donemTahsilat} format={formatCurrency} />
         </span>
-        <span className="text-[12px] text-muted-foreground">
-          Ödenen belgeler · {formatNumber(ozet.musteriAdet)} müşteri
+        <span className="flex flex-wrap items-center gap-x-1.5 text-[12px] text-muted-foreground">
+          <DegisimRozeti oran={ozet.donemDegisim} />
+          {donemEtiketi} · ödenen · {formatNumber(ozet.musteriAdet)} müşteri
         </span>
       </div>
 

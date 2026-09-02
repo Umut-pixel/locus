@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Typography } from "@heroui/react";
 
 import { AppSidebarMobileTrigger } from "@/components/sidebar/AppSidebar";
+import { DonemSecici } from "@/components/ui/donem-secici";
 import { OdenmediTable } from "@/components/tahsilat/OdenmediTable";
 import { TahsilatDurumCubugu } from "@/components/tahsilat/TahsilatDurumCubugu";
 import { TahsilatFilters } from "@/components/tahsilat/TahsilatFilters";
@@ -18,6 +19,7 @@ import {
   type TahsilatFilters as TahsilatFiltersTipi,
   type TahsilatSort,
 } from "@/hooks/useTahsilatRaporu";
+import { VARSAYILAN_DONEM, donemAraligi, type DonemAraligi } from "@/lib/donem";
 import { formatNumber } from "@/lib/format";
 
 /**
@@ -31,6 +33,7 @@ export default function TahsilatRaporlariPage() {
     EMPTY_TAHSILAT_FILTERS
   );
   const [sort, setSort] = useState<TahsilatSort>(VARSAYILAN_TAHSILAT_SORT);
+  const [aralik, setAralik] = useState<DonemAraligi>(() => donemAraligi(VARSAYILAN_DONEM));
 
   const {
     satirlar,
@@ -45,7 +48,7 @@ export default function TahsilatRaporlariPage() {
     durumSecenekleri,
     loading,
     error,
-  } = useTahsilatRaporu(filters, sort);
+  } = useTahsilatRaporu(filters, sort, aralik);
 
   return (
     <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden bg-background">
@@ -73,6 +76,14 @@ export default function TahsilatRaporlariPage() {
         </div>
       </div>
 
+      <div className="flex flex-wrap items-center gap-3 border-b border-border px-3.5 py-2.5">
+        <DonemSecici deger={aralik} onChange={setAralik} />
+        <Typography.Paragraph size="sm" color="muted" className="hidden lg:block">
+          Dönem tahsilatı ve trend seçili dönemi gösterir; ödenmemiş çek/senet
+          anlık durumdur.
+        </Typography.Paragraph>
+      </div>
+
       <TahsilatFilters
         filters={filters}
         onChange={setFilters}
@@ -91,7 +102,7 @@ export default function TahsilatRaporlariPage() {
       ) : null}
 
       <div className="min-h-0 flex-1 overflow-y-auto">
-        <TahsilatOzet ozet={ozet} loading={loading} />
+        <TahsilatOzet ozet={ozet} loading={loading} donemEtiketi={aralik.etiket} />
         <TahsilatTrendi gunler={gunluk} loading={loading} />
         <TahsilatKirilim
           turDagilimi={turDagilimi}
