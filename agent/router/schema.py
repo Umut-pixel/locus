@@ -7,7 +7,7 @@ from typing import Literal
 
 from templates.catalog import ALLOWED_TEMPLATE_IDS
 
-Route = Literal["template", "clarify", "oos", "opus"]
+Route = Literal["template", "clarify", "oos", "opus", "aksiyon"]
 ActionKind = Literal["spec", "text", "opus"]
 
 # agent.py FAST_MODEL ile aynı — agent import döngüsünü kırma.
@@ -16,6 +16,8 @@ CLASSIFY_TIMEOUT_S = 2.0
 CLASSIFY_MAX_TOKENS = 200
 LONG_TEXT_CHARS = 500
 
+# Haiku'nun seçebileceği rotalar. "aksiyon" bilerek DIŞARIDA: onu yalnız
+# prefilter (regex) veriyor, yani rapor çekme akışı hiçbir modele uğramıyor.
 ALLOWED_ROUTES: frozenset[str] = frozenset({"template", "clarify", "oos", "opus"})
 ALLOWED_SLOTS: frozenset[str] = frozenset({"ilce", "sehir", "kim", "band", "unvan", "musteri"})
 ALLOWED_CLARIFY = frozenset({"risk"})
@@ -27,6 +29,8 @@ class Decision:
     template_id: str | None = None
     slots: dict[str, str] = field(default_factory=dict)
     clarify_key: str | None = None
+    #: route="aksiyon" için hangi sistem işi. Şimdilik tek değer: "rapor_cek".
+    aksiyon: str | None = None
 
 
 @dataclass(frozen=True)
@@ -39,6 +43,8 @@ class RouteAction:
 OPUS = Decision(route="opus")
 CLARIFY_RISK = Decision(route="clarify", clarify_key="risk")
 OOS = Decision(route="oos")
+#: "Rapor çek" — seçim kartı sabit metin; ne Haiku ne Opus çağrılır.
+AKSIYON_RAPOR = Decision(route="aksiyon", aksiyon="rapor_cek")
 
 # Şablon id'leri catalog.ALLOWED_TEMPLATE_IDS — tek kaynak.
 TEMPLATE_IDS = ALLOWED_TEMPLATE_IDS

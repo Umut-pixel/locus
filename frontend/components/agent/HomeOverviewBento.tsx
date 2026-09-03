@@ -1,13 +1,20 @@
 "use client";
 
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import { IlceBarChart } from "@/components/agent/IlceBarChart";
 import { BorcRiskAreaChart } from "@/components/agent/BorcRiskAreaChart";
 import { LinearGauge } from "@/components/agent/LinearGauge";
 import { Button } from "@/components/ui/button";
-import { useToastManager } from "@/components/ui/toast";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import { RaporCekmePaneli } from "@/components/panorama/RaporCekmePaneli";
 import {
   useHomeOverview,
   type HomeDurumSlice,
@@ -22,9 +29,6 @@ import { formatCurrency, formatNumber } from "@/lib/format";
 import {
   MANUAL_SYNC_COOLDOWN_MS,
   MANUAL_SYNC_STORAGE_KEY,
-  manualSyncToastDescription,
-  waitForManualPipeline,
-  writeManualSyncAt,
 } from "@/lib/panorama-manual-sync";
 import { RISK_COLORS } from "@/lib/risk-style";
 import { cn } from "@/lib/utils";
@@ -534,11 +538,9 @@ function SyncTile({
   error: string | null;
   pending: boolean;
 }) {
-  const toast = useToastManager();
   const [now, setNow] = useState(() => Date.now());
   const [manualAt, setManualAt] = useState(0);
-  const [manualBusy, setManualBusy] = useState(false);
-  const [manualError, setManualError] = useState<string | null>(null);
+  const [acik, setAcik] = useState(false);
 
   useEffect(() => {
     setManualAt(readManualSyncAt());
@@ -552,108 +554,34 @@ function SyncTile({
     return () => window.clearTimeout(id);
   }, [remainingMs]);
 
-  const triggerManual = useCallback(() => {
-    if (manualBusy || remainingMs > 0) return;
-    const started = Date.now();
-    const waitNote = manualSyncToastDescription(new Date(started));
-    setManualError(null);
-
-    const run = (async () => {
-      setManualBusy(true);
-      try {
-        const res = await fetch("/api/sync/panorama/manual", { method: "POST" });
-        const body = (await res.json().catch(() => null)) as {
-          error?: string;
-          retryAfterSec?: number;
-        } | null;
-        if (res.status === 429) {
-          const retryMs =
-            typeof body?.retryAfterSec === "number"
-              ? body.retryAfterSec * 1000
-              : MANUAL_SYNC_COOLDOWN_MS;
-          const at = Date.now() - (MANUAL_SYNC_COOLDOWN_MS - retryMs);
-          writeManualSyncAt(at);
-          setManualAt(at);
-          setNow(Date.now());
-          const msg = body?.error ?? "Son çekimden bu yana 60 dakika dolmadı.";
-          setManualError(msg);
-          throw new Error(msg);
-        }
-        if (!res.ok) {
-          const msg = body?.error ?? "Tetiklenemedi.";
-          setManualError(msg);
-          throw new Error(msg);
-        }
-        writeManualSyncAt(started);
-        setManualAt(started);
-        setNow(started);
-      } catch (err) {
-        const msg =
-          err instanceof Error && err.message
-            ? err.message
-            : "Bağlantı kurulamadı.";
-        setManualError(msg);
-        throw err instanceof Error ? err : new Error(msg);
-      } finally {
-        setManualBusy(false);
-      }
-      return waitForManualPipeline(started);
-    })();
-
-    toast.promise(run, {
-      loading: {
-        type: "loading",
-        title: "Panorama çekiliyor…",
-        description: waitNote,
-        timeout: 0,
-      },
-      success: (data: string) => ({
-        type: "success",
-        title: "Çekim tamamlandı",
-        description: data,
-        timeout: 10_000,
-      }),
-      error: (err) => {
-        const msg =
-          err instanceof Error ? err.message : "Bilinmeyen hata";
-        return {
-          type: "error",
-          title: msg.includes("zaman aşımı")
-            ? "Çekim bitmedi"
-            : "Çekim başlatılamadı",
-          description: msg,
-          timeout: 12_000,
-        };
-      },
-    });
-  }, [manualBusy, remainingMs, toast]);
-
   const cooldownLabel =
     remainingMs > 0
       ? `${Math.max(1, Math.ceil(remainingMs / 60_000))} dk`
       : null;
 
-  // Sync bozulduğu an manuel tetik en çok gereken şey — süpürücü `hata`
-  // kolonunu doldurmaya başlayınca kutucuk "Uyarı"ya düşüyor; butonu
-  // "Güncel" durumunun arkasına koymak onu tam o anda gizliyordu.
+  /*
+   * Düğme artık doğrudan tetiklemiyor: hangi raporların çekileceğini
+   * seçtiren panel açılıyor (sohbetteki kartın aynısı). Cooldown yalnız
+   * seçilen raporlara bakıyor, o yüzden burada sayaç dolmadan da paneli
+   * açabiliyoruz — sunucu gerekirse 429 döner ve panel bunu gösterir.
+   *
+   * Sync bozulduğu an manuel tetik en çok gereken şey; süpürücü hata
+   * kolonunu doldurunca kutucuk "Uyarı"ya düşüyor, bu yüzden düğme
+   * "Güncel" durumunun arkasına saklanmıyor.
+   */
   const manualAction = !loading ? (
     <Button
       type="button"
       variant="outline"
       size="xs"
       className="shrink-0 border-line text-[11px] text-ink-2"
-      disabled={manualBusy || remainingMs > 0}
-      title={
-        remainingMs > 0
-          ? `Yeniden çekmek için ${cooldownLabel} bekleyin`
-          : "Tüm Panorama otomasyonlarını şimdi çalıştır"
-      }
+      title="Panorama raporlarını seçip şimdi çek"
       onClick={(e) => {
         e.stopPropagation();
-        triggerManual();
+        setAcik(true);
       }}
     >
-      {manualBusy ? "Çekiliyor…" : remainingMs > 0 ? cooldownLabel : "Şimdi çek"}
+      {remainingMs > 0 ? `Çek (${cooldownLabel})` : "Şimdi çek"}
     </Button>
   ) : null;
 
@@ -662,11 +590,7 @@ function SyncTile({
     pill: error ? "Uyarı" : pending ? "Bekliyor" : "Güncel",
     tone: error ? "warn" : pending ? "wait" : "ok",
     line: label ?? (loading ? "Kontrol ediliyor…" : "Henüz sync kaydı yok"),
-    sub: manualError
-      ? manualError
-      : nextStamp
-        ? `Sonraki: ${nextStamp}`
-        : null,
+    sub: nextStamp ? `Sonraki: ${nextStamp}` : null,
     loading,
     action: manualAction,
   };
@@ -674,11 +598,37 @@ function SyncTile({
   const summary = `${panorama.title} ${panorama.pill}`;
 
   return (
-    <Tile className={cn(className, "min-h-0")} aria-label={summary}>
-      <StatusFace {...panorama} />
-    </Tile>
+    <>
+      <Tile className={cn(className, "min-h-0")} aria-label={summary}>
+        <StatusFace {...panorama} />
+      </Tile>
+
+      <Sheet open={acik} onOpenChange={setAcik}>
+        <SheetContent side="right" className="w-[min(26rem,100vw)] gap-0 p-0">
+          <SheetHeader className="border-b border-line px-4 py-3">
+            <SheetTitle className="text-[14px]">Panorama&apos;dan çek</SheetTitle>
+            <SheetDescription className="text-[12px]">
+              {remainingMs > 0
+                ? `Son çekimden bu yana ${cooldownLabel} geçmedi; aynı raporu tekrar çekmek reddedilebilir.`
+                : "Yalnız ihtiyacınız olan raporu seçin — çekim çok daha kısa sürer."}
+            </SheetDescription>
+          </SheetHeader>
+          <div className="overflow-y-auto p-4">
+            <RaporCekmePaneli
+              baslik="Çekilecek raporlar"
+              onBitti={() => {
+                const at = Date.now();
+                setManualAt(at);
+                setNow(at);
+              }}
+            />
+          </div>
+        </SheetContent>
+      </Sheet>
+    </>
   );
 }
+
 
 function PortfoySkeleton({ className }: { className?: string }) {
   return (

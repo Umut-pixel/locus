@@ -1,6 +1,7 @@
 import {
   PANORAMA_ZINCIRLERI,
   tahminiSureMs,
+  ZINCIR_ARASI_BEKLEME_SN,
   zincirleriCoz,
 } from "@/lib/panorama-raporlar";
 import { formatIstanbulStamp } from "@/lib/panorama-schedule";
@@ -19,18 +20,19 @@ export function writeManualSyncAt(at: number) {
 }
 
 /**
- * Zincirler arası n8n Wait. n8n'deki Wait node'ları `amount: 180`,
- * typeVersion 1.1 — v1.1+ varsayılan birim `seconds`, yani gerçekte 180 sn.
- * Sabit 60'ta kaldığı için toast yanlış bitiş saati gösteriyordu.
+ * Zincirler arası n8n Wait — `ZINCIR_ARASI_BEKLEME_SN` ile aynı olmalı.
+ * n8n Wait node'ları typeVersion 1.1; v1.1+ varsayılan birim `seconds`.
+ * 2026-09-03'te 180 → 120 sn indirildi (çekim süresini kısaltmak için).
  */
-export const MANUAL_CHAIN_WAIT_SEC = 180;
-const WAIT_COUNT = 6;
-const CHAIN_COUNT = 7;
-const SCRAPE_SEC_PER_CHAIN = 180;
-/** Tüm zincirler seçiliyken tahmini süre — seçim varsa `tahminiSureMs`. */
-export const MANUAL_ESTIMATE_MS =
-  (WAIT_COUNT * MANUAL_CHAIN_WAIT_SEC + CHAIN_COUNT * SCRAPE_SEC_PER_CHAIN) *
-  1000;
+export const MANUAL_CHAIN_WAIT_SEC = ZINCIR_ARASI_BEKLEME_SN;
+
+/**
+ * Tüm zincirler seçiliyken tahmini süre.
+ * Sabit "zincir başına 180 sn" varsayımı yerine kayıt defterindeki ölçülmüş
+ * süreler kullanılıyor — 5450 ~2 dk iken stok ~35 sn, ortalama almak
+ * bitiş damgasını şişiriyordu.
+ */
+export const MANUAL_ESTIMATE_MS = tahminiSureMs(PANORAMA_ZINCIRLERI);
 
 const POLL_MS = 15_000;
 const DEADLINE_MS = 90 * 60 * 1000;
@@ -71,6 +73,89 @@ export function manualSyncToastDescription(
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+export type ZincirDurumu = "bekliyor" | "calisiyor" | "bitti" | "hata";
+
+export interface ZincirIlerlemesi {
+  anahtar: string;
+  ad: string;
+  durum: ZincirDurumu;
+  satirSayisi: number | null;
+  hata: string | null;
+}
+
+/**
+ * Seçilen zincirleri TEK TEK izler ve her turda ilerlemeyi bildirir.
+ *
+ * `waitForManualPipeline` yalnız kaskadın sonuna bakıyor; kart içinde
+ * "hangisi çekiliyor" göstermek için zincir bazında duruma ihtiyaç var.
+ * Tek sorguyla bu çekimden sonraki tüm satırlar okunur — zincir başına
+ * ayrı istek atmak 7 katı trafik demekti.
+ */
+export async function izleRaporCekimi(
+  startedAt: number,
+  secim: readonly (string | number)[] | null | undefined,
+  onIlerleme: (adimlar: ZincirIlerlemesi[]) => void
+): Promise<ZincirIlerlemesi[]> {
+  const { zincirler } = zincirleriCoz(secim ?? null);
+  const idler = zincirler.map((z) => z.bekleId);
+  const deadline = startedAt + DEADLINE_MS;
+
+  const kur = (): ZincirIlerlemesi[] =>
+    zincirler.map((z) => ({
+      anahtar: z.anahtar,
+      ad: z.ad,
+      durum: "bekliyor" as ZincirDurumu,
+      satirSayisi: null,
+      hata: null,
+    }));
+
+  let adimlar = kur();
+  onIlerleme(adimlar);
+
+  while (Date.now() < deadline) {
+    const { data, error } = await supabase
+      .from(PANORAMA_SYNC_RUNS_TABLE)
+      .select("report_id,durum,satir_sayisi,hata,cekildi_at")
+      // 15 sn tolerans: n8n satırı tetikten hemen önce açmış olabilir.
+      .gte("cekildi_at", new Date(startedAt - 15_000).toISOString())
+      .in("report_id", idler)
+      .order("cekildi_at", { ascending: false });
+
+    if (error) {
+      throw new Error(`Sync durumu okunamadı: ${error.message}`);
+    }
+
+    const sonraki = kur();
+    for (const satir of data ?? []) {
+      const z = zincirler.find((x) => x.bekleId === Number(satir.report_id));
+      if (!z) continue;
+      const hedef = sonraki.find((s) => s.anahtar === z.anahtar);
+      if (!hedef || hedef.durum === "bitti") continue;
+      const d = String(satir.durum ?? "");
+      if (d === "completed") {
+        hedef.durum = "bitti";
+        hedef.satirSayisi =
+          satir.satir_sayisi == null ? null : Number(satir.satir_sayisi);
+      } else if (d === "failed") {
+        hedef.durum = "hata";
+        hedef.hata = satir.hata ? String(satir.hata) : "Çekim başarısız.";
+      } else {
+        hedef.durum = "calisiyor";
+      }
+    }
+
+    adimlar = sonraki;
+    onIlerleme(adimlar);
+
+    if (adimlar.every((a) => a.durum === "bitti" || a.durum === "hata")) {
+      return adimlar;
+    }
+    await sleep(POLL_MS);
+  }
+
+  throw new Error("Çekim zaman aşımına uğradı. n8n execution loguna bakın.");
 }
 
 /**

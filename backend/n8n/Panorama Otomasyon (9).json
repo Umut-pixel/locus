@@ -5072,7 +5072,7 @@
     },
     {
       "parameters": {
-        "amount": 180
+        "amount": 120
       },
       "id": "5e35fb55-d602-4868-bc78-acbc83969508",
       "name": "Wait Main→YL",
@@ -5120,7 +5120,7 @@
     },
     {
       "parameters": {
-        "amount": 180
+        "amount": 120
       },
       "id": "b14df927-02c8-48fd-bf5a-7c23d141b256",
       "name": "Wait YL→BD2",
@@ -5168,7 +5168,7 @@
     },
     {
       "parameters": {
-        "amount": 180
+        "amount": 120
       },
       "id": "cb8e96b0-55a7-4d62-b7b9-38873a28f171",
       "name": "Wait BD2→SD",
@@ -5216,7 +5216,7 @@
     },
     {
       "parameters": {
-        "amount": 180
+        "amount": 120
       },
       "id": "4bc57df5-407f-43ed-98c7-d54485a00c0f",
       "name": "Wait SD→STK",
@@ -6039,7 +6039,7 @@
     },
     {
       "parameters": {
-        "amount": 180
+        "amount": 120
       },
       "id": "73084225-0068-4c5d-98fe-715acb8bc228",
       "name": "Wait STK→TH",
@@ -6914,7 +6914,7 @@
     },
     {
       "parameters": {
-        "amount": 180
+        "amount": 120
       },
       "id": "6edf0549-a8d1-4999-8692-8bd5890c5e18",
       "name": "Wait TH→BDS",

@@ -57,7 +57,7 @@ temizlemek yetmez, git geçmişi değeri saklar.
    `N8N_PANORAMA_MANUAL_WEBHOOK_URL`  
    `N8N_PANORAMA_MANUAL_WEBHOOK_SECRET`
 
-Webhook cron’u değiştirmez. Manuel execution’da zincirler **Wait 180s** ile sırayla gider  
+Webhook cron’u değiştirmez. Manuel execution’da zincirler **Wait 120s** ile sırayla gider  
 (Main → YL → BD2 fatura → Sipariş 5140 → Stok → Tahsilat → Belge detay sipariş 5451) — WAF’a paralel login basmamak için.
 
 ## Tek tek rapor çekme (2026-09-03)
@@ -84,7 +84,7 @@ Nasıl çalışıyor:
    mi”** diye bakıyor: `istenen` boşsa hepsi geçer.
 4. **Kritik:** her IF’in **false çıkışı bir sonraki IF’e bağlı**. Zincir kaskad
    olduğu için eskiden bir IF kapanınca arkasındaki her şey ölürdü. False dalı
-   hem zinciri hem 180 sn’lik `Wait`’i atlar — tek rapor çekimi 20 dakika
+   hem zinciri hem 120 sn’lik `Wait`’i atlar — tek rapor çekimi 15 dakika
    yerine saniyeler sürer.
 
 Zincir → id eşlemesi (`frontend/lib/panorama-raporlar.ts` ile aynı olmalı):
@@ -102,6 +102,18 @@ Zincir → id eşlemesi (`frontend/lib/panorama-raporlar.ts` ile aynı olmalı):
 Yan etki: cron çalışmalarında false dalı sıradaki IF düğümlerini de yürür.
 Hiçbiri iş yapmaz (hepsi false döner) ve `IF Manuel → BDS` false çıkışı
 bağlanmadan biter — execution logunda birkaç fazla no-op düğüm görünür.
+
+## Bekleme süresi (2026-09-03)
+
+Zincirler arası `Wait` düğümleri **180 → 120 sn**’ye indirildi.
+Ölçülen en uzun gerçek çekim penceresi 108 sn (rapor 5450), yani 2 dakika
+iki login’in üst üste binmemesi için hâlâ yeterli. Tam pipeline ~25 dk
+yerine ~19 dk sürüyor. `frontend/lib/panorama-raporlar.ts` içindeki
+`ZINCIR_ARASI_BEKLEME_SN` bu değerle eşleşmeli — tahmini bitiş damgası
+oradan üretiliyor.
+
+WAF tekrar tetiklenirse ilk geri alınacak değer budur: 6 Wait düğümünü
+180’e çekip sabiti de güncelleyin.
 
 ## Cron takvimi (2026-08-31)
 
