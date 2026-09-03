@@ -11,7 +11,13 @@ import { createSupabaseAdmin } from "@/lib/supabase-admin";
 export const runtime = "nodejs";
 export const maxDuration = 30;
 
-const COOLDOWN_MS = 60 * 60 * 1000;
+/**
+ * 2026-09-04: n8n'deki Wait dugumleri kaldirildi, "Hepsi" cekimi ~25 dk'dan
+ * ~7-10 dk'ya dustu (bkz. backend/n8n/README.md). Cooldown de 60 dk'dan bu
+ * yeni hiza gore kisaltildi -- eski deger Wait'li donemden kalmisti ve test/
+ * tekrar deneme akisini gereksiz yere kilitliyordu.
+ */
+const COOLDOWN_MS = 10 * 60 * 1000;
 /**
  * n8n zincirlerinde Create Sync Run ile Complete Sync Run arasinda hicbir
  * Wait node yok; olculen en uzun gercek pencere 108 sn (rapor 5450). Zincir
@@ -19,8 +25,11 @@ const COOLDOWN_MS = 60 * 60 * 1000;
  * `failed` yazmiyor) ve butonu sonsuza kadar kilitliyordu. Bu esikten eski
  * satirlari kilit saymiyoruz; ayrica pg_cron'daki panorama_sync_stale_sweep
  * onlari `failed`a cekiyor (sql/panorama_sync_stale_sweep.sql).
+ *
+ * 15 dk: gercekci en uzun "Hepsi" cekiminden (~7-10 dk, Wait'siz) fazla
+ * marj birakir, ama eski 30 dk'lik degerden cok daha hizli toparlanir.
  */
-const STALE_LOCK_MS = 30 * 60 * 1000;
+const STALE_LOCK_MS = 15 * 60 * 1000;
 const IN_FLIGHT = ["running", "pending", "in_progress"] as const;
 const HEADER_SECRET = "X-N8N-Sync-Secret";
 

@@ -66,7 +66,7 @@
             {
               "id": "b0e82f09-afa0-49ec-b5d6-5c5afa107411",
               "name": "panoramaPass",
-              "value": "={{ $vars['patigo-login'] }}",
+              "value": "patigo-login",
               "type": "string"
             },
             {
@@ -950,7 +950,7 @@
             {
               "id": "63c5dd39-abc5-4ed5-9d32-320d7adf9840",
               "name": "panoramaPass",
-              "value": "={{ $vars['patigo-login'] }}",
+              "value": "patigo-login",
               "type": "string"
             },
             {
@@ -1638,7 +1638,7 @@
             {
               "id": "2ff0c0e9-2bf3-46c4-abac-dbfc0a016e6a",
               "name": "panoramaPass",
-              "value": "={{ $vars['patigo-login'] }}",
+              "value": "patigo-login",
               "type": "string"
             },
             {
@@ -2655,7 +2655,7 @@
             {
               "id": "2ff0c0e9-2bf3-46c4-abac-dbfc0a016e6a",
               "name": "panoramaPass",
-              "value": "={{ $vars['patigo-login'] }}",
+              "value": "patigo-login",
               "type": "string"
             },
             {
@@ -3450,7 +3450,7 @@
             {
               "id": "2ff0c0e9-2bf3-46c4-abac-dbfc0a016e6a",
               "name": "panoramaPass",
-              "value": "={{ $vars['patigo-login'] }}",
+              "value": "patigo-login",
               "type": "string"
             },
             {
@@ -4281,7 +4281,7 @@
             {
               "id": "2ff0c0e9-2bf3-46c4-abac-dbfc0a016e6a",
               "name": "panoramaPass",
-              "value": "={{ $vars['patigo-login'] }}",
+              "value": "patigo-login",
               "type": "string"
             },
             {
@@ -5221,7 +5221,7 @@
             {
               "id": "57e5c24b-362b-499b-998b-84ad7595d00b",
               "name": "panoramaPass",
-              "value": "={{ $vars['patigo-login'] }}",
+              "value": "patigo-login",
               "type": "string"
             },
             {
@@ -6050,7 +6050,7 @@
             {
               "id": "2ff0c0e9-2bf3-46c4-abac-dbfc0a016e6a",
               "name": "panoramaPass",
-              "value": "={{ $vars['patigo-login'] }}",
+              "value": "patigo-login",
               "type": "string"
             },
             {

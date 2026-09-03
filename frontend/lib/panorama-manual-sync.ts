@@ -8,7 +8,12 @@ import { formatIstanbulStamp } from "@/lib/panorama-schedule";
 import { PANORAMA_SYNC_RUNS_TABLE, supabase } from "@/lib/supabase";
 
 export const MANUAL_SYNC_STORAGE_KEY = "locus:panorama-manual-sync-at";
-export const MANUAL_SYNC_COOLDOWN_MS = 60 * 60 * 1000;
+/**
+ * `/api/sync/panorama/manual`'daki COOLDOWN_MS ile aynı olmalı.
+ * 2026-09-04: n8n Wait düğümleri kaldırıldı, çekim ~25 dk'dan ~7-10 dk'ya
+ * düştü; eski 60 dk'lık cooldown bu hıza göre kısaltıldı.
+ */
+export const MANUAL_SYNC_COOLDOWN_MS = 10 * 60 * 1000;
 
 /** Son manuel çekim damgası — cooldown sayacı bunu okur. */
 export function writeManualSyncAt(at: number) {
@@ -36,7 +41,13 @@ export const MANUAL_CHAIN_WAIT_SEC = ZINCIR_ARASI_BEKLEME_SN;
 export const MANUAL_ESTIMATE_MS = tahminiSureMs(PANORAMA_ZINCIRLERI);
 
 const POLL_MS = 15_000;
-const DEADLINE_MS = 90 * 60 * 1000;
+/**
+ * 2026-09-04: Wait düğümleri kaldırıldıktan sonra gerçekçi en uzun çekim
+ * ~7-10 dk (bkz. MANUAL_ESTIMATE_MS). 90 dk'lık eski üst sınır, gerçek bir
+ * sorun olduğunda kullanıcıyı gereksiz yere uzun süre "yükleniyor"da
+ * bekletiyordu; 20 dk bolca marj bırakıp daha hızlı hata verir.
+ */
+const DEADLINE_MS = 20 * 60 * 1000;
 
 /** Seçime göre süre; seçim yoksa (hepsi) ölçülmüş tam pipeline tahmini. */
 function secimSuresiMs(secim?: readonly (string | number)[] | null): number {
