@@ -67,7 +67,26 @@ export const NAV_SECTIONS: NavSectionConfig[] = [
           },
         ],
       },
-      { id: "rotalar", label: "Rotalar", icon: RouteIcon, href: "/rotalar" },
+      {
+        id: "rotalar",
+        label: "Rotalar",
+        icon: RouteIcon,
+        href: "/rotalar",
+        children: [
+          {
+            id: "rotalar-planlama",
+            label: "Planlama",
+            icon: RouteIcon,
+            href: "/rotalar",
+          },
+          {
+            id: "rotalar-harita",
+            label: "Rota Haritası",
+            icon: MapIcon,
+            href: "/rotalar/harita",
+          },
+        ],
+      },
     ],
   },
   {

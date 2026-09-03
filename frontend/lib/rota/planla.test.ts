@@ -1,5 +1,5 @@
 import type { Arac, Durak, Sofor } from "./atama";
-import { filoSec } from "./atama";
+import { filoSec, surulebilirKirp } from "./atama";
 import { planMetrigi, planOlustur, UZAK_ESIGI_KM, uzakMi } from "./planla";
 import {
   tercihAbone,
@@ -241,3 +241,62 @@ console.log("tercihleriTemizle ok");
   if (uyandi !== 1) fail("abonelik bırakıldıktan sonra uyandırılmamalı");
 }
 console.log("tercih deposu: SSR uyumu + abonelik ok");
+
+// ---------------------------------------------------------------------------
+// Regresyon: elle araç seçimi küçültülmemeli
+// ---------------------------------------------------------------------------
+{
+  // Ekranda görülen hata: kullanıcı 4 aracı elle seçiyor, 78 çuvallık yük tek
+  // Transit'e sığdığı için `filoSec` diğer üçünü atıyordu — "Araçlar" bölümünde
+  // tek araç görünüyordu. Elle seçim niyet beyanıdır, optimize edilmez.
+  const KANGOO2: Arac = {
+    kod: "kangoo", ad: "Renault Kangoo", cuvalKapasite: 60, maxKg: 800,
+    maxKgTeyitli: true, ehliyetSinifi: "B", takograf: false,
+  };
+  const TRANSIT2: Arac = {
+    kod: "transit", ad: "Ford Transit", cuvalKapasite: 180, maxKg: 2000,
+    maxKgTeyitli: true, ehliyetSinifi: "B", takograf: false,
+  };
+  const ISUZU3D: Arac = {
+    kod: "isuzu3d", ad: "Isuzu 3D", cuvalKapasite: 480, maxKg: 8800,
+    maxKgTeyitli: true, ehliyetSinifi: "C", takograf: true,
+  };
+  const dortlu = [KANGOO2, TRANSIT2, NPR10, ISUZU3D];
+  const ucSofor: Sofor[] = [
+    { kod: "m", ad: "Mehmet Baylav", ehliyetSinifi: "C" },
+    { kod: "z", ad: "Muzaffer Günüşen", ehliyetSinifi: "C" },
+    { kod: "r", ad: "Ramazan Türkkan", ehliyetSinifi: "B" },
+  ];
+  const hafifYuk = [dogudaDurak("A", 10, 1167)];
+
+  // filoSec hâlâ küçültür — otomatik mod için doğru davranış
+  const otomatik = filoSec(hafifYuk, dortlu, ucSofor);
+  if (otomatik.secilen.length !== 1) {
+    fail(`otomatik modda en küçük filo seçilmeli, gelen ${otomatik.secilen.length}`);
+  }
+
+  // Elle seçimde kırpma yapılır ama küçültme YAPILMAZ
+  const { cikan, elenen } = surulebilirKirp(dortlu, ucSofor);
+  if (cikan.length !== 3) {
+    fail(`3 şoförle 3 araç çıkmalı, gelen ${cikan.length}`);
+  }
+  if (elenen.length !== 1) fail("4. araç elenmeli ve bildirilmeli");
+  // Sıra korunur: ilk üç araç geçer, dördüncü elenir
+  if (cikan.map((a) => a.kod).join() !== "kangoo,transit,npr10") {
+    fail(`sıra korunmalı, gelen ${cikan.map((a) => a.kod).join()}`);
+  }
+  if (elenen[0]!.kod !== "isuzu3d") fail("elenen 4. araç olmalı");
+
+  // Isuzu sınırı: 2 C şoförü varken 2'den fazla Isuzu çıkamaz
+  const ikiIsuzuArtiKucuk = [ISUZU3D, NPR10, { ...ISUZU3D, kod: "isuzu4", ad: "Isuzu 4" }];
+  const k2 = surulebilirKirp(ikiIsuzuArtiKucuk, ucSofor);
+  if (k2.cikan.filter((a) => a.ehliyetSinifi === "C").length > 2) {
+    fail("2 C şoförüyle 2'den fazla Isuzu çıkamaz");
+  }
+
+  // Şoför yetiyorsa hiçbiri elenmez
+  const k3 = surulebilirKirp([KANGOO2, TRANSIT2], ucSofor);
+  if (k3.elenen.length !== 0) fail("3 şoförle 2 araç elenmemeli");
+  if (k3.cikan.length !== 2) fail("2 araç da çıkmalı");
+}
+console.log("surulebilirKirp: elle seçim korunuyor ok");

@@ -107,3 +107,10 @@ export const ARACLAR_TABLE = "araclar";
  * bkz. sql/soforler_sema.sql
  */
 export const SOFORLER_TABLE = "soforler";
+/**
+ * Kaydedilmiş sevkiyat planları — ERP'de olmayan "hangi yük hangi araçla,
+ * kim sürerek gitti" geçmişinin tek kaynağı. kg/çuval plan anında DONDURULMUŞ.
+ * bkz. sql/sevkiyat_plani_sema.sql
+ */
+export const SEVKIYAT_PLAN_OZET_VIEW = "v_sevkiyat_plan_ozet";
+export const SEVKIYAT_PLAN_DURAKLARI_VIEW = "v_sevkiyat_plan_duraklari";

@@ -14,6 +14,7 @@ import {
   observeMapContainer,
 } from "@/lib/mapbox-init";
 import { revealStageVeil } from "@/lib/map-curtain";
+import { revealRouteLine } from "@/lib/route-reveal";
 import { MAPBOX_TOKEN, mapboxStyleForTheme } from "@/lib/mapbox-style";
 import { useTheme } from "@/components/theme/ThemeProvider";
 
@@ -108,6 +109,44 @@ function createHavuzEl(label: string): HTMLButtonElement {
   return el;
 }
 
+/** İki nokta arasındaki pusula açısı (derece, kuzey = 0). */
+function yonAcisi(a: LngLat, b: LngLat): number {
+  const rad = Math.PI / 180;
+  const dLon = (b[0] - a[0]) * rad;
+  const lat1 = a[1] * rad;
+  const lat2 = b[1] * rad;
+  const y = Math.sin(dLon) * Math.cos(lat2);
+  const x =
+    Math.cos(lat1) * Math.sin(lat2) -
+    Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLon);
+  return ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
+}
+
+/**
+ * Aracın depodan çıkış yönü — Navigation2 oku, ilk durağa doğru döndürülmüş.
+ *
+ * CANLI KONUM DEĞİL: Arvento bağlı olmadığı için aracın nerede olduğunu
+ * bilmiyoruz. Bu imleç yalnız "bu araç depodan şu yöne çıkıyor" der; anlık
+ * konum bağlandığında aynı imleç gerçek koordinata taşınır.
+ */
+function createYonEl(aracAd: string, renk: string, aci: number): HTMLDivElement {
+  const el = document.createElement("div");
+  el.setAttribute("role", "img");
+  el.setAttribute("aria-label", `${aracAd} — depodan çıkış yönü`);
+  el.title = `${aracAd} — depodan çıkış yönü`;
+  el.style.cssText =
+    "width:30px;height:30px;display:flex;align-items:center;justify-content:center;pointer-events:none;filter:drop-shadow(0 2px 6px rgba(0,0,0,0.45))";
+  el.innerHTML = `
+    <svg width="30" height="30" viewBox="0 0 24 24" fill="none"
+         style="transform:rotate(${aci.toFixed(1)}deg);transform-origin:50% 50%">
+      <polygon points="12 2 19 21 12 17 5 21 12 2"
+               fill="${renk}" stroke="#ffffff" stroke-width="1.6"
+               stroke-linejoin="round" stroke-linecap="round" />
+    </svg>
+  `;
+  return el;
+}
+
 function lineFeature(
   coords: LngLat[],
   renk: string
@@ -191,7 +230,8 @@ export function RotaHaritasi({ rotalar, havuz }: RotaHaritasiProps) {
       center: fitTargets[0] ?? DEPOT.lngLat,
       zoom: fitTargets.length <= 1 ? 11 : 8,
       attributionControl: false,
-      cooperativeGestures: true,
+      // cooperativeGestures kapalı: "yakınlaştırmak için ctrl + kaydır"
+      // uyarısı tam ekran planlama haritasında gereksiz engel.
       logoPosition: "bottom-left",
     });
     mapRef.current = map;
@@ -209,7 +249,7 @@ export function RotaHaritasi({ rotalar, havuz }: RotaHaritasiProps) {
         new mapboxgl.Marker({ element: createDepotEl(), anchor: "bottom" })
           .setLngLat(DEPOT.lngLat)
           .setPopup(
-            new mapboxgl.Popup({ offset: 16, closeButton: false }).setHTML(
+            new mapboxgl.Popup({ offset: 16, closeButton: false, className: "petshop-popup" }).setHTML(
               popupHtml(DEPOT.label, DEPOT.address)
             )
           )
@@ -217,6 +257,21 @@ export function RotaHaritasi({ rotalar, havuz }: RotaHaritasiProps) {
       );
 
       for (const rota of rotalar) {
+        // Depoda, ilk durağa bakan yön oku — araç başına bir tane.
+        const ilk = rota.duraklar.find((d) => d.lat != null && d.lon != null);
+        if (ilk?.lat != null && ilk.lon != null) {
+          const aci = yonAcisi(DEPOT.lngLat, [ilk.lon, ilk.lat]);
+          markers.push(
+            new mapboxgl.Marker({
+              element: createYonEl(rota.aracAd, rota.renk, aci),
+              anchor: "center",
+              offset: [0, -34],
+            })
+              .setLngLat(DEPOT.lngLat)
+              .addTo(map)
+          );
+        }
+
         rota.duraklar.forEach((d, i) => {
           if (d.lat == null || d.lon == null) return;
           markers.push(
@@ -226,7 +281,7 @@ export function RotaHaritasi({ rotalar, havuz }: RotaHaritasiProps) {
             })
               .setLngLat([d.lon, d.lat])
               .setPopup(
-                new mapboxgl.Popup({ offset: 14, closeButton: false }).setHTML(
+                new mapboxgl.Popup({ offset: 14, closeButton: false, className: "petshop-popup" }).setHTML(
                   popupHtml(
                     `${i + 1}. ${d.unvan}`,
                     `${rota.aracAd} · ${Math.round(d.kg)} kg`
@@ -244,7 +299,7 @@ export function RotaHaritasi({ rotalar, havuz }: RotaHaritasiProps) {
           new mapboxgl.Marker({ element: createHavuzEl(d.unvan), anchor: "center" })
             .setLngLat([d.lon, d.lat])
             .setPopup(
-              new mapboxgl.Popup({ offset: 12, closeButton: false }).setHTML(
+              new mapboxgl.Popup({ offset: 12, closeButton: false, className: "petshop-popup" }).setHTML(
                 popupHtml(d.unvan, `Atanmadı · ${Math.round(d.kg)} kg`)
               )
             )
@@ -271,13 +326,20 @@ export function RotaHaritasi({ rotalar, havuz }: RotaHaritasiProps) {
       if (!map.getSource(LINE_SOURCE)) {
         map.addSource(LINE_SOURCE, { type: "geojson", data: duzCizgiler });
       }
+      // Apple Maps deseni: kalın nötr kontur + üstünde dolgun renkli çekirdek.
+      // Zoom'a göre kalınlaşıyor ki şehir içinde de kırsalda da okunur kalsın.
       if (!map.getLayer(LINE_CASING)) {
         map.addLayer({
           id: LINE_CASING,
           type: "line",
           source: LINE_SOURCE,
           layout: { "line-cap": "round", "line-join": "round" },
-          paint: { "line-color": "#0f172a", "line-width": 7, "line-opacity": 0.28 },
+          paint: {
+            "line-color": themeRef.current === "dark" ? "#0b0f14" : "#ffffff",
+            "line-width": ["interpolate", ["linear"], ["zoom"], 6, 6, 12, 10, 16, 14],
+            "line-opacity": 0.9,
+            "line-blur": 0.6,
+          },
         });
       }
       if (!map.getLayer(LINE_LAYER)) {
@@ -288,8 +350,8 @@ export function RotaHaritasi({ rotalar, havuz }: RotaHaritasiProps) {
           layout: { "line-cap": "round", "line-join": "round" },
           paint: {
             "line-color": ["get", "renk"],
-            "line-width": 4,
-            "line-opacity": 0.95,
+            "line-width": ["interpolate", ["linear"], ["zoom"], 6, 3, 12, 6, 16, 9],
+            "line-opacity": 1,
           },
         });
       }
@@ -317,7 +379,14 @@ export function RotaHaritasi({ rotalar, havuz }: RotaHaritasiProps) {
           );
           if (kalan.length === 0) return;
           const src = map.getSource(LINE_SOURCE) as mapboxgl.GeoJSONSource | undefined;
-          src?.setData({ type: "FeatureCollection", features: kalan });
+          if (!src) return;
+          // Güzergâh depodan başlayarak çiziliyor — PetshopMap'teki rota
+          // animasyonunun aynısı; hareket azaltma açıksa anında görünür.
+          void revealRouteLine(
+            { type: "FeatureCollection", features: kalan },
+            (fc) => src.setData(fc),
+            { duration: 1.1, signal: ac.signal }
+          );
         })
         .catch((err: unknown) => {
           if ((err as Error).name === "AbortError") return;

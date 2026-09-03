@@ -7,6 +7,7 @@ import type { RotaDuragi } from "@/hooks/useRotaPlani";
 import { useScrollBottomFade } from "@/hooks/useScrollBottomFade";
 import { depoyaKm } from "@/lib/depot";
 import { UZAK_ESIGI_KM } from "@/lib/rota/planla";
+import { HAVUZ_HEDEFI, useSurukleme } from "./surukleme";
 
 /**
  * Bu yaştan eski bekleyen sipariş sarı yanar. Tarih penceresi "hepsi"ndeyken
@@ -41,12 +42,21 @@ export function DurakHavuzu({
     duraklar.length
   );
 
+  const { durum, basla, suruklendiMi, etkin } = useSurukleme();
+  /** Araçtan havuza geri sürükleme sırasında havuz hedef olarak parlıyor. */
+  const havuzHedefte = durum?.hedefKod === HAVUZ_HEDEFI;
+
   const toplamKg = duraklar.reduce((t, d) => t + d.kg, 0);
 
   return (
     <section
       ref={wrapperRef}
-      className="relative flex min-w-0 flex-col border-b border-border lg:border-r lg:border-b-0"
+      // Araçtan geri sürüklenen durak buraya bırakılıyor.
+      data-birak-hedef={HAVUZ_HEDEFI}
+      className={cn(
+        "relative flex min-w-0 flex-col border-b border-border transition-colors lg:border-r lg:border-b-0",
+        havuzHedefte && "bg-accent/40 ring-2 ring-inset ring-foreground/30"
+      )}
     >
       <header className="flex h-11 shrink-0 items-center justify-between gap-3 border-b border-border/60 px-3.5">
         <h2 className="flex min-w-0 items-center gap-1.5 text-[12px] font-medium tracking-[0.06em] text-muted-foreground uppercase">
@@ -66,9 +76,13 @@ export function DurakHavuzu({
 
       <p className="flex h-9 shrink-0 items-center border-b border-border/60 px-3.5 text-[12px] text-muted-foreground">
         <span className="truncate">
-          {seciliAracAdi
-            ? `Tıklanan durak → ${seciliAracAdi}`
-            : "Yüklemek için önce sağdan bir araç seçin"}
+          {havuzHedefte
+            ? "Bırak → durak havuza geri döner"
+            : seciliAracAdi
+              ? `Tıklanan durak → ${seciliAracAdi}`
+              : etkin
+                ? "Bir araç seçin ya da durağı araç kartına sürükleyin"
+                : "Yüklemek için önce sağdan bir araç seçin"}
         </span>
       </p>
 
@@ -97,7 +111,17 @@ export function DurakHavuzu({
                 key={d.musteriKodu}
                 durak={d}
                 pasif={seciliAracAdi == null}
-                onSec={() => onDurakEkle(d.musteriKodu)}
+                suruklenebilir={etkin}
+                suruluyor={durum?.musteriKodu === d.musteriKodu}
+                onSuruklemeBasla={(e, durak) =>
+                  basla(e, { durak, kaynakAracKod: null })
+                }
+                onSec={() => {
+                  // pointerup'tan sonra gelen click sürüklemeyi tekrar
+                  // uygulamasın diye yutuluyor.
+                  if (suruklendiMi()) return;
+                  onDurakEkle(d.musteriKodu);
+                }}
               />
             ))}
           </ul>
@@ -111,10 +135,17 @@ export function DurakHavuzu({
 function DurakSatiri({
   durak,
   pasif,
+  suruklenebilir,
+  suruluyor,
+  onSuruklemeBasla,
   onSec,
 }: {
   durak: RotaDuragi;
   pasif: boolean;
+  suruklenebilir: boolean;
+  /** Şu an sürükleniyor — satır yerinde soluk kalır, önizleme imleci takip eder. */
+  suruluyor: boolean;
+  onSuruklemeBasla: (event: React.PointerEvent, durak: RotaDuragi) => void;
   onSec: () => void;
 }) {
   const konumsuz = durak.lat == null || durak.lon == null;
@@ -123,22 +154,32 @@ function DurakSatiri({
       ? depoyaKm({ lat: durak.lat, lon: durak.lon })
       : null;
 
+  // Koordinatsız durak plana giremez, sürüklenmesinin de anlamı yok.
+  const tutulabilir = suruklenebilir && !konumsuz;
+
   return (
-    <li>
+    <li
+      className={cn(
+        "relative bg-background transition-opacity",
+        suruluyor && "opacity-40"
+      )}
+    >
       <button
         type="button"
+        onPointerDown={tutulabilir ? (e) => onSuruklemeBasla(e, durak) : undefined}
         onClick={onSec}
-        disabled={pasif || konumsuz}
+        disabled={pasif && !tutulabilir}
         className={cn(
           "flex w-full min-w-0 flex-col gap-1 px-3.5 py-2 text-left transition-colors",
           !pasif && !konumsuz && "hover:bg-accent/50",
-          (pasif || konumsuz) && "cursor-default"
+          tutulabilir && "cursor-grab active:cursor-grabbing",
+          !tutulabilir && (pasif || konumsuz) && "cursor-default"
         )}
         title={
           konumsuz
             ? "Koordinatı yok — haritaya konamaz, plana giremez"
             : pasif
-              ? "Önce bir araç seçin"
+              ? `${durak.unvan} — bir araç seçin ya da araç kartına sürükleyin`
               : `${durak.unvan} durağını seçili araca ekle`
         }
       >

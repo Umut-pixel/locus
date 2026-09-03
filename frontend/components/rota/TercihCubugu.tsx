@@ -21,8 +21,10 @@ interface TercihCubuguProps {
   /** Sistemin seçtiği filo (aracKodlari null iken geçerli olan). */
   otomatikSecim: RotaAraci[];
   atamalar: Record<string, Sofor>;
-  /** Şoför sınırı — bundan fazla araç elle seçilemez. */
+  /** Şoför sınırı — bundan fazla araç aynı gün çıkamaz. */
   soforSayisi: number;
+  /** Gerçekten çıkan araçların kodları — seçili ama elenenleri soluk göstermek için. */
+  cikanKodlar: string[];
   /** Filo ve kadro düzenleme panelini aç. */
   onFiloDuzenle: () => void;
   loading: boolean;
@@ -42,6 +44,7 @@ export function TercihCubugu({
   otomatikSecim,
   atamalar,
   soforSayisi,
+  cikanKodlar,
   onFiloDuzenle,
   loading,
 }: TercihCubuguProps) {
@@ -49,6 +52,8 @@ export function TercihCubugu({
   const secili = new Set(
     otomatik ? otomatikSecim.map((a) => a.kod) : tercihler.aracKodlari
   );
+  const cikan = new Set(cikanKodlar);
+  const elenenSayisi = [...secili].filter((k) => !cikan.has(k)).length;
 
   const aracDegis = (kod: string) => {
     const sonraki = new Set(secili);
@@ -135,25 +140,38 @@ export function TercihCubugu({
 
       {/* Elle araç seçimi */}
       <Grup
-        etiket={`Araçlar (${formatNumber(secili.size)}/${formatNumber(soforSayisi)} şoför)`}
+        etiket={`Araçlar (${formatNumber(cikan.size)} çıkıyor · ${formatNumber(soforSayisi)} şoför)`}
       >
         {araclar.map((a) => {
           const sofor = atamalar[a.kod];
+          const seciliMi = secili.has(a.kod);
+          const elendi = seciliMi && !cikan.has(a.kod);
           return (
             <Secenek
               key={a.kod}
-              secili={secili.has(a.kod)}
+              secili={seciliMi && !elendi}
+              solgun={elendi}
               onClick={() => aracDegis(a.kod)}
               title={
-                sofor
-                  ? `${a.ad} — ${sofor.ad}`
-                  : `${a.ad} — bu seçimde şoför düşmüyor`
+                elendi
+                  ? `${a.ad} seçili ama şoför yetmiyor — bugün çıkamaz`
+                  : sofor
+                    ? `${a.ad} — ${sofor.ad}`
+                    : `${a.ad} — bu seçimde şoför düşmüyor`
               }
             >
               {a.ad.replace(/^(Renault|Ford|Isuzu)\s+/, "")}
             </Secenek>
           );
         })}
+        {elenenSayisi > 0 ? (
+          <span
+            className="ml-1 shrink-0 text-[11px] text-amber-500"
+            title="Seçilen araç sayısı şoför sayısını aşıyor"
+          >
+            {formatNumber(elenenSayisi)} araç şoförsüz
+          </span>
+        ) : null}
         {!otomatik ? (
           <button
             type="button"
@@ -199,11 +217,14 @@ function Grup({
 
 function Secenek({
   secili,
+  solgun = false,
   onClick,
   title,
   children,
 }: {
   secili: boolean;
+  /** Seçili ama uygulanamıyor (ör. şoför yetmiyor). */
+  solgun?: boolean;
   onClick: () => void;
   title: string;
   children: React.ReactNode;
@@ -218,7 +239,9 @@ function Secenek({
         "shrink-0 rounded-sm px-1.5 py-0.5 text-[11.5px] whitespace-nowrap transition-colors",
         secili
           ? "bg-foreground text-background"
-          : "text-muted-foreground hover:text-foreground"
+          : solgun
+            ? "text-amber-500/70 line-through"
+            : "text-muted-foreground hover:text-foreground"
       )}
     >
       {children}

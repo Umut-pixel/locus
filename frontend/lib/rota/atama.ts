@@ -206,6 +206,29 @@ function filoSurulebilirMi(filo: Arac[], soforler: Sofor[]): boolean {
   return cArac <= cSofor;
 }
 
+/**
+ * ELLE seçilen filoyu şoför kısıtına kırpar — küçültmeye ÇALIŞMAZ.
+ *
+ * `filoSec` "yükü karşılayan en küçük filo"yu arar; kullanıcı araçları elle
+ * seçtiğinde bu yanlış olur: 4 araç seçip tek araç çıkması seçimi sessizce
+ * yok saymak demek. Burada verilen sıra korunur, yalnız şoföre sığmayanlar
+ * baştan sona taranarak elenir.
+ *
+ * Dönen `elenen`, UI'ın "şu araç çıkamıyor" diyebilmesi için.
+ */
+export function surulebilirKirp<T extends Arac>(
+  secilen: T[],
+  soforler: Sofor[]
+): { cikan: T[]; elenen: T[] } {
+  const cikan: T[] = [];
+  const elenen: T[] = [];
+  for (const arac of secilen) {
+    if (filoSurulebilirMi([...cikan, arac], soforler)) cikan.push(arac);
+    else elenen.push(arac);
+  }
+  return { cikan, elenen };
+}
+
 /** Şoförlerle sürülebilen tüm araç alt kümeleri (boş küme dahil). */
 function altKumeler<T extends Arac>(araclar: T[], soforler: Sofor[]): T[][] {
   if (soforler.length === 0 || araclar.length === 0) return [[]];

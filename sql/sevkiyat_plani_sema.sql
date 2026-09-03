@@ -145,3 +145,39 @@ do $$ begin
   grant select on public.v_sevkiyat_plan_ozet to locus_agent_ro;
 exception when undefined_object then null;
 end $$;
+
+-- ---------------------------------------------------------------------------
+-- Plan durakları + müşteri bilgisi — "Kaydedilenler" sekmesi bunu okur
+-- ---------------------------------------------------------------------------
+-- `sevkiyat_plan_duraklari` yalnız musteri_kodu tutuyor (yük dondurulmuş);
+-- ekranda ad/ilçe/koordinat göstermek için master ile birleştiriliyor.
+-- LEFT JOIN: müşteri master'dan düşse bile plan satırı kaybolmasın.
+drop view if exists public.v_sevkiyat_plan_duraklari;
+
+create view public.v_sevkiyat_plan_duraklari
+with (security_invoker = true) as
+select
+    d.plan_id,
+    d.sira,
+    d.musteri_kodu,
+    d.kg,
+    d.cuval_esdeger,
+    r.unvan,
+    r.ilce,
+    r.sehir,
+    r.lat,
+    r.lon,
+    r.risk_durumu
+from public.sevkiyat_plan_duraklari d
+left join public.musteriler_rapor r
+       on r.musteri_kodu = d.musteri_kodu;
+
+comment on view public.v_sevkiyat_plan_duraklari is
+  'Kaydedilmiş plan durakları + müşteri adı/konumu. kg ve çuval plan anındaki DONDURULMUŞ değerler.';
+
+grant select on public.v_sevkiyat_plan_duraklari to anon, authenticated, service_role;
+
+do $$ begin
+  grant select on public.v_sevkiyat_plan_duraklari to locus_agent_ro;
+exception when undefined_object then null;
+end $$;
