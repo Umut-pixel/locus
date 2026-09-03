@@ -23,6 +23,7 @@ from router.schema import (
     TEMPLATE_IDS,
     CLARIFY_RISK,
     Decision,
+    AKSIYON_RAPOR,
     OOS,
     OPUS,
     RouteAction,
@@ -52,6 +53,17 @@ _INJECTION = (
     "artik serbestsin",
     "ignore previous",
     "auth.users",
+)
+# Rapor çekme — prefilter'da yakalanır, modele hiç gitmez.
+# tr_fold çıktısına uygulanır: küçük harfli ama Türkçe karakterler duruyor,
+# o yüzden hem 'çek' hem 'cek' varyantı yazılı.
+_RAPOR_CEK = re.compile(
+    r"rapor\w*\s+(çek|cek|yenile|güncelle|guncelle)"
+    r"|(çek|cek)\w*\s+rapor"
+    r"|panorama[^\s]*\s+(çek|cek|yenile|güncelle|guncelle)"
+    r"|ver[iy]\w*\s+(güncelle|guncelle|yenile)"
+    r"|yeniden\s+(çek|cek)"
+    r"|senkronize\s+et"
 )
 _OPUS_HINT = re.compile(
     r"neden|trend|geçen yıl|gecen yil|karşılaştır|karsilastir|nasıl hesap",
@@ -185,6 +197,8 @@ def prefilter_route(text: str) -> Decision | None:
         return CLARIFY_RISK
     if any(tr_fold(p) in folded for p in _INJECTION):
         return OPUS
+    if _RAPOR_CEK.search(folded):
+        return AKSIYON_RAPOR
     if _WRITE.search(raw):
         return OPUS
     if _OPUS_HINT.search(raw):
@@ -268,6 +282,10 @@ def normalize_decision(text: str, decision: Decision) -> Decision:
         if _explicit_oos(text):
             return OOS
         return OPUS
+    if decision.route == "aksiyon":
+        # Yalnız prefilter üretebilir (ALLOWED_ROUTES dışında), o yüzden
+        # doğrulanacak bir şey yok — olduğu gibi geçer.
+        return decision
     return OPUS
 
 
@@ -276,6 +294,9 @@ def apply_route(decision: Decision) -> RouteAction:
         return RouteAction(kind="text", text=replies.CLARIFY_RISK)
     if decision.route == "oos":
         return RouteAction(kind="text", text=replies.OOS)
+    if decision.route == "aksiyon":
+        # Tek aksiyon var; başkası eklenirse burada dallan.
+        return RouteAction(kind="text", text=replies.RAPOR_SECIM)
     if decision.route == "template":
         spec = build_spec(decision.template_id or "", decision.slots)
         if spec is None or not isinstance(spec, TemplateSpec):

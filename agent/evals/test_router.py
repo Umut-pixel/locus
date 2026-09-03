@@ -20,7 +20,7 @@ from router.classify import (  # noqa: E402
     prefilter_route,
 )
 from middleware.fast_path import has_prior_turn  # noqa: E402
-from router.replies import CLARIFY_RISK  # noqa: E402
+from router.replies import CLARIFY_RISK, RAPOR_SECIM  # noqa: E402
 from router.schema import OPUS  # noqa: E402
 
 # Kullanıcıya giden metin kolon adı taşımamalı (snake_case teknik kimlik).
@@ -145,6 +145,35 @@ def main() -> int:
         fail("clarify SQL/tablo basmamalı")
     else:
         ok("clarify canned")
+
+    # Rapor çekme hiçbir modele uğramamalı: prefilter → sabit metin.
+    for cumle in (
+        "rapor çek",
+        "raporları çek",
+        "panoramadan çek",
+        "verileri güncelle",
+        "stok raporunu yenile",
+        "senkronize et",
+    ):
+        kararr = prefilter_route(cumle)
+        if kararr is None or kararr.route != "aksiyon":
+            fail(f"rapor çekme prefilter'da yakalanmadı: {cumle!r}")
+            continue
+        if normalize_decision(cumle, kararr).route != "aksiyon":
+            fail(f"normalize aksiyonu düşürdü: {cumle!r}")
+            continue
+        eylem = apply_route(kararr)
+        if eylem.kind != "text" or '"aksiyon": "rapor_cek"' not in (eylem.text or ""):
+            fail(f"rapor seçim kartı basılmadı: {cumle!r}")
+        else:
+            ok(f"aksiyon → sabit seçim kartı ({cumle})")
+
+    # Kart listesi UI'dan gelir; sabit metin rapor adı/süresi saymamalı
+    # (sayarsa kayıt defteriyle sapar).
+    if "secenekler" in RAPOR_SECIM:
+        fail("sabit kart seçenek listesi taşıyor — UI kayıt defteri tek kaynak")
+    else:
+        ok("sabit kart seçenekleri UI'ya bırakıyor")
 
     if match_template("Toplam ciromuz ne kadar?") is not None:
         fail("kdv-regresyon cümlesi exact hit")

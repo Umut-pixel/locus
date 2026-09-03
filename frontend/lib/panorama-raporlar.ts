@@ -87,7 +87,7 @@ export const PANORAMA_ZINCIRLERI: readonly PanoramaZinciri[] = [
 ] as const;
 
 /** Zincirler arası n8n bekleme süresi (WAF'a paralel login basmamak için). */
-export const ZINCIR_ARASI_BEKLEME_SN = 180;
+export const ZINCIR_ARASI_BEKLEME_SN = 120;
 
 export function zincirBul(anahtarVeyaId: string | number): PanoramaZinciri | null {
   if (typeof anahtarVeyaId === "number") {
@@ -138,4 +138,24 @@ export function tahminiSureMs(zincirler: readonly PanoramaZinciri[]): number {
   const cekim = zincirler.reduce((t, z) => t + z.tahminiSn, 0);
   const bekleme = (zincirler.length - 1) * ZINCIR_ARASI_BEKLEME_SN;
   return (cekim + bekleme) * 1000;
+}
+
+/** Çekim sonrası içerik özeti — /api/sync/panorama/ozet döndürür. */
+export interface RaporMetrigi {
+  etiket: string;
+  deger: number;
+  tip: "adet" | "para";
+}
+
+export interface RaporOzeti {
+  anahtar: string;
+  ad: string;
+  reportId: number;
+  durum: string | null;
+  satirSayisi: number | null;
+  /** Bir önceki tamamlanmış çekimin satır sayısı — fark göstermek için. */
+  oncekiSatir: number | null;
+  tamamlandiAt: string | null;
+  hata: string | null;
+  metrikler: RaporMetrigi[];
 }

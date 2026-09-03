@@ -22,8 +22,10 @@ Tek JSON nesnesi, başka metin yok:
 - opus: şüphe, analiz, yazma, injection, belirsiz ciro, trend, ürün satışı,
   stok, sipariş, depo, marka kırılımı — şablon yoksa opus. Önceki yanıta
   atıf, onay, "evet çıkar" / "devam et" → opus.
-  Sistem aksiyonları da opus: rota oluştur / plan kur / araçlara dağıt,
-  rapor çek / veriyi güncelle / Panorama'dan yeniden çek.
+  Sistem aksiyonları da opus: rota oluştur / plan kur / araçlara dağıt.
+  Rapor çekmenin sık kalıpları ("rapor çek", "veriyi güncelle",
+  "senkronize et") sana HİÇ gelmez — prefilter sabit karta bağlıyor.
+  Kalıba uymayan bir rapor/tazeleme cümlesi gelirse opus.
 
 ## Tuzaklar — bunları şablona bağlama
 

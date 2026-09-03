@@ -334,8 +334,9 @@ function parseLocusJson(raw: string): AgentBlock | null {
             })
         : [];
       // Bilinmeyen aksiyon çizilmez: kullanıcı hiçbir şey yapmayan bir
-      // düğmeye basmasın.
-      if (SECIM_AKSIYONLARI.has(aksiyon) && secenekler.length > 0) {
+      // düğmeye basmasın. Seçenek listesi BOŞ olabilir — rapor seçiminde
+      // listeyi arayüz kendi kayıt defterinden okuyor, model saymıyor.
+      if (SECIM_AKSIYONLARI.has(aksiyon)) {
         return {
           type: "secim",
           title: typeof data.title === "string" ? data.title : "Seçim",
