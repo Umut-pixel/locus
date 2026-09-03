@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
 
+import {
+  PANORAMA_ZINCIRLERI,
+  zincirleriCoz,
+  type PanoramaZinciri,
+} from "@/lib/panorama-raporlar";
 import { PANORAMA_SYNC_RUNS_TABLE } from "@/lib/sync/fetch-panorama";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
 
@@ -17,14 +22,54 @@ const COOLDOWN_MS = 60 * 60 * 1000;
  */
 const STALE_LOCK_MS = 30 * 60 * 1000;
 const IN_FLIGHT = ["running", "pending", "in_progress"] as const;
-const REPORT_IDS = [5020, 5500, 5130, 5450, 5530, 5140, 5430, 5230, 5451] as const;
 const HEADER_SECRET = "X-N8N-Sync-Secret";
 
 function jsonError(message: string, status: number, extra?: Record<string, unknown>) {
   return NextResponse.json({ error: message, ...extra }, { status });
 }
 
-export async function POST() {
+/**
+ * Cooldown yalnız İSTENEN zincirlerin id'lerine bakar.
+ * Eskiden tüm rapor id'lerinin en yenisine bakıyordu; o hâliyle sabah
+ * çekilmiş bir rapor yüzünden öğleden sonra tek bir raporu tazelemek
+ * imkânsızdı (429).
+ */
+function ilgiliReportIdleri(zincirler: readonly PanoramaZinciri[]): number[] {
+  const idler = new Set<number>();
+  for (const z of zincirler) {
+    idler.add(z.reportId);
+    idler.add(z.bekleId);
+  }
+  // Müşteri zinciri üç raporu birlikte çeker; ikisi kayıt defterinde yok.
+  if (zincirler.some((z) => z.anahtar === "musteri")) {
+    idler.add(5500);
+  }
+  return [...idler];
+}
+
+export async function POST(request: Request) {
+  // Gövde isteğe bağlı: boş POST = eskisi gibi bütün zincirler.
+  let ham: { reportIds?: unknown; raporlar?: unknown; listele?: unknown } = {};
+  try {
+    const metin = await request.text();
+    if (metin.trim()) ham = JSON.parse(metin);
+  } catch {
+    return jsonError("Geçersiz JSON.", 400);
+  }
+
+  // { listele: true } hiçbir şey tetiklemez — kayıt defterini döndürür.
+  // Asistanın rapor adlarını uydurmaması için tek doğru kaynak burası.
+  if (ham.listele === true) {
+    return NextResponse.json({
+      zincirler: PANORAMA_ZINCIRLERI.map((z) => ({
+        anahtar: z.anahtar,
+        ad: z.ad,
+        aciklama: z.aciklama,
+        tahminiSn: z.tahminiSn,
+      })),
+    });
+  }
+
   const webhookUrl = process.env.N8N_PANORAMA_MANUAL_WEBHOOK_URL?.trim() ?? "";
   const webhookSecret =
     process.env.N8N_PANORAMA_MANUAL_WEBHOOK_SECRET?.trim() ?? "";
@@ -39,6 +84,30 @@ export async function POST() {
       400
     );
   }
+
+  const secim: unknown = ham.reportIds ?? ham.raporlar ?? null;
+
+  let zincirler: PanoramaZinciri[] = [...PANORAMA_ZINCIRLERI];
+  if (Array.isArray(secim)) {
+    const cozum = zincirleriCoz(
+      secim.filter(
+        (v): v is string | number =>
+          typeof v === "string" || typeof v === "number"
+      )
+    );
+    if (cozum.bilinmeyen.length > 0) {
+      return jsonError(
+        `Tanınmayan rapor: ${cozum.bilinmeyen.join(", ")}. Geçerli değerler: ${PANORAMA_ZINCIRLERI.map((z) => z.anahtar).join(", ")}.`,
+        400
+      );
+    }
+    if (cozum.zincirler.length === 0) {
+      return jsonError("Çekilecek rapor seçilmedi.", 400);
+    }
+    zincirler = cozum.zincirler;
+  }
+
+  const tumu = zincirler.length === PANORAMA_ZINCIRLERI.length;
 
   try {
     const admin = createSupabaseAdmin();
@@ -60,7 +129,7 @@ export async function POST() {
     const { data: latest, error: latestError } = await admin
       .from(PANORAMA_SYNC_RUNS_TABLE)
       .select("cekildi_at")
-      .in("report_id", [...REPORT_IDS])
+      .in("report_id", ilgiliReportIdleri(zincirler))
       .not("cekildi_at", "is", null)
       .order("cekildi_at", { ascending: false })
       .limit(1);
@@ -96,17 +165,27 @@ export async function POST() {
     };
     const signal = AbortSignal.timeout(15_000);
 
+    // n8n Guard düğümü boş listeyi "hepsi" olarak okur — eski davranışla
+    // birebir aynı kalsın diye tam seçimde de boş gönderiyoruz.
+    const reportIds = tumu ? [] : zincirler.map((z) => z.reportId);
+
     let res = await fetch(webhookUrl, {
       method: "POST",
       headers: { ...n8nHeaders, "Content-Type": "application/json" },
-      body: JSON.stringify({ source: "locus-manual" }),
+      body: JSON.stringify({ source: "locus-manual", reportIds }),
       signal,
     });
 
     if (res.status === 404) {
       const preview = (await res.text().catch(() => "")).slice(0, 280);
       if (/not registered for POST|GET request/i.test(preview)) {
-        res = await fetch(webhookUrl, {
+        // GET yedeği gövde taşıyamaz; seçim query string'e geçer, Guard
+        // düğümü oradan da okur.
+        const yedekUrl = new URL(webhookUrl);
+        if (reportIds.length > 0) {
+          yedekUrl.searchParams.set("reportIds", reportIds.join(","));
+        }
+        res = await fetch(yedekUrl, {
           method: "GET",
           headers: n8nHeaders,
           signal,
@@ -138,7 +217,17 @@ export async function POST() {
       return jsonError(`n8n tetiklenemedi (HTTP ${res.status}).`, 502);
     }
 
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({
+      ok: true,
+      tumu,
+      zincirler: zincirler.map((z) => ({
+        anahtar: z.anahtar,
+        ad: z.ad,
+        bekleId: z.bekleId,
+      })),
+      /** İlerleme takibi bunun tamamlanmasını bekler (kaskadın sonu). */
+      bekleId: zincirler[zincirler.length - 1]?.bekleId ?? null,
+    });
   } catch (err) {
     const message =
       err instanceof Error ? err.message : "Beklenmeyen sunucu hatası.";

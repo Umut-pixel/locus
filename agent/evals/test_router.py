@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import re
 import sys
 from pathlib import Path
 
@@ -21,6 +22,10 @@ from router.classify import (  # noqa: E402
 from middleware.fast_path import has_prior_turn  # noqa: E402
 from router.replies import CLARIFY_RISK  # noqa: E402
 from router.schema import OPUS  # noqa: E402
+
+# Kullanıcıya giden metin kolon adı taşımamalı (snake_case teknik kimlik).
+# İş terimleri tek kelime ya da boşluklu; alt çizgi yalnız kod isminde geçer.
+COLUMN_NAME_RE = re.compile(r"\b[a-z]+_[a-z_]+\b")
 
 
 def main() -> int:
@@ -129,8 +134,10 @@ def main() -> int:
         action = apply_route(risk)
         if action.kind != "text" or "90+" not in (action.text or ""):
             fail("clarify metni eksik")
-        elif "yas_riskli_tutar" not in (action.text or ""):
+        elif "56" not in (action.text or ""):
             fail("clarify borç eşiği yok")
+        elif COLUMN_NAME_RE.search(action.text or ""):
+            fail("clarify metninde kolon adı var")
         else:
             ok("risk → clarify, SQL yok")
 

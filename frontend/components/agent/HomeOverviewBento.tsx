@@ -24,6 +24,7 @@ import {
   MANUAL_SYNC_STORAGE_KEY,
   manualSyncToastDescription,
   waitForManualPipeline,
+  writeManualSyncAt,
 } from "@/lib/panorama-manual-sync";
 import { RISK_COLORS } from "@/lib/risk-style";
 import { cn } from "@/lib/utils";
@@ -440,14 +441,6 @@ function readManualSyncAt(): number {
     return Number.isFinite(n) ? n : 0;
   } catch {
     return 0;
-  }
-}
-
-function writeManualSyncAt(at: number) {
-  try {
-    window.localStorage.setItem(MANUAL_SYNC_STORAGE_KEY, String(at));
-  } catch {
-    /* private mode */
   }
 }
 

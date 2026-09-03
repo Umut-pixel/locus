@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server";
 
+import { kaydetGovdesi, type RotaTaslagi } from "@/lib/rota/orkestrasyon";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
 
 export const runtime = "nodejs";
 
 const PLANLAR_TABLE = "sevkiyat_planlari";
 const PLAN_DURAKLARI_TABLE = "sevkiyat_plan_duraklari";
+const TASLAKLAR_TABLE = "rota_taslaklari";
 
 interface GelenDurak {
   musteriKodu: string;
@@ -94,13 +96,59 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Geçersiz JSON." }, { status: 400 });
   }
 
-  const o = (govde ?? {}) as { planTarihi?: unknown; planlar?: unknown };
+  const o = (govde ?? {}) as {
+    planTarihi?: unknown;
+    planlar?: unknown;
+    taslakId?: unknown;
+  };
+
+  // Taslak yolu (sohbet): kullanıcı onayladıktan sonra AYNEN yazılır.
+  // Yeniden hesaplamıyoruz — Google farklı bir sıra döndürürse ya da havuz
+  // değişmişse, onaylanan plan ile yazılan plan ayrışırdı.
+  let taslakId: string | null = null;
+  let gelenPlanlar: unknown = o.planlar;
+  let gelenTarih: unknown = o.planTarihi;
+
+  if (typeof o.taslakId === "string" && o.taslakId.trim().length > 0) {
+    taslakId = o.taslakId.trim();
+    try {
+      const admin = createSupabaseAdmin();
+      const { data, error } = await admin
+        .from(TASLAKLAR_TABLE)
+        .select("payload,kaydedildi")
+        .eq("id", taslakId)
+        .maybeSingle();
+
+      if (error) throw new Error(error.message);
+      if (!data) {
+        return NextResponse.json(
+          { error: "Taslak bulunamadı; süresi dolmuş olabilir. Planı yeniden kurun." },
+          { status: 404 }
+        );
+      }
+      if (data.kaydedildi) {
+        return NextResponse.json(
+          { error: "Bu taslak zaten kaydedilmiş." },
+          { status: 409 }
+        );
+      }
+
+      const govdeTaslak = kaydetGovdesi(data.payload as RotaTaslagi);
+      gelenPlanlar = govdeTaslak.planlar;
+      gelenTarih = govdeTaslak.planTarihi;
+    } catch (err) {
+      const mesaj = err instanceof Error ? err.message : "Taslak okunamadı.";
+      console.error("[rota/plan] taslak", mesaj);
+      return NextResponse.json({ error: mesaj }, { status: 500 });
+    }
+  }
+
   const planTarihi =
-    typeof o.planTarihi === "string" && /^\d{4}-\d{2}-\d{2}$/.test(o.planTarihi)
-      ? o.planTarihi
+    typeof gelenTarih === "string" && /^\d{4}-\d{2}-\d{2}$/.test(gelenTarih)
+      ? gelenTarih
       : new Date().toISOString().slice(0, 10);
 
-  if (!Array.isArray(o.planlar) || o.planlar.length === 0) {
+  if (!Array.isArray(gelenPlanlar) || gelenPlanlar.length === 0) {
     return NextResponse.json(
       { error: "Kaydedilecek plan yok." },
       { status: 400 }
@@ -109,7 +157,7 @@ export async function POST(request: Request) {
 
   const planlar: GelenPlan[] = [];
   const gorulenSoforler = new Set<string>();
-  for (const p of o.planlar) {
+  for (const p of gelenPlanlar) {
     const cozulen = planCoz(p);
     if (!cozulen) {
       return NextResponse.json(
@@ -203,10 +251,23 @@ export async function POST(request: Request) {
       if (durakHatasi) throw new Error(durakHatasi.message);
     }
 
+    // Taslak tüketildi — aynı taslak ikinci kez yazılmasın.
+    if (taslakId) {
+      const { error: damgaHatasi } = await admin
+        .from(TASLAKLAR_TABLE)
+        .update({ kaydedildi: new Date().toISOString() })
+        .eq("id", taslakId);
+      // Plan zaten yazıldı; damga düşerse uyar ama isteği başarısız sayma.
+      if (damgaHatasi) {
+        console.error("[rota/plan] taslak damgası", damgaHatasi.message);
+      }
+    }
+
     return NextResponse.json({
       planTarihi,
       planSayisi: eklenen?.length ?? 0,
       durakSayisi: durakSatirlari.length,
+      taslakId,
     });
   } catch (err) {
     const mesaj = err instanceof Error ? err.message : "Plan kaydedilemedi.";

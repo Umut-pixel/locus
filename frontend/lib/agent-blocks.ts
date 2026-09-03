@@ -68,6 +68,31 @@ export type MapBlock = {
   points: MapPoint[];
 };
 
+export type SecimSecenegi = {
+  key: string;
+  label: string;
+  /** Sağda gri ikincil satır — süre, kapsam gibi. */
+  hint?: string;
+  /** Kart açıldığında işaretli gelsin mi. */
+  onIsaretli?: boolean;
+};
+
+/**
+ * Çoktan seçmeli aksiyon kartı — "hangi raporları çekelim?" gibi.
+ *
+ * `recommend` tek bir öneriyi onaylatır; bu blok kullanıcının bir KÜME
+ * seçmesini ister ve seçimi bir sistem aksiyonuna bağlar.
+ */
+export type SecimBlock = {
+  type: "secim";
+  title: string;
+  /** Hangi sistem işini tetikleyeceği. Bilinmeyen aksiyon çizilmez. */
+  aksiyon: "rapor_cek";
+  coklu: boolean;
+  secenekler: SecimSecenegi[];
+  cta?: string;
+};
+
 export type MarkdownBlock = { type: "markdown"; text: string };
 export type PendingBlock = { type: "pending"; label: string };
 
@@ -78,7 +103,11 @@ export type AgentBlock =
   | ChartBlock
   | RecommendBlock
   | MapBlock
+  | SecimBlock
   | PendingBlock;
+
+/** UI'ın gerçekten tetikleyebildiği aksiyonlar. Model başkasını uyduramaz. */
+const SECIM_AKSIYONLARI = new Set(["rapor_cek"]);
 
 const FENCE = /```locus[\w-]*[ \t]*\r?\n([\s\S]*?)```/g;
 const OPEN_FENCE = /```locus[\w-]*[ \t]*\r?\n([\s\S]*)$/;
@@ -283,6 +312,40 @@ function parseLocusJson(raw: string): AgentBlock | null {
         return { type: "recommend", question: data.question, options };
       }
     }
+    if (kind === "secim" || kind === "select") {
+      const aksiyon = String(data.aksiyon ?? data.action ?? "");
+      const secenekler = Array.isArray(data.secenekler ?? data.options)
+        ? ((data.secenekler ?? data.options) as unknown[])
+            .filter((o): o is Record<string, unknown> => !!o && typeof o === "object")
+            .flatMap((o) => {
+              const key = typeof o.key === "string" ? o.key.trim() : "";
+              const label =
+                typeof o.label === "string"
+                  ? o.label
+                  : typeof o.ad === "string"
+                    ? o.ad
+                    : "";
+              if (!key || !label) return [];
+              const s: SecimSecenegi = { key, label };
+              const hint = o.hint ?? o.aciklama;
+              if (typeof hint === "string" && hint) s.hint = hint;
+              if (o.onIsaretli === true) s.onIsaretli = true;
+              return [s];
+            })
+        : [];
+      // Bilinmeyen aksiyon çizilmez: kullanıcı hiçbir şey yapmayan bir
+      // düğmeye basmasın.
+      if (SECIM_AKSIYONLARI.has(aksiyon) && secenekler.length > 0) {
+        return {
+          type: "secim",
+          title: typeof data.title === "string" ? data.title : "Seçim",
+          aksiyon: aksiyon as SecimBlock["aksiyon"],
+          coklu: data.coklu !== false,
+          secenekler,
+          cta: typeof data.cta === "string" ? data.cta : undefined,
+        };
+      }
+    }
     if (kind === "map" || kind === "route") {
       const points = Array.isArray(data.points)
         ? data.points.flatMap((p) => {
@@ -425,4 +488,20 @@ export function tableToFilterHint(table: TableBlock): FilterBlock | null {
     })),
     filterKey: "filter",
   };
+}
+
+/**
+ * Kolonun hizası — ad kolonu sarar, sayı kolonu sağa yaslanır. AgentTable ve
+ * FilterTable aynı kuralı kullanır ki aynı sohbetteki iki tablo farklı
+ * hizalanmasın.
+ */
+export function colAlign(
+  col: string,
+  first: boolean
+): "name" | "num" | "status" | "text" {
+  const n = col.toLowerCase();
+  if (first || /müşteri|musteri|unvan|isim|ad\b/.test(n)) return "name";
+  if (/durum|risk|band/.test(n)) return "status";
+  if (/bakiye|borç|borc|tutar|sevkiyat|gün|gun|kg|adet|₺|%/.test(n)) return "num";
+  return "text";
 }

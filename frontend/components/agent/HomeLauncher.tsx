@@ -121,7 +121,7 @@ export function HomeLauncher() {
             </div>
           </div>
           <div className="relative z-20 px-4">
-            <div className="mx-auto w-full max-w-5xl">{composer}</div>
+            <div className="mx-auto w-full max-w-3xl">{composer}</div>
           </div>
           <div className="px-4 pb-10">
             <div className="mx-auto w-full max-w-5xl">

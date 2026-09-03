@@ -10,7 +10,9 @@ Authorization: Bearer <AGENT_API_SECRET>.
 
 from __future__ import annotations
 
+import json
 import os
+from typing import Any
 
 import httpx
 from langchain.tools import tool
@@ -18,6 +20,8 @@ from langchain.tools import tool
 _BASE_ENV = "LOCUS_API_BASE"
 _SECRET_ENV = "AGENT_API_SECRET"
 _TIMEOUT = 15.0
+# Plan kurma araç başına bir Google Routes çağrısı yapıyor; 15 sn yetmiyor.
+_PLAN_TIMEOUT = 90.0
 
 
 def _config() -> tuple[str, str] | None:
@@ -26,10 +30,11 @@ def _config() -> tuple[str, str] | None:
     return (base, secret) if base and secret else None
 
 
-def _post(path: str, payload: dict) -> str:
+def _istek(path: str, payload: dict, timeout: float) -> tuple[Any, str | None]:
+    """(gövde, hata) döndürür. Hata varsa gövde None."""
     cfg = _config()
     if cfg is None:
-        return (
+        return None, (
             f"YAPILANDIRMA HATASI: {_BASE_ENV} ve {_SECRET_ENV} tanımlı olmalı "
             "(agent/.env)."
         )
@@ -39,16 +44,34 @@ def _post(path: str, payload: dict) -> str:
             f"{base}{path}",
             json=payload,
             headers={"Authorization": f"Bearer {secret}"},
-            timeout=_TIMEOUT,
+            timeout=timeout,
         )
     except httpx.RequestError as err:
-        return f"BAĞLANTI HATASI: {err}"
+        return None, f"BAĞLANTI HATASI: {err}"
 
     if response.status_code == 401:
-        return "YETKİSİZ (401): AGENT_API_SECRET geçersiz."
+        return None, "YETKİSİZ (401): AGENT_API_SECRET geçersiz."
     if response.status_code >= 400:
-        return f"HATA {response.status_code}: {response.text[:300]}"
-    return f"Başarılı: {response.text[:300]}"
+        # Route'lar hatayı {"error": "..."} olarak veriyor; kullanıcıya
+        # gösterilebilir bir cümle çıkar.
+        try:
+            mesaj = response.json().get("error")
+        except ValueError:
+            mesaj = None
+        return None, f"HATA {response.status_code}: {mesaj or response.text[:300]}"
+
+    try:
+        return response.json(), None
+    except ValueError:
+        return response.text[:300], None
+
+
+def _post(path: str, payload: dict) -> str:
+    govde, hata = _istek(path, payload, _TIMEOUT)
+    if hata is not None:
+        return hata
+    metin = govde if isinstance(govde, str) else json.dumps(govde, ensure_ascii=False)
+    return f"Başarılı: {metin[:300]}"
 
 
 @tool(parse_docstring=True)
@@ -94,3 +117,143 @@ def musteri_favori_toggle(musteri_kodu: str) -> str:
         "/api/musteri/favori",
         {"action": "toggle", "musteri_kodu": musteri_kodu.strip()},
     )
+
+
+# ---------------------------------------------------------------------------
+# Rota planlama
+# ---------------------------------------------------------------------------
+
+
+def _durak_satiri(sira: int, d: dict) -> dict:
+    """Haritaya ve tabloya yetecek en küçük alan kümesi."""
+    return {
+        "sira": sira,
+        "kod": d.get("musteriKodu"),
+        "unvan": d.get("unvan"),
+        "kg": d.get("kg"),
+        "lat": d.get("lat"),
+        "lon": d.get("lon"),
+        "ilce": d.get("ilce"),
+    }
+
+
+@tool(parse_docstring=True)
+def rota_taslagi_olustur(gun_penceresi: int | None = None) -> str:
+    """Bekleyen siparişlerden araç rota planı TASLAĞI kurar. Hiçbir şey kaydetmez.
+
+    Yükü çıkabilecek araçlara dağıtır, her aracın duraklarını trafiğe göre
+    sıraya dizer ve sonucu döndürür. Plan HENÜZ KAYDEDİLMEZ — sonucu
+    kullanıcıya harita ve durak tablosu olarak göster, sonra kaydedip
+    kaydetmeyeceğini sor. Onay gelirse `rota_taslagi_kaydet` çağır.
+
+    Dönen `taslak_id` kaydetme adımında gerekli; yanıtında kullanıcıya
+    gösterme ama kaybetme.
+
+    Args:
+        gun_penceresi: Havuza kaç günlük sipariş girsin (ör. 30). Boş
+            bırakılırsa bekleyen tüm siparişler.
+    """
+    payload: dict[str, Any] = {}
+    if gun_penceresi is not None:
+        payload["gunPenceresi"] = int(gun_penceresi)
+
+    govde, hata = _istek("/api/rota/otomatik", payload, _PLAN_TIMEOUT)
+    if hata is not None:
+        return hata
+    if not isinstance(govde, dict):
+        return f"BEKLENMEYEN YANIT: {str(govde)[:300]}"
+
+    planlar = []
+    for p in govde.get("planlar", []):
+        duraklar = p.get("duraklar", [])
+        planlar.append(
+            {
+                "arac": p.get("aracAd"),
+                "aracKod": p.get("aracKod"),
+                "sofor": p.get("soforAd"),
+                "durakSayisi": len(duraklar),
+                "kgDoluluk": p.get("kgDoluluk"),
+                "sureSn": p.get("googleSureSn"),
+                "mesafeM": p.get("googleMesafeM"),
+                "duraklar": [
+                    _durak_satiri(i + 1, d) for i, d in enumerate(duraklar)
+                ],
+            }
+        )
+
+    ozet = {
+        "taslak_id": govde.get("taslakId"),
+        "ozet": govde.get("ozet"),
+        "planlar": planlar,
+    }
+    hatalar = govde.get("optimizeHatalari") or {}
+    if hatalar:
+        ozet["siralanamayan"] = hatalar
+
+    return json.dumps(ozet, ensure_ascii=False)
+
+
+@tool(parse_docstring=True)
+def rota_taslagi_kaydet(taslak_id: str) -> str:
+    """Onaylanan rota taslağını kalıcı olarak kaydeder.
+
+    YIKICI: aynı gün + aynı araç için önceden kaydedilmiş plan SİLİNİP
+    yeniden yazılır. Yalnızca kullanıcı taslağı gördükten sonra açıkça
+    "kaydet" dediğinde çağır. Kendiliğinden çağırma.
+
+    Args:
+        taslak_id: `rota_taslagi_olustur` sonucundaki taslak_id.
+    """
+    if not taslak_id.strip():
+        return "HATA: taslak_id boş olamaz."
+    # Sözleşme: frontend/app/api/rota/plan/route.ts POST { taslakId }
+    return _post("/api/rota/plan", {"taslakId": taslak_id.strip()})
+
+
+# ---------------------------------------------------------------------------
+# Panorama rapor çekimi
+# ---------------------------------------------------------------------------
+
+_SYNC_PATH = "/api/sync/panorama/manual"
+
+
+@tool(parse_docstring=True)
+def rapor_listesi() -> str:
+    """Panorama'dan çekilebilecek raporların listesini döndürür.
+
+    Hiçbir şey tetiklemez. Kullanıcıya seçim kartı basmadan önce bunu çağır —
+    rapor adlarını ve anahtarlarını ezberden yazma, listedekileri kullan.
+    """
+    govde, hata = _istek(_SYNC_PATH, {"listele": True}, _TIMEOUT)
+    if hata is not None:
+        return hata
+    return json.dumps(govde, ensure_ascii=False)
+
+
+@tool(parse_docstring=True)
+def rapor_cek(rapor_anahtarlari: list[str] | None = None) -> str:
+    """Seçilen raporları Panorama'dan yeniden çeker.
+
+    Kullanıcı hangi raporları istediğini SÖYLEMEDİYSE çağırma — önce
+    `kind: "secim"` kartı bas, kullanıcı işaretlesin. Kart zaten çekimi
+    kendisi başlatır; bu aracı yalnızca kullanıcı raporları açıkça
+    saydığında kullan ("stok ve tahsilatı çek" gibi).
+
+    Çekim dakikalar sürer ve arka planda ilerler; bu araç yalnız başlatır.
+
+    Args:
+        rapor_anahtarlari: `rapor_listesi` içindeki anahtarlar
+            (ör. ["stok", "tahsilat"]). Boş bırakılırsa hepsi çekilir —
+            yaklaşık 20 dakika sürer, bunu kullanıcıya söyle.
+    """
+    payload: dict[str, Any] = {}
+    if rapor_anahtarlari:
+        temiz = [a.strip() for a in rapor_anahtarlari if a and a.strip()]
+        if not temiz:
+            return "HATA: rapor_anahtarlari boş dizi olamaz."
+        payload["reportIds"] = temiz
+
+    govde, hata = _istek(_SYNC_PATH, payload, _TIMEOUT)
+    if hata is not None:
+        return hata
+    return f"Çekim başlatıldı: {json.dumps(govde, ensure_ascii=False)[:400]}"

@@ -136,7 +136,7 @@ export function SohbetEkrani({ konusmaId }: { konusmaId: string }) {
                 delay: reduced ? 0 : 0.06,
               }}
             >
-              <div className="mx-auto flex max-w-2xl flex-col gap-5">
+              <div className="mx-auto flex max-w-3xl flex-col gap-5">
                 {messages.map((m) => (
                   <Turn
                     key={m.id}
@@ -169,14 +169,14 @@ export function SohbetEkrani({ konusmaId }: { konusmaId: string }) {
               </div>
             </motion.div>
             <div className="relative z-20 shrink-0 border-t border-line px-4 py-3">
-              <div className="mx-auto w-full max-w-2xl">{composer}</div>
+              <div className="mx-auto w-full max-w-3xl">{composer}</div>
             </div>
           </>
         ) : (
           <div className="flex min-h-0 flex-1 flex-col">
             <div className="min-h-0 flex-1" />
             <div className="relative z-20 shrink-0 border-t border-line px-4 py-3">
-              <div className="mx-auto w-full max-w-2xl">{composer}</div>
+              <div className="mx-auto w-full max-w-3xl">{composer}</div>
             </div>
           </div>
         )}
@@ -235,11 +235,11 @@ function Turn({
   if (m.role === "user") {
     return (
       <div className="flex justify-end">
-        <div className="max-w-[85%] rounded-2xl rounded-br-md bg-inset px-3.5 py-2">
+        <div className="max-w-[85%] rounded-2xl rounded-br-md bg-inset px-4 py-2.5">
           {m.quote ? (
             <p className="mb-1.5 line-clamp-2 text-[11.5px] leading-snug text-ink-3">{m.quote}</p>
           ) : null}
-          <p className="text-[13px] whitespace-pre-wrap text-ink">{m.text}</p>
+          <p className="text-[14px] leading-6 whitespace-pre-wrap text-ink">{m.text}</p>
         </div>
       </div>
     );

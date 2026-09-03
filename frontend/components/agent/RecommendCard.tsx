@@ -50,7 +50,7 @@ export function RecommendCard({
   const others = block.options.map((o, i) => ({ o, i })).filter(({ i }) => i !== selected);
 
   return (
-    <div className="w-full max-w-xl overflow-hidden rounded-[14px] bg-card shadow-agent">
+    <div className="w-full overflow-hidden rounded-[14px] bg-card shadow-agent">
       <div className="px-4 pt-4 pb-3">
         <span className="text-[14px] font-medium text-ink">{block.question}</span>
         <p

@@ -15,7 +15,7 @@ export function ContextCards({ chunks }: { chunks: ContextChunk[] }) {
   const ids = chunks.map((c) => c.id).join();
 
   return (
-    <Collapsible key={ids} defaultOpen={false} className="w-full max-w-xl">
+    <Collapsible key={ids} defaultOpen={false} className="w-full">
       <CollapsibleTrigger className="group flex h-7 w-fit items-center gap-1 rounded-[6px] px-1 text-[11.5px] text-ink-3 outline-none transition-colors hover:bg-hover-2 hover:text-ink-2">
         <ChevronRightIcon className="size-3 shrink-0 transition-transform duration-200 group-data-[panel-open]:rotate-90" />
         <span>Kaynaklar</span>

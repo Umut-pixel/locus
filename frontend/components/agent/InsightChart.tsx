@@ -97,11 +97,11 @@ function LineChart({ series }: { series: ChartSeries[] }) {
   );
   const n = dense[0]?.values.length ?? 0;
   const w = 640;
-  const h = 166;
+  const h = 210;
 
   return (
     <div
-      className="insight-chart-stage relative h-[166px]"
+      className="insight-chart-stage relative h-[210px]"
       onPointerDown={(e) => setHover(chartIndexFromPointer(e, n))}
       onPointerMove={(e) => setHover(chartIndexFromPointer(e, n))}
       onPointerLeave={() => setHover(null)}
@@ -155,7 +155,7 @@ function Allocation({ block }: { block: ChartBlock }) {
   if (!active) return null;
 
   return (
-    <div className="min-h-[220px] rounded-[14px] bg-card p-3 shadow-hairline">
+    <div className="min-h-[260px] rounded-[14px] bg-card p-3 shadow-hairline">
       <span className="text-[12px] font-medium text-ink">{block.title ?? "Dağılım"}</span>
       <span className="mt-1 block text-[20px] font-semibold tracking-[-0.01em] text-ink tabular-nums">
         {active.amount ?? `${active.pct}%`}
@@ -267,7 +267,7 @@ export function InsightChart({
       );
     }
     return (
-      <div className="my-3 w-full max-w-xl">
+      <div className="my-3 w-full">
         <Allocation block={block} />
       </div>
     );
@@ -285,7 +285,7 @@ export function InsightChart({
   }
 
   return (
-    <div className="my-3 w-full max-w-xl">
+    <div className="my-3 w-full">
       {block.prose ? (
         <p className="mb-2 text-[12.5px] leading-relaxed text-ink-2">{block.prose}</p>
       ) : null}

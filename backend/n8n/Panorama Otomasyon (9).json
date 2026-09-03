@@ -66,7 +66,7 @@
             {
               "id": "b0e82f09-afa0-49ec-b5d6-5c5afa107411",
               "name": "panoramaPass",
-              "value": "arma123+",
+              "value": "={{ $vars.PANORAMA_PASS }}",
               "type": "string"
             },
             {
@@ -78,7 +78,7 @@
             {
               "id": "a04474ab-ddd8-467a-8c78-1d3eac08ee28",
               "name": "supabaseServiceRoleKey",
-              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB6ZXBubXp4cndubGhpeGRyZ3ptIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4NDk1NDI4OSwiZXhwIjoyMTAwNTMwMjg5fQ.vEuMH_c4QSWwlw-4FuNuVCN7GCkrsShNMG7BimFwo6Q",
+              "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}",
               "type": "string"
             }
           ]
@@ -950,7 +950,7 @@
             {
               "id": "63c5dd39-abc5-4ed5-9d32-320d7adf9840",
               "name": "panoramaPass",
-              "value": "arma123+",
+              "value": "={{ $vars.PANORAMA_PASS }}",
               "type": "string"
             },
             {
@@ -962,7 +962,7 @@
             {
               "id": "d392135d-f0bc-48e3-ba60-6f1c7ef3deb9",
               "name": "supabaseServiceRoleKey",
-              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB6ZXBubXp4cndubGhpeGRyZ3ptIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4NDk1NDI4OSwiZXhwIjoyMTAwNTMwMjg5fQ.vEuMH_c4QSWwlw-4FuNuVCN7GCkrsShNMG7BimFwo6Q",
+              "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}",
               "type": "string"
             }
           ]
@@ -1638,7 +1638,7 @@
             {
               "id": "2ff0c0e9-2bf3-46c4-abac-dbfc0a016e6a",
               "name": "panoramaPass",
-              "value": "arma123+",
+              "value": "={{ $vars.PANORAMA_PASS }}",
               "type": "string"
             },
             {
@@ -1650,7 +1650,7 @@
             {
               "id": "1c163cd5-c708-4891-b5b3-40088b90ce91",
               "name": "supabaseServiceRoleKey",
-              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB6ZXBubXp4cndubGhpeGRyZ3ptIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4NDk1NDI4OSwiZXhwIjoyMTAwNTMwMjg5fQ.vEuMH_c4QSWwlw-4FuNuVCN7GCkrsShNMG7BimFwo6Q",
+              "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}",
               "type": "string"
             }
           ]
@@ -2655,7 +2655,7 @@
             {
               "id": "2ff0c0e9-2bf3-46c4-abac-dbfc0a016e6a",
               "name": "panoramaPass",
-              "value": "arma123+",
+              "value": "={{ $vars.PANORAMA_PASS }}",
               "type": "string"
             },
             {
@@ -2667,7 +2667,7 @@
             {
               "id": "1c163cd5-c708-4891-b5b3-40088b90ce91",
               "name": "supabaseServiceRoleKey",
-              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB6ZXBubXp4cndubGhpeGRyZ3ptIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4NDk1NDI4OSwiZXhwIjoyMTAwNTMwMjg5fQ.vEuMH_c4QSWwlw-4FuNuVCN7GCkrsShNMG7BimFwo6Q",
+              "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}",
               "type": "string"
             }
           ]
@@ -3450,7 +3450,7 @@
             {
               "id": "2ff0c0e9-2bf3-46c4-abac-dbfc0a016e6a",
               "name": "panoramaPass",
-              "value": "arma123+",
+              "value": "={{ $vars.PANORAMA_PASS }}",
               "type": "string"
             },
             {
@@ -3462,7 +3462,7 @@
             {
               "id": "1c163cd5-c708-4891-b5b3-40088b90ce91",
               "name": "supabaseServiceRoleKey",
-              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB6ZXBubXp4cndubGhpeGRyZ3ptIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4NDk1NDI4OSwiZXhwIjoyMTAwNTMwMjg5fQ.vEuMH_c4QSWwlw-4FuNuVCN7GCkrsShNMG7BimFwo6Q",
+              "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}",
               "type": "string"
             }
           ]
@@ -4281,7 +4281,7 @@
             {
               "id": "2ff0c0e9-2bf3-46c4-abac-dbfc0a016e6a",
               "name": "panoramaPass",
-              "value": "arma123+",
+              "value": "={{ $vars.PANORAMA_PASS }}",
               "type": "string"
             },
             {
@@ -4293,7 +4293,7 @@
             {
               "id": "1c163cd5-c708-4891-b5b3-40088b90ce91",
               "name": "supabaseServiceRoleKey",
-              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB6ZXBubXp4cndubGhpeGRyZ3ptIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4NDk1NDI4OSwiZXhwIjoyMTAwNTMwMjg5fQ.vEuMH_c4QSWwlw-4FuNuVCN7GCkrsShNMG7BimFwo6Q",
+              "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}",
               "type": "string"
             }
           ]
@@ -5025,7 +5025,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const item = $input.first();\nconst headers = (item.json && item.json.headers) || {};\nfunction pick(name) {\n  const want = String(name).toLowerCase();\n  for (const [k, v] of Object.entries(headers)) {\n    if (String(k).toLowerCase() === want) {\n      return String(Array.isArray(v) ? v[0] : v ?? '');\n    }\n  }\n  return '';\n}\nconst given = pick('x-n8n-sync-secret') || pick('authorization').replace(/^Bearer\\s+/i, '').trim();\nconst expected = String(($vars && $vars.PANORAMA_MANUAL_SYNC_SECRET) || ($env && $env.N8N_PANORAMA_MANUAL_WEBHOOK_SECRET) || '').trim();\nif (expected) {\n  if (given !== expected) throw new Error('Manuel sync yetkisiz');\n} else if (!given) {\n  throw new Error('X-N8N-Sync-Secret header gerekli');\n}\nreturn [{ json: { ok: true, manual: true } }];\n"
+        "jsCode": "const item = $input.first();\nconst headers = (item.json && item.json.headers) || {};\nfunction pick(name) {\n  const want = String(name).toLowerCase();\n  for (const [k, v] of Object.entries(headers)) {\n    if (String(k).toLowerCase() === want) {\n      return String(Array.isArray(v) ? v[0] : v ?? '');\n    }\n  }\n  return '';\n}\nconst given = pick('x-n8n-sync-secret') || pick('authorization').replace(/^Bearer\\s+/i, '').trim();\nconst expected = String(($vars && $vars.PANORAMA_MANUAL_SYNC_SECRET) || ($env && $env.N8N_PANORAMA_MANUAL_WEBHOOK_SECRET) || '').trim();\nif (expected) {\n  if (given !== expected) throw new Error('Manuel sync yetkisiz');\n} else if (!given) {\n  throw new Error('X-N8N-Sync-Secret header gerekli');\n}\n\n// Hangi zincirler istendi. Boş / eksik = HEPSİ (eski davranış).\n// Gövde POST ile gelir; GET yedek yolunda query string kullanılır.\nconst body = (item.json && item.json.body) || {};\nconst query = (item.json && item.json.query) || {};\nlet ham = body.reportIds != null ? body.reportIds : query.reportIds;\nif (typeof ham === 'string') ham = ham.split(',');\nconst istenen = Array.isArray(ham)\n  ? ham.map((v) => Number(String(v).trim())).filter((n) => Number.isFinite(n))\n  : [];\n\nreturn [{ json: { ok: true, manual: true, istenen } }];"
       },
       "id": "b7e02a07-4f9e-461f-ab7b-f46931dbc743",
       "name": "Guard Manuel Secret",
@@ -5048,7 +5048,7 @@
           "conditions": [
             {
               "id": "c4e1a8b0-11d2-4f3a-9c7e-2b8d4a6f9011",
-              "leftValue": "={{ (() => { try { return Boolean($('Webhook Manuel Sync').isExecuted); } catch (e) { return false; } })() }}",
+              "leftValue": "={{ (() => { try { if (!$('Webhook Manuel Sync').isExecuted) return false; const g = $('Guard Manuel Secret').first().json; const s = Array.isArray(g.istenen) ? g.istenen : []; if (s.length === 0) return true; return [5530].some((r) => s.includes(r)); } catch (e) { return false; } })() }}",
               "rightValue": true,
               "operator": {
                 "type": "boolean",
@@ -5096,7 +5096,7 @@
           "conditions": [
             {
               "id": "d5f2b9c1-22e3-504b-ad8f-3c9e5b70a122",
-              "leftValue": "={{ (() => { try { return Boolean($('Webhook Manuel Sync').isExecuted); } catch (e) { return false; } })() }}",
+              "leftValue": "={{ (() => { try { if (!$('Webhook Manuel Sync').isExecuted) return false; const g = $('Guard Manuel Secret').first().json; const s = Array.isArray(g.istenen) ? g.istenen : []; if (s.length === 0) return true; return [5450].some((r) => s.includes(r)); } catch (e) { return false; } })() }}",
               "rightValue": true,
               "operator": {
                 "type": "boolean",
@@ -5144,7 +5144,7 @@
           "conditions": [
             {
               "id": "e6a3c0d2-33f4-615c-be90-4daf6c81b233",
-              "leftValue": "={{ (() => { try { return Boolean($('Webhook Manuel Sync').isExecuted); } catch (e) { return false; } })() }}",
+              "leftValue": "={{ (() => { try { if (!$('Webhook Manuel Sync').isExecuted) return false; const g = $('Guard Manuel Secret').first().json; const s = Array.isArray(g.istenen) ? g.istenen : []; if (s.length === 0) return true; return [5140].some((r) => s.includes(r)); } catch (e) { return false; } })() }}",
               "rightValue": true,
               "operator": {
                 "type": "boolean",
@@ -5192,7 +5192,7 @@
           "conditions": [
             {
               "id": "f7b4d1e3-4405-726d-cf01-5eb07d92c344",
-              "leftValue": "={{ (() => { try { return Boolean($('Webhook Manuel Sync').isExecuted); } catch (e) { return false; } })() }}",
+              "leftValue": "={{ (() => { try { if (!$('Webhook Manuel Sync').isExecuted) return false; const g = $('Guard Manuel Secret').first().json; const s = Array.isArray(g.istenen) ? g.istenen : []; if (s.length === 0) return true; return [5430].some((r) => s.includes(r)); } catch (e) { return false; } })() }}",
               "rightValue": true,
               "operator": {
                 "type": "boolean",
@@ -5277,7 +5277,7 @@
             {
               "id": "57e5c24b-362b-499b-998b-84ad7595d00b",
               "name": "panoramaPass",
-              "value": "arma123+",
+              "value": "={{ $vars.PANORAMA_PASS }}",
               "type": "string"
             },
             {
@@ -5289,7 +5289,7 @@
             {
               "id": "0806e3c3-7125-47c6-bdf8-b8f825785fc5",
               "name": "supabaseServiceRoleKey",
-              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB6ZXBubXp4cndubGhpeGRyZ3ptIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4NDk1NDI4OSwiZXhwIjoyMTAwNTMwMjg5fQ.vEuMH_c4QSWwlw-4FuNuVCN7GCkrsShNMG7BimFwo6Q",
+              "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}",
               "type": "string"
             }
           ]
@@ -6015,7 +6015,7 @@
           "conditions": [
             {
               "id": "f7b4d1e3-4405-726d-cf01-5eb07d92c344",
-              "leftValue": "={{ (() => { try { return Boolean($('Webhook Manuel Sync').isExecuted); } catch (e) { return false; } })() }}",
+              "leftValue": "={{ (() => { try { if (!$('Webhook Manuel Sync').isExecuted) return false; const g = $('Guard Manuel Secret').first().json; const s = Array.isArray(g.istenen) ? g.istenen : []; if (s.length === 0) return true; return [5230].some((r) => s.includes(r)); } catch (e) { return false; } })() }}",
               "rightValue": true,
               "operator": {
                 "type": "boolean",
@@ -6120,7 +6120,7 @@
             {
               "id": "2ff0c0e9-2bf3-46c4-abac-dbfc0a016e6a",
               "name": "panoramaPass",
-              "value": "arma123+",
+              "value": "={{ $vars.PANORAMA_PASS }}",
               "type": "string"
             },
             {
@@ -6132,7 +6132,7 @@
             {
               "id": "1c163cd5-c708-4891-b5b3-40088b90ce91",
               "name": "supabaseServiceRoleKey",
-              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB6ZXBubXp4cndubGhpeGRyZ3ptIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4NDk1NDI4OSwiZXhwIjoyMTAwNTMwMjg5fQ.vEuMH_c4QSWwlw-4FuNuVCN7GCkrsShNMG7BimFwo6Q",
+              "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}",
               "type": "string"
             },
             {
@@ -6890,7 +6890,7 @@
           "conditions": [
             {
               "id": "c2429a62-245f-4bbe-8343-54b72181fcf4",
-              "leftValue": "={{ (() => { try { return Boolean($('Webhook Manuel Sync').isExecuted); } catch (e) { return false; } })() }}",
+              "leftValue": "={{ (() => { try { if (!$('Webhook Manuel Sync').isExecuted) return false; const g = $('Guard Manuel Secret').first().json; const s = Array.isArray(g.istenen) ? g.istenen : []; if (s.length === 0) return true; return [5451].some((r) => s.includes(r)); } catch (e) { return false; } })() }}",
               "rightValue": true,
               "operator": {
                 "type": "boolean",
@@ -6925,6 +6925,40 @@
         4480
       ],
       "webhookId": "b288825d-600d-4923-871f-40ec287a0257"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "d3f6b208-4e57-4a19-9b31-7c0e5a2f8d64",
+              "leftValue": "={{ (() => { try { if (!$('Webhook Manuel Sync').isExecuted) return false; const g = $('Guard Manuel Secret').first().json; const s = Array.isArray(g.istenen) ? g.istenen : []; if (s.length === 0) return true; return [5020, 5500, 5130].some((r) => s.includes(r)); } catch (e) { return false; } })() }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        740,
+        1056
+      ],
+      "id": "a1c07f52-9b3d-4e10-8f26-1c4b7d0e5a91",
+      "name": "IF Manuel → MAIN"
     }
   ],
   "pinData": {},
@@ -8403,7 +8437,7 @@
       "main": [
         [
           {
-            "node": "Config",
+            "node": "IF Manuel → MAIN",
             "type": "main",
             "index": 0
           }
@@ -8415,6 +8449,13 @@
         [
           {
             "node": "Wait Main→YL",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "IF Manuel → BD2",
             "type": "main",
             "index": 0
           }
@@ -8440,6 +8481,13 @@
             "type": "main",
             "index": 0
           }
+        ],
+        [
+          {
+            "node": "IF Manuel → SD",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
@@ -8462,6 +8510,13 @@
             "type": "main",
             "index": 0
           }
+        ],
+        [
+          {
+            "node": "IF Manuel → STK",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
@@ -8481,6 +8536,13 @@
         [
           {
             "node": "Wait SD→STK",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "IF Manuel → TH",
             "type": "main",
             "index": 0
           }
@@ -8734,6 +8796,13 @@
         [
           {
             "node": "Wait STK→TH",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "IF Manuel → BDS",
             "type": "main",
             "index": 0
           }
@@ -9053,6 +9122,24 @@
         [
           {
             "node": "Config Belge Detay BD2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Manuel → MAIN": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "IF Manuel → YL",
             "type": "main",
             "index": 0
           }

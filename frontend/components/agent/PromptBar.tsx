@@ -93,6 +93,8 @@ const COMMANDS = [
   { key: "borc", name: "/borc", desc: "Yaşlandırma 30/40/50+", prompt: "30 günü aşan borçlu müşterileri listele" },
   { key: "stok", name: "/stok", desc: "SKT yaklaşan ürünler", prompt: "Son kullanma tarihi yaklaşan ürünler neler?" },
   { key: "ilce", name: "/ilce", desc: "İlçe teslimat + borç", prompt: "Bornova ilçesindeki teslimat ve borç durumunu göster" },
+  { key: "rota", name: "/rota", desc: "Bekleyen yükten rota kur", prompt: "Bekleyen siparişlerden bugün için rota planı kur" },
+  { key: "rapor", name: "/rapor", desc: "Panorama’dan rapor çek", prompt: "Panorama’dan rapor çek" },
 ];
 
 function parseToken(draft: string): { kind: "at" | "slash"; query: string; start: number } | null {
