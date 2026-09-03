@@ -86,8 +86,15 @@ export const PANORAMA_ZINCIRLERI: readonly PanoramaZinciri[] = [
   },
 ] as const;
 
-/** Zincirler arası n8n bekleme süresi (WAF'a paralel login basmamak için). */
-export const ZINCIR_ARASI_BEKLEME_SN = 120;
+/**
+ * Zincirler arası n8n bekleme süresi — 2026-09-04'te KALDIRILDI.
+ *
+ * WAF, aynı egress IP'den arka arkaya login'leri bot trafiği sanıyordu; Wait
+ * düğümleri bunu yavaşlatarak önlüyordu. "Hepsi" seçiliyken artık 7 login de
+ * aralıksız ateşleniyor — WAF tekrar tetiklenirse ilk geri alınacak değer
+ * budur (backend/n8n/README.md'deki nottan bak).
+ */
+export const ZINCIR_ARASI_BEKLEME_SN = 0;
 
 export function zincirBul(anahtarVeyaId: string | number): PanoramaZinciri | null {
   if (typeof anahtarVeyaId === "number") {

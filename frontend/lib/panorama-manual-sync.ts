@@ -8,7 +8,12 @@ import { formatIstanbulStamp } from "@/lib/panorama-schedule";
 import { PANORAMA_SYNC_RUNS_TABLE, supabase } from "@/lib/supabase";
 
 export const MANUAL_SYNC_STORAGE_KEY = "locus:panorama-manual-sync-at";
-export const MANUAL_SYNC_COOLDOWN_MS = 60 * 60 * 1000;
+/**
+ * `/api/sync/panorama/manual`'daki COOLDOWN_MS ile aynı olmalı.
+ * 2026-09-04: n8n Wait düğümleri kaldırıldı, çekim ~25 dk'dan ~7-10 dk'ya
+ * düştü; eski 60 dk'lık cooldown bu hıza göre kısaltıldı.
+ */
+export const MANUAL_SYNC_COOLDOWN_MS = 10 * 60 * 1000;
 
 /** Son manuel çekim damgası — cooldown sayacı bunu okur. */
 export function writeManualSyncAt(at: number) {
@@ -20,9 +25,10 @@ export function writeManualSyncAt(at: number) {
 }
 
 /**
- * Zincirler arası n8n Wait — `ZINCIR_ARASI_BEKLEME_SN` ile aynı olmalı.
- * n8n Wait node'ları typeVersion 1.1; v1.1+ varsayılan birim `seconds`.
- * 2026-09-03'te 180 → 120 sn indirildi (çekim süresini kısaltmak için).
+ * Zincirler arası bekleme — 2026-09-04'te n8n'deki Wait düğümleriyle
+ * birlikte KALDIRILDI, `ZINCIR_ARASI_BEKLEME_SN` (0) ile aynı olmalı.
+ * İsim geriye dönük uyum için korunuyor; yeni kod `ZINCIR_ARASI_BEKLEME_SN`
+ * kullansın.
  */
 export const MANUAL_CHAIN_WAIT_SEC = ZINCIR_ARASI_BEKLEME_SN;
 
@@ -35,7 +41,13 @@ export const MANUAL_CHAIN_WAIT_SEC = ZINCIR_ARASI_BEKLEME_SN;
 export const MANUAL_ESTIMATE_MS = tahminiSureMs(PANORAMA_ZINCIRLERI);
 
 const POLL_MS = 15_000;
-const DEADLINE_MS = 90 * 60 * 1000;
+/**
+ * 2026-09-04: Wait düğümleri kaldırıldıktan sonra gerçekçi en uzun çekim
+ * ~7-10 dk (bkz. MANUAL_ESTIMATE_MS). 90 dk'lık eski üst sınır, gerçek bir
+ * sorun olduğunda kullanıcıyı gereksiz yere uzun süre "yükleniyor"da
+ * bekletiyordu; 20 dk bolca marj bırakıp daha hızlı hata verir.
+ */
+const DEADLINE_MS = 20 * 60 * 1000;
 
 /** Seçime göre süre; seçim yoksa (hepsi) ölçülmüş tam pipeline tahmini. */
 function secimSuresiMs(secim?: readonly (string | number)[] | null): number {
@@ -64,11 +76,7 @@ export function manualSyncToastDescription(
   from = new Date(),
   secim?: readonly (string | number)[] | null
 ): string {
-  const cokZincir = secim == null || secim.length !== 1;
-  const bekleme = cokZincir
-    ? `Zincirler arası ${MANUAL_CHAIN_WAIT_SEC} sn bekleniyor. `
-    : "";
-  return `${bekleme}Tahmini bitiş: ${manualSyncEtaStamp(from, secim)}`;
+  return `Tahmini bitiş: ${manualSyncEtaStamp(from, secim)}`;
 }
 
 function sleep(ms: number) {

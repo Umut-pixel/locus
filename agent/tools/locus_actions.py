@@ -6,6 +6,13 @@ davranışı tek yerde kalır (frontend/app/api/**).
 
 Kimlik doğrulama: /api/sync/panorama'daki CRON_SECRET deseninin aynısı —
 Authorization: Bearer <AGENT_API_SECRET>.
+
+Tüm istekler ASYNC (httpx.AsyncClient). rapor_cek ve rota_taslagi_olustur
+15-90 sn sürebiliyor (Next route'un kendi n8n/Google zaman aşımı); senkron
+httpx.post kullansaydı bu süre boyunca paylaşılan executor thread havuzunu
+işgal eder, aynı havuzu kullanan diğer tüm sohbetlerin sql_query gibi
+senkron tool'ları da beklemek zorunda kalırdı — "bir sohbette rapor
+çekilirken diğer sohbetler açılmıyor" belirtisinin sebebi buydu.
 """
 
 from __future__ import annotations
@@ -30,7 +37,7 @@ def _config() -> tuple[str, str] | None:
     return (base, secret) if base and secret else None
 
 
-def _istek(path: str, payload: dict, timeout: float) -> tuple[Any, str | None]:
+async def _istek(path: str, payload: dict, timeout: float) -> tuple[Any, str | None]:
     """(gövde, hata) döndürür. Hata varsa gövde None."""
     cfg = _config()
     if cfg is None:
@@ -40,12 +47,12 @@ def _istek(path: str, payload: dict, timeout: float) -> tuple[Any, str | None]:
         )
     base, secret = cfg
     try:
-        response = httpx.post(
-            f"{base}{path}",
-            json=payload,
-            headers={"Authorization": f"Bearer {secret}"},
-            timeout=timeout,
-        )
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            response = await client.post(
+                f"{base}{path}",
+                json=payload,
+                headers={"Authorization": f"Bearer {secret}"},
+            )
     except httpx.RequestError as err:
         return None, f"BAĞLANTI HATASI: {err}"
 
@@ -66,8 +73,8 @@ def _istek(path: str, payload: dict, timeout: float) -> tuple[Any, str | None]:
         return response.text[:300], None
 
 
-def _post(path: str, payload: dict) -> str:
-    govde, hata = _istek(path, payload, _TIMEOUT)
+async def _post(path: str, payload: dict) -> str:
+    govde, hata = await _istek(path, payload, _TIMEOUT)
     if hata is not None:
         return hata
     metin = govde if isinstance(govde, str) else json.dumps(govde, ensure_ascii=False)
@@ -75,7 +82,7 @@ def _post(path: str, payload: dict) -> str:
 
 
 @tool(parse_docstring=True)
-def musteri_notu_ekle(musteri_kodu: str, not_metni: str) -> str:
+async def musteri_notu_ekle(musteri_kodu: str, not_metni: str) -> str:
     """Bir müşteriye serbest metin not ekler (entity_notlar).
 
     Kullanıcı açıkça not eklemeni istediğinde kullan. Kendi analizini
@@ -89,7 +96,7 @@ def musteri_notu_ekle(musteri_kodu: str, not_metni: str) -> str:
     if not musteri_kodu.strip() or not not_metni.strip():
         return "HATA: musteri_kodu ve not_metni boş olamaz."
     # Sözleşme: frontend/app/api/notlar/route.ts POST (action=create)
-    return _post(
+    return await _post(
         "/api/notlar",
         {
             "action": "create",
@@ -101,7 +108,7 @@ def musteri_notu_ekle(musteri_kodu: str, not_metni: str) -> str:
 
 
 @tool(parse_docstring=True)
-def musteri_favori_toggle(musteri_kodu: str) -> str:
+async def musteri_favori_toggle(musteri_kodu: str) -> str:
     """Müşteriyi "Sonra bak" favori listesine ekler veya listeden çıkarır.
 
     Bu bir AÇ/KAPA işlemidir: müşteri listede değilse ekler, listedeyse
@@ -113,7 +120,7 @@ def musteri_favori_toggle(musteri_kodu: str) -> str:
     if not musteri_kodu.strip():
         return "HATA: musteri_kodu boş olamaz."
     # Sözleşme: frontend/app/api/musteri/favori/route.ts POST (action=toggle)
-    return _post(
+    return await _post(
         "/api/musteri/favori",
         {"action": "toggle", "musteri_kodu": musteri_kodu.strip()},
     )
@@ -138,7 +145,7 @@ def _durak_satiri(sira: int, d: dict) -> dict:
 
 
 @tool(parse_docstring=True)
-def rota_taslagi_olustur(gun_penceresi: int | None = None) -> str:
+async def rota_taslagi_olustur(gun_penceresi: int | None = None) -> str:
     """Bekleyen siparişlerden araç rota planı TASLAĞI kurar. Hiçbir şey kaydetmez.
 
     Yükü çıkabilecek araçlara dağıtır, her aracın duraklarını trafiğe göre
@@ -157,7 +164,7 @@ def rota_taslagi_olustur(gun_penceresi: int | None = None) -> str:
     if gun_penceresi is not None:
         payload["gunPenceresi"] = int(gun_penceresi)
 
-    govde, hata = _istek("/api/rota/otomatik", payload, _PLAN_TIMEOUT)
+    govde, hata = await _istek("/api/rota/otomatik", payload, _PLAN_TIMEOUT)
     if hata is not None:
         return hata
     if not isinstance(govde, dict):
@@ -194,7 +201,7 @@ def rota_taslagi_olustur(gun_penceresi: int | None = None) -> str:
 
 
 @tool(parse_docstring=True)
-def rota_taslagi_kaydet(taslak_id: str) -> str:
+async def rota_taslagi_kaydet(taslak_id: str) -> str:
     """Onaylanan rota taslağını kalıcı olarak kaydeder.
 
     YIKICI: aynı gün + aynı araç için önceden kaydedilmiş plan SİLİNİP
@@ -207,7 +214,7 @@ def rota_taslagi_kaydet(taslak_id: str) -> str:
     if not taslak_id.strip():
         return "HATA: taslak_id boş olamaz."
     # Sözleşme: frontend/app/api/rota/plan/route.ts POST { taslakId }
-    return _post("/api/rota/plan", {"taslakId": taslak_id.strip()})
+    return await _post("/api/rota/plan", {"taslakId": taslak_id.strip()})
 
 
 # ---------------------------------------------------------------------------
@@ -218,20 +225,20 @@ _SYNC_PATH = "/api/sync/panorama/manual"
 
 
 @tool(parse_docstring=True)
-def rapor_listesi() -> str:
+async def rapor_listesi() -> str:
     """Panorama'dan çekilebilecek raporların listesini döndürür.
 
     Hiçbir şey tetiklemez. Kullanıcıya seçim kartı basmadan önce bunu çağır —
     rapor adlarını ve anahtarlarını ezberden yazma, listedekileri kullan.
     """
-    govde, hata = _istek(_SYNC_PATH, {"listele": True}, _TIMEOUT)
+    govde, hata = await _istek(_SYNC_PATH, {"listele": True}, _TIMEOUT)
     if hata is not None:
         return hata
     return json.dumps(govde, ensure_ascii=False)
 
 
 @tool(parse_docstring=True)
-def rapor_cek(rapor_anahtarlari: list[str] | None = None) -> str:
+async def rapor_cek(rapor_anahtarlari: list[str] | None = None) -> str:
     """Seçilen raporları Panorama'dan yeniden çeker.
 
     Kullanıcı hangi raporları istediğini SÖYLEMEDİYSE çağırma — önce
@@ -243,8 +250,7 @@ def rapor_cek(rapor_anahtarlari: list[str] | None = None) -> str:
 
     Args:
         rapor_anahtarlari: `rapor_listesi` içindeki anahtarlar
-            (ör. ["stok", "tahsilat"]). Boş bırakılırsa hepsi çekilir —
-            yaklaşık 20 dakika sürer, bunu kullanıcıya söyle.
+            (ör. ["stok", "tahsilat"]). Boş bırakılırsa hepsi çekilir.
     """
     payload: dict[str, Any] = {}
     if rapor_anahtarlari:
@@ -253,7 +259,7 @@ def rapor_cek(rapor_anahtarlari: list[str] | None = None) -> str:
             return "HATA: rapor_anahtarlari boş dizi olamaz."
         payload["reportIds"] = temiz
 
-    govde, hata = _istek(_SYNC_PATH, payload, _TIMEOUT)
+    govde, hata = await _istek(_SYNC_PATH, payload, _TIMEOUT)
     if hata is not None:
         return hata
     return f"Çekim başlatıldı: {json.dumps(govde, ensure_ascii=False)[:400]}"
