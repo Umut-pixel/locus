@@ -74,7 +74,7 @@ export function TaskRows({ tasks }: { tasks: AgentTask[] }) {
   const [open, setOpen] = useState<Record<string, boolean>>({});
 
   return (
-    <div className="flex w-full max-w-xl flex-col gap-2">
+    <div className="flex w-full flex-col gap-2">
       {tasks.map((row, i) => {
         const expanded = open[row.key] ?? false;
         const badge =

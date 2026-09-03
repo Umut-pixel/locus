@@ -30,6 +30,17 @@ aktarılan JSON'da sır hiç bulunmaz:
 n8n'de: Settings → Variables. Self-hosted'da `N8N_VARIABLES_*` ortam
 değişkenleriyle de beslenebilir.
 
+**2026-09-03'te uygulandı.** `Panorama Otomasyon (9).json` içindeki sekiz
+`Config*` düğümünün `supabaseServiceRoleKey` ve `panoramaPass` alanları artık
+gerçek değer değil, `{{ $vars.SUPABASE_SERVICE_ROLE_KEY }}` /
+`{{ $vars.PANORAMA_PASS }}` ifadeleri taşıyor (gerçek değerler ikinci kez
+commit edilmişti).
+
+⚠️ **İçe aktarmadan önce** n8n → Settings → Variables altında bu iki değişkeni
+tanımlayın; yoksa import edilen workflow login olamaz.
+⚠️ Anahtar döndürme ayrı iş: depo herkese açık push edildiyse dosyayı
+temizlemek yetmez, git geçmişi değeri saklar.
+
 ## Manuel sync (ana sayfa “Şimdi çek”)
 
 `Panorama Otomasyon (7).json` içinde `Webhook Manuel Sync` node’u:
@@ -48,6 +59,49 @@ değişkenleriyle de beslenebilir.
 
 Webhook cron’u değiştirmez. Manuel execution’da zincirler **Wait 180s** ile sırayla gider  
 (Main → YL → BD2 fatura → Sipariş 5140 → Stok → Tahsilat → Belge detay sipariş 5451) — WAF’a paralel login basmamak için.
+
+## Tek tek rapor çekme (2026-09-03)
+
+Webhook artık gövdeden **hangi zincirlerin** çalışacağını okuyor.
+
+```json
+POST /webhook/panorama-manual-sync
+{ "source": "locus-manual", "reportIds": [5530] }
+```
+
+- `reportIds` **boş ya da yok** → bütün zincirler (eski davranış, birebir aynı).
+- GET yedek yolu gövde taşıyamaz; id’ler query string’den okunur:
+  `?reportIds=5530,5430`.
+
+Nasıl çalışıyor:
+
+1. `Guard Manuel Secret` header doğrulamasından sonra `body.reportIds` /
+   `query.reportIds` okuyup `{ ok, manual, istenen }` döndürür.
+2. **`IF Manuel → MAIN`** (yeni düğüm) `Guard` ile `Config` arasına girdi —
+   Main zinciri eskiden koşulsuz çalışıyordu, tek başına atlanamıyordu.
+   `Schedule Main 07/13/19 → Config` bağlantısına dokunulmadı, cron aynı.
+3. Yedi `IF Manuel → *` düğümü artık “manuel mi” değil, **“bu zincir istendi
+   mi”** diye bakıyor: `istenen` boşsa hepsi geçer.
+4. **Kritik:** her IF’in **false çıkışı bir sonraki IF’e bağlı**. Zincir kaskad
+   olduğu için eskiden bir IF kapanınca arkasındaki her şey ölürdü. False dalı
+   hem zinciri hem 180 sn’lik `Wait`’i atlar — tek rapor çekimi 20 dakika
+   yerine saniyeler sürer.
+
+Zincir → id eşlemesi (`frontend/lib/panorama-raporlar.ts` ile aynı olmalı):
+
+| Zincir | Gönderilecek id | Kapsadığı rapor |
+|---|---|---|
+| Main | `5020` | 5020 + 5500 + 5130 (bölünemez) |
+| YL | `5530` | 5530 |
+| BD2 | `5450` | 5450 |
+| SD | `5140` | 5140 |
+| STK | `5430` | 5430 |
+| TH | `5230` | 5230 |
+| BDS | `5451` | 5450 scrape, `syncReportId` 5451 |
+
+Yan etki: cron çalışmalarında false dalı sıradaki IF düğümlerini de yürür.
+Hiçbiri iş yapmaz (hepsi false döner) ve `IF Manuel → BDS` false çıkışı
+bağlanmadan biter — execution logunda birkaç fazla no-op düğüm görünür.
 
 ## Cron takvimi (2026-08-31)
 

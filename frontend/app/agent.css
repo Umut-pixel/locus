@@ -219,6 +219,30 @@
 .agent-table-scroll {
   max-width: 100%;
   overflow: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+  overscroll-behavior: contain;
+}
+
+.agent-table-scroll::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.agent-table-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.agent-table-scroll::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 8px;
+  background: var(--border);
+  background-clip: content-box;
+}
+
+.agent-table-scroll:hover::-webkit-scrollbar-thumb {
+  background: var(--line-strong, var(--border));
+  background-clip: content-box;
 }
 
 .agent-table {
@@ -231,10 +255,29 @@
 
 .agent-table th,
 .agent-table td {
-  padding: 0.55rem 0.75rem;
+  padding: 0.625rem 0.875rem;
   text-align: left;
   border-bottom: 1px solid var(--border);
   white-space: nowrap;
+}
+
+/*
+ * Uzun müşteri unvanı tabloyu şişirip yatay kaydırmaya zorluyordu. Ad kolonu
+ * her iki tablo türünde de sarar; sayı kolonları nowrap kalır (rakam bölünmesin).
+ */
+.agent-table th.is-name,
+.agent-table td.is-name {
+  min-width: 9rem;
+  max-width: 18rem;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  font-weight: 550;
+}
+
+.agent-table th.is-num,
+.agent-table td.is-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 
 .agent-table th {
@@ -274,27 +317,22 @@
 }
 
 .agent-filter-body {
-  max-height: 22rem;
+  max-height: 30rem;
 }
 
 .agent-table.is-split {
-  min-width: 36rem;
+  /*
+   * Sabit 36rem kartın kendi genişliğine eşitti: dikey kaydırma çubuğu
+   * 8-15px yiyince tablo hiçbir zaman sığmıyor, kalıcı bir yatay çubuk
+   * oluşuyordu. min() dar kartta kaydırma yerine sıkışmayı seçer.
+   */
+  min-width: min(100%, 30rem);
 }
 
 .agent-table.is-split th.is-name,
 .agent-table.is-split td.is-name {
   width: 32%;
-  min-width: 9rem;
   max-width: 14rem;
-  white-space: normal;
-  overflow-wrap: anywhere;
-  font-weight: 550;
-}
-
-.agent-table.is-split th.is-num,
-.agent-table.is-split td.is-num {
-  text-align: right;
-  font-variant-numeric: tabular-nums;
 }
 
 .agent-tag {

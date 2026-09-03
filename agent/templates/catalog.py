@@ -149,7 +149,7 @@ def _render_top_ciro(outcome: QueryOutcome) -> str:
             ]
         )
     summary = (
-        f"Bu dönem en yüksek KDV hariç net ciro (`belge_net_ciro`), "
+        f"Bu dönem en yüksek KDV hariç net ciro, "
         f"ilk {format_number(len(table_rows))} müşteri."
     )
     return maybe_table(

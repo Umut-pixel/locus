@@ -12,11 +12,26 @@ const CRON_PATHS = new Set(["/api/sync/panorama"]);
  * route'lar. Oturum cookie'si yerine `Authorization: Bearer <AGENT_API_SECRET>`
  * kabul edilir — /api/sync/panorama'daki CRON_SECRET deseninin aynısı.
  *
- * Bilinçli olarak DAR tutuldu: agent yalnız not ve favori yazabilir. Yeni bir
- * yol eklemeden önce o route'un agent tarafından tetiklenmesinin güvenli
- * olduğundan emin ol.
+ * Bilinçli olarak DAR tutuldu. Yeni bir yol eklemeden önce o route'un agent
+ * tarafından tetiklenmesinin güvenli olduğundan emin ol.
+ *
+ * Buradaki her yol ya geri alınabilir (not, favori), ya da hiçbir şey yazmıyor
+ * (/api/rota/otomatik yalnız taslak üretir). Tek yıkıcı olan /api/rota/plan —
+ * o gün o araç için mevcut planı silip yeniden yazar; bu yüzden agent'ın onu
+ * ancak kullanıcı sohbette onay verdikten sonra, elindeki taslak kimliğiyle
+ * çağırması gerekiyor (bkz. agent/instructions.md "Rota kurma").
+ *
+ * /api/rota/optimize bilerek DIŞARIDA: doğrudan Google Routes'a para harcayan
+ * ham bir uç, agent'ın serbestçe tetiklemesine gerek yok — otomatik plan
+ * zaten sıralamayı kendi içinde yapıyor.
  */
-const AGENT_WRITABLE_PATHS = new Set(["/api/notlar", "/api/musteri/favori"]);
+const AGENT_WRITABLE_PATHS = new Set([
+  "/api/notlar",
+  "/api/musteri/favori",
+  "/api/rota/otomatik",
+  "/api/rota/plan",
+  "/api/sync/panorama/manual",
+]);
 
 /** Sabit zamanlı karşılaştırma — token uzunluğu/içeriği sızmasın. */
 function secretMatches(header: string | null, secret: string): boolean {

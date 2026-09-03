@@ -40,7 +40,7 @@ export function ThinkingTrace({
   }, [rows, expanded, working]);
 
   return (
-    <div className="flex w-full max-w-xl flex-col">
+    <div className="flex w-full flex-col">
       <button
         type="button"
         aria-expanded={expanded}

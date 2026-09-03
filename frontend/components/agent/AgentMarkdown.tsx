@@ -10,6 +10,7 @@ import { FilterTable } from "@/components/agent/FilterTable";
 import { InsightChart } from "@/components/agent/InsightChart";
 import { LoadingState } from "@/components/agent/LoadingState";
 import { RecommendCard, type RecommendAccept } from "@/components/agent/RecommendCard";
+import { SelectCard } from "@/components/agent/SelectCard";
 import { StreamingWords } from "@/components/agent/StreamingWords";
 import {
   parseAgentContent,
@@ -24,27 +25,27 @@ function MarkdownBody({ text }: { text: string }) {
       remarkPlugins={[remarkGfm]}
       components={{
         p: ({ children }) => (
-          <p className="mb-3 text-[13px] leading-relaxed last:mb-0">{children}</p>
+          <p className="mb-4 text-[14px] leading-7 last:mb-0">{children}</p>
         ),
         strong: ({ children }) => (
           <strong className="font-semibold text-ink">{children}</strong>
         ),
         em: ({ children }) => <em className="italic">{children}</em>,
         ul: ({ children }) => (
-          <ul className="mb-3 ml-5 list-disc space-y-1 text-[13px] last:mb-0">{children}</ul>
+          <ul className="mb-4 ml-5 list-disc space-y-1.5 text-[14px] leading-7 last:mb-0">{children}</ul>
         ),
         ol: ({ children }) => (
-          <ol className="mb-3 ml-5 list-decimal space-y-1 text-[13px] last:mb-0">{children}</ol>
+          <ol className="mb-4 ml-5 list-decimal space-y-1.5 text-[14px] leading-7 last:mb-0">{children}</ol>
         ),
         li: ({ children }) => <li className="pl-0.5">{children}</li>,
         h1: ({ children }) => (
-          <h3 className="mt-4 mb-2 text-base font-semibold first:mt-0">{children}</h3>
+          <h3 className="mt-5 mb-2.5 text-[17px] font-semibold first:mt-0">{children}</h3>
         ),
         h2: ({ children }) => (
-          <h3 className="mt-4 mb-2 text-[15px] font-semibold first:mt-0">{children}</h3>
+          <h3 className="mt-5 mb-2.5 text-[15.5px] font-semibold first:mt-0">{children}</h3>
         ),
         h3: ({ children }) => (
-          <h4 className="mt-3 mb-1.5 text-sm font-semibold first:mt-0">{children}</h4>
+          <h4 className="mt-4 mb-2 text-[14px] font-semibold first:mt-0">{children}</h4>
         ),
         table: () => null,
         thead: () => null,
@@ -118,6 +119,8 @@ function BlockView({
       return <RecommendCard block={block} onAccept={onAccept} />;
     case "map":
       return <AgentRouteMap block={block} />;
+    case "secim":
+      return <SelectCard block={block} />;
     case "markdown":
       if (streamingTail) {
         return <StreamingWords text={block.text} />;
@@ -144,7 +147,7 @@ export const AgentMarkdown = memo(function AgentMarkdown({
   const lastMdIndex = lastMd >= 0 ? blocks.length - 1 - lastMd : -1;
 
   return (
-    <div className={cn("text-[13px] leading-relaxed text-ink", className)}>
+    <div className={cn("text-[14px] leading-7 text-ink", className)}>
       {blocks.map((block, i) => (
         <BlockView
           key={`${block.type}-${i}`}

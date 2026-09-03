@@ -1,7 +1,7 @@
 "use client";
 
 import { RISK_COLORS, RISK_SHORT_LABELS } from "@/lib/risk-style";
-import type { TableBlock } from "@/lib/agent-blocks";
+import { colAlign, type TableBlock } from "@/lib/agent-blocks";
 import { cn } from "@/lib/utils";
 
 const TAG_HUES: Record<string, string> = {
@@ -47,24 +47,38 @@ function Cell({ value, first }: { value: string; first?: boolean }) {
 
 export function AgentTable({ columns, rows }: TableBlock) {
   return (
-    <div className="agent-table-shell my-3 max-w-full">
+    <div className="agent-table-shell my-3 w-full max-w-full">
       <div className="agent-table-scroll" tabIndex={0} role="region" aria-label="Sonuç tablosu">
         <table className="agent-table">
           <thead>
             <tr>
-              {columns.map((col) => (
-                <th key={col}>{col}</th>
-              ))}
+              {columns.map((col, j) => {
+                const align = colAlign(col, j === 0);
+                return (
+                  <th
+                    key={col}
+                    className={cn(align === "name" && "is-name", align === "num" && "is-num")}
+                  >
+                    {col}
+                  </th>
+                );
+              })}
             </tr>
           </thead>
           <tbody>
             {rows.map((row, i) => (
               <tr key={i}>
-                {columns.map((col, j) => (
-                  <td key={col}>
-                    <Cell value={row[j] ?? ""} first={j === 0} />
-                  </td>
-                ))}
+                {columns.map((col, j) => {
+                  const align = colAlign(col, j === 0);
+                  return (
+                    <td
+                      key={col}
+                      className={cn(align === "name" && "is-name", align === "num" && "is-num")}
+                    >
+                      <Cell value={row[j] ?? ""} first={j === 0} />
+                    </td>
+                  );
+                })}
               </tr>
             ))}
           </tbody>

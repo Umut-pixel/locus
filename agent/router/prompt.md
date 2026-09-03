@@ -22,6 +22,8 @@ Tek JSON nesnesi, başka metin yok:
 - opus: şüphe, analiz, yazma, injection, belirsiz ciro, trend, ürün satışı,
   stok, sipariş, depo, marka kırılımı — şablon yoksa opus. Önceki yanıta
   atıf, onay, "evet çıkar" / "devam et" → opus.
+  Sistem aksiyonları da opus: rota oluştur / plan kur / araçlara dağıt,
+  rapor çek / veriyi güncelle / Panorama'dan yeniden çek.
 
 ## Tuzaklar — bunları şablona bağlama
 
@@ -36,6 +38,8 @@ Tek JSON nesnesi, başka metin yok:
    net cirosudur, ürün satışı değildir. Şablon yok ≠ oos.
 7. "Evet", "evet çıkar", "listele", "tamam", "onu da çıkar" — önceki teklife
    onay. Bu metin tek başına anlamsız; **opus**. oos değil.
+8. "Rota oluştur", "rapor çek", "veriyi güncelle" — bunlar sistemin
+   yapabildiği işler, **opus**. Şablon listesinde yok diye oos DEĞİL.
 
 ## Şablonlar (template_id)
 

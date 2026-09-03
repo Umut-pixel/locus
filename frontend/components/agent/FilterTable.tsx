@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 
 import { InsightChart, locusScaleColor } from "@/components/agent/InsightChart";
-import type { FilterBlock } from "@/lib/agent-blocks";
+import { colAlign, type FilterBlock } from "@/lib/agent-blocks";
 import { cn } from "@/lib/utils";
 
 function pillClass(value: string): string {
@@ -35,14 +35,6 @@ function moneyColumn(columns: string[], rows: Record<string, string>[]): string 
     if (rows.length && hits / rows.length >= 0.4) return c;
   }
   return null;
-}
-
-function colAlign(col: string, first: boolean): "name" | "num" | "status" | "text" {
-  const n = col.toLowerCase();
-  if (first || /müşteri|musteri|unvan|isim|ad\b/.test(n)) return "name";
-  if (/durum|risk|band/.test(n)) return "status";
-  if (/bakiye|borç|borc|tutar|sevkiyat|gün|gun|kg|adet|₺|%/.test(n)) return "num";
-  return "text";
 }
 
 function rowBand(row: Record<string, string>, filterKey: string): string {
@@ -118,7 +110,7 @@ export function FilterTable({ title, filters, columns, rows, filterKey, chart }:
   };
 
   return (
-    <div className="agent-table-shell my-3 w-full max-w-xl">
+    <div className="agent-table-shell my-3 w-full">
       <div className="agent-filter-head">
         {title ? <p className="text-[13px] font-medium text-ink">{title}</p> : null}
         <div className="agent-filter-chips" role="group" aria-label="Kayıt filtresi">
