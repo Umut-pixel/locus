@@ -24,20 +24,23 @@ aktarılan JSON'da sır hiç bulunmaz:
 
 ```
 {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}
-{{ $vars.PANORAMA_PASS }}
+{{ $vars['patigo-login'] }}
 ```
 
 n8n'de: Settings → Variables. Self-hosted'da `N8N_VARIABLES_*` ortam
-değişkenleriyle de beslenebilir.
+değişkenleriyle de beslenebilir. `patigo-login` adında tire var — nokta
+gösterimi (`$vars.patigo-login`) geçersiz JS olur, köşeli parantez şart.
 
 **2026-09-03'te uygulandı.** `Panorama Otomasyon (9).json` içindeki sekiz
 `Config*` düğümünün `supabaseServiceRoleKey` ve `panoramaPass` alanları artık
 gerçek değer değil, `{{ $vars.SUPABASE_SERVICE_ROLE_KEY }}` /
-`{{ $vars.PANORAMA_PASS }}` ifadeleri taşıyor (gerçek değerler ikinci kez
-commit edilmişti).
+`{{ $vars['patigo-login'] }}` ifadeleri taşıyor (gerçek değerler ikinci kez
+commit edilmişti). Değişken adı `patigo-login` — n8n'de zaten bu isimle
+tanımlıydı, yeni bir isim uydurmak yerine ona bağlandı.
 
-⚠️ **İçe aktarmadan önce** n8n → Settings → Variables altında bu iki değişkeni
-tanımlayın; yoksa import edilen workflow login olamaz.
+⚠️ **İçe aktarmadan önce** n8n → Settings → Variables altında
+`SUPABASE_SERVICE_ROLE_KEY` ve `patigo-login` tanımlı olduğunu doğrulayın;
+`patigo-login` yoksa import edilen workflow login olamaz.
 ⚠️ Anahtar döndürme ayrı iş: depo herkese açık push edildiyse dosyayı
 temizlemek yetmez, git geçmişi değeri saklar.
 
@@ -57,8 +60,8 @@ temizlemek yetmez, git geçmişi değeri saklar.
    `N8N_PANORAMA_MANUAL_WEBHOOK_URL`  
    `N8N_PANORAMA_MANUAL_WEBHOOK_SECRET`
 
-Webhook cron’u değiştirmez. Manuel execution’da zincirler **Wait 120s** ile sırayla gider  
-(Main → YL → BD2 fatura → Sipariş 5140 → Stok → Tahsilat → Belge detay sipariş 5451) — WAF’a paralel login basmamak için.
+Webhook cron’u değiştirmez. Manuel execution’da zincirler sırayla gider  
+(Main → YL → BD2 fatura → Sipariş 5140 → Stok → Tahsilat → Belge detay sipariş 5451) — aralarında **bekleme yok** (2026-09-04, bkz. "Bekleme süresi" bölümü).
 
 ## Tek tek rapor çekme (2026-09-03)
 
@@ -84,8 +87,7 @@ Nasıl çalışıyor:
    mi”** diye bakıyor: `istenen` boşsa hepsi geçer.
 4. **Kritik:** her IF’in **false çıkışı bir sonraki IF’e bağlı**. Zincir kaskad
    olduğu için eskiden bir IF kapanınca arkasındaki her şey ölürdü. False dalı
-   hem zinciri hem 120 sn’lik `Wait`’i atlar — tek rapor çekimi 15 dakika
-   yerine saniyeler sürer.
+   zinciri tamamen atlar — istenmeyen bir rapor saniyeler içinde geçilir.
 
 Zincir → id eşlemesi (`frontend/lib/panorama-raporlar.ts` ile aynı olmalı):
 
@@ -103,17 +105,28 @@ Yan etki: cron çalışmalarında false dalı sıradaki IF düğümlerini de yü
 Hiçbiri iş yapmaz (hepsi false döner) ve `IF Manuel → BDS` false çıkışı
 bağlanmadan biter — execution logunda birkaç fazla no-op düğüm görünür.
 
-## Bekleme süresi (2026-09-03)
+## Bekleme süresi — KALDIRILDI (2026-09-04)
 
-Zincirler arası `Wait` düğümleri **180 → 120 sn**’ye indirildi.
-Ölçülen en uzun gerçek çekim penceresi 108 sn (rapor 5450), yani 2 dakika
-iki login’in üst üste binmemesi için hâlâ yeterli. Tam pipeline ~25 dk
-yerine ~19 dk sürüyor. `frontend/lib/panorama-raporlar.ts` içindeki
-`ZINCIR_ARASI_BEKLEME_SN` bu değerle eşleşmeli — tahmini bitiş damgası
-oradan üretiliyor.
+Zincirler arası 6 `Wait` düğümü (`Wait Main→YL`, `Wait YL→BD2`, `Wait BD2→SD`,
+`Wait SD→STK`, `Wait STK→TH`, `Wait TH→BDS`) workflow'dan tamamen silindi.
+Her `IF Manuel → X` düğümünün **true** çıkışı artık doğrudan o zincirin
+`Config` düğümüne bağlı — önce `Wait`'e, `Wait` da `Config`'e gidiyordu.
 
-WAF tekrar tetiklenirse ilk geri alınacak değer budur: 6 Wait düğümünü
-180’e çekip sabiti de güncelleyin.
+`frontend/lib/panorama-raporlar.ts` içindeki `ZINCIR_ARASI_BEKLEME_SN` `0`'a
+çekildi; tahmini bitiş damgası artık beklemesiz hesaplanıyor. "Hepsi" seçili
+manuel çekim ~25 dk'dan ~7 dk'ya indi (ölçülen zincir sürelerinin toplamı,
+`frontend/lib/panorama-raporlar.ts`'deki `tahminiSn` alanları).
+
+⚠️ **Geri alınan risk:** Wait, aynı egress IP'den arka arkaya gelen
+login'lerin önündeki F5 WAF'a bot trafiği gibi görünmesini önlüyordu
+(login node'undaki `f5_cspm` cookie'si ve `loginDebug.note` bu yüzden var —
+bkz. üstteki cron bölümü). "Hepsi" seçiliyken artık 7 login aralıksız
+ateşleniyor. WAF tekrar tetiklenirse (execution'larda ardışık login
+hatası / 403 görülürse) ilk geri alınacak değer budur: 6 IF'in true
+çıkışını tekrar birer `Wait` düğümüne bağlayın (120 sn önerilir, ölçülen
+en uzun çekim penceresi 108 sn) ve `ZINCIR_ARASI_BEKLEME_SN`'i eşleştirin.
+Cron zaten Wait kullanmıyordu (ayrı `Schedule *` düğümleriyle 1'er dakika
+kademeli tetikleniyor), bu değişiklik yalnız manuel/webhook yolunu etkiler.
 
 ## Cron takvimi (2026-08-31)
 

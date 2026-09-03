@@ -66,7 +66,7 @@
             {
               "id": "b0e82f09-afa0-49ec-b5d6-5c5afa107411",
               "name": "panoramaPass",
-              "value": "={{ $vars.PANORAMA_PASS }}",
+              "value": "={{ $vars['patigo-login'] }}",
               "type": "string"
             },
             {
@@ -950,7 +950,7 @@
             {
               "id": "63c5dd39-abc5-4ed5-9d32-320d7adf9840",
               "name": "panoramaPass",
-              "value": "={{ $vars.PANORAMA_PASS }}",
+              "value": "={{ $vars['patigo-login'] }}",
               "type": "string"
             },
             {
@@ -1638,7 +1638,7 @@
             {
               "id": "2ff0c0e9-2bf3-46c4-abac-dbfc0a016e6a",
               "name": "panoramaPass",
-              "value": "={{ $vars.PANORAMA_PASS }}",
+              "value": "={{ $vars['patigo-login'] }}",
               "type": "string"
             },
             {
@@ -2655,7 +2655,7 @@
             {
               "id": "2ff0c0e9-2bf3-46c4-abac-dbfc0a016e6a",
               "name": "panoramaPass",
-              "value": "={{ $vars.PANORAMA_PASS }}",
+              "value": "={{ $vars['patigo-login'] }}",
               "type": "string"
             },
             {
@@ -3450,7 +3450,7 @@
             {
               "id": "2ff0c0e9-2bf3-46c4-abac-dbfc0a016e6a",
               "name": "panoramaPass",
-              "value": "={{ $vars.PANORAMA_PASS }}",
+              "value": "={{ $vars['patigo-login'] }}",
               "type": "string"
             },
             {
@@ -4281,7 +4281,7 @@
             {
               "id": "2ff0c0e9-2bf3-46c4-abac-dbfc0a016e6a",
               "name": "panoramaPass",
-              "value": "={{ $vars.PANORAMA_PASS }}",
+              "value": "={{ $vars['patigo-login'] }}",
               "type": "string"
             },
             {
@@ -5072,20 +5072,6 @@
     },
     {
       "parameters": {
-        "amount": 120
-      },
-      "id": "5e35fb55-d602-4868-bc78-acbc83969508",
-      "name": "Wait Main→YL",
-      "type": "n8n-nodes-base.wait",
-      "typeVersion": 1.1,
-      "position": [
-        5936,
-        944
-      ],
-      "webhookId": "59ce123d-f608-491a-45bc-6d7e8f901223"
-    },
-    {
-      "parameters": {
         "conditions": {
           "options": {
             "caseSensitive": true,
@@ -5117,20 +5103,6 @@
         6032,
         -32
       ]
-    },
-    {
-      "parameters": {
-        "amount": 120
-      },
-      "id": "b14df927-02c8-48fd-bf5a-7c23d141b256",
-      "name": "Wait YL→BD2",
-      "type": "n8n-nodes-base.wait",
-      "typeVersion": 1.1,
-      "position": [
-        6256,
-        -32
-      ],
-      "webhookId": "6adf234e-0719-4a2b-56cd-7e8f90123434"
     },
     {
       "parameters": {
@@ -5168,20 +5140,6 @@
     },
     {
       "parameters": {
-        "amount": 120
-      },
-      "id": "cb8e96b0-55a7-4d62-b7b9-38873a28f171",
-      "name": "Wait BD2→SD",
-      "type": "n8n-nodes-base.wait",
-      "typeVersion": 1.1,
-      "position": [
-        6448,
-        3696
-      ],
-      "webhookId": "7be0345f-182a-4b3c-67de-8f9013454456"
-    },
-    {
-      "parameters": {
         "conditions": {
           "options": {
             "caseSensitive": true,
@@ -5213,20 +5171,6 @@
         5296,
         2304
       ]
-    },
-    {
-      "parameters": {
-        "amount": 120
-      },
-      "id": "4bc57df5-407f-43ed-98c7-d54485a00c0f",
-      "name": "Wait SD→STK",
-      "type": "n8n-nodes-base.wait",
-      "typeVersion": 1.1,
-      "position": [
-        5520,
-        2304
-      ],
-      "webhookId": "8cf14560-293b-4c4d-78ef-901456556567"
     },
     {
       "parameters": {
@@ -5277,7 +5221,7 @@
             {
               "id": "57e5c24b-362b-499b-998b-84ad7595d00b",
               "name": "panoramaPass",
-              "value": "={{ $vars.PANORAMA_PASS }}",
+              "value": "={{ $vars['patigo-login'] }}",
               "type": "string"
             },
             {
@@ -6039,20 +5983,6 @@
     },
     {
       "parameters": {
-        "amount": 120
-      },
-      "id": "73084225-0068-4c5d-98fe-715acb8bc228",
-      "name": "Wait STK→TH",
-      "type": "n8n-nodes-base.wait",
-      "typeVersion": 1.1,
-      "position": [
-        5536,
-        2928
-      ],
-      "webhookId": "8cf14560-293b-4c4d-78ef-901456556567"
-    },
-    {
-      "parameters": {
         "rule": {
           "interval": [
             {
@@ -6120,7 +6050,7 @@
             {
               "id": "2ff0c0e9-2bf3-46c4-abac-dbfc0a016e6a",
               "name": "panoramaPass",
-              "value": "={{ $vars.PANORAMA_PASS }}",
+              "value": "={{ $vars['patigo-login'] }}",
               "type": "string"
             },
             {
@@ -6911,20 +6841,6 @@
         5312,
         4480
       ]
-    },
-    {
-      "parameters": {
-        "amount": 120
-      },
-      "id": "6edf0549-a8d1-4999-8692-8bd5890c5e18",
-      "name": "Wait TH→BDS",
-      "type": "n8n-nodes-base.wait",
-      "typeVersion": 1.1,
-      "position": [
-        5536,
-        4480
-      ],
-      "webhookId": "b288825d-600d-4923-871f-40ec287a0257"
     },
     {
       "parameters": {
@@ -8448,7 +8364,7 @@
       "main": [
         [
           {
-            "node": "Wait Main→YL",
+            "node": "Config Yaslandirma",
             "type": "main",
             "index": 0
           }
@@ -8462,22 +8378,11 @@
         ]
       ]
     },
-    "Wait Main→YL": {
-      "main": [
-        [
-          {
-            "node": "Config Yaslandirma",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "IF Manuel → BD2": {
       "main": [
         [
           {
-            "node": "Wait YL→BD2",
+            "node": "Config Belge Detay BD2",
             "type": "main",
             "index": 0
           }
@@ -8491,22 +8396,11 @@
         ]
       ]
     },
-    "Wait YL→BD2": {
-      "main": [
-        [
-          {
-            "node": "Config Belge Detay BD2",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "IF Manuel → SD": {
       "main": [
         [
           {
-            "node": "Wait BD2→SD",
+            "node": "Config Siparis Detay",
             "type": "main",
             "index": 0
           }
@@ -8520,22 +8414,11 @@
         ]
       ]
     },
-    "Wait BD2→SD": {
-      "main": [
-        [
-          {
-            "node": "Config Siparis Detay",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "IF Manuel → STK": {
       "main": [
         [
           {
-            "node": "Wait SD→STK",
+            "node": "Config Stok",
             "type": "main",
             "index": 0
           }
@@ -8543,17 +8426,6 @@
         [
           {
             "node": "IF Manuel → TH",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Wait SD→STK": {
-      "main": [
-        [
-          {
-            "node": "Config Stok",
             "type": "main",
             "index": 0
           }
@@ -8795,7 +8667,7 @@
       "main": [
         [
           {
-            "node": "Wait STK→TH",
+            "node": "Config Tahsilat",
             "type": "main",
             "index": 0
           }
@@ -8803,17 +8675,6 @@
         [
           {
             "node": "IF Manuel → BDS",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Wait STK→TH": {
-      "main": [
-        [
-          {
-            "node": "Config Tahsilat",
             "type": "main",
             "index": 0
           }
@@ -9074,17 +8935,6 @@
       ]
     },
     "IF Manuel → BDS": {
-      "main": [
-        [
-          {
-            "node": "Wait TH→BDS",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Wait TH→BDS": {
       "main": [
         [
           {

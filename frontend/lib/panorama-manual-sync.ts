@@ -20,9 +20,10 @@ export function writeManualSyncAt(at: number) {
 }
 
 /**
- * Zincirler arası n8n Wait — `ZINCIR_ARASI_BEKLEME_SN` ile aynı olmalı.
- * n8n Wait node'ları typeVersion 1.1; v1.1+ varsayılan birim `seconds`.
- * 2026-09-03'te 180 → 120 sn indirildi (çekim süresini kısaltmak için).
+ * Zincirler arası bekleme — 2026-09-04'te n8n'deki Wait düğümleriyle
+ * birlikte KALDIRILDI, `ZINCIR_ARASI_BEKLEME_SN` (0) ile aynı olmalı.
+ * İsim geriye dönük uyum için korunuyor; yeni kod `ZINCIR_ARASI_BEKLEME_SN`
+ * kullansın.
  */
 export const MANUAL_CHAIN_WAIT_SEC = ZINCIR_ARASI_BEKLEME_SN;
 
@@ -64,11 +65,7 @@ export function manualSyncToastDescription(
   from = new Date(),
   secim?: readonly (string | number)[] | null
 ): string {
-  const cokZincir = secim == null || secim.length !== 1;
-  const bekleme = cokZincir
-    ? `Zincirler arası ${MANUAL_CHAIN_WAIT_SEC} sn bekleniyor. `
-    : "";
-  return `${bekleme}Tahmini bitiş: ${manualSyncEtaStamp(from, secim)}`;
+  return `Tahmini bitiş: ${manualSyncEtaStamp(from, secim)}`;
 }
 
 function sleep(ms: number) {
