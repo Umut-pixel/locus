@@ -11,6 +11,10 @@ import {
   type ReactNode,
 } from "react";
 
+import {
+  CekimAdimlari,
+  CekimOzeti,
+} from "@/components/panorama/CekimToastIcerik";
 import { useToastManager } from "@/components/ui/toast";
 import {
   PANORAMA_ZINCIRLERI,
@@ -21,7 +25,6 @@ import {
 } from "@/lib/panorama-raporlar";
 import {
   izleRaporCekimi,
-  manualSyncEtaStamp,
   writeManualSyncAt,
   type ZincirIlerlemesi,
 } from "@/lib/panorama-manual-sync";
@@ -129,16 +132,29 @@ export function RaporCekmeProvider({ children }: { children: ReactNode }) {
       // zincirler" olarak okuyor, eski davranış birebir korunsun.
       const govdeSecim = tumu ? null : anahtarlar;
 
+      const baslangic = baslangicIlerlemesi(anahtarlar);
       setRun({
         asama: "cekiliyor",
         anahtarlar,
-        ilerleme: baslangicIlerlemesi(anahtarlar),
+        ilerleme: baslangic,
         ozet: [],
         hata: null,
         basladiAt,
       });
 
-      const akis = (async () => {
+      // toast.promise yerine add + update: açıklama ReactNode kabul ettiği
+      // için adımlar çekim sürerken canlı tiklenebiliyor. promise ile
+      // açıklama sabit kalırdı.
+      const kacRapor = anahtarlar.length;
+      const toastId = toast.add({
+        type: "loading",
+        title: kacRapor === 1 ? "Rapor çekiliyor…" : `${kacRapor} rapor çekiliyor…`,
+        description: <CekimAdimlari ilerleme={baslangic} />,
+        timeout: 0,
+        priority: "low",
+      });
+
+      try {
         if (tetikle) {
           const res = await fetch("/api/sync/panorama/manual", {
             method: "POST",
@@ -155,6 +171,9 @@ export function RaporCekmeProvider({ children }: { children: ReactNode }) {
 
         await izleRaporCekimi(basladiAt, govdeSecim, (adimlar) => {
           setRun((o) => (o ? { ...o, ilerleme: adimlar } : o));
+          toast.update(toastId, {
+            description: <CekimAdimlari ilerleme={adimlar} />,
+          });
         });
 
         const ozetRes = await fetch("/api/sync/panorama/ozet", {
@@ -172,52 +191,23 @@ export function RaporCekmeProvider({ children }: { children: ReactNode }) {
         setRun((o) => (o ? { ...o, asama: "ozet", ozet: gelen } : o));
         aktifCekimiSil();
 
-        // Toast özeti tek satırda göstersin — kart zaten detayı basıyor.
-        const satir = gelen.reduce((t, r) => t + (r.satirSayisi ?? 0), 0);
-        return gelen.length === 1
-          ? `${gelen[0]!.ad} güncellendi.`
-          : `${gelen.length} rapor güncellendi, toplam ${satir.toLocaleString("tr-TR")} satır.`;
-      })();
-
-      const kacRapor = anahtarlar.length;
-      toast.promise(akis, {
-        loading: {
-          type: "loading",
-          title:
-            kacRapor === 1
-              ? "Rapor çekiliyor…"
-              : `${kacRapor} rapor çekiliyor…`,
-          description: `Arka planda sürüyor, sayfa değiştirebilirsin. Tahmini bitiş: ${manualSyncEtaStamp(
-            new Date(basladiAt),
-            anahtarlar
-          )}`,
-          timeout: 0,
-        },
-        success: (mesaj: string) => ({
+        // "Bitti" + neyin güncellendiği; birkaç saniye sonra kendi kapanıyor.
+        toast.update(toastId, {
           type: "success",
           title: "Çekim tamamlandı",
-          description: mesaj,
-          timeout: 10_000,
-        }),
-        error: (err: unknown) => {
-          const msg = err instanceof Error ? err.message : "Bilinmeyen hata";
-          setRun((o) => (o ? { ...o, asama: "hata", hata: msg } : o));
-          aktifCekimiSil();
-          return {
-            type: "error",
-            title: msg.includes("zaman aşımı")
-              ? "Çekim bitmedi"
-              : "Çekim başlatılamadı",
-            description: msg,
-            timeout: 12_000,
-          };
-        },
-      });
-
-      try {
-        await akis;
-      } catch {
-        /* durum yukarıdaki error dalında yazıldı */
+          description: <CekimOzeti raporlar={gelen} />,
+          timeout: 9_000,
+        });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "Bilinmeyen hata";
+        setRun((o) => (o ? { ...o, asama: "hata", hata: msg } : o));
+        aktifCekimiSil();
+        toast.update(toastId, {
+          type: "error",
+          title: msg.includes("zaman aşımı") ? "Çekim bitmedi" : "Çekim başlatılamadı",
+          description: msg,
+          timeout: 12_000,
+        });
       } finally {
         calisiyorRef.current = false;
       }
@@ -239,7 +229,12 @@ export function RaporCekmeProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const aktif = aktifCekimiOku();
     if (!aktif) return;
-    void yurut(aktif.anahtarlar, aktif.basladiAt, false);
+    // Bir tik ertele: mount sırasında senkron setState cascading render
+    // yaratıyor. İzleme zaten ağ tabanlı, bir tik gecikmenin etkisi yok.
+    const id = window.setTimeout(() => {
+      void yurut(aktif.anahtarlar, aktif.basladiAt, false);
+    }, 0);
+    return () => window.clearTimeout(id);
   }, [yurut]);
 
   const temizle = useCallback(() => {
