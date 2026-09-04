@@ -550,13 +550,20 @@ function SyncTile({
 
   useEffect(() => {
     if (remainingMs <= 0) return;
-    const id = window.setTimeout(() => setNow(Date.now()), Math.min(remainingMs, 30_000));
+    // Saniye gösterirken 30 sn'lik tik sayacı dondurmuş gibi gösteriyordu:
+    // son dakikada saniyede bir, öncesinde 30 sn'de bir yenile.
+    const tik = remainingMs < 60_000 ? 1_000 : 30_000;
+    const id = window.setTimeout(() => setNow(Date.now()), Math.min(remainingMs, tik));
     return () => window.clearTimeout(id);
   }, [remainingMs]);
 
+  // Cooldown artık 1 dk; dakikaya yuvarlamak hep "1 dk" gösteriyordu.
+  // Bir dakikanın altında saniye, üstünde dakika.
   const cooldownLabel =
     remainingMs > 0
-      ? `${Math.max(1, Math.ceil(remainingMs / 60_000))} dk`
+      ? remainingMs < 60_000
+        ? `${Math.max(1, Math.ceil(remainingMs / 1000))} sn`
+        : `${Math.ceil(remainingMs / 60_000)} dk`
       : null;
 
   /*

@@ -9,11 +9,14 @@ import { PANORAMA_SYNC_RUNS_TABLE, supabase } from "@/lib/supabase";
 
 export const MANUAL_SYNC_STORAGE_KEY = "locus:panorama-manual-sync-at";
 /**
- * `/api/sync/panorama/manual`'daki COOLDOWN_MS ile aynı olmalı.
- * 2026-09-04: n8n Wait düğümleri kaldırıldı, çekim ~25 dk'dan ~7-10 dk'ya
- * düştü; eski 60 dk'lık cooldown bu hıza göre kısaltıldı.
+ * `/api/sync/panorama/manual`'daki COOLDOWN_MS ile **aynı olmalı** — arayüz
+ * sayacı bunu okur, sunucu kendi sabitiyle karar verir. İkisi ayrışırsa
+ * düğme "hazır" görünürken sunucu 429 döner.
+ *
+ * 2026-09-04: 60 dk → 1 dk. Wait düğümleri kaldırıldıktan sonra tek rapor
+ * çekimi 35 sn-2 dk sürüyor; eski değer tekrar denemeyi tamamen kilitliyordu.
  */
-export const MANUAL_SYNC_COOLDOWN_MS = 10 * 60 * 1000;
+export const MANUAL_SYNC_COOLDOWN_MS = 60 * 1000;
 
 /** Son manuel çekim damgası — cooldown sayacı bunu okur. */
 export function writeManualSyncAt(at: number) {

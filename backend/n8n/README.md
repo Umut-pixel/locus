@@ -17,32 +17,40 @@ parolasıyla commit edildi ve herkese açık depoya push edildi. `service_role`
 tüm RLS politikalarını atlar — sızdığında veritabanının tamamı okunup
 yazılabilir hale gelir. İkisi de 2026-08-22'de döndürüldü/temizlendi.
 
-## Daha iyisi: n8n değişkenleri
+## Mevcut durum (2026-09-04) — dosyada GERÇEK kimlik bilgileri var
 
-Inline değer yerine n8n'in kendi değişkenlerini kullan; böylece dışa
-aktarılan JSON'da sır hiç bulunmaz:
+Yukarıdaki kural hâlâ doğru hedeftir, ama **şu an uygulanmıyor.** Dosya
+gerçek `panoramaPass` ve gerçek `supabaseServiceRoleKey` değerlerini düz
+metin taşıyor.
+
+**Neden böyle:** 2026-09-03'te bu alanlar `{{ $vars.… }}` ifadeleriyle
+değiştirildi, ama karşılık gelen n8n değişkenleri **hiç oluşturulmamıştı**.
+Sonuç: `Login *` düğümleri "Config.panoramaUser / panoramaPass gerekli"
+hatasıyla patladı, tüm zincirler durdu. Çalışan sürüme geri dönüldü ve
+otomasyon özellikleri o sürümün üzerine yeniden eklendi.
+
+**Ders:** Çalışan bir kimlik bilgisini değişken referansına çevirmeden önce
+değişkenin n8n'de **var olduğunu doğrula ve bir çekim testi yap.** Sıra:
+önce değişkeni oluştur → tek zincirle test et → sonra dosyayı temizle.
+
+Temizliğe dönmek istediğinde:
 
 ```
 {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}
-{{ $vars['patigo-login'] }}
+{{ $vars.PANORAMA_PASS }}
 ```
 
 n8n'de: Settings → Variables. Self-hosted'da `N8N_VARIABLES_*` ortam
-değişkenleriyle de beslenebilir. `patigo-login` adında tire var — nokta
-gösterimi (`$vars.patigo-login`) geçersiz JS olur, köşeli parantez şart.
+değişkenleriyle de beslenebilir. Değişken adında tire varsa
+(`$vars['ad-tireli']`) köşeli parantez şart — nokta gösterimi geçersiz JS olur.
 
-**2026-09-03'te uygulandı.** `Panorama Otomasyon (9).json` içindeki sekiz
-`Config*` düğümünün `supabaseServiceRoleKey` ve `panoramaPass` alanları artık
-gerçek değer değil, `{{ $vars.SUPABASE_SERVICE_ROLE_KEY }}` /
-`{{ $vars['patigo-login'] }}` ifadeleri taşıyor (gerçek değerler ikinci kez
-commit edilmişti). Değişken adı `patigo-login` — n8n'de zaten bu isimle
-tanımlıydı, yeni bir isim uydurmak yerine ona bağlandı.
+`Login *` düğümleri ayrıca `$env.PANORAMA_PASS` / `$env.PANORAMA_USER`
+yedeğini de okuyor (kod satır 3-4), yani Config alanını boşaltmak yerine
+ortam değişkeni de kullanılabilir.
 
-⚠️ **İçe aktarmadan önce** n8n → Settings → Variables altında
-`SUPABASE_SERVICE_ROLE_KEY` ve `patigo-login` tanımlı olduğunu doğrulayın;
-`patigo-login` yoksa import edilen workflow login olamaz.
-⚠️ Anahtar döndürme ayrı iş: depo herkese açık push edildiyse dosyayı
-temizlemek yetmez, git geçmişi değeri saklar.
+⚠️ Anahtar döndürme ayrı iş: bu değerler git geçmişinde zaten duruyor
+(`098b118` ve öncesi). Dosyayı temizlemek yetmez — gerçek çözüm anahtarı
+Supabase ve Panorama tarafında döndürmek.
 
 ## Manuel sync (ana sayfa “Şimdi çek”)
 
@@ -163,4 +171,8 @@ eşleşmeli; ana sayfadaki “Sonraki: …” damgası oradan üretiliyor.
 grep -nE "eyJhbGciO|\"panoramaPass\": \"[^<]" backend/n8n/*.json
 ```
 
-Çıktı boş olmalı.
+⚠️ **Şu an bu komut ÇIKTI VERİR** — dosya bilerek gerçek kimlik bilgileri
+taşıyor (bkz. "Mevcut durum" bölümü). Yukarıdaki "çıktı boş olmalı" hedefi,
+n8n değişkenleri kurulup bir çekim testiyle doğrulandıktan sonra geçerli
+olacak. O zamana kadar bu kontrol yalnız *başka* bir sır türü sızmış mı diye
+bakmak için kullanılabilir.

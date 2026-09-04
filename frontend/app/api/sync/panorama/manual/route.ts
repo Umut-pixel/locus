@@ -12,12 +12,17 @@ export const runtime = "nodejs";
 export const maxDuration = 30;
 
 /**
- * 2026-09-04: n8n'deki Wait dugumleri kaldirildi, "Hepsi" cekimi ~25 dk'dan
- * ~7-10 dk'ya dustu (bkz. backend/n8n/README.md). Cooldown de 60 dk'dan bu
- * yeni hiza gore kisaltildi -- eski deger Wait'li donemden kalmisti ve test/
- * tekrar deneme akisini gereksiz yere kilitliyordu.
+ * Ayni raporu art arda cekmeye karsi ince bir emniyet supabi -- 1 dakika.
+ *
+ * 2026-09-04: n8n'deki Wait dugumleri kaldirildi, tek rapor cekimi 35 sn-2 dk
+ * suruyor (bkz. backend/n8n/README.md). Eski 60 dk'lik deger Wait'li donemden
+ * kalmaydi ve panelde "Son cekimden bu yana 60 dakika dolmadi" hatasiyla
+ * tekrar denemeyi tamamen kilitliyordu.
+ *
+ * Bu deger degisirse `lib/panorama-manual-sync.ts` icindeki
+ * MANUAL_SYNC_COOLDOWN_MS de ayni olmali (arayuz sayaci onu okuyor).
  */
-const COOLDOWN_MS = 10 * 60 * 1000;
+const COOLDOWN_MS = 60 * 1000;
 /**
  * n8n zincirlerinde Create Sync Run ile Complete Sync Run arasinda hicbir
  * Wait node yok; olculen en uzun gercek pencere 108 sn (rapor 5450). Zincir
@@ -154,9 +159,11 @@ export async function POST(request: Request) {
       const elapsed = Date.now() - lastAt;
       if (elapsed < COOLDOWN_MS) {
         const retryAfterSec = Math.ceil((COOLDOWN_MS - elapsed) / 1000);
+        // Mesaj COOLDOWN_MS'ten TURETILIYOR. Eskiden "60 dakika" sabit
+        // yazilmisti; sabit kisaltilinca metin yalan soylemeye basladi.
         return NextResponse.json(
           {
-            error: "Son çekimden bu yana 60 dakika dolmadı.",
+            error: `Bu rapor az önce çekildi. ${retryAfterSec} saniye sonra tekrar deneyin.`,
             retryAfterSec,
           },
           {
