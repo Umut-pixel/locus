@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertCircleIcon,
   CheckIcon,
@@ -14,9 +15,18 @@ import {
   CollapsiblePanel,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { useRaporCekme, secimEtiketi } from "@/hooks/useRaporCekme";
+import {
+  anahtarlariCoz,
+  secimEtiketi,
+  secimSuresiSn,
+  useRaporCekme,
+} from "@/hooks/useRaporCekme";
 import { formatCurrency, formatNumber } from "@/lib/format";
-import type { RaporMetrigi, RaporOzeti } from "@/lib/panorama-raporlar";
+import {
+  PANORAMA_ZINCIRLERI,
+  type RaporMetrigi,
+  type RaporOzeti,
+} from "@/lib/panorama-raporlar";
 import type { ZincirIlerlemesi } from "@/lib/panorama-manual-sync";
 import { cn } from "@/lib/utils";
 
@@ -137,8 +147,9 @@ function OzetKarti({ rapor }: { rapor: RaporOzeti }) {
  * Rapor çekme paneli — seçim → çekim → özet.
  *
  * Sohbetteki kart ve ana sayfadaki "Şimdi çek" düğmesi aynı bileşeni
- * kullanır. Çekim başlayınca uzun seçim listesi tek satırlık bir kutuya
- * iner; bitince ilerleme katlanır ve yerini içerik özeti alır.
+ * kullanır. Seçim kutucukları YEREL (her panelin kendi taslağı), ama çekim
+ * başladığı an iş `RaporCekmeProvider`'a devredilir: aynı anda tek çekim
+ * olabilir ve sayfa değişse bile ilerleme/özet kaybolmaz.
  */
 export function RaporCekmePaneli({
   baslik = "Hangi raporlar çekilsin?",
@@ -151,153 +162,222 @@ export function RaporCekmePaneli({
   onBitti?: (ozet: RaporOzeti[]) => void;
   className?: string;
 }) {
-  const c = useRaporCekme({ onSecili, onBitti });
+  const { run, calisiyor, basla, temizle } = useRaporCekme();
+  const [secili, setSecili] = useState<Set<string>>(
+    () => new Set(onSecili ?? [])
+  );
 
-  if (c.asama === "secim") {
-    return (
-      <div className={cn("w-full overflow-hidden rounded-[12px] border border-line bg-card", className)}>
-        <div className="flex items-baseline gap-2 px-3 pt-3 pb-2">
-          <span className="text-[13px] font-medium text-ink">{baslik}</span>
-          <span className="ml-auto text-[11.5px] tabular-nums text-ink-3">
-            {c.hicbiri ? "seçim yok" : `${c.secili.size} seçili · ${sureMetni(c.tahminiSn)}`}
-          </span>
-        </div>
+  const zincirler = PANORAMA_ZINCIRLERI;
+  const hepsi = secili.size === zincirler.length;
+  const hicbiri = secili.size === 0;
 
-        {/* Liste kaydırılır: 7 raporun hepsini birden basmak kartı uzatıyordu. */}
-        <div className="max-h-[13.5rem] overflow-y-auto border-t border-line agent-table-scroll">
-          <button
-            type="button"
-            onClick={c.hepsiniDegistir}
-            className="flex w-full items-center gap-2.5 px-3 py-2 text-left transition-colors hover:bg-hover"
-          >
-            <Kutu isaretli={c.hepsi} />
-            <span className="text-[12.5px] font-medium text-ink">Hepsi</span>
-            <span className="ml-auto text-[11px] text-ink-3">{c.zincirler.length} rapor</span>
-          </button>
+  const tahminiSn = useMemo(
+    () => secimSuresiSn(zincirler.filter((z) => secili.has(z.anahtar))),
+    [zincirler, secili]
+  );
 
-          {c.zincirler.map((z) => {
-            const isaretli = c.secili.has(z.anahtar);
-            return (
-              <button
-                key={z.anahtar}
-                type="button"
-                onClick={() => c.degistir(z.anahtar)}
-                aria-pressed={isaretli}
-                className={cn(
-                  "flex w-full items-start gap-2.5 border-t border-line px-3 py-2 text-left transition-colors hover:bg-hover",
-                  isaretli && "bg-hover-2"
-                )}
-              >
-                <span className="pt-0.5">
-                  <Kutu isaretli={isaretli} />
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="flex items-baseline gap-2">
-                    <span className="min-w-0 flex-1 truncate text-[12.5px] leading-5 text-ink">
-                      {z.ad}
-                    </span>
-                    <span className="shrink-0 text-[11px] tabular-nums text-ink-3">
-                      {sureMetni(z.tahminiSn)}
-                    </span>
-                  </span>
-                  <span className="mt-0.5 block text-[11.5px] leading-4 text-ink-3">
-                    {z.aciklama}
-                  </span>
-                </span>
-              </button>
-            );
-          })}
-        </div>
+  const calisanZincirler = useMemo(
+    () => (run ? anahtarlariCoz(run.anahtarlar) : []),
+    [run]
+  );
+  const bitenSayisi = run?.ilerleme.filter((i) => i.durum === "bitti").length ?? 0;
 
-        <div className="flex items-center gap-2 border-t border-line px-3 py-2.5">
-          <Button size="sm" onClick={() => void c.basla()} disabled={c.hicbiri}>
-            Çek
-          </Button>
-          <span className="text-[11.5px] text-ink-3">
-            Panorama&apos;dan canlı çekilir.
-          </span>
-        </div>
-      </div>
-    );
+  // Çekim artık provider'da bittiği için `onBitti`'yi burada tetikliyoruz.
+  // basladiAt'e bakarak her çekim için bir kez: aynı özet iki panelde
+  // açıkken de tekrar tekrar bildirmesin.
+  const bildirildiRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (run?.asama !== "ozet") return;
+    if (bildirildiRef.current === run.basladiAt) return;
+    bildirildiRef.current = run.basladiAt;
+    onBitti?.(run.ozet);
+  }, [run, onBitti]);
+
+  function degistir(anahtar: string) {
+    if (calisiyor) return;
+    setSecili((o) => {
+      const s = new Set(o);
+      if (s.has(anahtar)) s.delete(anahtar);
+      else s.add(anahtar);
+      return s;
+    });
   }
 
-  if (c.asama === "cekiliyor") {
+  function hepsiniDegistir() {
+    if (calisiyor) return;
+    setSecili(hepsi ? new Set() : new Set(zincirler.map((z) => z.anahtar)));
+  }
+
+  async function calistir() {
+    if (hicbiri || calisiyor) return;
+    await basla([...secili]);
+  }
+
+  // --- Çekim sürüyor ---------------------------------------------------
+  if (run?.asama === "cekiliyor") {
     return (
       <div className={cn("w-full", className)}>
         <SecimKutusu
-          etiket={secimEtiketi(c.secilenZincirler, c.zincirler.length)}
+          etiket={secimEtiketi(calisanZincirler, zincirler.length)}
           sag={
             <span className="flex shrink-0 items-center gap-1.5 text-[11.5px] tabular-nums text-ink-3">
               <LoaderIcon className="size-3 animate-spin" />
-              {c.bitenSayisi}/{c.ilerleme.length}
+              {bitenSayisi}/{run.ilerleme.length}
             </span>
           }
         />
         <ul className="mt-1.5 px-1">
-          {c.ilerleme.map((a) => (
+          {run.ilerleme.map((a) => (
             <IlerlemeSatiri key={a.anahtar} adim={a} />
           ))}
         </ul>
+        <p className="mt-1 px-1 text-[11.5px] text-ink-3">
+          Arka planda sürüyor — başka sayfaya geçebilirsin.
+        </p>
       </div>
     );
   }
 
-  if (c.asama === "hata") {
+  // --- Hata ------------------------------------------------------------
+  if (run?.asama === "hata") {
     return (
       <div className={cn("w-full", className)}>
-        <SecimKutusu etiket={secimEtiketi(c.secilenZincirler, c.zincirler.length)} />
+        <SecimKutusu etiket={secimEtiketi(calisanZincirler, zincirler.length)} />
         <p className="mt-1.5 flex items-start gap-1.5 px-1 text-[12px] text-destructive">
           <AlertCircleIcon className="mt-0.5 size-3.5 shrink-0" />
-          <span>{c.hata}</span>
+          <span>{run.hata}</span>
         </p>
-        <Button size="sm" variant="outline" className="mt-2" onClick={c.sifirla}>
+        <Button size="sm" variant="outline" className="mt-2" onClick={temizle}>
           Yeniden dene
         </Button>
       </div>
     );
   }
 
-  // Özet: ilerleme listesi katlanır, yerini içerik özeti alır.
-  const hatali = c.ozet.filter((r) => r.hata).length;
-  return (
-    <div className={cn("w-full", className)}>
-      <SecimKutusu
-        etiket={secimEtiketi(c.secilenZincirler, c.zincirler.length)}
-        sag={
-          <span className="flex shrink-0 items-center gap-1 text-[11.5px] text-ink-green">
-            <CheckIcon className="size-3" strokeWidth={3} />
-            çekildi
-          </span>
-        }
-      />
+  // --- Özet ------------------------------------------------------------
+  if (run?.asama === "ozet") {
+    const hatali = run.ozet.filter((r) => r.hata).length;
+    return (
+      <div className={cn("w-full", className)}>
+        <SecimKutusu
+          etiket={secimEtiketi(calisanZincirler, zincirler.length)}
+          sag={
+            <span className="flex shrink-0 items-center gap-1 text-[11.5px] text-ink-green">
+              <CheckIcon className="size-3" strokeWidth={3} />
+              çekildi
+            </span>
+          }
+        />
 
-      <div className="mt-2 overflow-hidden rounded-[12px] border border-line bg-card">
-        <ul>
-          {c.ozet.map((r) => (
-            <OzetKarti key={r.anahtar} rapor={r} />
-          ))}
-        </ul>
-      </div>
-
-      {hatali > 0 ? (
-        <p className="mt-1.5 px-1 text-[11.5px] text-ink-orange">
-          {hatali} rapor hatayla bitti — n8n execution loguna bakın.
-        </p>
-      ) : null}
-
-      <Collapsible defaultOpen={false} className="mt-1">
-        <CollapsibleTrigger className="group flex h-7 items-center gap-1 rounded-[6px] px-1 text-[11.5px] text-ink-3 outline-none transition-colors hover:bg-hover-2 hover:text-ink-2">
-          <ChevronRightIcon className="size-3 shrink-0 transition-transform duration-200 group-data-[panel-open]:rotate-90" />
-          <span>Çekim adımları</span>
-        </CollapsibleTrigger>
-        <CollapsiblePanel>
-          <ul className="px-1 pb-1">
-            {c.ilerleme.map((a) => (
-              <IlerlemeSatiri key={a.anahtar} adim={a} />
+        <div className="mt-2 overflow-hidden rounded-[12px] border border-line bg-card">
+          <ul>
+            {run.ozet.map((r) => (
+              <OzetKarti key={r.anahtar} rapor={r} />
             ))}
           </ul>
-        </CollapsiblePanel>
-      </Collapsible>
+        </div>
+
+        {hatali > 0 ? (
+          <p className="mt-1.5 px-1 text-[11.5px] text-ink-orange">
+            {hatali} rapor hatayla bitti — n8n execution loguna bakın.
+          </p>
+        ) : null}
+
+        <div className="mt-1 flex items-center gap-1">
+          <Collapsible defaultOpen={false}>
+            <CollapsibleTrigger className="group flex h-7 items-center gap-1 rounded-[6px] px-1 text-[11.5px] text-ink-3 outline-none transition-colors hover:bg-hover-2 hover:text-ink-2">
+              <ChevronRightIcon className="size-3 shrink-0 transition-transform duration-200 group-data-[panel-open]:rotate-90" />
+              <span>Çekim adımları</span>
+            </CollapsibleTrigger>
+            <CollapsiblePanel>
+              <ul className="px-1 pb-1">
+                {run.ilerleme.map((a) => (
+                  <IlerlemeSatiri key={a.anahtar} adim={a} />
+                ))}
+              </ul>
+            </CollapsiblePanel>
+          </Collapsible>
+          <button
+            type="button"
+            onClick={temizle}
+            className="ml-auto h-7 rounded-[6px] px-2 text-[11.5px] text-ink-3 transition-colors hover:bg-hover-2 hover:text-ink-2"
+          >
+            Yeni çekim
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // --- Seçim -----------------------------------------------------------
+  return (
+    <div
+      className={cn(
+        "w-full overflow-hidden rounded-[12px] border border-line bg-card",
+        className
+      )}
+    >
+      <div className="flex items-baseline gap-2 px-3 pt-3 pb-2">
+        <span className="text-[13px] font-medium text-ink">{baslik}</span>
+        <span className="ml-auto text-[11.5px] tabular-nums text-ink-3">
+          {hicbiri ? "seçim yok" : `${secili.size} seçili · ${sureMetni(tahminiSn)}`}
+        </span>
+      </div>
+
+      {/* Liste kaydırılır: 7 raporun hepsini birden basmak kartı uzatıyordu. */}
+      <div className="agent-table-scroll max-h-[13.5rem] overflow-y-auto border-t border-line">
+        <button
+          type="button"
+          onClick={hepsiniDegistir}
+          className="flex w-full items-center gap-2.5 px-3 py-2 text-left transition-colors hover:bg-hover"
+        >
+          <Kutu isaretli={hepsi} />
+          <span className="text-[12.5px] font-medium text-ink">Hepsi</span>
+          <span className="ml-auto text-[11px] text-ink-3">{zincirler.length} rapor</span>
+        </button>
+
+        {zincirler.map((z) => {
+          const isaretli = secili.has(z.anahtar);
+          return (
+            <button
+              key={z.anahtar}
+              type="button"
+              onClick={() => degistir(z.anahtar)}
+              aria-pressed={isaretli}
+              className={cn(
+                "flex w-full items-start gap-2.5 border-t border-line px-3 py-2 text-left transition-colors hover:bg-hover",
+                isaretli && "bg-hover-2"
+              )}
+            >
+              <span className="pt-0.5">
+                <Kutu isaretli={isaretli} />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="flex items-baseline gap-2">
+                  <span className="min-w-0 flex-1 truncate text-[12.5px] leading-5 text-ink">
+                    {z.ad}
+                  </span>
+                  <span className="shrink-0 text-[11px] tabular-nums text-ink-3">
+                    {sureMetni(z.tahminiSn)}
+                  </span>
+                </span>
+                <span className="mt-0.5 block text-[11.5px] leading-4 text-ink-3">
+                  {z.aciklama}
+                </span>
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="flex items-center gap-2 border-t border-line px-3 py-2.5">
+        <Button size="sm" onClick={() => void calistir()} disabled={hicbiri}>
+          Çek
+        </Button>
+        <span className="text-[11.5px] text-ink-3">
+          Panorama&apos;dan canlı çekilir, arka planda sürer.
+        </span>
+      </div>
     </div>
   );
 }

@@ -15,6 +15,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { RaporCekmePaneli } from "@/components/panorama/RaporCekmePaneli";
+import { useRaporCekme } from "@/hooks/useRaporCekme";
 import {
   useHomeOverview,
   type HomeDurumSlice,
@@ -538,6 +539,7 @@ function SyncTile({
   error: string | null;
   pending: boolean;
 }) {
+  const { run, calisiyor } = useRaporCekme();
   const [now, setNow] = useState(() => Date.now());
   const [manualAt, setManualAt] = useState(0);
   const [acik, setAcik] = useState(false);
@@ -546,7 +548,11 @@ function SyncTile({
     setManualAt(readManualSyncAt());
   }, []);
 
-  const remainingMs = cooldownLeftMs(manualAt, now);
+  // Çekim başka bir sayfadan ya da sohbetten başlatılmış olabilir; o zaman
+  // damga provider'dan gelir. İkisinin en yenisi geçerli sayılır — böylece
+  // effect ile state kopyalamaya gerek kalmıyor.
+  const etkinManualAt = Math.max(manualAt, run?.basladiAt ?? 0);
+  const remainingMs = cooldownLeftMs(etkinManualAt, now);
 
   useEffect(() => {
     if (remainingMs <= 0) return;
@@ -588,7 +594,7 @@ function SyncTile({
         setAcik(true);
       }}
     >
-      {remainingMs > 0 ? `Çek (${cooldownLabel})` : "Şimdi çek"}
+      {calisiyor ? "Çekiliyor…" : remainingMs > 0 ? `Çek (${cooldownLabel})` : "Şimdi çek"}
     </Button>
   ) : null;
 
