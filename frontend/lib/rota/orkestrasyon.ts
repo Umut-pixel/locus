@@ -22,6 +22,7 @@ import {
 } from "@/lib/rota/atama";
 import { MAX_ARA_DURAK, siraOptimizeEt } from "@/lib/rota/google-routes";
 import { sonrakiKalkis } from "@/lib/rota/operasyon";
+import { bolgele, type Bolge } from "@/lib/rota/bolge";
 import { planOlustur } from "@/lib/rota/planla";
 import { VARSAYILAN_TERCIHLER, type Strateji } from "@/lib/rota/tercihler";
 import { rotaVerisiCek, type RotaAraci, type RotaDuragi } from "@/lib/rota/veri";
@@ -34,6 +35,8 @@ export interface TaslakDurak {
   lat: number | null;
   lon: number | null;
   ilce: string | null;
+  /** Durağın coğrafi bölgesi — sohbette "hangi bölgeye gidiyor" cevabı için. */
+  bolge: string | null;
 }
 
 export interface TaslakPlan {
@@ -42,6 +45,8 @@ export interface TaslakPlan {
   soforKod: string | null;
   soforAd: string | null;
   duraklar: TaslakDurak[];
+  /** Bu aracın gittiği bölgeler — turun tek satırlık özeti. */
+  bolgeler: string[];
   kgDoluluk: number | null;
   cuvalDoluluk: number | null;
   googleSureSn: number | null;
@@ -85,7 +90,7 @@ function bugunIstanbul(): string {
   }).format(new Date());
 }
 
-function taslakDurak(d: RotaDuragi): TaslakDurak {
+function taslakDurak(d: RotaDuragi, bolge: string | null): TaslakDurak {
   return {
     musteriKodu: d.musteriKodu,
     unvan: d.unvan,
@@ -94,6 +99,7 @@ function taslakDurak(d: RotaDuragi): TaslakDurak {
     lat: d.lat,
     lon: d.lon,
     ilce: d.ilce,
+    bolge,
   };
 }
 
@@ -221,6 +227,19 @@ export async function otomatikPlanKur(
     uzakAyir,
   });
 
+  // Bölge adları taslağa yazılıyor: sohbetteki plan "Isuzu 3D — Balıkesir
+  // hattı, 13 durak" diyebilsin. Motorla AYNI eşikle kümeleniyor, yoksa
+  // ekranda ve sohbette farklı bölgeler görünürdü.
+  const enKucukCuval = cikan.length > 0
+    ? Math.min(...cikan.map((a) => a.cuvalKapasite))
+    : 0;
+  const bolgeHaritasi = new Map<string, Bolge>();
+  for (const b of bolgele(duraklar, DEPOT, {
+    birlestirmeEsigiCuval: enKucukCuval * 0.25,
+  })) {
+    for (const d of b.duraklar) bolgeHaritasi.set(d.musteriKodu, b);
+  }
+
   // Trafik tahmini kalkış saatine göre yapılır. "Şimdi" göndermek akşam
   // yapılan planlamada yanlış süre üretiyordu.
   const kalkis = sonrakiKalkis().toISOString();
@@ -255,7 +274,16 @@ export async function otomatikPlanKur(
       // kayıt. Ad dondurularak yazılıyor ki kadro değişse de kalsın.
       soforKod: sofor?.kod ?? null,
       soforAd: sofor?.ad ?? null,
-      duraklar: sirali.map(taslakDurak),
+      duraklar: sirali.map((d) =>
+        taslakDurak(d, bolgeHaritasi.get(d.musteriKodu)?.ad ?? null)
+      ),
+      bolgeler: [
+        ...new Set(
+          sirali
+            .map((d) => bolgeHaritasi.get(d.musteriKodu)?.ad)
+            .filter((a): a is string => a != null)
+        ),
+      ],
       kgDoluluk: doluluk.kgYuzde,
       cuvalDoluluk: doluluk.cuvalYuzde,
       googleSureSn: saniye,

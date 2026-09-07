@@ -21,6 +21,18 @@ description: Sevkiyat, teslimat, rut, plaka/araç ve bekleyen sipariş soruları
 
 ## Rut performansı
 
+> **`rut_kod` bir SEVKİYAT ROTASI DEĞİL.** Satış temsilcisinin ziyaret
+> portföyü. 2026-09-01'de ölçüldü: gün tutarlılığı %10-36 (ort. %18), rutun
+> `ziyaret_sira` alanını takip eden yol TSP alt sınırının 4,5-37 katı. Melih de
+> "o öylesine yapılmış bir rut, dikkate almayalım" dedi. Aşağıdaki sorgu
+> **segmentasyon** ve "bu müşteriden kim sorumlu" içindir; rota/durak sırası
+> için KULLANMA.
+>
+> Teslimat rotası sorularında bölge kümelemesi kullanılır — duraklar
+> koordinattan yeniden gruplanır (ilçe → mesafe bandı → yön sektörü).
+> Uygulamadaki karşılığı `frontend/lib/rota/bolge.ts`; plan kurma
+> `/api/rota/otomatik`, taslakta her araç için `bolgeler` listesi döner.
+
 ```sql
 SELECT rut_kod, rut_aciklama,
        COUNT(*)                    AS musteri_sayisi,

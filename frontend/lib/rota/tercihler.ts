@@ -6,7 +6,7 @@
  */
 
 /** Durakları araçlara dağıtma yöntemi. */
-export type Strateji = "sweep" | "ffd";
+export type Strateji = "bolge" | "sweep" | "ffd";
 
 export interface Tercihler {
   /**
@@ -31,7 +31,7 @@ export interface Tercihler {
  */
 export const VARSAYILAN_TERCIHLER: Tercihler = Object.freeze({
   gunPenceresi: null,
-  strateji: "sweep",
+  strateji: "bolge",
   dolulukEsigi: 70,
   uzakAyir: false,
   aracKodlari: null,
@@ -51,6 +51,12 @@ export const STRATEJILER: ReadonlyArray<{
   etiket: string;
   aciklama: string;
 }> = [
+  {
+    deger: "bolge",
+    etiket: "Bölge",
+    aciklama:
+      "Önce coğrafi bölge kurar, sonra bölgeye araç seçer — bir ilçe tek araçta kalır, uzak hat kendi aracına biner.",
+  },
   {
     deger: "sweep",
     etiket: "Coğrafi",
@@ -79,7 +85,12 @@ export function tercihleriTemizle(ham: unknown): Tercihler {
 
   return {
     gunPenceresi: sayiVeyaNull(o.gunPenceresi),
-    strateji: o.strateji === "ffd" ? "ffd" : "sweep",
+    // Eski kayıttaki seçim aynen korunur; yalnız tanımsız/bozuk değer
+    // varsayılana (bölge) düşer — kullanıcının seçimi sessizce değişmesin.
+    strateji:
+      o.strateji === "ffd" || o.strateji === "sweep" || o.strateji === "bolge"
+        ? o.strateji
+        : VARSAYILAN_TERCIHLER.strateji,
     dolulukEsigi:
       Number.isFinite(esik) && esik >= 0 && esik <= 100
         ? esik

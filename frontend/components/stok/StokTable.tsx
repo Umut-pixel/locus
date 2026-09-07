@@ -26,8 +26,8 @@ interface StokTableProps {
   onSortChange: (sort: StokSort) => void;
   /** Yüklü SKT dosyasından gelen özetler. */
   sktOzetleri: Map<string, UrunSktOzeti>;
-  /** Hangi dosya yüklü — "kayıt dışı" açıklaması doğru dosyayı işaret etsin. */
-  sktKaynak: SktKaynak | null;
+  /** Hangi dosya(lar) yüklü — "kayıt dışı" açıklaması doğru dosyayı işaret etsin. */
+  sktKaynak: SktKaynak | "karisik" | null;
   sktLoading: boolean;
 }
 
@@ -84,7 +84,9 @@ export function StokTable({
                 title={
                   sktKaynak === "depo_sayim"
                     ? "Depo sayım föyünden gelen en yakın son kullanma tarihi. Panorama'dan gelmez — Veri Yükle ile tazelenir."
-                    : "Fabrika alış raporundan gelen en yakın son kullanma tarihi. Panorama'dan gelmez — Veri Yükle ile tazelenir."
+                    : sktKaynak === "karisik"
+                      ? "En yakın son kullanma tarihi. Föyde geçen ürünlerde depo sayımı, geçmeyenlerde fabrika alış dosyası kullanılır. Panorama'dan gelmez — Veri Yükle ile tazelenir."
+                      : "Fabrika alış raporundan gelen en yakın son kullanma tarihi. Panorama'dan gelmez — Veri Yükle ile tazelenir."
                 }
               >
                 En yakın SKT

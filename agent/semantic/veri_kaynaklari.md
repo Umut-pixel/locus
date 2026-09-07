@@ -24,7 +24,10 @@ Müşteri bazlı, tek satır = tek müşteri. Çoğu soru buradan cevaplanır.
 
 **Kimlik:** `musteri_kodu` (PK), `unvan`, `sehir`, `ilce`, `adres`, `lat`, `lon`
 **Segment:** `musteri_grubu`, `durum`, `belge_st_adi` (temsilci)
-**Rut:** `rut_kod`, `rut_aciklama`, `ziyaret_sira`
+**Rut:** `rut_kod`, `rut_aciklama`, `ziyaret_sira` — **satış portföyü, rota
+  DEĞİL** (gün tutarlılığı %18, `ziyaret_sira` TSP alt sınırının 4,5-37 katı).
+  Segmentasyon ve "kim sorumlu" için kullan; teslimat rotasında kullanma —
+  orada duraklar koordinattan bölgelere kümeleniyor (`lib/rota/bolge.ts`).
 **Teslimat:** `son_teslimat_tarihi`, `ilk_teslimat_tarihi`, `toplam_teslimat_sayisi`,
   `toplam_agirlik`, `toplam_tutar`, `son_teslimattan_gecen_gun`, `risk_durumu`
 **Borç:** `hf_01_06`…`hf_70_ustu`, `yas_toplam`, `yas_riskli_tutar`, `borc_riskli`, `yas_st`

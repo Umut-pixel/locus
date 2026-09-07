@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   CheckIcon,
@@ -13,6 +13,7 @@ import {
   Undo2Icon,
 } from "lucide-react";
 
+import { BolgeOzeti } from "@/components/rota/BolgeOzeti";
 import { DurakHavuzu } from "@/components/rota/DurakHavuzu";
 import { EtkiPaneli } from "@/components/rota/EtkiPaneli";
 import { FiloKadroPaneli } from "@/components/rota/FiloKadroPaneli";
@@ -35,12 +36,16 @@ import {
   type RotaAraci,
   type RotaDuragi,
 } from "@/hooks/useRotaPlani";
-import { DEPOT, googleMapsDirUrl } from "@/lib/depot";
+import { DEPOT, depoyaKm, googleMapsDirUrl } from "@/lib/depot";
 import { formatKg, formatNumber } from "@/lib/format";
 import { dolulukHesapla } from "@/lib/rota/atama";
+import type { Bolge } from "@/lib/rota/bolge";
 import { cn } from "@/lib/utils";
 
 import { useRotaPlaniBaglami } from "./RotaPlaniProvider";
+
+/** Bir araçtaki en yakın-en uzak durak farkı bu km'yi geçerse uyarı verilir. */
+const YAYILIM_UYARI_KM = 150;
 
 /**
  * Rota planlama — bento ana sayfa.
@@ -64,6 +69,8 @@ export default function RotalarPage() {
     tercihDegis,
     havuz,
     atananSayisi,
+    bolgeler,
+    durakBolgesi,
     aracDuraklari,
     rotalar,
     seciliArac,
@@ -78,6 +85,15 @@ export default function RotalarPage() {
     kaydediliyor,
     kayitDurumu,
   } = useRotaPlaniBaglami();
+
+  /** musteriKodu → araç adı; bölge özeti hangi bölgeye kim gidiyor diye sorar. */
+  const durakAraci = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const a of cikanAraclar) {
+      for (const d of aracDuraklari(a.kod)) m.set(d.musteriKodu, a.ad);
+    }
+    return m;
+  }, [cikanAraclar, aracDuraklari]);
 
   const [filoPaneliAcik, setFiloPaneliAcik] = useState(false);
   /** Planlama = üzerinde çalışılan taslak, Kaydedilenler = dondurulmuş geçmiş. */
@@ -252,8 +268,21 @@ export default function RotalarPage() {
                 seciliAracAdi={seciliAracAdi}
                 onDurakEkle={durakEkle}
                 loading={loading}
+                durakBolgesi={durakBolgesi}
               />
             </section>
+            {/*
+              Araç kartları "bu araçta ne var" der; burada tersi soruluyor:
+              "bu bölgeye kim gidiyor, bölündü mü". Bölünmüş bölge sahada aynı
+              ilçeye iki kez gitmek demek, görünmezse fark edilmiyor.
+            */}
+            <div className="h-[18rem] min-w-0">
+              <BolgeOzeti
+                bolgeler={bolgeler}
+                durakAraci={durakAraci}
+                loading={loading}
+              />
+            </div>
           </div>
 
           {/* Sağ: araç bento kartları */}
@@ -277,6 +306,7 @@ export default function RotalarPage() {
                     cikiyor={cikanKodSeti.has(a.kod)}
                     soforsuz={elenenKodSeti.has(a.kod)}
                     secili={seciliArac === a.kod}
+                    durakBolgesi={durakBolgesi}
                     onDurakCikar={durakCikar}
                     onSec={() =>
                       setSeciliArac(seciliArac === a.kod ? null : a.kod)
@@ -401,11 +431,14 @@ function AracBentoKarti({
   secili,
   onDurakCikar,
   onSec,
+  durakBolgesi,
 }: {
   arac: RotaAraci;
   duraklar: RotaDuragi[];
   soforAdi: string | null;
   dolulukEsigi: number;
+  /** musteriKodu → bölge; kart hangi bölgeleri taşıdığını gösterir. */
+  durakBolgesi: Map<string, Bolge>;
   /** Bugün çıkabiliyor mu — çıkamıyorsa kart soluk ve bırakma hedefi değil. */
   cikiyor: boolean;
   /** Seçili ama şoför yetmediği için elendi. */
@@ -424,6 +457,28 @@ function AracBentoKarti({
     ? (doluluk.kgYuzde ?? doluluk.cuvalYuzde)
     : doluluk.cuvalYuzde;
   const dusuk = duraklar.length > 0 && !doluluk.asim && yuzde < dolulukEsigi;
+
+  /** Bu araç hangi bölgeleri taşıyor. */
+  const bolgeAdlari = useMemo(() => {
+    const set = new Set<string>();
+    for (const d of duraklar) {
+      const b = durakBolgesi.get(d.musteriKodu);
+      if (b) set.add(b.ad);
+    }
+    return [...set];
+  }, [duraklar, durakBolgesi]);
+
+  /**
+   * En yakın-en uzak durak farkı. Sahada olan vaka: Aydın (4 km) ile İstanbul
+   * (325 km) aynı araçta. Sağlıklı bölge turları 81-108 km bandında kalıyor,
+   * sweep'in ürettiği kötü günler 224-240 km'deydi.
+   */
+  const yayilimKm = useMemo(() => {
+    const kmler = duraklar
+      .filter((d) => d.lat != null && d.lon != null)
+      .map((d) => depoyaKm({ lat: d.lat as number, lon: d.lon as number }));
+    return kmler.length < 2 ? 0 : Math.max(...kmler) - Math.min(...kmler);
+  }, [duraklar]);
   const hedefOlabilir = cikiyor && suruklemeAktif;
   const birakilacak = cikiyor && hedefte;
 
@@ -484,6 +539,27 @@ function AracBentoKarti({
           {formatKg(Math.round(doluluk.kg))}
         </span>
       </div>
+
+      {bolgeAdlari.length > 0 ? (
+        <div className="flex min-w-0 flex-wrap items-center gap-1">
+          {bolgeAdlari.map((ad) => (
+            <span
+              key={ad}
+              className="max-w-full truncate rounded border border-border/70 px-1.5 py-0.5 text-[11px] text-muted-foreground"
+            >
+              {ad}
+            </span>
+          ))}
+          {yayilimKm > YAYILIM_UYARI_KM ? (
+            <span
+              className="shrink-0 cursor-help rounded bg-amber-500/15 px-1.5 py-0.5 text-[11px] font-medium text-amber-600 dark:text-amber-400"
+              title={`En yakın ve en uzak durak arasında ${Math.round(yayilimKm)} km var — bu araç iki ayrı işi birlikte taşıyor.`}
+            >
+              {Math.round(yayilimKm)} km yayılım
+            </span>
+          ) : null}
+        </div>
+      ) : null}
 
       <PaletIzgarasi
         arac={arac}

@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import type { UrunSktUpdateRow } from "@/lib/import/types";
+import type { SktKaynak, UrunSktUpdateRow } from "@/lib/import/types";
 import { PANORAMA_DETAYLI_STOK_RAPORU_VIEW } from "@/lib/supabase";
 
 /**
@@ -45,6 +45,20 @@ export async function fetchUrunKatalogu(
   return map;
 }
 
+/** Bir kaynağın tabloda kaç ürünü var — "diğer kaynak korundu" uyarısı için. */
+export async function sktKaynakSayimi(
+  admin: SupabaseClient,
+  kaynak: SktKaynak
+): Promise<number> {
+  const { data, error } = await admin
+    .from("urun_skt")
+    .select("urun_kodu")
+    .eq("kaynak", kaynak);
+  if (error) return 0;
+  return new Set((data ?? []).map((r) => (r as { urun_kodu: string }).urun_kodu))
+    .size;
+}
+
 /**
  * Ürün kodlarının kataloğu (5430) — sayım föyü kodu kendisi taşıdığı için
  * ad eşleştirmesine gerek yok, yalnızca "bu kod katalogda var mı" sorusu var.
@@ -66,15 +80,19 @@ export async function fetchUrunKodlari(
 }
 
 /**
- * SKT tablosunu tam snapshot ile değiştir (DELETE + INSERT tek transaction).
- * Tarihçe tutulmuyor — bu bir stok anlık görüntüsü, en güncel sayım doğru olan.
+ * Tek KAYNAĞIN SKT satırlarını tam snapshot ile değiştirir (DELETE + INSERT
+ * tek transaction). Tarihçe tutulmuyor — bu bir stok anlık görüntüsü.
  *
- * DİKKAT: kaynak ayırmıyor. Fabrika alış dosyası yüklemek depo sayım föyünü,
- * föy yüklemek fabrika kayıtlarını siler (bkz. sql/urun_skt_depo_sayim.sql).
+ * Diğer kaynağa DOKUNMAZ: fabrika alış dosyası ile depo sayım föyü birbirini
+ * tamamlıyor, biri diğerinin yerine geçmiyor (bkz. sql/urun_skt_kaynak_ayrimi.sql).
+ *
+ * `kaynak` satırlardan türetilmiyor, çağıran açıkça geçiyor — boş bir dosya
+ * yüklendiğinde hangi kümenin silineceği satırlara bakılarak anlaşılamaz.
  */
 export async function replaceUrunSkt(
   admin: SupabaseClient,
-  rows: UrunSktUpdateRow[]
+  rows: UrunSktUpdateRow[],
+  kaynak: SktKaynak
 ): Promise<number> {
   const payload = rows.map((r) => ({
     urun_kodu: r.urun_kodu,
@@ -86,18 +104,20 @@ export async function replaceUrunSkt(
     skt_tarihi: r.skt_tarihi,
     durum: r.durum,
     tek_parti: r.tek_parti,
-    kaynak: r.kaynak,
+    // kaynak satırda değil RPC parametresinde — silinen küme ile yazılan küme
+    // aynı olmalı.
     depo_stok: r.depo_stok,
     parti_miktar: r.parti_miktar,
   }));
 
   const { data, error } = await admin.rpc("replace_urun_skt", {
     p_rows: payload,
+    p_kaynak: kaynak,
   });
   if (error) {
     throw new Error(
       `SKT snapshot RPC başarısız: ${error.message}. ` +
-        "sql/urun_skt_sema.sql ve sql/urun_skt_depo_sayim.sql Supabase'de çalıştırıldı mı?"
+        "sql/urun_skt_sema.sql, urun_skt_depo_sayim.sql ve urun_skt_kaynak_ayrimi.sql Supabase'de çalıştırıldı mı?"
     );
   }
   return typeof data === "number" ? data : rows.length;
