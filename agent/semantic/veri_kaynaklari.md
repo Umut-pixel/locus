@@ -9,7 +9,7 @@
 | **Kümülatif** | `musteriler_rapor` (ve `_harita`) | Her sync'te güncellenir, geçmişi taşır |
 | **Tek pencere** | `v_panorama_*` | **Yalnız son sync penceresi.** Çok dönemli trend için KULLANMA |
 | **Biriken snapshot** | `musteri_metrik_gecmis` | Günlük snapshot — gerçek zaman serisi burada |
-| **Manuel** | `urun_skt` | Fabrikadan 15 günde bir, otomatik tazelenmez |
+| **Manuel** | `urun_skt` | Fabrika alış raporu ya da depo sayım föyü, otomatik tazelenmez |
 
 > "Son 6 ayın ciro trendi" gibi bir soru `v_panorama_belge_detay_raporu_guncel`'den
 > **cevaplanamaz** — o view yalnız son sync'i tutar. `musteri_metrik_gecmis` kullan
@@ -114,8 +114,19 @@ Makbuz/çek/senet belgesi = bir satır. **Ciro değil.** `belge_net_ciro` /
 - `tc_kimlik_no` / `vergi_no` PII — SELECT etme
 
 ## 8. `urun_skt` — son kullanma tarihi
-Fabrikanın 15 günde bir gönderdiği alış raporundan. Otomatik tazelenmez —
-kapsanan tarih aralığını yanıtta belirt.
+İki manuel dosyadan biri; hangisi olduğunu `kaynak` söyler ve tablo her zaman
+TEK dosyanın snapshot'ı (yeni yükleme öncekini tamamen siler):
+- `kaynak='fabrika'` — ARMA İlaç alış raporu, 15 günde bir. `islem_tarihi`,
+  `satir_miktar` dolu; miktar KALEM düzeyinde, çok partili kalemlerde
+  partiye bölünemez (`tek_parti=false`).
+- `kaynak='depo_sayim'` — depo SKT sayım föyü. `parti_miktar` (o partide
+  fiziksel sayılan adet) ve `depo_stok` (föydeki ERP rakamı) dolu; alış
+  tarihi YOK, tazelik ölçüsü `yuklendi_at`.
+
+`depo_stok` ürünün tüm satırlarında aynı — toplarken `max()`, `sum()` değil.
+`parti_miktar` toplamı 5430'daki `miktar` ile TUTMUYOR (2026-09-07 föyü:
+92 üründen 71'i, net +3.344 adet). İkisi de saklanıyor, biri diğerinin yerine
+konmuyor. Otomatik tazelenmez — yanıtta yükleme tarihini belirt.
 
 ## 9. `musteri_metrik_gecmis` — zaman serisi
 Günlük pg_cron snapshot'ı (05:15 UTC). Gerçek trend analizi için tek doğru kaynak.

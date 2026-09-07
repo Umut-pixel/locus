@@ -10,6 +10,12 @@ export {
   type ParseFabrikaSktSonuc,
   type SktDurumu,
 } from "./parse-fabrika-skt";
+export {
+  parseDepoSktRaporu,
+  sayimSktCiftleri,
+  type ParseDepoSktSonuc,
+  type SayimFarki,
+} from "./parse-depo-skt";
 export { geocodeEksikler } from "./geocode";
 export { readWorkbook, type ReadWorkbookOptions } from "./read-workbook";
 export type {
@@ -21,4 +27,5 @@ export type {
   YaslandirmaUpdateRow,
   BelgeOzetUpdateRow,
   UrunSktUpdateRow,
+  SktKaynak,
 } from "./types";

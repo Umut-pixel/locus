@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils";
 
 interface SktYaklasanPanelProps {
   ozetler: Map<string, UrunSktOzeti>;
-  /** Stoktaki miktar — SKT'si yaklaşan ama stoğu bitmiş ürün öncelik değil. */
+  /** Panorama'daki (ERP) miktar — SKT'si yaklaşan ama stoğu bitmiş ürün öncelik değil. */
   stokMiktarlari: Map<string, number>;
   loading: boolean;
 }
@@ -26,6 +26,11 @@ interface SktYaklasanPanelProps {
  *
  * Stoğu sıfır olanlar listelenmiyor: raf ömrü dolmuş ama elde kalmamış ürün
  * aksiyon gerektirmiyor, listeyi şişirir.
+ *
+ * "Sıfır" ölçütü ERP ile fiziksel sayımın BÜYÜĞÜ. İkisi %11,5 sapıyor
+ * (2026-09-07 föyü) ve yalnızca ERP'ye bakmak rafta duran malı listeden
+ * düşürüyordu — föyde Panorama'nın 0 dediği ama sayımda 24/36 adet çıkan
+ * ürünler var; SKT'si yaklaşan böyle bir ürünü kaçırmak asıl maliyet.
  */
 export function SktYaklasanPanel({
   ozetler,
@@ -35,7 +40,15 @@ export function SktYaklasanPanel({
   const satirlar = useMemo(() => {
     return [...ozetler.values()]
       .filter((o) => o.gunKalan != null && o.gunKalan <= SKT_UYARI_GUN)
-      .map((o) => ({ ...o, stok: stokMiktarlari.get(o.urunKodu) ?? 0 }))
+      .map((o) => {
+        const erp = stokMiktarlari.get(o.urunKodu) ?? 0;
+        return {
+          ...o,
+          erp,
+          stok: Math.max(erp, o.sayimToplam ?? 0),
+          sayimdan: o.sayimToplam != null && o.sayimToplam > erp,
+        };
+      })
       .filter((o) => o.stok > 0)
       .sort((a, b) => (a.gunKalan ?? 0) - (b.gunKalan ?? 0));
   }, [ozetler, stokMiktarlari]);
@@ -91,6 +104,11 @@ export function SktYaklasanPanel({
                 <li
                   key={s.urunKodu}
                   className="flex min-w-0 items-center gap-3 px-3.5 py-2"
+                  title={
+                    s.sayimdan
+                      ? `Panorama bu üründe ${formatNumber(s.erp)} adet görüyor, depo sayımı ${formatNumber(s.sayimToplam ?? 0)} adet. Büyüğü esas alındı.`
+                      : undefined
+                  }
                 >
                   <span
                     className={cn(
@@ -105,7 +123,12 @@ export function SktYaklasanPanel({
                     </span>
                     <span className="truncate font-mono text-[11.5px] text-muted-foreground">
                       {s.urunKodu} · {formatNumber(s.stok)} adet
-                      {s.partiNo ? ` · parti ${s.partiNo}` : ""}
+                      {s.sayimdan ? " (sayım)" : ""}
+                      {s.enYakinPartiMiktar != null
+                        ? ` · bu partide ${formatNumber(s.enYakinPartiMiktar)}`
+                        : s.partiNo
+                          ? ` · parti ${s.partiNo}`
+                          : ""}
                     </span>
                   </span>
                   <span className="flex shrink-0 flex-col items-end">

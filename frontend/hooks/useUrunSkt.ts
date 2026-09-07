@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import type { SktKaynak } from "@/lib/import/types";
 import { URUN_SKT_TABLE, supabase } from "@/lib/supabase";
 import { fetchAllRows } from "@/lib/supabase-fetch-all";
 
@@ -17,6 +18,9 @@ interface UrunSktRaw {
   islem_tarihi: string | null;
   durum: "tarihli" | "cozulemedi" | "devir" | "kayit_yok";
   tek_parti: boolean;
+  kaynak: SktKaynak | null;
+  depo_stok: number | string | null;
+  parti_miktar: number | string | null;
   yuklendi_at: string;
 }
 
@@ -45,9 +49,24 @@ export interface UrunSktOzeti {
   tekParti: boolean;
   tarihliKayit: number;
   tarihsizKayit: number;
+  /** Kaydın hangi dosyadan geldiği — rozet metni ve miktar güveni buna bağlı. */
+  kaynak: SktKaynak;
+  /** Sayım föyündeki ERP (Panorama) stok rakamı. Fabrika kaynağında null. */
+  depoStok: number | null;
+  /** Fiziksel sayım toplamı (partilerin toplamı). Fabrika kaynağında null. */
+  sayimToplam: number | null;
+  /** sayimToplam - depoStok; ikisi de varsa. Pozitif = rafta ERP'den fazla var. */
+  sayimFarki: number | null;
+  /** En yakın SKT'li partide sayılan adet — "bu SKT'den şu kadar var". */
+  enYakinPartiMiktar: number | null;
 }
 
 export interface SktMeta {
+  /**
+   * Baskın kaynak. Depo sayım föyünde alım tarihi YOK; tazelik ölçüsü
+   * `yuklendiAt`. Bu ayrım olmadan kapsam rozeti sessizce kayboluyordu.
+   */
+  kaynak: SktKaynak | null;
   /** Dosyanın kapsadığı alım tarihi aralığı — "veri ne kadarını görüyor". */
   donemBas: string | null;
   donemBit: string | null;
@@ -58,8 +77,22 @@ export interface SktMeta {
   donemBitGunFarki: number | null;
   /** Son yükleme anı. */
   yuklendiAt: string | null;
+  /** Son yüklemenin üzerinden geçen gün — sayım föyünde tazelik ölçüsü bu. */
+  yuklendiGunFarki: number | null;
   urunSayisi: number;
   kayitSayisi: number;
+  /** Sayım föyü yüklüyse ERP ↔ fiziksel sayım mutabakatı; yoksa null. */
+  sayim: SayimMutabakati | null;
+}
+
+/** Föy geneli ERP ↔ fiziksel sayım farkı — stok sayfasındaki mutabakat şeridi. */
+export interface SayimMutabakati {
+  urunSayisi: number;
+  farkliUrun: number;
+  depoStokToplam: number;
+  sayimToplam: number;
+  /** sayimToplam - depoStokToplam. */
+  netFark: number;
 }
 
 /** Tarayıcı UTC'sinden bağımsız İstanbul takvim günü — useMusteriRaporlama ile aynı kural. */
@@ -67,6 +100,13 @@ function istanbulTarihi(): string {
   return new Intl.DateTimeFormat("en-CA", {
     timeZone: "Europe/Istanbul",
   }).format(new Date());
+}
+
+/** Supabase numeric kolonları string dönebiliyor — tek yerden sayıya çevir. */
+function sayiVeyaNull(value: number | string | null | undefined): number | null {
+  if (value == null || value === "") return null;
+  const n = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(n) ? n : null;
 }
 
 export function gunFarkiIso(isoTarih: string, bugunIso: string): number {
@@ -106,7 +146,8 @@ export function useUrunSkt() {
       supabase
         .from(URUN_SKT_TABLE)
         .select(
-          "urun_kodu,urun_adi,parti_no,skt_tarihi,islem_tarihi,durum,tek_parti,yuklendi_at"
+          "urun_kodu,urun_adi,parti_no,skt_tarihi,islem_tarihi,durum,tek_parti," +
+            "kaynak,depo_stok,parti_miktar,yuklendi_at"
         )
         .range(from, to) as unknown as Promise<{
         data: UrunSktRaw[] | null;
@@ -139,11 +180,19 @@ export function useUrunSkt() {
       string,
       {
         urunAdi: string;
+        kaynak: SktKaynak;
         tarihli: number;
         tarihsiz: number;
         devir: number;
         kayitYok: number;
-        enYakin: { tarih: string; parti: string | null; tekParti: boolean } | null;
+        depoStok: number | null;
+        sayimToplam: number | null;
+        enYakin: {
+          tarih: string;
+          parti: string | null;
+          tekParti: boolean;
+          partiMiktar: number | null;
+        } | null;
       }
     >();
 
@@ -162,12 +211,21 @@ export function useUrunSkt() {
 
       const acc = havuz.get(r.urun_kodu) ?? {
         urunAdi: r.urun_adi,
+        kaynak: r.kaynak ?? "fabrika",
         tarihli: 0,
         tarihsiz: 0,
         devir: 0,
         kayitYok: 0,
+        depoStok: null,
+        sayimToplam: null,
         enYakin: null,
       };
+
+      // ERP stoğu ürünün tüm satırlarında aynı; parti adetleri toplanıyor.
+      const depoStok = sayiVeyaNull(r.depo_stok);
+      if (depoStok != null) acc.depoStok = depoStok;
+      const partiMiktar = sayiVeyaNull(r.parti_miktar);
+      if (partiMiktar != null) acc.sayimToplam = (acc.sayimToplam ?? 0) + partiMiktar;
 
       if (r.durum === "tarihli" && r.skt_tarihi) {
         acc.tarihli += 1;
@@ -176,6 +234,7 @@ export function useUrunSkt() {
             tarih: r.skt_tarihi,
             parti: r.parti_no,
             tekParti: r.tek_parti,
+            partiMiktar,
           };
         }
       } else {
@@ -188,6 +247,11 @@ export function useUrunSkt() {
     }
 
     const ozetMap = new Map<string, UrunSktOzeti>();
+    let depoStokToplam = 0;
+    let sayimToplamGenel = 0;
+    let sayimliUrun = 0;
+    let farkliUrun = 0;
+
     for (const [urunKodu, v] of havuz) {
       let rozet: SktRozetDurumu;
       if (v.enYakin) rozet = "tarihli";
@@ -200,6 +264,18 @@ export function useUrunSkt() {
           ? "kismi"
           : "tam";
 
+      // Sayım föyünde ERP rakamı da var — ürün bazlı fark burada çıkıyor.
+      const sayimFarki =
+        v.depoStok != null && v.sayimToplam != null
+          ? v.sayimToplam - v.depoStok
+          : null;
+      if (v.depoStok != null) {
+        depoStokToplam += v.depoStok;
+        sayimToplamGenel += v.sayimToplam ?? 0;
+        sayimliUrun += 1;
+        if (sayimFarki != null && sayimFarki !== 0) farkliUrun += 1;
+      }
+
       ozetMap.set(urunKodu, {
         urunKodu,
         urunAdi: v.urunAdi,
@@ -211,18 +287,47 @@ export function useUrunSkt() {
         tekParti: v.enYakin?.tekParti ?? false,
         tarihliKayit: v.tarihli,
         tarihsizKayit: v.tarihsiz,
+        kaynak: v.kaynak,
+        depoStok: v.depoStok,
+        sayimToplam: v.depoStok != null ? (v.sayimToplam ?? 0) : v.sayimToplam,
+        sayimFarki,
+        enYakinPartiMiktar: v.enYakin?.partiMiktar ?? null,
       });
     }
+
+    // Baskın kaynak: karışık yükleme olamaz (RPC tabloyu tamamen değiştiriyor),
+    // yine de ilk satırdan okumak yerine çoğunluğa bakmak ucuz ve dayanıklı.
+    const kaynak: SktKaynak | null =
+      satirlar.length === 0
+        ? null
+        : satirlar.filter((r) => r.kaynak === "depo_sayim").length * 2 >
+            satirlar.length
+          ? "depo_sayim"
+          : "fabrika";
 
     return {
       ozetMap,
       meta: {
+        kaynak,
         donemBas,
         donemBit,
         donemBitGunFarki: donemBit ? -gunFarkiIso(donemBit, bugun) : null,
         yuklendiAt,
+        yuklendiGunFarki: yuklendiAt
+          ? -gunFarkiIso(yuklendiAt.slice(0, 10), bugun)
+          : null,
         urunSayisi: ozetMap.size,
         kayitSayisi: satirlar.length,
+        sayim:
+          sayimliUrun > 0
+            ? {
+                urunSayisi: sayimliUrun,
+                farkliUrun,
+                depoStokToplam,
+                sayimToplam: sayimToplamGenel,
+                netFark: sayimToplamGenel - depoStokToplam,
+              }
+            : null,
       } satisfies SktMeta,
     };
   }, [satirlar]);
@@ -234,14 +339,16 @@ export function useUrunSkt() {
 
 /**
  * Stok listesindeki ürün için rozet özeti. SKT tablosunda hiç satırı yoksa
- * "kayit_disi" — sessizce boş bırakmıyoruz: alış dosyası dönem dışında kalan
- * ürünleri (ör. yaş mama hattı) kapsamıyor ve "rozet yok = sorun yok" diye
- * okunmamalı.
+ * "kayit_disi" — sessizce boş bırakmıyoruz: yüklü dosya (fabrika alış raporu
+ * ya da depo sayım föyü) katalogdaki her ürünü kapsamıyor ve "rozet yok =
+ * sorun yok" diye okunmamalı.
  */
 export function sktOzetiBul(
   ozetMap: Map<string, UrunSktOzeti>,
   urunKodu: string,
-  urunAdi: string
+  urunAdi: string,
+  /** Yüklü dosyanın kaynağı — "kayıt dışı" açıklaması hangi dosyayı işaret etsin. */
+  kaynak: SktKaynak = "fabrika"
 ): UrunSktOzeti {
   return (
     ozetMap.get(urunKodu) ?? {
@@ -255,6 +362,11 @@ export function sktOzetiBul(
       tekParti: false,
       tarihliKayit: 0,
       tarihsizKayit: 0,
+      kaynak,
+      depoStok: null,
+      sayimToplam: null,
+      sayimFarki: null,
+      enYakinPartiMiktar: null,
     }
   );
 }

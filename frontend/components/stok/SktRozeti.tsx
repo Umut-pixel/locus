@@ -41,8 +41,12 @@ export function SktRozeti({ ozet, loading }: SktRozetiProps) {
   if (!tarihVar) {
     const anahtar = ozet.rozet === "tarihli" ? "takip_yok" : ozet.rozet;
     const { metin, baslik, renk } = TARIHSIZ_GORUNUM[anahtar];
+    const sayimdan = ozet.kaynak === "depo_sayim";
     return (
-      <span className={cn("text-[12px] whitespace-nowrap", renk)} title={baslik}>
+      <span
+        className={cn("text-[12px] whitespace-nowrap", renk)}
+        title={sayimdan ? SAYIM_BASLIK[anahtar] : baslik}
+      >
         {metin}
       </span>
     );
@@ -63,9 +67,20 @@ export function SktRozeti({ ozet, loading }: SktRozetiProps) {
     ozet.partiNo ? `Parti: ${ozet.partiNo}` : null,
     kismi
       ? `${formatNumber(ozet.tarihliKayit)} kayıtta tarih var, ${formatNumber(ozet.tarihsizKayit)} kayıtta yok — gerçek en yakın tarih daha erken olabilir.`
-      : "Bu ürünün tüm alım kayıtlarında SKT bilgisi var.",
-    !ozet.tekParti
-      ? "Bu kalemde birden fazla parti var; miktar partiye bölünemiyor."
+      : ozet.kaynak === "depo_sayim"
+        ? "Bu ürünün sayılan tüm partilerinde SKT bilgisi var."
+        : "Bu ürünün tüm alım kayıtlarında SKT bilgisi var.",
+    // Sayım föyünde adet PARTİ bazında yazılı; fabrika dosyasında kalem
+    // bazında ve çok partili kalemlerde bölünemiyor — iki farklı gerçek.
+    ozet.kaynak === "depo_sayim"
+      ? ozet.enYakinPartiMiktar != null
+        ? `Bu partide sayılan: ${formatNumber(ozet.enYakinPartiMiktar)} adet.`
+        : null
+      : !ozet.tekParti
+        ? "Bu kalemde birden fazla parti var; miktar partiye bölünemiyor."
+        : null,
+    ozet.sayimFarki != null && ozet.sayimFarki !== 0
+      ? `Sayım farkı: Panorama ${formatNumber(ozet.depoStok ?? 0)} adet, sayımda ${formatNumber(ozet.sayimToplam ?? 0)} adet.`
       : null,
   ]
     .filter(Boolean)
@@ -108,6 +123,20 @@ export function SktRozeti({ ozet, loading }: SktRozetiProps) {
     </span>
   );
 }
+
+/**
+ * Aynı rozetler sayım föyünden gelirken farklı şeyi anlatıyor: orada "alım
+ * kaydı" değil "sayılan parti" var. Metin aynı kalıyor, açıklama değişiyor —
+ * yanlış dosyaya işaret eden bir tooltip sahada yanlış aramaya yol açıyor.
+ */
+const SAYIM_BASLIK: Record<Exclude<UrunSktOzeti["rozet"], "tarihli">, string> = {
+  devir:
+    "Eski bayiden devralınan stok. Eski bayi artık mevcut değil, SKT bilgisi kalıcı olarak yok — fiziksel kontrol gerekiyor.",
+  takip_yok:
+    "Sayım föyünde satırı var ama hiçbir partiye SKT yazılmamış. Kedi kumu gibi bozulmayan kalemler doğal olarak buraya düşer.",
+  kayit_disi:
+    "Bu ürün depo sayım föyünde hiç geçmiyor — sayımda atlanmış ya da föy o gün katalogdaki her ürünü kapsamamış olabilir. SKT bilinmiyor.",
+};
 
 const TARIHSIZ_GORUNUM: Record<
   Exclude<UrunSktOzeti["rozet"], "tarihli">,

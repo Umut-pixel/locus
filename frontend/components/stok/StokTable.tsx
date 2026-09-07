@@ -13,6 +13,7 @@ import { SktRozeti } from "@/components/stok/SktRozeti";
 import { UrunSatisDetayi } from "@/components/stok/UrunSatisDetayi";
 import { ScrollBottomFade } from "@/components/ui/ScrollBottomFade";
 import { sktOzetiBul, type UrunSktOzeti } from "@/hooks/useUrunSkt";
+import type { SktKaynak } from "@/lib/import/types";
 import { useScrollBottomFade } from "@/hooks/useScrollBottomFade";
 import { formatCurrency, formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -23,8 +24,10 @@ interface StokTableProps {
   error: string | null;
   sort: StokSort;
   onSortChange: (sort: StokSort) => void;
-  /** Fabrika alış dosyasından gelen SKT özetleri — tablo kaynağı bilmiyor. */
+  /** Yüklü SKT dosyasından gelen özetler. */
   sktOzetleri: Map<string, UrunSktOzeti>;
+  /** Hangi dosya yüklü — "kayıt dışı" açıklaması doğru dosyayı işaret etsin. */
+  sktKaynak: SktKaynak | null;
   sktLoading: boolean;
 }
 
@@ -45,6 +48,7 @@ export function StokTable({
   sort,
   onSortChange,
   sktOzetleri,
+  sktKaynak,
   sktLoading,
 }: StokTableProps) {
   const [acikUrunKodu, setAcikUrunKodu] = useState<string | null>(null);
@@ -77,7 +81,11 @@ export function StokTable({
               <th
                 scope="col"
                 className={cn(TH_BASE, "cursor-help")}
-                title="Fabrika alış raporundan gelen en yakın son kullanma tarihi. Panorama'dan gelmez — Veri Yükle ile tazelenir."
+                title={
+                  sktKaynak === "depo_sayim"
+                    ? "Depo sayım föyünden gelen en yakın son kullanma tarihi. Panorama'dan gelmez — Veri Yükle ile tazelenir."
+                    : "Fabrika alış raporundan gelen en yakın son kullanma tarihi. Panorama'dan gelmez — Veri Yükle ile tazelenir."
+                }
               >
                 En yakın SKT
               </th>
@@ -111,6 +119,19 @@ export function StokTable({
             {satirlar.map((s) => {
               const tukendi = s.miktar <= 0;
               const acik = acikUrunKodu === s.urunKodu;
+              const skt = sktOzetiBul(
+                sktOzetleri,
+                s.urunKodu,
+                s.urun,
+                sktKaynak ?? "fabrika"
+              );
+              // Miktar kolonu Panorama'yı gösteriyor; fiziksel sayım tutmuyorsa
+              // farkı ALTINDA yazıyoruz — sayımı ERP'nin üstüne yazmak, hangisinin
+              // doğru olduğuna bizim karar vermemiz olurdu.
+              const fark =
+                skt.sayimFarki != null && skt.sayimFarki !== 0
+                  ? skt.sayimFarki
+                  : null;
               return (
                 <Fragment key={s.urunKodu}>
                   <tr
@@ -142,21 +163,30 @@ export function StokTable({
                       {s.kategori ?? "—"}
                     </td>
                     <td className={cn(TD_BASE, "whitespace-nowrap")}>
-                      <SktRozeti
-                        ozet={sktOzetiBul(sktOzetleri, s.urunKodu, s.urun)}
-                        loading={sktLoading}
-                      />
+                      <SktRozeti ozet={skt} loading={sktLoading} />
                     </td>
                     <td className={cn(TD_BASE, "text-right whitespace-nowrap")}>
                       {/* Tükenmiş satır durum rengiyle işaretli + "Yok" metni: renk tek başına taşımıyor. */}
-                      <span
-                        className={cn(
-                          "font-mono text-[13.5px] tabular-nums",
-                          tukendi ? "font-medium text-destructive" : "text-foreground"
-                        )}
-                      >
-                        {tukendi ? "Yok" : formatNumber(s.miktar)}
-                      </span>
+                      <div className="flex flex-col items-end">
+                        <span
+                          className={cn(
+                            "font-mono text-[13.5px] tabular-nums",
+                            tukendi ? "font-medium text-destructive" : "text-foreground"
+                          )}
+                        >
+                          {tukendi ? "Yok" : formatNumber(s.miktar)}
+                        </span>
+                        {fark != null ? (
+                          <span
+                            className="cursor-help font-mono text-[11px] text-amber-400/90 tabular-nums"
+                            title={`Depo sayımı ${formatNumber(skt.sayimToplam ?? 0)} adet buldu, Panorama ${formatNumber(skt.depoStok ?? 0)} adet gösteriyor. Tablodaki miktar Panorama'dan.`}
+                          >
+                            {/* İşaret her zaman yazılı: renk tek başına taşımıyor. */}
+                            sayım {fark > 0 ? "+" : "−"}
+                            {formatNumber(Math.abs(fark))}
+                          </span>
+                        ) : null}
+                      </div>
                     </td>
                     <td className={cn(TD_BASE, "text-right font-mono text-[13px] whitespace-nowrap text-muted-foreground tabular-nums")}>
                       {formatCurrency(s.fiyat)}

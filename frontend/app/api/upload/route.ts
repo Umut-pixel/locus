@@ -5,6 +5,7 @@ import {
   detectDosyaTipi,
   geocodeEksikler,
   parseBelgeDetayRaporu,
+  parseDepoSktRaporu,
   parseFabrikaSktRaporu,
   parseMusteriListesi,
   parseRutTanimListesi,
@@ -16,6 +17,7 @@ import {
 } from "@/lib/import";
 import {
   fetchUrunKatalogu,
+  fetchUrunKodlari,
   normalizeUrunAdi,
   replaceUrunSkt,
 } from "@/lib/sync/write-urun-skt";
@@ -522,6 +524,78 @@ export async function POST(request: Request) {
         // Bu dosyada müşteri yok; alan "eşleşmeyen kayıt" listesi olarak
         // kullanılıyor (UI zaten bu listeyi gösteriyor).
         eslesmeyenMusteriKodlari: [...eslesmeyenAdlar],
+        uyarilar,
+      };
+    } else if (tip === "DepoSktSayimRaporu") {
+      // SKT hücreleri ham seri numarası olarak okunmalı — cellDates bir gün
+      // geri kaydırıyor (bkz. read-workbook.ts). Fabrika dalıyla aynı gerekçe.
+      const sayimWorkbook = readWorkbook(buffer, { cellDates: false, raw: true });
+      const parsed = parseDepoSktRaporu(sayimWorkbook.rows);
+
+      // Föy ürün KODU taşıyor; ad eşleştirmesi yok, yalnızca katalog kontrolü.
+      const katalogKodlari = await fetchUrunKodlari(admin);
+      const eslesmeyenKodlar = new Set<string>();
+      const yazilacak = parsed.rows.filter((r) => {
+        if (r.urun_kodu && katalogKodlari.has(r.urun_kodu)) return true;
+        if (r.urun_kodu) eslesmeyenKodlar.add(`${r.urun_kodu} — ${r.urun_adi}`);
+        return false;
+      });
+      const yazilan = yazilacak.length > 0 ? await replaceUrunSkt(admin, yazilacak) : 0;
+
+      const eslesenUrun = new Set(yazilacak.map((r) => r.urun_kodu)).size;
+      uyarilar.push(
+        `Depo sayım föyü: ${eslesenUrun} ürün, ${yazilan} parti kaydı ` +
+          `(${parsed.sayimlar.tarihli} tarihli, ${parsed.sayimlar.cozulemedi} çözülemedi, ` +
+          `${parsed.sayimlar.devir} devir, ${parsed.sayimlar.kayit_yok} SKT'siz).`
+      );
+
+      // Föyün asıl bulgusu bu: ERP stoğu ile fiziksel sayım tutmuyor.
+      // Hangisinin doğru olduğuna karar vermiyoruz — farkı görünür kılıyoruz.
+      const netFark = parsed.sayimToplam - parsed.depoStokToplam;
+      const yuzde =
+        parsed.depoStokToplam > 0
+          ? (Math.abs(netFark) / parsed.depoStokToplam) * 100
+          : 0;
+      uyarilar.push(
+        `Sayım mutabakatı: ERP ${Math.round(parsed.depoStokToplam).toLocaleString("tr-TR")} adet, ` +
+          `fiziksel sayım ${Math.round(parsed.sayimToplam).toLocaleString("tr-TR")} adet ` +
+          `(${netFark >= 0 ? "+" : "−"}${Math.round(Math.abs(netFark)).toLocaleString("tr-TR")}, %${yuzde.toFixed(1)}). ` +
+          `${parsed.farkliUrunSayisi}/${parsed.islenenSatir} üründe fark var — ` +
+          "stok sayfasındaki miktarlar Panorama'dan gelmeye devam ediyor."
+      );
+
+      const enBuyuk = parsed.farklar.slice(0, 3);
+      if (enBuyuk.length > 0) {
+        uyarilar.push(
+          `En büyük farklar: ${enBuyuk
+            .map(
+              (f) =>
+                `${f.urunAdi} (${f.fark >= 0 ? "+" : "−"}${Math.round(Math.abs(f.fark)).toLocaleString("tr-TR")})`
+            )
+            .join(", ")}.`
+        );
+      }
+
+      if (parsed.sayimsizUrun > 0) {
+        uyarilar.push(
+          `${parsed.sayimsizUrun} üründe hiç sayım hücresi doldurulmamış — ` +
+            "\"sıfır sayıldı\" değil, \"sayılmadı\" olarak okunmalı."
+        );
+      }
+      if (eslesmeyenKodlar.size > 0) {
+        uyarilar.push(
+          `${eslesmeyenKodlar.size} ürün kodu stok kataloğunda yok — bu satırlar atlandı.`
+        );
+      }
+
+      result = {
+        tip,
+        islenenSatir: parsed.islenenSatir,
+        yeniMusteri: 0,
+        guncellenenMusteri: 0,
+        geocodeBasarisiz: 0,
+        // Bu dosyada müşteri yok; alan "eşleşmeyen kayıt" listesi olarak kullanılıyor.
+        eslesmeyenMusteriKodlari: [...eslesmeyenKodlar],
         uyarilar,
       };
     } else if (tip === "BelgeDetayRaporu") {

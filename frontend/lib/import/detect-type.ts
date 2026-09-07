@@ -39,12 +39,34 @@ function hasFabrikaSktHeaders(cols: Set<string>): boolean {
 }
 
 /**
+ * Depo fiziksel sayım föyü ("PATİGO DEPO SKT BİLGİSİ") — Panorama'dan gelmez,
+ * depoda elle tutulup e-posta ile gelir.
+ *
+ * İmza: "DEPO STOK" + en az bir "SAYIM*" + en az bir "SKT*". Fabrika alış
+ * raporundan ÖNCE denenmeli: o dosyanın imzası yalnızca (SKT* + Ürün) ve bu
+ * föy de onu taşıyor. 2026-09-06'da canlıda tam olarak bu oldu — föy fabrika
+ * parser'ına düştü, DEPO STOK ile 3 SAYIM kolonu sessizce çöpe gitti,
+ * `islem_tarihi` boş kaldığı için stok sayfasındaki SKT kapsam rozeti de
+ * görünmez oldu.
+ */
+function hasDepoSktSayimHeaders(cols: Set<string>): boolean {
+  const buyuk = [...cols].map((h) =>
+    h.replace(/İ/g, "I").toLocaleUpperCase("tr-TR").trim()
+  );
+  const hasDepoStok = buyuk.some((h) => h.replace(/\s+/g, " ") === "DEPO STOK");
+  const hasSayim = buyuk.some((h) => h.startsWith("SAYIM"));
+  const hasSkt = buyuk.some((h) => h.startsWith("SKT"));
+  return hasDepoStok && hasSayim && hasSkt;
+}
+
+/**
  * Kolon başlıklarından dosya tipini tespit et.
  * KoordinatX → MusteriListesi
  * RutKod → RutTanimListesi
  * BelgeTarihi + Plaka → SevkiyatRaporuKup
  * Müşteri Kodu + 70 Üstü / gün bantları → StYaslandirma
  * BelgeTip + Nettutar + (UrunKodu | SiparisNo) → BelgeDetayRaporu
+ * DEPO STOK + SAYIM* + SKT* → DepoSktSayimRaporu (fabrikadan ÖNCE bakılır)
  * SKT* + Ürün → FabrikaSktRaporu
  */
 export function detectDosyaTipi(headers: string[]): DosyaTipi {
@@ -61,9 +83,11 @@ export function detectDosyaTipi(headers: string[]): DosyaTipi {
   ) {
     return "BelgeDetayRaporu";
   }
+  // Depo sayım föyü fabrika imzasını da taşıyor — sıralama önemli.
+  if (hasDepoSktSayimHeaders(cols)) return "DepoSktSayimRaporu";
   if (hasFabrikaSktHeaders(cols)) return "FabrikaSktRaporu";
 
   throw new DosyaTipiHatasi(
-    "Dosya tipi tanınamadı. MusteriListesi (KoordinatX), RutTanimListesi (RutKod), SevkiyatRaporuKup (BelgeTarihi + Plaka), ST Yaşlandırma (Müşteri Kodu + gün bantları), BelgeDetayRaporu (BelgeTip + Nettutar) veya Fabrika SKT raporu (SKT + Ürün) bekleniyor."
+    "Dosya tipi tanınamadı. MusteriListesi (KoordinatX), RutTanimListesi (RutKod), SevkiyatRaporuKup (BelgeTarihi + Plaka), ST Yaşlandırma (Müşteri Kodu + gün bantları), BelgeDetayRaporu (BelgeTip + Nettutar), Depo SKT sayım föyü (DEPO STOK + SAYIM + SKT) veya Fabrika SKT raporu (SKT + Ürün) bekleniyor."
   );
 }
