@@ -10,7 +10,10 @@ import { AppSidebarMobileTrigger } from "@/components/sidebar/AppSidebar";
 import { Button } from "@/components/ui/button";
 import { SktYaklasanPanel } from "@/components/stok/SktYaklasanPanel";
 import { StokDagilim } from "@/components/stok/StokDagilim";
-import { StokDurumCubugu } from "@/components/stok/StokDurumCubugu";
+import {
+  StokDurumCubugu,
+  type SayimFarkOzeti,
+} from "@/components/stok/StokDurumCubugu";
 import { StokFilters } from "@/components/stok/StokFilters";
 import { StokOzet } from "@/components/stok/StokOzet";
 import { StokTable } from "@/components/stok/StokTable";
@@ -22,7 +25,7 @@ import {
   type StokFilters as StokFiltersTipi,
   type StokSort,
 } from "@/hooks/useStokRaporu";
-import { useUrunSkt } from "@/hooks/useUrunSkt";
+import { useUrunSkt, type SktMeta } from "@/hooks/useUrunSkt";
 import { formatDate, formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -41,9 +44,14 @@ const DataImportFlow = dynamic(
  * bilinçli olarak kapsam dışı: 5450 yalnızca Fatura'ya daraltılmış durumda,
  * sipariş tipi belge kaynağı yok.
  *
- * SKT sütunu Panorama'dan DEĞİL, fabrikanın 15 günde bir gönderdiği alış
- * raporundan geliyor (Veri Yükle akışı) — bu yüzden başlıkta kapsanan alım
- * aralığı ayrıca gösteriliyor.
+ * SKT sütunu Panorama'dan DEĞİL, Veri Yükle akışıyla gelen iki dosyadan
+ * birinden geliyor: fabrika alış raporu ya da depo SKT sayım föyü. Kapsam
+ * rozeti hangisinin yüklü olduğuna göre farklı tazelik ölçüsü gösteriyor.
+ *
+ * MİKTAR HER ZAMAN PANORAMA'DAN. Sayım föyü aynı ürünler için farklı adet
+ * söylüyor (2026-09-07 föyü: 92 üründen 71'i, net +3.344 adet / %11,5).
+ * Sayımı ERP'nin üstüne yazmıyoruz — hangisinin doğru olduğu depo/muhasebe
+ * kararı; fark tablo satırında ve alt çubukta görünür duruyor.
  */
 export default function StokRaporlariPage() {
   const [filters, setFilters] = useState<StokFiltersTipi>(EMPTY_STOK_FILTERS);
@@ -73,6 +81,38 @@ export default function StokRaporlariPage() {
     () => new Map(tumSatirlar.map((s) => [s.urunKodu, s.miktar])),
     [tumSatirlar]
   );
+
+  /**
+   * ERP ↔ fiziksel sayım mutabakatı, EKRANDAKİ filtreye göre.
+   *
+   * Sayfadaki bütün rakamlar Panorama'nın (5430) stok miktarından türüyor;
+   * depo sayım föyü aynı ürünler için farklı adet söylüyor (2026-09-07:
+   * 92 üründen 71'i, net +3.344 adet). Hangisinin doğru olduğu bizim
+   * kararımız değil — ERP rakamı yerinde kalıyor, fark yanında duruyor.
+   */
+  const sayimFarki = useMemo<SayimFarkOzeti | null>(() => {
+    if (!sktMeta.sayim) return null;
+    let kapsananUrun = 0;
+    let farkliUrun = 0;
+    let erpToplam = 0;
+    let sayimToplam = 0;
+    for (const s of satirlar) {
+      const ozet = sktOzetleri.get(s.urunKodu);
+      if (!ozet || ozet.depoStok == null) continue;
+      kapsananUrun += 1;
+      erpToplam += ozet.depoStok;
+      sayimToplam += ozet.sayimToplam ?? 0;
+      if (ozet.sayimFarki != null && ozet.sayimFarki !== 0) farkliUrun += 1;
+    }
+    if (kapsananUrun === 0) return null;
+    return {
+      kapsananUrun,
+      farkliUrun,
+      erpToplam,
+      sayimToplam,
+      netFark: sayimToplam - erpToplam,
+    };
+  }, [satirlar, sktOzetleri, sktMeta.sayim]);
 
   const handleStoktaYokToggle = useCallback(() => {
     setFilters((f) => ({ ...f, sadeceStoktaYok: !f.sadeceStoktaYok }));
@@ -118,20 +158,14 @@ export default function StokRaporlariPage() {
         </div>
 
         <div className="ml-auto flex shrink-0 items-center gap-2">
-          <SktKapsamRozeti
-            donemBas={sktMeta.donemBas}
-            donemBit={sktMeta.donemBit}
-            gunFarki={sktMeta.donemBitGunFarki}
-            urunSayisi={sktMeta.urunSayisi}
-            loading={sktLoading}
-          />
+          <SktKapsamRozeti meta={sktMeta} loading={sktLoading} />
           <Button
             variant={importOpen ? "secondary" : "outline"}
             size="sm"
             aria-pressed={importOpen}
             onClick={() => setImportOpen((v) => !v)}
             className="h-9 gap-1.5 rounded-md px-3 text-[13px]"
-            title="Fabrika alış / SKT dosyasını yükle"
+            title="Fabrika alış raporu ya da depo SKT sayım föyünü yükle"
           >
             <UploadIcon className="size-3.5" aria-hidden />
             <span className="hidden sm:inline">Veri Yükle</span>
@@ -144,7 +178,7 @@ export default function StokRaporlariPage() {
         {importOpen && (
           <div className="pointer-events-none absolute top-[4.5rem] right-3.5 z-30 flex justify-end">
             <DataImportFlow
-              baslik="Fabrika SKT verisi yükle"
+              baslik="SKT verisi yükle"
               onClose={() => setImportOpen(false)}
               onComplete={sktRefresh}
             />
@@ -205,6 +239,7 @@ export default function StokRaporlariPage() {
           sort={sort}
           onSortChange={setSort}
           sktOzetleri={sktOzetleri}
+          sktKaynak={sktMeta.kaynak}
           sktLoading={sktLoading}
         />
       </div>
@@ -213,45 +248,50 @@ export default function StokRaporlariPage() {
         ozet={ozet}
         toplamUrun={tumSatirlar.length}
         loading={loading}
+        sayimFarki={sayimFarki}
       />
     </div>
   );
 }
 
 /**
- * SKT verisinin hangi alım aralığını kapsadığı.
+ * SKT verisinin ne kadarını gördüğü — iki kaynak, iki farklı tazelik ölçüsü.
  *
- * Panorama otomasyonuna bağlı olmadığı için "tazelik" burada saat cinsinden
- * ölçülemiyor; asıl soru "veri hangi tarihe kadarki alımları görüyor".
- * 2026-08-21'de dosya 20 Mayıs'ta bitiyordu — 3 aylık boşluk ekranda
- * görünmezse "rozet yok = sorun yok" diye okunuyor.
+ *  • Fabrika alış raporu: soru "veri hangi tarihe kadarki alımları görüyor".
+ *    Rapor 15 günde bir geliyor; 45 gün = üç dönem kaçmış.
+ *  • Depo sayım föyü: dosyada alış tarihi YOK, ölçü son yükleme anı.
+ *
+ * Rozet eskiden yalnızca `donemBit` üzerinden çalışıyordu ve tarihsiz kaynakta
+ * sessizce kayboluyordu — 2026-09-06'da canlıda tam olarak bu oldu. "Rozet yok
+ * = sorun yok" diye okunmaması gereken tek yer burası.
  */
-function SktKapsamRozeti({
-  donemBas,
-  donemBit,
-  gunFarki,
-  urunSayisi,
-  loading,
-}: {
-  donemBas: string | null;
-  donemBit: string | null;
-  gunFarki: number | null;
-  urunSayisi: number;
-  loading: boolean;
-}) {
-  if (loading || !donemBit) return null;
+function SktKapsamRozeti({ meta, loading }: { meta: SktMeta; loading: boolean }) {
+  if (loading || meta.kaynak == null) return null;
 
-  // Rapor 15 günde bir geliyor; 45 gün = üç dönem kaçmış demek.
-  const bayat = (gunFarki ?? 0) > 45;
+  const sayimKaynagi = meta.kaynak === "depo_sayim";
+  const gun = sayimKaynagi ? meta.yuklendiGunFarki : meta.donemBitGunFarki;
+  const tarih = sayimKaynagi ? (meta.yuklendiAt?.slice(0, 10) ?? null) : meta.donemBit;
+  if (!tarih) return null;
+
+  // Fabrika raporu 15 günde bir; sayım föyü daha seyrek ama 45 gün ikisinde de
+  // "arada yeni mal girdi, bu dosya onu görmüyor" demek.
+  const bayat = (gun ?? 0) > 45;
+
+  const baslik = sayimKaynagi
+    ? `Depo sayım föyü ${meta.urunSayisi} ürünü kapsıyor, ${formatDate(tarih)} tarihinde yüklendi. ` +
+      (meta.sayim
+        ? `Föyde ${formatNumber(meta.sayim.farkliUrun)} üründe Panorama ile fark var ` +
+          `(net ${meta.sayim.netFark >= 0 ? "+" : "−"}${formatNumber(Math.abs(meta.sayim.netFark))} adet). `
+        : "") +
+      "Föyde geçmeyen ürünlerin SKT'si bilinmiyor."
+    : `SKT verisi ${meta.urunSayisi} ürünü kapsıyor; fabrika alış dosyasındaki ` +
+      `en son alım ${formatDate(tarih)}${meta.donemBas ? ` (başlangıç ${formatDate(meta.donemBas)})` : ""}. ` +
+      "Bu tarihten sonra gelen ürünlerin SKT'si dosyada yok.";
 
   return (
     <span
       className="hidden shrink-0 cursor-help items-center gap-1.5 md:flex"
-      title={
-        `SKT verisi ${urunSayisi} ürünü kapsıyor; fabrika alış dosyasındaki ` +
-        `en son alım ${formatDate(donemBit)}${donemBas ? ` (başlangıç ${formatDate(donemBas)})` : ""}. ` +
-        "Bu tarihten sonra gelen ürünlerin SKT'si dosyada yok."
-      }
+      title={baslik}
     >
       <span
         className={cn(
@@ -260,14 +300,16 @@ function SktKapsamRozeti({
         )}
         aria-hidden
       />
-      <span className="text-[12px] text-muted-foreground">SKT verisi</span>
+      <span className="text-[12px] text-muted-foreground">
+        {sayimKaynagi ? "Depo sayımı" : "SKT verisi"}
+      </span>
       <span
         className={cn(
           "font-mono text-[12.5px] font-medium tabular-nums",
           bayat ? "text-amber-400" : "text-foreground"
         )}
       >
-        {formatDate(donemBit)}
+        {formatDate(tarih)}
       </span>
     </span>
   );

@@ -53,6 +53,7 @@ const TIP_LABEL: Record<UploadResult["tip"], string> = {
   StYaslandirma: "ST Yaşlandırma",
   BelgeDetayRaporu: "BelgeDetayRaporu",
   FabrikaSktRaporu: "Fabrika SKT",
+  DepoSktSayimRaporu: "Depo SKT sayımı",
 };
 
 interface DataImportFlowProps {
@@ -69,7 +70,10 @@ interface DataImportFlowProps {
 }
 
 /** Müşteri sayacı taşımayan tipler — detay satırları bunlarda gizlenir. */
-const MUSTERISIZ_TIPLER = new Set<UploadResult["tip"]>(["FabrikaSktRaporu"]);
+const MUSTERISIZ_TIPLER = new Set<UploadResult["tip"]>([
+  "FabrikaSktRaporu",
+  "DepoSktSayimRaporu",
+]);
 
 export function DataImportFlow({
   onClose,

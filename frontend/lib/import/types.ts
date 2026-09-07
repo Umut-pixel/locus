@@ -7,7 +7,9 @@ export type DosyaTipi =
   | "StYaslandirma"
   | "BelgeDetayRaporu"
   /** Panorama'dan değil, fabrikadan (ARMA İlaç) 15 günde bir e-posta ile gelir. */
-  | "FabrikaSktRaporu";
+  | "FabrikaSktRaporu"
+  /** Depo fiziksel sayım föyü ("PATİGO DEPO SKT BİLGİSİ") — ERP stoğu + parti bazlı sayım. */
+  | "DepoSktSayimRaporu";
 
 export interface UploadResult {
   tip: DosyaTipi;
@@ -89,9 +91,18 @@ export interface YaslandirmaUpdateRow {
   borc_riskli: boolean;
 }
 
+/** SKT kaydının hangi dosyadan geldiği — alan doluluğu buna göre değişiyor. */
+export type SktKaynak = "fabrika" | "depo_sayim";
+
 /**
- * Fabrika alış raporu — ürün SKT / parti kaydı.
- * Grain: bir alım kalemi × bir SKT hücresi (bkz. sql/urun_skt_sema.sql).
+ * Ürün SKT / parti kaydı. İki kaynak besliyor (bkz. sql/urun_skt_sema.sql):
+ *
+ *  • kaynak='fabrika'    → fabrika alış raporu. Grain: alım kalemi × SKT hücresi.
+ *                          `islem_tarihi` / `matbu_no` / `satir_miktar` dolu,
+ *                          `depo_stok` / `parti_miktar` BOŞ.
+ *  • kaynak='depo_sayim' → depo fiziksel sayım föyü. Grain: ürün × parti.
+ *                          `depo_stok` / `parti_miktar` dolu, alım alanları BOŞ
+ *                          (dosyada alış tarihi ya da matbu no yok).
  */
 export interface UrunSktUpdateRow {
   /** Parse sırasında null; katalog eşleştirmesinden sonra API route dolduruyor. */
@@ -105,6 +116,11 @@ export interface UrunSktUpdateRow {
   skt_tarihi: string | null;
   durum: "tarihli" | "cozulemedi" | "devir" | "kayit_yok";
   tek_parti: boolean;
+  kaynak: SktKaynak;
+  /** Sayım föyündeki ERP (Panorama) stok rakamı — ürünün tüm satırlarında aynı. */
+  depo_stok: number | null;
+  /** Bu partide FİZİKSEL olarak sayılan adet. Fabrika kaynağında yok. */
+  parti_miktar: number | null;
 }
 
 /** BelgeDetayRaporu — müşteri bazlı ticari dönem özeti. */

@@ -362,8 +362,11 @@ def _sevk_sql(kim: str) -> str:
     )
 
 
+# parti_miktar yalnız sayım föyünde dolu (kaynak='depo_sayim'); fabrika
+# kaynağında NULL gelir ve "bu SKT'den kaç adet var" cevaplanamaz.
 _SKT_SQL = (
-    "SELECT urun_kodu, urun_adi, skt_tarihi, parti_no, tek_parti, yuklendi_at, "
+    "SELECT urun_kodu, urun_adi, skt_tarihi, parti_no, tek_parti, "
+    "kaynak, parti_miktar, depo_stok, yuklendi_at, "
     "(skt_tarihi - CURRENT_DATE) AS gun_kalan "
     "FROM urun_skt "
     "WHERE durum = 'tarihli' AND skt_tarihi IS NOT NULL "

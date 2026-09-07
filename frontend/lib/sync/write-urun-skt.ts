@@ -46,8 +46,31 @@ export async function fetchUrunKatalogu(
 }
 
 /**
+ * Ürün kodlarının kataloğu (5430) — sayım föyü kodu kendisi taşıdığı için
+ * ad eşleştirmesine gerek yok, yalnızca "bu kod katalogda var mı" sorusu var.
+ */
+export async function fetchUrunKodlari(
+  admin: SupabaseClient
+): Promise<Set<string>> {
+  const { data, error } = await admin
+    .from(PANORAMA_DETAYLI_STOK_RAPORU_VIEW)
+    .select("urun_kodu");
+  if (error) {
+    throw new Error(`Ürün kataloğu okunamadı: ${error.message}`);
+  }
+  const set = new Set<string>();
+  for (const row of (data ?? []) as { urun_kodu: string | null }[]) {
+    if (row.urun_kodu) set.add(String(row.urun_kodu).trim());
+  }
+  return set;
+}
+
+/**
  * SKT tablosunu tam snapshot ile değiştir (DELETE + INSERT tek transaction).
  * Tarihçe tutulmuyor — bu bir stok anlık görüntüsü, en güncel sayım doğru olan.
+ *
+ * DİKKAT: kaynak ayırmıyor. Fabrika alış dosyası yüklemek depo sayım föyünü,
+ * föy yüklemek fabrika kayıtlarını siler (bkz. sql/urun_skt_depo_sayim.sql).
  */
 export async function replaceUrunSkt(
   admin: SupabaseClient,
@@ -63,6 +86,9 @@ export async function replaceUrunSkt(
     skt_tarihi: r.skt_tarihi,
     durum: r.durum,
     tek_parti: r.tek_parti,
+    kaynak: r.kaynak,
+    depo_stok: r.depo_stok,
+    parti_miktar: r.parti_miktar,
   }));
 
   const { data, error } = await admin.rpc("replace_urun_skt", {
@@ -71,7 +97,7 @@ export async function replaceUrunSkt(
   if (error) {
     throw new Error(
       `SKT snapshot RPC başarısız: ${error.message}. ` +
-        "sql/urun_skt_sema.sql Supabase'de çalıştırıldı mı?"
+        "sql/urun_skt_sema.sql ve sql/urun_skt_depo_sayim.sql Supabase'de çalıştırıldı mı?"
     );
   }
   return typeof data === "number" ? data : rows.length;

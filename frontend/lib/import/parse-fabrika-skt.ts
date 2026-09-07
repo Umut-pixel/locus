@@ -223,6 +223,9 @@ export function parseFabrikaSktRaporu(
         skt_tarihi: null,
         durum: "kayit_yok",
         tek_parti: true,
+        kaynak: "fabrika",
+        depo_stok: null,
+        parti_miktar: null,
       });
       continue;
     }
@@ -239,6 +242,10 @@ export function parseFabrikaSktRaporu(
         skt_tarihi: h.sktTarihi,
         durum: h.durum,
         tek_parti: tekParti,
+        kaynak: "fabrika",
+        // Fabrika dosyasında ne ERP stoğu ne parti adedi var — sayım föyünün alanları.
+        depo_stok: null,
+        parti_miktar: null,
       });
     }
   }

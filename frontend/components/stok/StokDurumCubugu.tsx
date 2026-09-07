@@ -13,6 +13,19 @@ interface StokDurumCubuguProps {
   ozet: StokOzet;
   toplamUrun: number;
   loading: boolean;
+  /** Filtrelenmiş kümedeki ERP ↔ fiziksel sayım farkı; sayım föyü yoksa null. */
+  sayimFarki: SayimFarkOzeti | null;
+}
+
+export interface SayimFarkOzeti {
+  /** Sayım föyünde karşılığı olan ürün sayısı. */
+  kapsananUrun: number;
+  /** Rakamı tutmayan ürün sayısı. */
+  farkliUrun: number;
+  /** sayım - ERP, adet. */
+  netFark: number;
+  erpToplam: number;
+  sayimToplam: number;
 }
 
 /**
@@ -24,6 +37,7 @@ export function StokDurumCubugu({
   ozet,
   toplamUrun,
   loading,
+  sayimFarki,
 }: StokDurumCubuguProps) {
   const filtreli = ozet.urunAdet !== toplamUrun;
 
@@ -67,6 +81,29 @@ export function StokDurumCubugu({
           stokta yok
         </span>
       </span>
+
+      {sayimFarki && sayimFarki.farkliUrun > 0 ? (
+        <>
+          <Ayirac />
+          <span
+            className="flex shrink-0 cursor-help items-center gap-1.5"
+            title={
+              `Depo sayım föyü bu kümede ${formatNumber(sayimFarki.kapsananUrun)} ürünü kapsıyor; ` +
+              `${formatNumber(sayimFarki.farkliUrun)} üründe rakam tutmuyor. ` +
+              `Panorama ${formatNumber(sayimFarki.erpToplam)} adet, sayım ${formatNumber(sayimFarki.sayimToplam)} adet. ` +
+              "Bu sayfadaki miktarlar Panorama'dan geliyor — sayım üzerine yazılmıyor."
+            }
+          >
+            <span className="font-mono font-medium text-amber-400 tabular-nums">
+              {sayimFarki.netFark >= 0 ? "+" : "−"}
+              {formatNumber(Math.abs(sayimFarki.netFark))}
+            </span>
+            <span className="font-sans text-[12px] font-normal text-muted-foreground">
+              sayım farkı ({formatNumber(sayimFarki.farkliUrun)} üründe)
+            </span>
+          </span>
+        </>
+      ) : null}
 
       <div className="ml-auto flex items-center gap-x-5 pl-5">
         <StokTazeligi />
