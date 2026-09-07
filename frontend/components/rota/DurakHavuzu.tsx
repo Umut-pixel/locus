@@ -1,9 +1,12 @@
 "use client";
 
+import { useMemo } from "react";
+
 import { AlertTriangleIcon, CheckCircle2Icon, MapPinOffIcon, PackageIcon } from "lucide-react";
 
 import { ScrollBottomFade } from "@/components/ui/ScrollBottomFade";
 import type { RotaDuragi } from "@/hooks/useRotaPlani";
+import type { Bolge } from "@/lib/rota/bolge";
 import { useScrollBottomFade } from "@/hooks/useScrollBottomFade";
 import { depoyaKm } from "@/lib/depot";
 import { UZAK_ESIGI_KM } from "@/lib/rota/planla";
@@ -25,7 +28,20 @@ interface DurakHavuzuProps {
   seciliAracAdi: string | null;
   onDurakEkle: (musteriKodu: string) => void;
   loading: boolean;
+  /** musteriKodu → bölge. Havuz bölge başlıklarıyla gruplanır. */
+  durakBolgesi: Map<string, Bolge>;
 }
+
+interface HavuzGrubu {
+  ad: string;
+  ilceler: string[];
+  km: number | null;
+  duraklar: RotaDuragi[];
+  kg: number;
+}
+
+/** Bölgesiz kalanlar (koordinatsız) en sona. */
+const BOLGESIZ = "Konumsuz";
 
 /**
  * Henüz araca atanmamış bekleyen sipariş yükü. Sağdaki araç kartlarından biri
@@ -36,8 +52,37 @@ export function DurakHavuzu({
   seciliAracAdi,
   onDurakEkle,
   loading,
+  durakBolgesi,
 }: DurakHavuzuProps) {
   const bos = duraklar.length === 0;
+
+  /**
+   * Havuz bölgeye göre gruplanır — "hangi bölgeye hangi yük bekliyor" sorusu
+   * düz bir listede okunamıyordu. Gruplar depoya uzaklığa göre sıralı:
+   * yakın işler üstte, uzak hatlar altta.
+   */
+  const gruplar = useMemo<HavuzGrubu[]>(() => {
+    const m = new Map<string, HavuzGrubu>();
+    for (const d of duraklar) {
+      const b = durakBolgesi.get(d.musteriKodu);
+      const ad = b?.ad ?? BOLGESIZ;
+      const grup = m.get(ad) ?? {
+        ad,
+        ilceler: b?.ilceler ?? [],
+        km: b?.depoyaKm ?? null,
+        duraklar: [],
+        kg: 0,
+      };
+      grup.duraklar.push(d);
+      grup.kg += d.kg;
+      m.set(ad, grup);
+    }
+    return [...m.values()].sort((a, b) => {
+      if (a.km == null) return 1;
+      if (b.km == null) return -1;
+      return a.km - b.km;
+    });
+  }, [duraklar, durakBolgesi]);
   const { wrapperRef, scrollRef } = useScrollBottomFade<HTMLElement, HTMLDivElement>(
     duraklar.length
   );
@@ -106,23 +151,46 @@ export function DurakHavuzu({
           </div>
         ) : (
           <ul className="divide-y divide-border/50">
-            {duraklar.map((d) => (
-              <DurakSatiri
-                key={d.musteriKodu}
-                durak={d}
-                pasif={seciliAracAdi == null}
-                suruklenebilir={etkin}
-                suruluyor={durum?.musteriKodu === d.musteriKodu}
-                onSuruklemeBasla={(e, durak) =>
-                  basla(e, { durak, kaynakAracKod: null })
-                }
-                onSec={() => {
-                  // pointerup'tan sonra gelen click sürüklemeyi tekrar
-                  // uygulamasın diye yutuluyor.
-                  if (suruklendiMi()) return;
-                  onDurakEkle(d.musteriKodu);
-                }}
-              />
+            {gruplar.map((g) => (
+              <li key={g.ad}>
+                <div
+                  className="sticky top-0 z-10 flex items-baseline gap-2 border-b border-border/60 bg-muted/40 px-3.5 py-1.5 backdrop-blur-sm"
+                  title={
+                    g.ilceler.length > 0
+                      ? `İlçeler: ${g.ilceler.join(", ")}`
+                      : "İlçe bilgisi olmayan duraklar koordinat hücresine göre kümelendi"
+                  }
+                >
+                  <span className="min-w-0 flex-1 truncate text-[12px] font-medium text-foreground">
+                    {g.ad}
+                  </span>
+                  <span className="shrink-0 font-mono text-[11.5px] text-muted-foreground tabular-nums">
+                    {formatNumber(g.duraklar.length)} durak ·{" "}
+                    {formatKg(Math.round(g.kg))}
+                    {g.km != null ? ` · ${Math.round(g.km)} km` : ""}
+                  </span>
+                </div>
+                <ul className="divide-y divide-border/50">
+                  {g.duraklar.map((d) => (
+                    <DurakSatiri
+                      key={d.musteriKodu}
+                      durak={d}
+                      pasif={seciliAracAdi == null}
+                      suruklenebilir={etkin}
+                      suruluyor={durum?.musteriKodu === d.musteriKodu}
+                      onSuruklemeBasla={(e, durak) =>
+                        basla(e, { durak, kaynakAracKod: null })
+                      }
+                      onSec={() => {
+                        // pointerup'tan sonra gelen click sürüklemeyi tekrar
+                        // uygulamasın diye yutuluyor.
+                        if (suruklendiMi()) return;
+                        onDurakEkle(d.musteriKodu);
+                      }}
+                    />
+                  ))}
+                </ul>
+              </li>
             ))}
           </ul>
         )}

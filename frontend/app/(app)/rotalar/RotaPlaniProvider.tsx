@@ -27,6 +27,7 @@ import {
   type FiloSecimi,
   type Sofor,
 } from "@/lib/rota/atama";
+import { bolgele, type Bolge } from "@/lib/rota/bolge";
 import { sonrakiKalkis } from "@/lib/rota/operasyon";
 import { planMetrigi, planOlustur, type PlanMetrigi } from "@/lib/rota/planla";
 import {
@@ -69,6 +70,10 @@ interface RotaPlaniDegeri {
   elenenAraclar: RotaAraci[];
   havuz: RotaDuragi[];
   atananSayisi: number;
+  /** Günün coğrafi bölgeleri — havuz gruplaması ve araç rozetleri için. */
+  bolgeler: Bolge[];
+  /** Bir durağın bölgesi; havuzda ve araç kartında aynı ad görünsün. */
+  durakBolgesi: Map<string, Bolge>;
   aracDuraklari: (aracKod: string) => RotaDuragi[];
   aracBul: (aracKod: string) => RotaAraci | null;
   rotalar: HaritaRotasi[];
@@ -147,6 +152,16 @@ export function RotaPlaniProvider({ children }: { children: ReactNode }) {
     return { cikanAraclar: cikan, elenenAraclar: elenen };
   }, [tercihler.aracKodlari, filo, araclar, soforler]);
 
+  /**
+   * Bölge birleştirme eşiği — motordaki (`bolgeAta`) kuralın aynısı: çıkan
+   * filonun en küçük aracının dörtte biri. İki yerde farklı olursa ekranda
+   * görünen bölge ile plana giren bölge ayrışır.
+   */
+  const birlestirmeEsigi = useMemo(() => {
+    const kapasiteler = cikanAraclar.map((a) => a.cuvalKapasite).filter((k) => k > 0);
+    return kapasiteler.length > 0 ? Math.min(...kapasiteler) * 0.25 : 0;
+  }, [cikanAraclar]);
+
   const [plan, setPlan] = useState<Plan>({});
   const [seciliArac, setSeciliArac] = useState<string | null>(null);
   const [optimizeEdilen, setOptimizeEdilen] = useState<string | null>(null);
@@ -166,6 +181,25 @@ export function RotaPlaniProvider({ children }: { children: ReactNode }) {
   }, [duraklar]);
 
   const atananlar = useMemo(() => new Set(Object.values(plan).flat()), [plan]);
+
+  /**
+   * Günün bölgeleri — havuz gruplaması ve araç kartlarındaki bölge rozetleri
+   * aynı kümelemeyi kullansın diye TEK yerde hesaplanıyor. Dağıtım motoru da
+   * aynı `bolgele`'yi çağırıyor; ekran ile plan ayrışmasın.
+   */
+  const bolgeler = useMemo(
+    () => bolgele(duraklar, DEPOT, { birlestirmeEsigiCuval: birlestirmeEsigi }),
+    [duraklar, birlestirmeEsigi]
+  );
+
+  /** musteriKodu → bölge adı. */
+  const durakBolgesi = useMemo(() => {
+    const m = new Map<string, Bolge>();
+    for (const b of bolgeler) {
+      for (const d of b.duraklar) m.set(d.musteriKodu, b);
+    }
+    return m;
+  }, [bolgeler]);
 
   const havuz = useMemo(
     () => duraklar.filter((d) => !atananlar.has(d.musteriKodu)),
@@ -449,6 +483,12 @@ export function RotaPlaniProvider({ children }: { children: ReactNode }) {
 
     return [
       {
+        etiket: "Bölge",
+        metrik: uret("bolge", tercihler.uzakAyir),
+        secili: tercihler.strateji === "bolge",
+        onSec: () => tercihDegis({ strateji: "bolge" }),
+      },
+      {
         etiket: "Coğrafi",
         metrik: uret("sweep", tercihler.uzakAyir),
         secili: tercihler.strateji === "sweep",
@@ -487,6 +527,8 @@ export function RotaPlaniProvider({ children }: { children: ReactNode }) {
       elenenAraclar,
       havuz,
       atananSayisi: atananlar.size,
+      bolgeler,
+      durakBolgesi,
       aracDuraklari,
       aracBul,
       rotalar,
@@ -510,7 +552,7 @@ export function RotaPlaniProvider({ children }: { children: ReactNode }) {
     [
       loading, error, duraklar, araclar, soforler, filo, ozet, tazele,
       tercihler, tercihDegis, plan, cikanAraclar, elenenAraclar, havuz,
-      atananlar.size,
+      atananlar.size, bolgeler, durakBolgesi,
       aracDuraklari, aracBul, rotalar, seciliArac, otomatikDagit,
       hepsiniTemizle, durakEkle, durakCikar, aracTemizle, optimizeEt,
       optimizeEdilen, rotaBilgileri, optimizeHatalari, mevcutMetrik,

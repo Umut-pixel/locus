@@ -12,6 +12,16 @@ export const DEPOT = {
 } as const;
 
 /**
+ * Bu mesafenin üstündeki durak "uzak" sayılır.
+ * Melih: uzak yerlere sipariş birikince hepsi tek araca yüklenip gidiyor —
+ * yani şehir içi turla aynı araca konmamalı.
+ *
+ * Burada duruyor çünkü hem `lib/rota/planla.ts` hem `lib/rota/bolge.ts`
+ * kullanıyor ve o ikisi birbirini import ediyor — sabit orada olsa döngü olurdu.
+ */
+export const UZAK_ESIGI_KM = 120;
+
+/**
  * Depoya kuş uçuşu mesafe (km).
  *
  * Sevkiyat her yere gidiyor — Bandırma gibi uzak müşteriler sipariş birikince
@@ -19,16 +29,27 @@ export const DEPOT = {
  * bir durak İzmir içi turla aynı listede kaybolur.
  */
 export function depoyaKm(nokta: { lat: number; lon: number }): number {
+  return kmArasi(DEPOT, nokta);
+}
+
+/**
+ * İki nokta arası kuş uçuşu km (haversine).
+ *
+ * Depoya bağlı olmayan ölçümler için: bölge merkezleri, tur uzunluğu,
+ * araç içi yayılım. Aynı formül üç yerde ayrı ayrı duruyordu.
+ */
+export function kmArasi(
+  a: { lat: number; lon: number },
+  b: { lat: number; lon: number }
+): number {
   const R = 6371;
   const rad = Math.PI / 180;
-  const dLat = (nokta.lat - DEPOT.lat) * rad;
-  const dLon = (nokta.lon - DEPOT.lon) * rad;
-  const a =
+  const dLat = (b.lat - a.lat) * rad;
+  const dLon = (b.lon - a.lon) * rad;
+  const h =
     Math.sin(dLat / 2) ** 2 +
-    Math.cos(DEPOT.lat * rad) *
-      Math.cos(nokta.lat * rad) *
-      Math.sin(dLon / 2) ** 2;
-  return R * 2 * Math.asin(Math.sqrt(a));
+    Math.cos(a.lat * rad) * Math.cos(b.lat * rad) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.asin(Math.sqrt(h));
 }
 
 export function googleMapsDirUrl(

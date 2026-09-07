@@ -25,7 +25,11 @@ import {
   type StokFilters as StokFiltersTipi,
   type StokSort,
 } from "@/hooks/useStokRaporu";
-import { useUrunSkt, type SktMeta } from "@/hooks/useUrunSkt";
+import {
+  useUrunSkt,
+  type SktKaynakOzeti,
+  type SktMeta,
+} from "@/hooks/useUrunSkt";
 import { formatDate, formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -261,38 +265,70 @@ export default function StokRaporlariPage() {
  *    Rapor 15 günde bir geliyor; 45 gün = üç dönem kaçmış.
  *  • Depo sayım föyü: dosyada alış tarihi YOK, ölçü son yükleme anı.
  *
- * Rozet eskiden yalnızca `donemBit` üzerinden çalışıyordu ve tarihsiz kaynakta
- * sessizce kayboluyordu — 2026-09-06'da canlıda tam olarak bu oldu. "Rozet yok
- * = sorun yok" diye okunmaması gereken tek yer burası.
+ * İkisi birlikte yüklü olabiliyor (kaynak='karisik') — biri diğerini silmiyor.
+ * O yüzden rozet TEK değil, yüklü kaynak başına bir tane. Eskiden yalnız
+ * `donemBit` üzerinden çalışıyordu ve tarihsiz kaynakta sessizce kayboluyordu
+ * (2026-09-06'da canlıda tam olarak bu oldu). "Rozet yok = sorun yok" diye
+ * okunmaması gereken tek yer burası.
  */
 function SktKapsamRozeti({ meta, loading }: { meta: SktMeta; loading: boolean }) {
   if (loading || meta.kaynak == null) return null;
 
-  const sayimKaynagi = meta.kaynak === "depo_sayim";
-  const gun = sayimKaynagi ? meta.yuklendiGunFarki : meta.donemBitGunFarki;
-  const tarih = sayimKaynagi ? (meta.yuklendiAt?.slice(0, 10) ?? null) : meta.donemBit;
-  if (!tarih) return null;
+  return (
+    <span className="hidden shrink-0 items-center gap-3 md:flex">
+      {/* Föy daha güncel ve miktarı o taşıyor — önce o okunmalı. */}
+      {meta.depoSayim ? (
+        <KaynakRozeti
+          etiket="Depo sayımı"
+          ozet={meta.depoSayim}
+          baslik={
+            `Depo sayım föyü ${formatNumber(meta.depoSayim.urunSayisi)} ürünü kapsıyor, ` +
+            `${formatDate(meta.depoSayim.tarih)} tarihinde yüklendi. ` +
+            (meta.sayim
+              ? `${formatNumber(meta.sayim.farkliUrun)} üründe Panorama ile fark var ` +
+                `(net ${meta.sayim.netFark >= 0 ? "+" : "−"}${formatNumber(Math.abs(meta.sayim.netFark))} adet). `
+              : "") +
+            "Föyde geçmeyen ürünlerde fabrika alış dosyası kullanılıyor."
+          }
+        />
+      ) : null}
+      {meta.fabrika ? (
+        <KaynakRozeti
+          etiket="Fabrika alış"
+          ozet={meta.fabrika}
+          baslik={
+            `Fabrika alış dosyası ${formatNumber(meta.fabrika.urunSayisi)} ürünü kapsıyor; ` +
+            `dosyadaki en son alım ${formatDate(meta.fabrika.tarih)}` +
+            (meta.donemBas ? ` (başlangıç ${formatDate(meta.donemBas)})` : "") +
+            ". Bu tarihten sonra gelen ürünlerin SKT'si dosyada yok."
+          }
+        />
+      ) : null}
+    </span>
+  );
+}
 
-  // Fabrika raporu 15 günde bir; sayım föyü daha seyrek ama 45 gün ikisinde de
-  // "arada yeni mal girdi, bu dosya onu görmüyor" demek.
-  const bayat = (gun ?? 0) > 45;
-
-  const baslik = sayimKaynagi
-    ? `Depo sayım föyü ${meta.urunSayisi} ürünü kapsıyor, ${formatDate(tarih)} tarihinde yüklendi. ` +
-      (meta.sayim
-        ? `Föyde ${formatNumber(meta.sayim.farkliUrun)} üründe Panorama ile fark var ` +
-          `(net ${meta.sayim.netFark >= 0 ? "+" : "−"}${formatNumber(Math.abs(meta.sayim.netFark))} adet). `
-        : "") +
-      "Föyde geçmeyen ürünlerin SKT'si bilinmiyor."
-    : `SKT verisi ${meta.urunSayisi} ürünü kapsıyor; fabrika alış dosyasındaki ` +
-      `en son alım ${formatDate(tarih)}${meta.donemBas ? ` (başlangıç ${formatDate(meta.donemBas)})` : ""}. ` +
-      "Bu tarihten sonra gelen ürünlerin SKT'si dosyada yok.";
+/**
+ * Tek kaynağın tazelik rozeti.
+ *
+ * 45 gün eşiği ikisinde de aynı anlama geliyor: "arada yeni mal girdi, bu
+ * dosya onu görmüyor". Fabrika raporu 15 günde bir geldiği için üç dönem,
+ * föy için de sayımın üstünden geçen makul süre.
+ */
+function KaynakRozeti({
+  etiket,
+  ozet,
+  baslik,
+}: {
+  etiket: string;
+  ozet: SktKaynakOzeti;
+  baslik: string;
+}) {
+  if (!ozet.tarih) return null;
+  const bayat = (ozet.gunFarki ?? 0) > 45;
 
   return (
-    <span
-      className="hidden shrink-0 cursor-help items-center gap-1.5 md:flex"
-      title={baslik}
-    >
+    <span className="flex shrink-0 cursor-help items-center gap-1.5" title={baslik}>
       <span
         className={cn(
           "size-2 shrink-0 rounded-full",
@@ -300,16 +336,14 @@ function SktKapsamRozeti({ meta, loading }: { meta: SktMeta; loading: boolean })
         )}
         aria-hidden
       />
-      <span className="text-[12px] text-muted-foreground">
-        {sayimKaynagi ? "Depo sayımı" : "SKT verisi"}
-      </span>
+      <span className="text-[12px] text-muted-foreground">{etiket}</span>
       <span
         className={cn(
           "font-mono text-[12.5px] font-medium tabular-nums",
           bayat ? "text-amber-400" : "text-foreground"
         )}
       >
-        {formatDate(tarih)}
+        {formatDate(ozet.tarih)}
       </span>
     </span>
   );

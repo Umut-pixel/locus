@@ -20,6 +20,7 @@ import {
   fetchUrunKodlari,
   normalizeUrunAdi,
   replaceUrunSkt,
+  sktKaynakSayimi,
 } from "@/lib/sync/write-urun-skt";
 import {
   buildPortfolioForm,
@@ -490,7 +491,13 @@ export async function POST(request: Request) {
       // Kodu çözülemeyen satır yazılmıyor: SKT rozeti stok tablosuna
       // urun_kodu ile bağlanıyor, kodsuz kayıt hiçbir yerde görünmez.
       const yazilacak = cozulmus.filter((r) => r.urun_kodu != null);
-      const yazilan = yazilacak.length > 0 ? await replaceUrunSkt(admin, yazilacak) : 0;
+      const yazilan =
+        yazilacak.length > 0
+          ? await replaceUrunSkt(admin, yazilacak, "fabrika")
+          : 0;
+
+      // Depo sayım föyü silinmiyor; kullanıcı iki kaynağın da durduğunu görsün.
+      const korunanSayim = await sktKaynakSayimi(admin, "depo_sayim");
 
       const eslesenUrun = new Set(yazilacak.map((r) => r.urun_kodu)).size;
       uyarilar.push(
@@ -501,6 +508,11 @@ export async function POST(request: Request) {
       if (parsed.donemBas && parsed.donemBit) {
         uyarilar.push(
           `Kapsanan alım aralığı: ${parsed.donemBas} → ${parsed.donemBit}.`
+        );
+      }
+      if (korunanSayim > 0) {
+        uyarilar.push(
+          `Depo sayım föyündeki ${korunanSayim} ürün korundu — iki kaynak birlikte duruyor.`
         );
       }
       if (parsed.cokPartiliSatir > 0) {
@@ -540,7 +552,14 @@ export async function POST(request: Request) {
         if (r.urun_kodu) eslesmeyenKodlar.add(`${r.urun_kodu} — ${r.urun_adi}`);
         return false;
       });
-      const yazilan = yazilacak.length > 0 ? await replaceUrunSkt(admin, yazilacak) : 0;
+      const yazilan =
+        yazilacak.length > 0
+          ? await replaceUrunSkt(admin, yazilacak, "depo_sayim")
+          : 0;
+
+      // Fabrika alış kayıtları silinmiyor — föyde geçmeyen ürünlerin SKT'si
+      // yalnız orada var.
+      const korunanFabrika = await sktKaynakSayimi(admin, "fabrika");
 
       const eslesenUrun = new Set(yazilacak.map((r) => r.urun_kodu)).size;
       uyarilar.push(
@@ -580,6 +599,11 @@ export async function POST(request: Request) {
         uyarilar.push(
           `${parsed.sayimsizUrun} üründe hiç sayım hücresi doldurulmamış — ` +
             "\"sıfır sayıldı\" değil, \"sayılmadı\" olarak okunmalı."
+        );
+      }
+      if (korunanFabrika > 0) {
+        uyarilar.push(
+          `Fabrika alış dosyasındaki ${korunanFabrika} ürün korundu — föyde geçmeyen ürünlerin SKT'si oradan geliyor.`
         );
       }
       if (eslesmeyenKodlar.size > 0) {

@@ -32,6 +32,13 @@ export interface Durak {
   cuvalEsdeger: number;
   /** Ölçüsü bilinmeyen satır sayısı — >0 ise yük olduğundan az görünüyor. */
   olcusuzSatir: number;
+  /**
+   * İdari kimlik — bölge kümelemesinin atom birimi (bkz. bolge.ts).
+   * Opsiyonel: `sweepKumele`/`ffdAta` bunlara bakmaz, yalnız `bolgeAta`
+   * kullanır. `RotaDuragi` zaten taşıyor, buraya bedavaya akıyor.
+   */
+  sehir?: string | null;
+  ilce?: string | null;
 }
 
 /**
@@ -252,6 +259,32 @@ function altKumeler<T extends Arac>(araclar: T[], soforler: Sofor[]): T[][] {
   return sonuc;
 }
 
+/**
+ * Duraklar bu filoya GERÇEKTEN sığıyor mu — first-fit-decreasing denemesi.
+ *
+ * Toplam kapasiteyi toplam yükle karşılaştırmak yetmiyordu: duraklar
+ * bölünemez, 8,7 tonluk tek bir sipariş toplam yeterliyken bile yerleşmeyebilir.
+ * 2025-12-22 gerçek gününde ölçüldü — toplam yükü karşılayan filo seçilip 28
+ * duraktan 8'i havuzda kalıyordu.
+ *
+ * Koordinatsız duraklar sayılmaz; onlar zaten plana giremiyor.
+ */
+export function filoyaSigarMi(duraklar: Durak[], filo: Arac[]): boolean {
+  if (filo.length === 0) return duraklar.length === 0;
+
+  const kovalar = filo.map((arac) => ({ arac, duraklar: [] as Durak[] }));
+  const sirali = [...duraklar]
+    .filter((d) => d.lat != null && d.lon != null)
+    .sort((a, b) => b.cuvalEsdeger - a.cuvalEsdeger || b.kg - a.kg);
+
+  for (const d of sirali) {
+    const hedef = kovalar.find((k) => sigarMi(k.arac, k.duraklar, d));
+    if (!hedef) return false;
+    hedef.duraklar.push(d);
+  }
+  return true;
+}
+
 function kapasite(filo: Arac[]): { cuval: number; kg: number } {
   let cuval = 0;
   let kg = 0;
@@ -340,10 +373,13 @@ export function filoSec<T extends Arac>(
 
   const puanli = altKumeler(araclar, soforler).map((filo) => {
     const kap = kapasite(filo);
+    // Kaba kapasite ÖN ELEME; asıl ölçüt bölünemez duraklarla yapılan
+    // paketleme denemesi (bkz. filoyaSigarMi).
+    const kabaca = toplamCuval <= kap.cuval && toplamKg <= kap.kg;
     return {
       filo,
       kap,
-      yeterli: toplamCuval <= kap.cuval && toplamKg <= kap.kg,
+      yeterli: kabaca && filoyaSigarMi(duraklar, filo),
     };
   });
 

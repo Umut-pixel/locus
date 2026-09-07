@@ -185,7 +185,11 @@ console.log("filoSec: elle seçim şoför kısıtını delemiyor ok");
     uzakAyir: "evet", aracKodlari: [1, "kangoo", null],
   });
   if (bozuk.gunPenceresi !== null) fail("geçersiz pencere null'a düşmeli");
-  if (bozuk.strateji !== "sweep") fail("geçersiz strateji varsayılana düşmeli");
+  // Varsayılan artık "bolge" — sabit değil, VARSAYILAN_TERCIHLER'e bağlanıyor
+  // ki varsayılan bir daha değiştiğinde test yalan söylemesin.
+  if (bozuk.strateji !== VARSAYILAN_TERCIHLER.strateji) {
+    fail("geçersiz strateji varsayılana düşmeli");
+  }
   if (bozuk.dolulukEsigi !== VARSAYILAN_TERCIHLER.dolulukEsigi) {
     fail("aralık dışı eşik varsayılana düşmeli");
   }
@@ -193,8 +197,19 @@ console.log("filoSec: elle seçim şoför kısıtını delemiyor ok");
   if (bozuk.aracKodlari?.join() !== "kangoo") fail("string olmayan araç kodu elenmeli");
 
   const bos = tercihleriTemizle(null);
-  if (bos.strateji !== "sweep" || bos.gunPenceresi !== null) {
+  if (
+    bos.strateji !== VARSAYILAN_TERCIHLER.strateji ||
+    bos.gunPenceresi !== null
+  ) {
     fail("null girdi varsayılan tercihleri vermeli");
+  }
+  // Geçerli seçim korunmalı — varsayılan değişti diye kullanıcının seçtiği
+  // strateji sessizce değişmesin.
+  if (tercihleriTemizle({ strateji: "sweep" }).strateji !== "sweep") {
+    fail("geçerli strateji korunmalı");
+  }
+  if (tercihleriTemizle({ strateji: "ffd" }).strateji !== "ffd") {
+    fail("ffd korunmalı");
   }
 }
 console.log("tercihleriTemizle ok");

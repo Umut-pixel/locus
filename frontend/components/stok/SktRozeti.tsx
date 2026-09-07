@@ -41,12 +41,15 @@ export function SktRozeti({ ozet, loading }: SktRozetiProps) {
   if (!tarihVar) {
     const anahtar = ozet.rozet === "tarihli" ? "takip_yok" : ozet.rozet;
     const { metin, baslik, renk } = TARIHSIZ_GORUNUM[anahtar];
-    const sayimdan = ozet.kaynak === "depo_sayim";
+    // Aynı rozet kaynağa göre farklı şeyi anlatıyor; açıklama ona göre seçilir.
+    const aciklama =
+      ozet.kaynak === "karisik" && anahtar === "kayit_disi"
+        ? "Bu ürün ne fabrika alış dosyasında ne de depo sayım föyünde geçiyor. SKT bilinmiyor."
+        : ozet.kaynak === "depo_sayim"
+          ? SAYIM_BASLIK[anahtar]
+          : baslik;
     return (
-      <span
-        className={cn("text-[12px] whitespace-nowrap", renk)}
-        title={sayimdan ? SAYIM_BASLIK[anahtar] : baslik}
-      >
+      <span className={cn("text-[12px] whitespace-nowrap", renk)} title={aciklama}>
         {metin}
       </span>
     );

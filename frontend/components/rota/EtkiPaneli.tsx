@@ -66,6 +66,30 @@ export function EtkiPaneli({ mevcut, secenekler, loading }: EtkiPaneliProps) {
           deger={`${formatNumber(Math.round(mevcut.toplamKm))} km`}
           alt="kuş uçuşu, depoya dönüşle"
         />
+        {/*
+          Bölge bütünlüğü: aynı ilçenin iki araca dağılması sahada iki kez
+          aynı yere gitmek demek. 0 hedef.
+        */}
+        <Olcu
+          etiket="Bölünmüş bölge"
+          deger={formatNumber(mevcut.bolunmusBolge)}
+          alt={
+            mevcut.bolunmusBolge > 0
+              ? "aynı ilçe iki araçta"
+              : `araç başına ${mevcut.aracBasinaBolge.toFixed(1)} bölge`
+          }
+          vurgu={mevcut.bolunmusBolge > 0}
+        />
+        {/*
+          Bir araçtaki en yakın ve en uzak durağın mesafe farkı. "Aydın (4 km)
+          + İstanbul (325 km)" vakasının tek sayılık göstergesi.
+        */}
+        <Olcu
+          etiket="Max yayılım"
+          deger={`${formatNumber(Math.round(mevcut.maxYayilimKm))} km`}
+          alt="bir araçtaki en yakın-en uzak farkı"
+          vurgu={mevcut.maxYayilimKm > 150}
+        />
         {mevcut.asimVar ? (
           <span className="rounded bg-destructive/15 px-1.5 py-0.5 text-[11px] font-medium text-destructive">
             kapasite aşımı
@@ -88,7 +112,9 @@ export function EtkiPaneli({ mevcut, secenekler, loading }: EtkiPaneliProps) {
                 `${s.etiket}: ${formatNumber(s.metrik.yerlesenDurak)} durak, ` +
                 `${yuzde(s.metrik.ortDoluluk)} doluluk, ` +
                 `${formatNumber(Math.round(s.metrik.toplamKm))} km, ` +
-                `${formatNumber(s.metrik.aracSayisi)} araç`
+                `${formatNumber(s.metrik.aracSayisi)} araç, ` +
+                `${formatNumber(s.metrik.bolunmusBolge)} bölünmüş bölge, ` +
+                `max yayılım ${formatNumber(Math.round(s.metrik.maxYayilimKm))} km`
               }
               className={cn(
                 "flex shrink-0 items-center gap-1 rounded border px-1.5 py-0.5 text-[11.5px] transition-colors",

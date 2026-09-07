@@ -48,6 +48,7 @@ export function TercihCubugu({
   onFiloDuzenle,
   loading,
 }: TercihCubuguProps) {
+  const bolgeModu = tercihler.strateji === "bolge";
   const otomatik = tercihler.aracKodlari == null;
   const secili = new Set(
     otomatik ? otomatikSecim.map((a) => a.kod) : tercihler.aracKodlari
@@ -120,22 +121,37 @@ export function TercihCubugu({
         ))}
       </Grup>
 
-      {/* Uzak bölge ayırma */}
+      {/*
+        Uzak bölge ayırma. "Bölge" stratejisinde YAPININ İÇİNDE: uzak bantlar
+        zaten ayrı tur oluyor ve turlar en uzaktan başlayarak yerleşiyor —
+        ayrıca uygulamak bölgeleri ikinci kez bölerdi. O yüzden pasif.
+      */}
       <Grup etiket="Uzak bölge">
-        <Secenek
-          secili={!tercihler.uzakAyir}
-          onClick={() => onDegis({ uzakAyir: false })}
-          title="Uzak duraklar şehir içi turla aynı araca binebilir"
-        >
-          Karışık
-        </Secenek>
-        <Secenek
-          secili={tercihler.uzakAyir}
-          onClick={() => onDegis({ uzakAyir: true })}
-          title="Uzak duraklar önce ayrı bir araca yüklenir — Melih'in tarif ettiği işleyiş"
-        >
-          Ayrı tur
-        </Secenek>
+        {bolgeModu ? (
+          <span
+            className="cursor-help px-2 py-1 text-[12px] text-muted-foreground"
+            title="Bölge stratejisinde uzak hatlar zaten ayrı tur oluyor ve en uzaktan başlayarak araç alıyor. Ayrı bir ayar gerekmiyor."
+          >
+            bölgede otomatik
+          </span>
+        ) : (
+          <>
+            <Secenek
+              secili={!tercihler.uzakAyir}
+              onClick={() => onDegis({ uzakAyir: false })}
+              title="Uzak duraklar şehir içi turla aynı araca binebilir"
+            >
+              Karışık
+            </Secenek>
+            <Secenek
+              secili={tercihler.uzakAyir}
+              onClick={() => onDegis({ uzakAyir: true })}
+              title="Uzak duraklar önce ayrı bir araca yüklenir — Melih'in tarif ettiği işleyiş"
+            >
+              Ayrı tur
+            </Secenek>
+          </>
+        )}
       </Grup>
 
       {/* Elle araç seçimi */}

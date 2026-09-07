@@ -8,6 +8,7 @@
  */
 
 import {
+  depoAcisi,
   dolulukHesapla,
   ffdAta,
   sweepKumele,
@@ -15,15 +16,12 @@ import {
   type AtamaSonucu,
   type Durak,
 } from "./atama";
-import { depoyaKm } from "../depot";
+import { bolgeAta } from "./bolge";
+import { DEPOT, depoyaKm, kmArasi, UZAK_ESIGI_KM } from "../depot";
 import type { Strateji } from "./tercihler";
 
-/**
- * Bu mesafenin üstündeki durak "uzak" sayılır.
- * Melih: uzak yerlere sipariş birikince hepsi tek araca yüklenip gidiyor —
- * yani şehir içi turla aynı araca konmamalı.
- */
-export const UZAK_ESIGI_KM = 120;
+/** Eski içe aktarmalar bozulmasın — tanım `lib/depot.ts`'te (döngü engeli). */
+export { UZAK_ESIGI_KM };
 
 export function uzakMi(durak: Durak): boolean {
   if (durak.lat == null || durak.lon == null) return false;
@@ -37,9 +35,9 @@ function dagit(
   depo: { lat: number; lon: number },
   tumFilo: Arac[]
 ): AtamaSonucu {
-  return strateji === "ffd"
-    ? ffdAta(duraklar, araclar, tumFilo)
-    : sweepKumele(duraklar, araclar, depo, tumFilo);
+  if (strateji === "bolge") return bolgeAta(duraklar, araclar, depo, tumFilo);
+  if (strateji === "ffd") return ffdAta(duraklar, araclar, tumFilo);
+  return sweepKumele(duraklar, araclar, depo, tumFilo);
 }
 
 /**
@@ -63,7 +61,10 @@ export function planOlustur(params: {
 }): AtamaSonucu {
   const { duraklar, araclar, tumFilo, depo, strateji, uzakAyir } = params;
 
-  if (!uzakAyir) {
+  // Bölge stratejisinde uzak ayırma YAPININ İÇİNDE: uzak bantlar ayrı tur
+  // oluyor ve turlar en uzaktan başlayarak yerleşiyor. Ayrıca uygulamak
+  // bölgeleri ikinci kez bölerdi.
+  if (!uzakAyir || strateji === "bolge") {
     return dagit(strateji, duraklar, araclar, depo, tumFilo);
   }
 
@@ -113,32 +114,61 @@ export interface PlanMetrigi {
   /** Depo → duraklar → depo, kuş uçuşu. Google çağrısı yapmadan kaba ölçü. */
   toplamKm: number;
   asimVar: boolean;
+  /** Birden fazla araca dağılmış bölge sayısı — 0 hedef. */
+  bolunmusBolge: number;
+  /** Yüklü araç başına ortalama bölge sayısı. */
+  aracBasinaBolge: number;
+  /**
+   * Bir araçtaki en yakın ve en uzak durağın depo mesafesi farkı (km),
+   * araçlar arasındaki en kötüsü. "Aydın (4 km) + İstanbul (325 km)" vakasının
+   * tek sayılık göstergesi.
+   */
+  maxYayilimKm: number;
 }
 
-/** Depo → duraklar → depo, kuş uçuşu. `depoyaKm` depoyu zaten biliyor. */
+/**
+ * Depo → duraklar → depo, kuş uçuşu.
+ *
+ * Duraklar burada AÇIYA GÖRE sıralanır. Önceden listenin ham sırası güzergâh
+ * sayılıyordu; sweep'te o zaten açı sırası olduğu için makuldü ama FFD ağırlığa
+ * göre sıralı bir liste döndürüyor ve ölçüm anlamsız çıkıyordu — strateji
+ * karşılaştırması FFD'yi haksız yere kötü gösteriyordu. Google sıralaması
+ * yapılmadan önceki kaba ölçü, sıralamadan bağımsız olmalı.
+ */
 function turKm(duraklar: Durak[]): number {
-  const noktalar = duraklar.filter(
-    (d): d is Durak & { lat: number; lon: number } =>
-      d.lat != null && d.lon != null
-  );
+  const noktalar = duraklar
+    .filter(
+      (d): d is Durak & { lat: number; lon: number } =>
+        d.lat != null && d.lon != null
+    )
+    .sort((a, b) => depoAcisi(a, DEPOT) - depoAcisi(b, DEPOT));
   if (noktalar.length === 0) return 0;
 
   let km = depoyaKm(noktalar[0]!);
   for (let i = 1; i < noktalar.length; i++) {
-    const a = noktalar[i - 1]!;
-    const b = noktalar[i]!;
-    const R = 6371;
-    const rad = Math.PI / 180;
-    const dLat = (b.lat - a.lat) * rad;
-    const dLon = (b.lon - a.lon) * rad;
-    const h =
-      Math.sin(dLat / 2) ** 2 +
-      Math.cos(a.lat * rad) * Math.cos(b.lat * rad) * Math.sin(dLon / 2) ** 2;
-    km += R * 2 * Math.asin(Math.sqrt(h));
+    km += kmArasi(noktalar[i - 1]!, noktalar[i]!);
   }
   // Araç depoya dönüyor (Melih) — dönüş bacağı da mesafeye giriyor.
   km += depoyaKm(noktalar[noktalar.length - 1]!);
   return km;
+}
+
+/** Araçtaki en yakın/en uzak durak farkı (km). */
+function yayilimKm(duraklar: Durak[]): number {
+  const kmler = duraklar
+    .filter((d) => d.lat != null && d.lon != null)
+    .map((d) => depoyaKm({ lat: d.lat as number, lon: d.lon as number }));
+  if (kmler.length < 2) return 0;
+  return Math.max(...kmler) - Math.min(...kmler);
+}
+
+/** Durağın ait olduğu bölge anahtarı — metrikte "bölge bölündü mü" için. */
+function bolgeAnahtari(d: Durak): string {
+  const sehir = (d.sehir ?? "").trim();
+  const ilce = (d.ilce ?? "").trim();
+  if (ilce) return `${sehir}/${ilce}`;
+  if (d.lat == null || d.lon == null) return "?";
+  return `${sehir}/~${Math.round(d.lat * 10)},${Math.round(d.lon * 10)}`;
 }
 
 export function planMetrigi(sonuc: AtamaSonucu): PlanMetrigi {
@@ -147,17 +177,38 @@ export function planMetrigi(sonuc: AtamaSonucu): PlanMetrigi {
   let dolulukToplami = 0;
   let toplamKm = 0;
   let asimVar = false;
+  let maxYayilimKm = 0;
+  let bolgeToplami = 0;
+
+  // bölge anahtarı → onu taşıyan araç kodları. Birden fazlaysa bölge bölünmüş.
+  const bolgeAraclari = new Map<string, Set<string>>();
 
   for (const y of sonuc.yukler) {
     if (y.duraklar.length === 0) continue;
     aracSayisi++;
     yerlesenDurak += y.duraklar.length;
     toplamKm += turKm(y.duraklar);
+    maxYayilimKm = Math.max(maxYayilimKm, yayilimKm(y.duraklar));
+
+    const bolgeler = new Set<string>();
+    for (const d of y.duraklar) {
+      const k = bolgeAnahtari(d);
+      bolgeler.add(k);
+      const kume = bolgeAraclari.get(k);
+      if (kume) kume.add(y.arac.kod);
+      else bolgeAraclari.set(k, new Set([y.arac.kod]));
+    }
+    bolgeToplami += bolgeler.size;
 
     const d = dolulukHesapla(y.arac, y.duraklar);
     if (d.asim) asimVar = true;
     dolulukToplami +=
       d.baglayiciKisit === "agirlik" ? (d.kgYuzde ?? d.cuvalYuzde) : d.cuvalYuzde;
+  }
+
+  let bolunmusBolge = 0;
+  for (const araclar of bolgeAraclari.values()) {
+    if (araclar.size > 1) bolunmusBolge++;
   }
 
   return {
@@ -167,5 +218,8 @@ export function planMetrigi(sonuc: AtamaSonucu): PlanMetrigi {
     ortDoluluk: aracSayisi > 0 ? dolulukToplami / aracSayisi : 0,
     toplamKm,
     asimVar,
+    bolunmusBolge,
+    aracBasinaBolge: aracSayisi > 0 ? bolgeToplami / aracSayisi : 0,
+    maxYayilimKm,
   };
 }
