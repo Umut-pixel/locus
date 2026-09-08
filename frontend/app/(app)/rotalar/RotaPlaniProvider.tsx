@@ -23,7 +23,6 @@ import { DEPOT } from "@/lib/depot";
 import { formatNumber } from "@/lib/format";
 import {
   dolulukHesapla,
-  surulebilirKirp,
   type FiloSecimi,
   type Sofor,
 } from "@/lib/rota/atama";
@@ -64,16 +63,18 @@ interface RotaPlaniDegeri {
 
   // Taslak plan
   plan: Plan;
-  /** O gün çıkabilecek araçlar — şoför sınırı + elle seçim uygulanmış. */
+  /** Otomatik dağıtımın kullandığı filo. Elle yükleme buna bağlı DEĞİL. */
   cikanAraclar: RotaAraci[];
-  /** Elle seçilip şoför yetmediği için çıkamayan araçlar. */
-  elenenAraclar: RotaAraci[];
   havuz: RotaDuragi[];
   atananSayisi: number;
   /** Günün coğrafi bölgeleri — havuz gruplaması ve araç rozetleri için. */
   bolgeler: Bolge[];
   /** Bir durağın bölgesi; havuzda ve araç kartında aynı ad görünsün. */
   durakBolgesi: Map<string, Bolge>;
+  /** Bölge kodu → araç kodu. Kullanıcının o günlük sabitlemeleri. */
+  sabitlemeler: Record<string, string>;
+  /** Bölgeyi bir araca sabitle; `null` sabitlemeyi kaldırır. */
+  bolgeSabitle: (bolgeKod: string, aracKod: string | null) => void;
   aracDuraklari: (aracKod: string) => RotaDuragi[];
   aracBul: (aracKod: string) => RotaAraci | null;
   rotalar: HaritaRotasi[];
@@ -134,23 +135,15 @@ export function RotaPlaniProvider({ children }: { children: ReactNode }) {
     useRotaPlani(tercihler.gunPenceresi);
 
   /**
-   * O gün çıkabilecek araçlar.
+   * OTOMATİK DAĞITIMIN kullandığı filo — "kullanılabilir araçlar" değil.
    *
-   * Elle seçim varsa OLDUĞU GİBİ geçerli — yalnız şoföre sığmayanlar elenir.
-   * Burada `filoSec` çağırmak hataydı: o "yükü karşılayan en küçük filo"yu
-   * arıyor, yani 4 araç seçildiğinde yük tek Transit'e sığıyorsa diğer üçünü
-   * atıyordu. Kullanıcı elle seçtiyse niyeti "bu araçlar çıksın"dır.
+   * `filoSec` yükü karşılayan en küçük filoyu seçiyor ve şoför sayısını
+   * aşamıyor (3 şoför → günde en fazla 3 araç). Bu seçim yalnız otomatik
+   * dağıtımı bağlar; filodaki HER araca elle yük konabilir (bkz. rotalar
+   * sayfasındaki araç kartları). Eskiden seçilmeyen araç soluklaşıp
+   * tıklanamaz oluyordu ve sağlam bir araç "devre dışı" gibi görünüyordu.
    */
-  const { cikanAraclar, elenenAraclar } = useMemo(() => {
-    if (tercihler.aracKodlari == null) {
-      return { cikanAraclar: filo.secilen, elenenAraclar: [] as RotaAraci[] };
-    }
-    const istenen = new Set(tercihler.aracKodlari);
-    // Sıra `araclar`dan gelir (sira kolonu) — tıklama sırası değil, sabit.
-    const elle = araclar.filter((a) => istenen.has(a.kod));
-    const { cikan, elenen } = surulebilirKirp(elle, soforler);
-    return { cikanAraclar: cikan, elenenAraclar: elenen };
-  }, [tercihler.aracKodlari, filo, araclar, soforler]);
+  const cikanAraclar = filo.secilen;
 
   /**
    * Bölge birleştirme eşiği — motordaki (`bolgeAta`) kuralın aynısı: çıkan
@@ -161,6 +154,24 @@ export function RotaPlaniProvider({ children }: { children: ReactNode }) {
     const kapasiteler = cikanAraclar.map((a) => a.cuvalKapasite).filter((k) => k > 0);
     return kapasiteler.length > 0 ? Math.min(...kapasiteler) * 0.25 : 0;
   }, [cikanAraclar]);
+
+  /**
+   * Bölge sabitlemeleri — OTURUMLUK, localStorage'a yazılmıyor.
+   *
+   * Sabitleme bölge koduna bağlı; havuz değiştikçe (yeni sipariş, tarih
+   * penceresi) bölgeler yeniden kuruluyor ve kodlar kayabiliyor. Kalıcı
+   * saklamak, ertesi gün başka bir bölgeyi sabitlemiş gibi görünmeye yol açar.
+   */
+  const [sabitlemeler, setSabitlemeler] = useState<Record<string, string>>({});
+
+  const bolgeSabitle = useCallback((bolgeKod: string, aracKod: string | null) => {
+    setSabitlemeler((o) => {
+      const sonraki = { ...o };
+      if (aracKod == null) delete sonraki[bolgeKod];
+      else sonraki[bolgeKod] = aracKod;
+      return sonraki;
+    });
+  }, []);
 
   const [plan, setPlan] = useState<Plan>({});
   const [seciliArac, setSeciliArac] = useState<string | null>(null);
@@ -220,15 +231,20 @@ export function RotaPlaniProvider({ children }: { children: ReactNode }) {
     [araclar]
   );
 
+  /**
+   * Haritada ve ölçümde filonun TAMAMI var — otomatik dağıtımın seçtiği filo
+   * değil. Elle yüklenen bir araç (ör. otomatikte kullanılmayan Isuzu 3D)
+   * haritadan ve kayıttan düşmemeli.
+   */
   const rotalar = useMemo<HaritaRotasi[]>(
     () =>
-      cikanAraclar.map((a, i) => ({
+      araclar.map((a, i) => ({
         aracKod: a.kod,
         aracAd: a.ad,
         renk: aracRengi(i),
         duraklar: aracDuraklari(a.kod),
       })),
-    [cikanAraclar, aracDuraklari]
+    [araclar, aracDuraklari]
   );
 
   /** Atama değişti — o araç için eski güzergâh süresi geçersiz. */
@@ -263,6 +279,7 @@ export function RotaPlaniProvider({ children }: { children: ReactNode }) {
       depo: DEPOT,
       strateji: tercihler.strateji,
       uzakAyir: tercihler.uzakAyir,
+      sabitlemeler,
     });
     const sonraki: Plan = {};
     for (const yuk of sonuc.yukler) {
@@ -271,7 +288,14 @@ export function RotaPlaniProvider({ children }: { children: ReactNode }) {
     setPlan(sonraki);
     setRotaBilgileri({});
     setOptimizeHatalari({});
-  }, [duraklar, cikanAraclar, araclar, tercihler.strateji, tercihler.uzakAyir]);
+  }, [
+    duraklar,
+    cikanAraclar,
+    araclar,
+    tercihler.strateji,
+    tercihler.uzakAyir,
+    sabitlemeler,
+  ]);
 
   const hepsiniTemizle = useCallback(() => {
     setPlan({});
@@ -389,7 +413,7 @@ export function RotaPlaniProvider({ children }: { children: ReactNode }) {
    * yeniden yazılır, çift kayıt olmaz.
    */
   const planiKaydet = useCallback(async () => {
-    const gonderilecek = cikanAraclar
+    const gonderilecek = araclar
       .map((a) => {
         const liste = aracDuraklari(a.kod);
         if (liste.length === 0) return null;
@@ -443,7 +467,7 @@ export function RotaPlaniProvider({ children }: { children: ReactNode }) {
     } finally {
       setKaydediliyor(false);
     }
-  }, [cikanAraclar, aracDuraklari, rotaBilgileri, filo.atamalar]);
+  }, [araclar, aracDuraklari, rotaBilgileri, filo.atamalar]);
 
   /**
    * Ekrandaki planın ölçümü. Elle düzenlenmiş plan da dahil — kullanıcı bir
@@ -452,7 +476,7 @@ export function RotaPlaniProvider({ children }: { children: ReactNode }) {
   const mevcutMetrik = useMemo(
     () =>
       planMetrigi({
-        yukler: cikanAraclar.map((arac) => {
+        yukler: araclar.map((arac) => {
           const d = aracDuraklari(arac.kod);
           return { arac, duraklar: d, doluluk: dolulukHesapla(arac, d) };
         }),
@@ -461,7 +485,7 @@ export function RotaPlaniProvider({ children }: { children: ReactNode }) {
           neden: "arac-yok" as const,
         })),
       }),
-    [cikanAraclar, aracDuraklari, havuz]
+    [araclar, aracDuraklari, havuz]
   );
 
   /**
@@ -524,11 +548,12 @@ export function RotaPlaniProvider({ children }: { children: ReactNode }) {
       tercihDegis,
       plan,
       cikanAraclar,
-      elenenAraclar,
       havuz,
       atananSayisi: atananlar.size,
       bolgeler,
       durakBolgesi,
+      sabitlemeler,
+      bolgeSabitle,
       aracDuraklari,
       aracBul,
       rotalar,
@@ -551,8 +576,8 @@ export function RotaPlaniProvider({ children }: { children: ReactNode }) {
     }),
     [
       loading, error, duraklar, araclar, soforler, filo, ozet, tazele,
-      tercihler, tercihDegis, plan, cikanAraclar, elenenAraclar, havuz,
-      atananlar.size, bolgeler, durakBolgesi,
+      tercihler, tercihDegis, plan, cikanAraclar, havuz,
+      atananlar.size, bolgeler, durakBolgesi, sabitlemeler, bolgeSabitle,
       aracDuraklari, aracBul, rotalar, seciliArac, otomatikDagit,
       hepsiniTemizle, durakEkle, durakCikar, aracTemizle, optimizeEt,
       optimizeEdilen, rotaBilgileri, optimizeHatalari, mevcutMetrik,

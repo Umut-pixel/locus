@@ -328,4 +328,96 @@ console.log("planMetrigi: bölge bütünlüğü ok");
 }
 console.log("bolgele: ad çakışması yok ok");
 
+
+// ---------------------------------------------------------------------------
+// Bölge sabitleme (günlük pin)
+// ---------------------------------------------------------------------------
+{
+  // İki ayrı bölge: İzmir içi (yakın) ve Muğla (orta).
+  const izmir = Array.from({ length: 3 }, (_, i) =>
+    durak({
+      lat: 38.46 + i * 0.002, lon: 27.22, sehir: "İZMİR", ilce: "BORNOVA",
+      cuvalEsdeger: 20, kg: 250, musteriKodu: `IZ${i}`,
+    })
+  );
+  const mugla = Array.from({ length: 2 }, (_, i) =>
+    durak({
+      lat: 37.21 + i * 0.002, lon: 28.36, sehir: "MUĞLA", ilce: "MERKEZ",
+      cuvalEsdeger: 20, kg: 250, musteriKodu: `MU${i}`,
+    })
+  );
+  const duraklar = [...izmir, ...mugla];
+  const filo = [TRANSIT, NPR10, ISUZU3D];
+
+  const bolgeler = bolgele(duraklar, DEPO);
+  const izmirBolge = bolgeler.find((b) =>
+    b.duraklar.some((d) => d.musteriKodu === "IZ0")
+  )!;
+  dogru(izmirBolge != null, "İzmir bölgesi bulunmalı");
+
+  // Sabitlemesiz sonuç referans alınıyor.
+  const serbest = bolgeAta(duraklar, filo, DEPO);
+  const serbestIzmirArac = aracinKodu(serbest, "IZ0");
+
+  // Aynı bölge ISUZU3D'ye sabitlenince oraya gitmeli.
+  const sabit = bolgeAta(duraklar, filo, DEPO, filo, {
+    sabitlemeler: { [izmirBolge.kod]: "isuzu3d" },
+  });
+  esit(aracinKodu(sabit, "IZ0"), "isuzu3d", "sabitlenen bölge o araca gider");
+  for (const d of izmirBolge.duraklar) {
+    esit(
+      aracinKodu(sabit, d.musteriKodu),
+      "isuzu3d",
+      `${d.musteriKodu} sabitlenen araçta`
+    );
+  }
+  // Muğla sabitlenmedi — başka bir araca gitmeli.
+  dogru(
+    aracinKodu(sabit, "MU0") !== "isuzu3d",
+    "sabitlenmeyen bölge rezerve araca binmemeli"
+  );
+  esit(sabit.yerlesmeyen.length, 0, "sabitleme durak düşürmemeli");
+  for (const y of sabit.yukler) {
+    dogru(!y.doluluk.asim, `${y.arac.kod} aşmamalı`);
+  }
+  // Referans: sabitleme gerçekten bir şey değiştirdi mi (test anlamlı mı).
+  dogru(
+    serbestIzmirArac !== "isuzu3d",
+    "sabitlemesiz halde İzmir zaten isuzu3d'de olmamalı — yoksa test hiçbir şey ölçmez"
+  );
+}
+console.log("bolgeAta: sabitlenen bölge o araca gidiyor ok");
+
+{
+  // Sabitlenen bölge araca sığmıyor: sığan kısmı gider, kalanı başka araca.
+  const agir = Array.from({ length: 4 }, (_, i) =>
+    durak({
+      lat: 38.46 + i * 0.002, lon: 27.22, sehir: "İZMİR", ilce: "BORNOVA",
+      cuvalEsdeger: 50, kg: 600, musteriKodu: `A${i}`,
+    })
+  );
+  const bolgeler = bolgele(agir, DEPO);
+  esit(bolgeler.length, 1, "tek bölge");
+
+  // 200 çuval Kangoo'ya (60) sığmaz.
+  const sonuc = bolgeAta(agir, [KANGOO, ISUZU3D], DEPO, [KANGOO, ISUZU3D], {
+    sabitlemeler: { [bolgeler[0]!.kod]: "kangoo" },
+  });
+  const d = dagilim(sonuc);
+  dogru(d.kangoo!.length > 0, "sığan kısım sabitlenen araca gider");
+  dogru(d.isuzu3d!.length > 0, "kalan başka araca geçer");
+  esit(d.kangoo!.length + d.isuzu3d!.length, 4, "durak düşmemeli");
+  for (const y of sonuc.yukler) {
+    dogru(!y.doluluk.asim, `${y.arac.kod} aşmamalı`);
+  }
+
+  // Filoda olmayan araca sabitleme ve geçersiz bölge kodu sessizce yok sayılır.
+  const gecersiz = bolgeAta(agir, [ISUZU3D], DEPO, [ISUZU3D], {
+    sabitlemeler: { "yok-boyle-bir-bolge": "isuzu3d", [bolgeler[0]!.kod]: "npr10" },
+  });
+  esit(gecersiz.yerlesmeyen.length, 0, "geçersiz sabitleme planı bozmamalı");
+  esit(dagilim(gecersiz).isuzu3d!.length, 4, "normal akışla yerleşmeli");
+}
+console.log("bolgeAta: sabitleme taşması ve geçersiz sabitleme ok");
+
 console.log("bolge: tüm testler geçti");

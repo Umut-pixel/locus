@@ -20,9 +20,20 @@ export interface Tercihler {
   dolulukEsigi: number;
   /** Uzak duraklar şehir içi turla aynı araca binmesin. */
   uzakAyir: boolean;
-  /** null = filoyu sistem seçsin. Dizi = elle seçilmiş araç kodları. */
-  aracKodlari: string[] | null;
 }
+
+/*
+ * `aracKodlari` (elle filo seçimi) BİLEREK KALDIRILDI.
+ *
+ * Ekranda araç seçmek iki işi karıştırıyordu: "otomatik dağıtım hangi
+ * araçları kullansın" ile "hangi araca elle yük koyabilirim". Seçilmeyen araç
+ * soluklaşıp tıklanamaz oluyordu ve kullanılabilir bir araç (Isuzu 3D)
+ * "devre dışı" gibi görünüyordu.
+ *
+ * Yeni ayrım: filoyu otomatik dağıtım kendi seçer (arka planda), ama filodaki
+ * HER araca elle yük konabilir. `/api/rota/otomatik` hâlâ `aracKodlari`
+ * kabul ediyor — asistan belirli araçlarla plan kurmak isterse diye.
+ */
 
 /**
  * Sunucu render'ının ve hydration'ın ilk karesinde kullanılan değer.
@@ -34,7 +45,6 @@ export const VARSAYILAN_TERCIHLER: Tercihler = Object.freeze({
   strateji: "bolge",
   dolulukEsigi: 70,
   uzakAyir: false,
-  aracKodlari: null,
 }) as Tercihler;
 
 /** Ekrandaki pencere seçenekleri. */
@@ -96,9 +106,6 @@ export function tercihleriTemizle(ham: unknown): Tercihler {
         ? esik
         : VARSAYILAN_TERCIHLER.dolulukEsigi,
     uzakAyir: o.uzakAyir === true,
-    aracKodlari: Array.isArray(o.aracKodlari)
-      ? o.aracKodlari.filter((k): k is string => typeof k === "string")
-      : null,
   };
 }
 

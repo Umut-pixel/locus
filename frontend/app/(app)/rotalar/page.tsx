@@ -61,7 +61,6 @@ export default function RotalarPage() {
     duraklar,
     araclar,
     cikanAraclar,
-    elenenAraclar,
     filo,
     ozet,
     tazele,
@@ -71,6 +70,8 @@ export default function RotalarPage() {
     atananSayisi,
     bolgeler,
     durakBolgesi,
+    sabitlemeler,
+    bolgeSabitle,
     aracDuraklari,
     rotalar,
     seciliArac,
@@ -101,20 +102,17 @@ export default function RotalarPage() {
   /** Sürükleme yalnız fare/trackpad'de açık — buton metni de ona göre. */
   const fareVar = useMediaQuery("(pointer: fine)");
 
-  const seciliAracAdi =
-    cikanAraclar.find((a) => a.kod === seciliArac)?.ad ?? null;
+  const seciliAracAdi = araclar.find((a) => a.kod === seciliArac)?.ad ?? null;
 
-  const yukluAraclar = cikanAraclar.filter(
-    (a) => aracDuraklari(a.kod).length > 0
-  );
+  const yukluAraclar = araclar.filter((a) => aracDuraklari(a.kod).length > 0);
 
   /**
-   * Kartlarda filonun TAMAMI görünür. Bir araç bugün çıkamıyorsa sebebiyle
-   * birlikte soluk gösteriliyor — listeden sessizce düşmesi "3D nerede?"
-   * sorusuna yol açıyordu.
+   * `cikanKodSeti` artık KİLİT DEĞİL, yalnız bilgi: otomatik dağıtımın o gün
+   * kullandığı filo. Filodaki her araca elle yük konabilir — eskiden seçim
+   * dışı kalan araç soluklaşıp tıklanamaz oluyordu ve sağlam bir araç
+   * (Isuzu 3D) "devre dışı" gibi görünüyordu.
    */
   const cikanKodSeti = new Set(cikanAraclar.map((a) => a.kod));
-  const elenenKodSeti = new Set(elenenAraclar.map((a) => a.kod));
   const gosterilecekAraclar = araclar;
   const haritaDurakSayisi = rotalar.reduce(
     (t, r) => t + r.duraklar.filter((d) => d.lat != null).length,
@@ -132,11 +130,11 @@ export default function RotalarPage() {
         durakCikar(kod);
         return;
       }
-      if (!cikanKodSeti.has(hedefKod)) return; // soluk kart hedef değil
+      // Filodaki her araç geçerli hedef; otomatik dağıtımın seçimi bağlamıyor.
       durakCikar(kod);
       durakEkle(kod, hedefKod);
     },
-    [durakCikar, durakEkle, cikanKodSeti]
+    [durakCikar, durakEkle]
   );
 
   return (
@@ -239,11 +237,9 @@ export default function RotalarPage() {
         <TercihCubugu
           tercihler={tercihler}
           onDegis={tercihDegis}
-          araclar={araclar}
-          otomatikSecim={filo.secilen}
-          atamalar={filo.atamalar}
+          aracSayisi={araclar.length}
+          otomatikAracSayisi={cikanAraclar.length}
           soforSayisi={ozet.soforSayisi.B + ozet.soforSayisi.C}
-          cikanKodlar={cikanAraclar.map((a) => a.kod)}
           onFiloDuzenle={() => setFiloPaneliAcik(true)}
           loading={loading}
         />
@@ -280,6 +276,10 @@ export default function RotalarPage() {
               <BolgeOzeti
                 bolgeler={bolgeler}
                 durakAraci={durakAraci}
+                filo={araclar}
+                sabitlemeler={sabitlemeler}
+                onSabitle={bolgeSabitle}
+                sabitlemeAcik={tercihler.strateji === "bolge"}
                 loading={loading}
               />
             </div>
@@ -303,8 +303,7 @@ export default function RotalarPage() {
                     duraklar={aracDuraklari(a.kod)}
                     soforAdi={filo.atamalar[a.kod]?.ad ?? null}
                     dolulukEsigi={tercihler.dolulukEsigi}
-                    cikiyor={cikanKodSeti.has(a.kod)}
-                    soforsuz={elenenKodSeti.has(a.kod)}
+                    otomatikDisi={!cikanKodSeti.has(a.kod)}
                     secili={seciliArac === a.kod}
                     durakBolgesi={durakBolgesi}
                     onDurakCikar={durakCikar}
@@ -426,8 +425,7 @@ function AracBentoKarti({
   duraklar,
   soforAdi,
   dolulukEsigi,
-  cikiyor,
-  soforsuz,
+  otomatikDisi,
   secili,
   onDurakCikar,
   onSec,
@@ -439,10 +437,12 @@ function AracBentoKarti({
   dolulukEsigi: number;
   /** musteriKodu → bölge; kart hangi bölgeleri taşıdığını gösterir. */
   durakBolgesi: Map<string, Bolge>;
-  /** Bugün çıkabiliyor mu — çıkamıyorsa kart soluk ve bırakma hedefi değil. */
-  cikiyor: boolean;
-  /** Seçili ama şoför yetmediği için elendi. */
-  soforsuz: boolean;
+  /**
+   * Otomatik dağıtım bu aracı kullanmadı. YALNIZ BİLGİ — kart yine tıklanır,
+   * yine bırakma hedefi. Eskiden bu durum aracı kilitliyordu ve sağlam bir
+   * araç "devre dışı" gibi görünüyordu.
+   */
+  otomatikDisi: boolean;
   secili: boolean;
   /** Palet gözüne tıklayınca durak havuza geri alınır. */
   onDurakCikar: (musteriKodu: string) => void;
@@ -479,16 +479,17 @@ function AracBentoKarti({
       .map((d) => depoyaKm({ lat: d.lat as number, lon: d.lon as number }));
     return kmler.length < 2 ? 0 : Math.max(...kmler) - Math.min(...kmler);
   }, [duraklar]);
-  const hedefOlabilir = cikiyor && suruklemeAktif;
-  const birakilacak = cikiyor && hedefte;
+  const hedefOlabilir = suruklemeAktif;
+  const birakilacak = hedefte;
+  /** Yük var ama şoför düşmemiş — 3 şoför, 4 araç dolduysa biri şoförsüz kalır. */
+  const soforsuzYuklu = duraklar.length > 0 && soforAdi == null;
 
   return (
     <div
       // `elementFromPoint` bırakma anında bu özniteliği arıyor.
-      data-birak-hedef={cikiyor ? arac.kod : undefined}
+      data-birak-hedef={arac.kod}
       className={cn(
         "flex min-w-0 flex-col gap-3 rounded-lg border p-3 transition-colors",
-        !cikiyor && "opacity-55",
         secili ? "border-foreground/40 bg-accent/40" : "border-border",
         hedefOlabilir && "border-dashed border-foreground/40",
         birakilacak &&
@@ -503,16 +504,19 @@ function AracBentoKarti({
         >
           {arac.ad}
         </Link>
-        {!cikiyor ? (
+        {soforsuzYuklu ? (
           <span
             className="shrink-0 rounded bg-amber-500/15 px-1.5 py-0.5 text-[11px] font-medium text-amber-600 dark:text-amber-400"
-            title={
-              soforsuz
-                ? "Seçili ama şoför yetmiyor — bugün çıkamaz"
-                : "Tercihlerde seçili değil — araç listesinden ekleyebilirsiniz"
-            }
+            title="Bu araca yük konuldu ama şoför düşmedi. Kadroda 3 şoför var; dördüncü araç çıkacaksa şoförü elle ayarlanmalı."
           >
-            {soforsuz ? "şoför yok" : "çıkmıyor"}
+            şoför atanmadı
+          </span>
+        ) : otomatikDisi && duraklar.length === 0 ? (
+          <span
+            className="shrink-0 rounded border border-border/70 px-1.5 py-0.5 text-[11px] text-muted-foreground"
+            title="Otomatik dağıtım bu aracı kullanmadı — yük buna ihtiyaç duymadı. Araç kilitli değil: durak sürükleyerek ya da seçip havuzdan tıklayarak elle yükleyebilirsiniz."
+          >
+            otomatikte kullanılmadı
           </span>
         ) : doluluk.asim ? (
           <span className="shrink-0 rounded bg-destructive/15 px-1.5 py-0.5 text-[11px] font-medium text-destructive">
@@ -530,7 +534,7 @@ function AracBentoKarti({
 
       <div className="flex min-w-0 items-center gap-2 text-[11.5px] text-muted-foreground">
         <span className="min-w-0 flex-1 truncate">
-          {soforAdi ?? (cikiyor ? "Şoför atanmadı" : "Şoför düşmüyor")}
+          {soforAdi ?? "Şoför atanmadı"}
         </span>
         <span className="shrink-0 tabular-nums">
           {formatNumber(duraklar.length)} durak
@@ -564,35 +568,29 @@ function AracBentoKarti({
       <PaletIzgarasi
         arac={arac}
         duraklar={duraklar}
-        aracKod={cikiyor ? arac.kod : null}
-        onDurakCikar={cikiyor ? onDurakCikar : undefined}
+        aracKod={arac.kod}
+        onDurakCikar={onDurakCikar}
       />
 
+      {/* Her araç yüklenebilir — otomatik dağıtımın seçimi burayı bağlamıyor. */}
       <button
         type="button"
         onClick={onSec}
-        disabled={!cikiyor}
         aria-pressed={secili}
         className={cn(
           "rounded border py-1.5 text-[11.5px] transition-colors",
-          !cikiyor
-            ? "cursor-default border-border/50 text-muted-foreground"
-            : secili
-              ? "border-foreground/40 bg-foreground text-background"
-              : "border-border text-muted-foreground hover:text-foreground"
+          secili
+            ? "border-foreground/40 bg-foreground text-background"
+            : "border-border text-muted-foreground hover:text-foreground"
         )}
       >
-        {!cikiyor
-          ? soforsuz
-            ? "Şoför yetmiyor"
-            : "Bugün çıkmıyor"
-          : secili
-            ? surukleyebilir
-              ? "Seçili — havuzdan tıklayın veya sürükleyin"
-              : "Seçili — havuzdan tıklayın"
-            : surukleyebilir
-              ? "Yüklemek için seç veya sürükle"
-              : "Yüklemek için seç"}
+        {secili
+          ? surukleyebilir
+            ? "Seçili — havuzdan tıklayın veya sürükleyin"
+            : "Seçili — havuzdan tıklayın"
+          : surukleyebilir
+            ? "Yüklemek için seç veya sürükle"
+            : "Yüklemek için seç"}
       </button>
     </div>
   );

@@ -33,9 +33,13 @@ function dagit(
   duraklar: Durak[],
   araclar: Arac[],
   depo: { lat: number; lon: number },
-  tumFilo: Arac[]
+  tumFilo: Arac[],
+  /** Bölge sabitlemeleri — yalnız bölge stratejisinde anlamlı. */
+  sabitlemeler?: Record<string, string>
 ): AtamaSonucu {
-  if (strateji === "bolge") return bolgeAta(duraklar, araclar, depo, tumFilo);
+  if (strateji === "bolge") {
+    return bolgeAta(duraklar, araclar, depo, tumFilo, { sabitlemeler });
+  }
   if (strateji === "ffd") return ffdAta(duraklar, araclar, tumFilo);
   return sweepKumele(duraklar, araclar, depo, tumFilo);
 }
@@ -58,14 +62,17 @@ export function planOlustur(params: {
   depo: { lat: number; lon: number };
   strateji: Strateji;
   uzakAyir: boolean;
+  /** Bölge kodu → araç kodu. Kullanıcının o günlük sabitlemeleri. */
+  sabitlemeler?: Record<string, string>;
 }): AtamaSonucu {
-  const { duraklar, araclar, tumFilo, depo, strateji, uzakAyir } = params;
+  const { duraklar, araclar, tumFilo, depo, strateji, uzakAyir, sabitlemeler } =
+    params;
 
   // Bölge stratejisinde uzak ayırma YAPININ İÇİNDE: uzak bantlar ayrı tur
   // oluyor ve turlar en uzaktan başlayarak yerleşiyor. Ayrıca uygulamak
   // bölgeleri ikinci kez bölerdi.
   if (!uzakAyir || strateji === "bolge") {
-    return dagit(strateji, duraklar, araclar, depo, tumFilo);
+    return dagit(strateji, duraklar, araclar, depo, tumFilo, sabitlemeler);
   }
 
   const uzaklar = duraklar.filter(uzakMi);
