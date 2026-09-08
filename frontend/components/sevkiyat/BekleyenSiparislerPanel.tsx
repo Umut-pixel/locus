@@ -27,6 +27,15 @@ const DURUM_ETIKET: Record<BekleyenSiparisSatiri["durum"], string> = {
  * Belge detay sipariş (5450 / 5451 snapshot) — henüz irsaliye/fatura
  * edilmemiş satış siparişleri. Küme 5140 ham Excel ile aynı: yalnız
  * "Bekleyen Sipariş" × Satış; tutar BrutTutar. Alış ve iptal hook'ta elenir.
+ *
+ * DÖNEM SEÇİCİSİNE BAĞLI DEĞİL — bu bir bakiye, bir dönem toplamı değil.
+ * Sayfa altındaki not bunu söylüyordu ama rakamın yanında yazmıyordu ve
+ * "tarihi değiştirdim, tutar değişmedi" diye soruldu. Rozet o yüzden brüt
+ * tutarın ta yanında: sorunun sorulduğu yer orası.
+ *
+ * Geçmiş bakiyenin tarihçesi tutulmuyor; döneme göre filtrelemek "o gün ne
+ * bekliyordu" değil "o dönemde girilip hâlâ bekleyen ne var" olurdu — başka
+ * bir soru. Bilinçli olarak filtrelenmiyor.
  */
 export function BekleyenSiparislerPanel({
   satirlar,
@@ -73,10 +82,18 @@ export function BekleyenSiparislerPanel({
           className="flex h-9 shrink-0 items-center justify-between gap-3 border-b border-border/60 px-3.5"
           aria-label={`Bekleyen siparişlerin brüt tutarı ${formatCurrency(toplamTutar)}`}
         >
-          <span className="text-[12px] tracking-[0.06em] text-muted-foreground uppercase">
-            Brüt tutar
+          <span className="flex min-w-0 items-baseline gap-1.5">
+            <span className="shrink-0 text-[12px] tracking-[0.06em] text-muted-foreground uppercase">
+              Brüt tutar
+            </span>
+            <span
+              className="shrink-0 cursor-help rounded border border-border/70 px-1 py-px text-[10.5px] leading-none text-muted-foreground"
+              title="Bekleyen siparişler anlık bakiyedir — dönem seçicisinden etkilenmez. Sayfadaki diğer paneller seçili dönemi gösterir."
+            >
+              tüm dönemler
+            </span>
           </span>
-          <span className="font-mono text-[13px] font-medium text-caution tabular-nums">
+          <span className="shrink-0 font-mono text-[13px] font-medium text-caution tabular-nums">
             {formatCurrency(toplamTutar)}
           </span>
         </div>

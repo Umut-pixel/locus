@@ -254,12 +254,14 @@ interface SevkiyatRaporuCache {
 }
 
 /**
- * Dönem cache anahtarına giriyor: metrikGecmis sunucu tarafında
- * `snapshot_tarihi >= aralik.bas` ile çekiliyor, yani farklı dönem = farklı
- * veri kümesi. Ortak bir anahtar kullanılsa dönem değişince eski pencere
- * gösterilirdi.
+ * Dönemin İKİ UCU da cache anahtarına giriyor: metrikGecmis sunucu tarafında
+ * pencereye göre çekiliyor, yani farklı dönem = farklı veri kümesi.
+ *
+ * Önceden yalnız `bas` anahtardaydı. Hazır dönemlerin hepsi bugünde bittiği
+ * için fark edilmiyordu; "Özel aralık"ta aynı gün başlayan iki farklı aralık
+ * (1-5 Eylül ile 1-30 Eylül) aynı önbellek girdisini paylaşıyordu.
  */
-const CACHE_KEY_ONEK = "sevkiyat-raporu-v5";
+const CACHE_KEY_ONEK = "sevkiyat-raporu-v6";
 
 /**
  * Sevkiyat Raporları sayfası — üç kaynak, tek seferde çekilir (Stok
@@ -271,7 +273,7 @@ const CACHE_KEY_ONEK = "sevkiyat-raporu-v5";
  *     mevcut sync penceresi — çoklu-sync trend için değil, bkz. #2)
  */
 export function useSevkiyatRaporu(aralik: DonemAraligi) {
-  const cacheKey = `${CACHE_KEY_ONEK}:${aralik.bas}`;
+  const cacheKey = `${CACHE_KEY_ONEK}:${aralik.bas}:${aralik.bitisHaric}`;
   const cached = getReportCache<SevkiyatRaporuCache>(cacheKey);
   const [state, setState] = useState<SevkiyatRaporuState>(() => ({
     musteriler: cached?.musteriler ?? [],
@@ -318,6 +320,12 @@ export function useSevkiyatRaporu(aralik: DonemAraligi) {
               .from(MUSTERI_METRIK_GECMIS_TABLE)
               .select("snapshot_tarihi,toplam_teslimat_sayisi")
               .gte("snapshot_tarihi", cutoffStr)
+              // Üst sınır da uygulanmalı: `bitisHaric` HARİÇ üst sınır.
+              // Eskiden yalnız alt sınır vardı ve trend grafiği dönemin
+              // bitişinden sonrasını da çiziyordu. Hazır dönemler bugünde
+              // bittiği için görünmüyordu; "Özel aralık"ta geçmiş bir aralık
+              // seçilince ortaya çıkıyor.
+              .lt("snapshot_tarihi", aralik.bitisHaric)
               .range(from, to) as unknown as Promise<{
               data: { snapshot_tarihi: string; toplam_teslimat_sayisi: number | null }[] | null;
               error: { message: string } | null;
@@ -384,7 +392,7 @@ export function useSevkiyatRaporu(aralik: DonemAraligi) {
     return () => {
       cancelled = true;
     };
-  }, [cacheKey, aralik.bas]);
+  }, [cacheKey, aralik.bas, aralik.bitisHaric]);
 
   const { musteriler, metrikGecmis, sevkiyatSatirlari, siparisDurumSatirlari, loading, error } =
     state;
