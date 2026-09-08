@@ -36,7 +36,12 @@ function cacheSet(key: string, value: LngLat[]): void {
 
 /**
  * Mapbox Directions (driving) — noktaları yollara oturtur.
- * Başarısız olursa null döner (çağıran düz çizgiye düşer).
+ *
+ * KISMİ DÜŞÜŞ: 25 waypoint sınırı yüzünden uzun rota parçalara bölünüyor.
+ * Eskiden tek bir parça başarısız olunca TÜM rota null dönüyor ve harita
+ * baştan sona düz çizgiye düşüyordu — 30 duraklı bir planda tek bir hata
+ * güzergâhın tamamını haritada anlamsız kılıyordu. Artık yalnız o parça düz
+ * kalıyor, gerisi yola oturuyor. Hepsi başarısızsa null döner.
  */
 export async function fetchDrivingRoute(
   waypoints: LngLat[],
@@ -50,21 +55,25 @@ export async function fetchDrivingRoute(
 
   const chunks = chunkWaypoints(waypoints, MAX_WAYPOINTS);
   const merged: LngLat[] = [];
+  let basarili = 0;
 
   for (let i = 0; i < chunks.length; i++) {
-    const chunk = chunks[i];
+    const chunk = chunks[i]!;
     const path = await fetchDrivingChunk(chunk, signal);
-    if (!path || path.length < 2) return null;
+    // Parça oturmadıysa ham waypoint'lerle düz geç — rotanın geri kalanı
+    // yola oturmaya devam etsin.
+    const parca = path && path.length >= 2 ? path : chunk;
+    if (path && path.length >= 2) basarili += 1;
 
-    if (i === 0) {
-      merged.push(...path);
-    } else {
-      merged.push(...path.slice(1));
-    }
+    if (i === 0) merged.push(...parca);
+    else merged.push(...parca.slice(1));
   }
 
+  if (basarili === 0) return null;
   if (merged.length >= 2) {
-    cacheSet(key, merged);
+    // Yalnız TAM oturmuş rota cache'lenir; kısmi sonuç bir sonraki denemede
+    // yeniden istensin (geçici hata kalıcı bozuk çizgiye dönüşmesin).
+    if (basarili === chunks.length) cacheSet(key, merged);
     return merged;
   }
   return null;

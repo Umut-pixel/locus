@@ -21,6 +21,47 @@ import { useTheme } from "@/components/theme/ThemeProvider";
 const LINE_SOURCE = "rota-plan-line";
 const LINE_LAYER = "rota-plan-line";
 const LINE_CASING = "rota-plan-line-casing";
+const LINE_ARROWS = "rota-plan-line-arrows";
+const ARROW_IMAGE = "rota-plan-arrow";
+
+/**
+ * Çizgi üstünde tekrarlanan yön oku.
+ *
+ * Font glyph'i yerine kanvasta çiziliyor: `text-field` ile bir üçgen karakteri
+ * kullanmak Mapbox'ın glyph setine bağımlılık yaratıyor, eksikse ok hiç
+ * çıkmıyor. Kanvas görüntüsü her stilde garanti.
+ *
+ * Ok +x yönüne bakıyor; `symbol-placement: "line"` onu çizginin gidiş yönüne
+ * döndürüyor, yani "bu güzergâh hangi yöne akıyor" haritadan okunabiliyor.
+ */
+function okGoruntusu(): ImageData | null {
+  const boyut = 18;
+  const cv = document.createElement("canvas");
+  cv.width = boyut;
+  cv.height = boyut;
+  const ctx = cv.getContext("2d");
+  if (!ctx) return null;
+
+  const ciz = () => {
+    ctx.beginPath();
+    ctx.moveTo(boyut * 0.28, boyut * 0.2);
+    ctx.lineTo(boyut * 0.76, boyut * 0.5);
+    ctx.lineTo(boyut * 0.28, boyut * 0.8);
+    ctx.closePath();
+  };
+
+  // Beyaz kontur + koyu dolgu: hem açık hem koyu zeminde, hem de her araç
+  // renginin üstünde okunur kalsın.
+  ciz();
+  ctx.lineJoin = "round";
+  ctx.lineWidth = 3.2;
+  ctx.strokeStyle = "rgba(255,255,255,0.95)";
+  ctx.stroke();
+  ctx.fillStyle = "rgba(17,19,23,0.92)";
+  ctx.fill();
+
+  return ctx.getImageData(0, 0, boyut, boyut);
+}
 
 /** Araç başına ayrı renk — kartlarla harita aynı paleti kullanır. */
 export const ARAC_RENKLERI = [
@@ -353,6 +394,45 @@ export function RotaHaritasi({ rotalar, havuz }: RotaHaritasiProps) {
             "line-width": ["interpolate", ["linear"], ["zoom"], 6, 3, 12, 6, 16, 9],
             "line-opacity": 1,
           },
+        });
+      }
+
+      // Gidiş yönü okları — Google/Apple'daki gibi çizgi boyunca tekrar eder.
+      // Numaralı duraklar sırayı söylüyordu ama iki durak arasında aracın hangi
+      // yöne aktığı okunmuyordu; dönüş bacağı gidiş bacağının üstüne bindiğinde
+      // güzergâh özellikle karışık görünüyordu.
+      if (!map.hasImage(ARROW_IMAGE)) {
+        const img = okGoruntusu();
+        if (img) map.addImage(ARROW_IMAGE, img, { pixelRatio: 2 });
+      }
+      if (map.hasImage(ARROW_IMAGE) && !map.getLayer(LINE_ARROWS)) {
+        map.addLayer({
+          id: LINE_ARROWS,
+          type: "symbol",
+          source: LINE_SOURCE,
+          // Uzakta seyrek, yakında sık: z8'de her ~160px, z14'te her ~70px.
+          layout: {
+            "symbol-placement": "line",
+            "symbol-spacing": [
+              "interpolate",
+              ["linear"],
+              ["zoom"],
+              8,
+              160,
+              14,
+              70,
+            ],
+            "icon-image": ARROW_IMAGE,
+            "icon-size": ["interpolate", ["linear"], ["zoom"], 8, 0.5, 14, 0.8],
+            "icon-rotation-alignment": "map",
+            "icon-pitch-alignment": "map",
+            // Ok, çizgiyi takip ettiği için üst üste binmesi sorun değil;
+            // eleme açık kalırsa kalabalık koridorda oklar kayboluyor.
+            "icon-allow-overlap": true,
+            "icon-ignore-placement": true,
+            "icon-offset": [0, 0],
+          },
+          paint: { "icon-opacity": 0.95 },
         });
       }
     };
