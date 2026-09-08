@@ -171,6 +171,27 @@ export function yonAdi(aci: number): string {
   return YONLER[dilim]!;
 }
 
+/**
+ * Sektörün yön adı — bölge MERKEZİNDEN değil, SEKTÖRÜN ORTASINDAN türer.
+ *
+ * Merkezden türetmek çakışma üretiyordu: sektörler 60° (şehir içi), yön
+ * adları 45° adımlı, iki komşu sektörün merkezi aynı ada yuvarlanabiliyordu.
+ * Sahada "İzmir — Batı" iki kez listelendi. Sektör ortaları 60° (ya da 90°)
+ * aralıklı olduğu için bu yolla aynı bant içinde ad çakışması İMKÂNSIZ.
+ */
+function sektorYonu(sektor: number, sektorSayisi: number): string {
+  const orta = ((sektor + 0.5) * 2 * Math.PI) / sektorSayisi;
+  return yonAdi(orta);
+}
+
+/** Ad çakışmasını çözerken kullanılan bant etiketi. */
+const BANT_ETIKET: Record<MesafeBandi, string> = {
+  sehir_ici: "şehir içi",
+  yakin: "yakın",
+  orta: "orta",
+  uzak: "uzak",
+};
+
 function bandiBul(km: number): MesafeBandi {
   for (const e of BANT_ESIKLERI) {
     if (km < e.enFazlaKm) return e.bant;
@@ -299,7 +320,10 @@ export function bolgele(
   }
 
   // 2) (bant, sektör) → bölge.
-  const kovalar = new Map<string, IlceKumesi[]>();
+  const kovalar = new Map<
+    string,
+    { bant: MesafeBandi; sektor: number; sektorSayisi: number; uyeler: IlceKumesi[] }
+  >();
   for (const k of ilceler.values()) {
     const bant = bandiBul(k.km);
     const sektorSayisi = BANT_SEKTOR[bant];
@@ -307,23 +331,34 @@ export function bolgele(
       Math.floor(k.aci / ((2 * Math.PI) / sektorSayisi)) % sektorSayisi;
     const kod = `${bant}-s${sektor}`;
     const liste = kovalar.get(kod);
-    if (liste) liste.push(k);
-    else kovalar.set(kod, [k]);
+    if (liste) liste.uyeler.push(k);
+    else kovalar.set(kod, { bant, sektor, sektorSayisi, uyeler: [k] });
   }
 
-  let bolgeler = [...kovalar.entries()].map(([kod, uyeler]) =>
-    bolgeKur(kod, uyeler, depo)
+  let bolgeler = [...kovalar.values()].map((kova) =>
+    bolgeKur(kova.bant, kova.sektor, kova.sektorSayisi, kova.uyeler, depo)
   );
 
   // 3) Küçük bölgeleri komşusuna kat.
   const esik = secenekler.birlestirmeEsigiCuval ?? 0;
   if (esik > 0) bolgeler = kucukleriBirlestir(bolgeler, esik, depo);
 
+  // 4) Aynı ad iki bantta çıkabilir ("İzmir — Batı" hem şehir içi hem yakın).
+  //    Sektör içinde çakışma imkânsız ama bantlar arasında mümkün; yalnız
+  //    çakışanlara bant etiketi ekleniyor, tek olan sade kalıyor.
+  const adSayaci = new Map<string, number>();
+  for (const b of bolgeler) adSayaci.set(b.ad, (adSayaci.get(b.ad) ?? 0) + 1);
+  for (const b of bolgeler) {
+    if ((adSayaci.get(b.ad) ?? 0) > 1) b.ad = `${b.ad} (${BANT_ETIKET[b.bant]})`;
+  }
+
   return bolgeler.sort((a, b) => a.aci - b.aci);
 }
 
 function bolgeKur(
-  kod: string,
+  bant: MesafeBandi,
+  sektor: number,
+  sektorSayisi: number,
   uyeler: IlceKumesi[],
   depo: { lat: number; lon: number }
 ): Bolge {
@@ -343,7 +378,7 @@ function bolgeKur(
   }
   const sirali = [...sehirSayaci.entries()].sort((a, b) => b[1] - a[1]);
   const baskin = sirali[0]?.[0];
-  const yon = yonAdi(depoAcisi(merkez, depo));
+  const yon = sektorYonu(sektor, sektorSayisi);
   const ad = baskin
     ? sirali.length > 1
       ? `${baslikYap(baskin)} +${sirali.length - 1} — ${yon}`
@@ -351,9 +386,9 @@ function bolgeKur(
     : `${yon} — ${Math.round(km)} km`;
 
   return {
-    kod,
+    kod: `${bant}-s${sektor}`,
     ad,
-    bant: bandiBul(km),
+    bant,
     duraklar,
     kg,
     cuvalEsdeger,
