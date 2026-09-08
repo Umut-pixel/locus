@@ -182,7 +182,7 @@ console.log("filoSec: elle seçim şoför kısıtını delemiyor ok");
 {
   const bozuk = tercihleriTemizle({
     gunPenceresi: "otuz", strateji: "kafadan", dolulukEsigi: 500,
-    uzakAyir: "evet", aracKodlari: [1, "kangoo", null],
+    uzakAyir: "evet",
   });
   if (bozuk.gunPenceresi !== null) fail("geçersiz pencere null'a düşmeli");
   // Varsayılan artık "bolge" — sabit değil, VARSAYILAN_TERCIHLER'e bağlanıyor
@@ -194,7 +194,8 @@ console.log("filoSec: elle seçim şoför kısıtını delemiyor ok");
     fail("aralık dışı eşik varsayılana düşmeli");
   }
   if (bozuk.uzakAyir !== false) fail("boolean olmayan değer false olmalı");
-  if (bozuk.aracKodlari?.join() !== "kangoo") fail("string olmayan araç kodu elenmeli");
+  // Elle filo seçimi kaldırıldı; eski kayıtta kalan alan yok sayılmalı.
+  if ("aracKodlari" in bozuk) fail("aracKodlari tercihlerden düşmeli");
 
   const bos = tercihleriTemizle(null);
   if (

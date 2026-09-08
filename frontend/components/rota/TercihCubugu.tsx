@@ -2,8 +2,6 @@
 
 import { PencilIcon, SlidersHorizontalIcon } from "lucide-react";
 
-import type { RotaAraci } from "@/hooks/useRotaPlani";
-import type { Sofor } from "@/lib/rota/atama";
 import {
   GUN_PENCERELERI,
   STRATEJILER,
@@ -16,15 +14,12 @@ import { cn } from "@/lib/utils";
 interface TercihCubuguProps {
   tercihler: Tercihler;
   onDegis: (yeni: Partial<Tercihler>) => void;
-  /** Filonun tamamı — elle araç seçimi için. */
-  araclar: RotaAraci[];
-  /** Sistemin seçtiği filo (aracKodlari null iken geçerli olan). */
-  otomatikSecim: RotaAraci[];
-  atamalar: Record<string, Sofor>;
-  /** Şoför sınırı — bundan fazla araç aynı gün çıkamaz. */
+  /** Filodaki aktif araç sayısı. */
+  aracSayisi: number;
+  /** Otomatik dağıtımın bugün kullandığı araç sayısı. */
+  otomatikAracSayisi: number;
+  /** Aktif şoför sayısı — otomatik dağıtım bundan fazla araç kullanamaz. */
   soforSayisi: number;
-  /** Gerçekten çıkan araçların kodları — seçili ama elenenleri soluk göstermek için. */
-  cikanKodlar: string[];
   /** Filo ve kadro düzenleme panelini aç. */
   onFiloDuzenle: () => void;
   loading: boolean;
@@ -40,28 +35,13 @@ const ESIK_SECENEKLERI = [50, 60, 70, 80, 90];
 export function TercihCubugu({
   tercihler,
   onDegis,
-  araclar,
-  otomatikSecim,
-  atamalar,
+  aracSayisi,
+  otomatikAracSayisi,
   soforSayisi,
-  cikanKodlar,
   onFiloDuzenle,
   loading,
 }: TercihCubuguProps) {
   const bolgeModu = tercihler.strateji === "bolge";
-  const otomatik = tercihler.aracKodlari == null;
-  const secili = new Set(
-    otomatik ? otomatikSecim.map((a) => a.kod) : tercihler.aracKodlari
-  );
-  const cikan = new Set(cikanKodlar);
-  const elenenSayisi = [...secili].filter((k) => !cikan.has(k)).length;
-
-  const aracDegis = (kod: string) => {
-    const sonraki = new Set(secili);
-    if (sonraki.has(kod)) sonraki.delete(kod);
-    else sonraki.add(kod);
-    onDegis({ aracKodlari: [...sonraki] });
-  };
 
   return (
     <div
@@ -154,50 +134,31 @@ export function TercihCubugu({
         )}
       </Grup>
 
-      {/* Elle araç seçimi */}
-      <Grup
-        etiket={`Araçlar (${formatNumber(cikan.size)} çıkıyor · ${formatNumber(soforSayisi)} şoför)`}
+      {/*
+        Elle araç seçimi KALDIRILDI. İki ayrı işi karıştırıyordu: "otomatik
+        dağıtım hangi araçları kullansın" ile "hangi araca elle yük koyabilirim".
+        Seçilmeyen araç soluklaşıp tıklanamaz oluyordu ve sağlam bir araç
+        (Isuzu 3D) devre dışı gibi görünüyordu.
+
+        Yeni ayrım: filoyu otomatik dağıtım kendi seçer; filodaki HER araca
+        elle yük konabilir (bkz. araç kartları). Burada yalnız sonucu
+        okutuyoruz.
+      */}
+      <span
+        className="flex shrink-0 cursor-help items-baseline gap-1.5 text-[11.5px] text-muted-foreground"
+        title={
+          `Filoda ${formatNumber(aracSayisi)} aktif araç, ${formatNumber(soforSayisi)} şoför var. ` +
+          "Otomatik dağıtım yükü karşılayan en küçük filoyu seçer ve şoför sayısını aşamaz. " +
+          "Kullanılmayan araçlar kilitli değil — kartına sürükleyerek elle yük koyabilirsiniz."
+        }
       >
-        {araclar.map((a) => {
-          const sofor = atamalar[a.kod];
-          const seciliMi = secili.has(a.kod);
-          const elendi = seciliMi && !cikan.has(a.kod);
-          return (
-            <Secenek
-              key={a.kod}
-              secili={seciliMi && !elendi}
-              solgun={elendi}
-              onClick={() => aracDegis(a.kod)}
-              title={
-                elendi
-                  ? `${a.ad} seçili ama şoför yetmiyor — bugün çıkamaz`
-                  : sofor
-                    ? `${a.ad} — ${sofor.ad}`
-                    : `${a.ad} — bu seçimde şoför düşmüyor`
-              }
-            >
-              {a.ad.replace(/^(Renault|Ford|Isuzu)\s+/, "")}
-            </Secenek>
-          );
-        })}
-        {elenenSayisi > 0 ? (
-          <span
-            className="ml-1 shrink-0 text-[11px] text-amber-500"
-            title="Seçilen araç sayısı şoför sayısını aşıyor"
-          >
-            {formatNumber(elenenSayisi)} araç şoförsüz
-          </span>
-        ) : null}
-        {!otomatik ? (
-          <button
-            type="button"
-            onClick={() => onDegis({ aracKodlari: null })}
-            className="ml-1 shrink-0 text-[11.5px] text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
-          >
-            otomatiğe dön
-          </button>
-        ) : null}
-      </Grup>
+        <span>Filo</span>
+        <span className="font-mono text-foreground tabular-nums">
+          {formatNumber(otomatikAracSayisi)}/{formatNumber(aracSayisi)}
+        </span>
+        <span>araç · {formatNumber(soforSayisi)} şoför</span>
+      </span>
+
 
       <button
         type="button"
@@ -233,14 +194,11 @@ function Grup({
 
 function Secenek({
   secili,
-  solgun = false,
   onClick,
   title,
   children,
 }: {
   secili: boolean;
-  /** Seçili ama uygulanamıyor (ör. şoför yetmiyor). */
-  solgun?: boolean;
   onClick: () => void;
   title: string;
   children: React.ReactNode;
@@ -255,9 +213,7 @@ function Secenek({
         "shrink-0 rounded-sm px-1.5 py-0.5 text-[11.5px] whitespace-nowrap transition-colors",
         secili
           ? "bg-foreground text-background"
-          : solgun
-            ? "text-amber-500/70 line-through"
-            : "text-muted-foreground hover:text-foreground"
+          : "text-muted-foreground hover:text-foreground"
       )}
     >
       {children}

@@ -1,12 +1,13 @@
 "use client";
 
 import { Fragment, useMemo, useState } from "react";
-import { AlertTriangleIcon, ChevronRightIcon, MapIcon } from "lucide-react";
+import { AlertTriangleIcon, ChevronRightIcon, MapIcon, PinIcon } from "lucide-react";
 
 import { MusteriAdIlce } from "@/components/sevkiyat/MusteriAdIlce";
 import { ScrollBottomFade } from "@/components/ui/ScrollBottomFade";
 import { useScrollBottomFade } from "@/hooks/useScrollBottomFade";
 import type { Bolge } from "@/lib/rota/bolge";
+import type { RotaAraci } from "@/hooks/useRotaPlani";
 import { formatKg, formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -14,6 +15,13 @@ interface BolgeOzetiProps {
   bolgeler: Bolge[];
   /** musteriKodu → aracAd. Plana girmemiş durak haritada olmaz. */
   durakAraci: Map<string, string>;
+  /** Sabitleme için filo. Boş geçilirse sabitleme kontrolü çıkmaz. */
+  filo: RotaAraci[];
+  /** Bölge kodu → araç kodu. */
+  sabitlemeler: Record<string, string>;
+  onSabitle: (bolgeKod: string, aracKod: string | null) => void;
+  /** Sabitleme yalnız bölge stratejisinde anlamlı; sweep/ffd yok sayar. */
+  sabitlemeAcik: boolean;
   loading: boolean;
 }
 
@@ -35,7 +43,15 @@ interface Satir {
  * hangi araçta. Kapalıyken yalnız toplam vardı; "bu 245 kg kimin" sorusu ancak
  * araç kartları taranarak cevaplanabiliyordu.
  */
-export function BolgeOzeti({ bolgeler, durakAraci, loading }: BolgeOzetiProps) {
+export function BolgeOzeti({
+  bolgeler,
+  durakAraci,
+  filo,
+  sabitlemeler,
+  onSabitle,
+  sabitlemeAcik,
+  loading,
+}: BolgeOzetiProps) {
   /** Aynı anda tek bölge açık — panel dar, birden fazlası listeyi boğuyor. */
   const [acikKod, setAcikKod] = useState<string | null>(null);
 
@@ -129,6 +145,13 @@ export function BolgeOzeti({ bolgeler, durakAraci, loading }: BolgeOzetiProps) {
                         <span className="min-w-0 flex-1 truncate text-[13px] text-foreground">
                           {bolge.ad}
                         </span>
+                        {sabitlemeler[bolge.kod] ? (
+                          <PinIcon
+                            className="size-3 shrink-0 text-foreground"
+                            strokeWidth={2}
+                            aria-label="araca sabitlendi"
+                          />
+                        ) : null}
                         <span className="shrink-0 font-mono text-[11.5px] text-muted-foreground tabular-nums">
                           {formatNumber(bolge.duraklar.length)} durak ·{" "}
                           {formatKg(Math.round(bolge.kg))} ·{" "}
@@ -167,6 +190,46 @@ export function BolgeOzeti({ bolgeler, durakAraci, loading }: BolgeOzetiProps) {
 
                   {acik ? (
                     <li className="bg-muted/20">
+                      {/*
+                        Günlük sabitleme. Kalıcı bölge-araç eşlemesi bilerek
+                        yok: aynı bölge bir gün 200, ertesi gün 900 çuval
+                        olabiliyor ve sabit eşleme o hatta yük olmayan günlerde
+                        en büyük kamyonu boş bekletir.
+                      */}
+                      {sabitlemeAcik && filo.length > 0 ? (
+                        <div className="flex min-w-0 flex-wrap items-center gap-1 border-b border-border/40 py-1.5 pr-3.5 pl-8">
+                          <span className="shrink-0 text-[11px] text-muted-foreground">
+                            Araca sabitle
+                          </span>
+                          {filo.map((a) => {
+                            const secili = sabitlemeler[bolge.kod] === a.kod;
+                            return (
+                              <button
+                                key={a.kod}
+                                type="button"
+                                aria-pressed={secili}
+                                onClick={() =>
+                                  onSabitle(bolge.kod, secili ? null : a.kod)
+                                }
+                                title={
+                                  secili
+                                    ? `Sabitlemeyi kaldır — ${a.ad}`
+                                    : `Bu bölgeyi ${a.ad} aracına sabitle; otomatik dağıtım ona dokunmaz`
+                                }
+                                className={cn(
+                                  "shrink-0 rounded border px-1.5 py-0.5 text-[11px] transition-colors",
+                                  secili
+                                    ? "border-foreground/40 bg-foreground text-background"
+                                    : "border-border/70 text-muted-foreground hover:text-foreground"
+                                )}
+                              >
+                                {a.ad}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      ) : null}
+
                       <ul className="divide-y divide-border/40">
                         {/* Ağır durak üstte: bölgeyi kim taşıyor, önce o okunur. */}
                         {[...bolge.duraklar]

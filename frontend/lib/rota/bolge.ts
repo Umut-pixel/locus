@@ -605,11 +605,28 @@ function turSigarMi(arac: Arac, duraklar: Durak[]): boolean {
  * `sira` kolonuna göre doldurma BURADA YOK; sweep'teki o davranış süpürmenin
  * ilk dilimini en küçük araca veriyordu.
  */
+export interface BolgeAtaSecenekleri {
+  /**
+   * Bölge kodu → araç kodu. Sabitlenen bölge doğrudan o araca yerleşir ve
+   * dağıtım onu başka araca koymaz.
+   *
+   * Kullanıcının GÜNLÜK kararı; kalıcı bir eşleme değil. Kalıcı eşleme
+   * (ör. "Isuzu 3D hep Kuzey hattı") değişken yükte tıkanıyor: aynı bölge
+   * bir gün 200, ertesi gün 900 çuval olabiliyor ve o hatta yük olmayan
+   * günlerde en büyük kamyon boş bekler.
+   *
+   * Artık var olmayan bölge kodu SESSİZCE yok sayılır — havuz değiştikçe
+   * bölge kodları değişebiliyor, eski bir sabitleme planı patlatmamalı.
+   */
+  sabitlemeler?: Record<string, string>;
+}
+
 export function bolgeAta(
   duraklar: Durak[],
   araclar: Arac[],
   depo: { lat: number; lon: number },
-  tumFilo: Arac[] = araclar
+  tumFilo: Arac[] = araclar,
+  secenekler: BolgeAtaSecenekleri = {}
 ): AtamaSonucu {
   const yukler: AracYuku[] = araclar.map((arac) => ({
     arac,
@@ -643,8 +660,36 @@ export function bolgeAta(
     birlestirmeEsigiCuval: enKucukCuval * 0.25,
   });
 
-  const kuyruk = turKur(bolgeler, enBuyuk).sort((a, b) => b.enUzakKm - a.enUzakKm);
+  // Sabitlenen bölgeler önce yerleşir; araçları rezerve olur ve tur kurmaya
+  // girmezler. Sığmayan kısım normal bölge gibi kuyruğa döner.
+  const sabitlemeler = secenekler.sabitlemeler ?? {};
+  const yukHaritasi = new Map(yukler.map((y) => [y.arac.kod, y]));
   const bostakiler = new Set(yukler);
+  const serbestBolgeler: Bolge[] = [];
+  const artanlar: Bolge[] = [];
+
+  for (const bolge of bolgeler) {
+    const aracKod = sabitlemeler[bolge.kod];
+    const hedef = aracKod ? yukHaritasi.get(aracKod) : undefined;
+    if (!hedef) {
+      // Sabitleme yok ya da araç bugünkü filoda değil — normal akışa.
+      serbestBolgeler.push(bolge);
+      continue;
+    }
+
+    const kalan: Durak[] = [];
+    for (const d of bolge.duraklar) {
+      if (sigarMi(hedef.arac, hedef.duraklar, d)) hedef.duraklar.push(d);
+      else kalan.push(d);
+    }
+    // Araç rezerve: sabitlenmiş bölgeye adandı, tur dağıtımına girmiyor.
+    bostakiler.delete(hedef);
+    if (kalan.length > 0) artanlar.push(bolgeKalani(bolge, kalan));
+  }
+
+  const kuyruk = turKur([...serbestBolgeler, ...artanlar], enBuyuk).sort(
+    (a, b) => b.enUzakKm - a.enUzakKm
+  );
 
   while (kuyruk.length > 0) {
     const tur = kuyruk.shift()!;
@@ -694,6 +739,12 @@ export function bolgeAta(
     y.doluluk = dolulukHesapla(y.arac, y.duraklar);
   }
   return { yukler, yerlesmeyen };
+}
+
+/** Sabitlenen araca sığmayan kısım — aynı bölge kimliğiyle kuyruğa döner. */
+function bolgeKalani(bolge: Bolge, kalan: Durak[]): Bolge {
+  const { kg, cuvalEsdeger } = toplamlar(kalan);
+  return { ...bolge, duraklar: kalan, kg, cuvalEsdeger };
 }
 
 function turBol(tur: Tur, kalan: Durak[]): Tur {
