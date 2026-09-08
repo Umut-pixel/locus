@@ -300,4 +300,32 @@ console.log("filoyaSigarMi: bölünemez durak ok");
 }
 console.log("planMetrigi: bölge bütünlüğü ok");
 
+
+// ---------------------------------------------------------------------------
+// REGRESYON — bölge adı iki kez listelenmemeli
+// ---------------------------------------------------------------------------
+// Sahada "İzmir — Batı" iki ayrı satır olarak çıktı. Sebep: ad, bölge
+// MERKEZİNDEN 45°'lik pusulaya yuvarlanıyordu; şehir içi sektörleri ise 60°.
+// İki komşu sektörün merkezi (175° ve 185°) aynı ada yuvarlanabiliyordu.
+// Ad artık SEKTÖRÜN ORTASINDAN türüyor — aynı bantta çakışma imkânsız.
+{
+  const duraklar = [
+    // Depodan ~175° (sektör 2) — eski kuralda "Batı"
+    durak({ lat: 38.314, lon: 26.841, sehir: "İZMİR", ilce: "URLA", musteriKodu: "S2" }),
+    // Depodan ~185° (sektör 3) — eski kuralda yine "Batı"
+    durak({ lat: 38.262, lon: 26.841, sehir: "İZMİR", ilce: "SEFERIHISAR", musteriKodu: "S3" }),
+  ];
+
+  // Birleştirme kapalı: iki bölge ayrı kalsın, ad çakışması görünsün.
+  const bolgeler = bolgele(duraklar, DEPO);
+  esit(bolgeler.length, 2, "iki ayrı sektör iki bölge");
+
+  const adlar = bolgeler.map((b) => b.ad);
+  esit(new Set(adlar).size, adlar.length, `bölge adları benzersiz olmalı: ${adlar.join(" | ")}`);
+  // Kodlar da ayrı olmalı — React anahtarı ve açılır satır bunu kullanıyor.
+  const kodlar = bolgeler.map((b) => b.kod);
+  esit(new Set(kodlar).size, kodlar.length, "bölge kodları benzersiz");
+}
+console.log("bolgele: ad çakışması yok ok");
+
 console.log("bolge: tüm testler geçti");

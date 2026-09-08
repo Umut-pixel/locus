@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo } from "react";
-import { AlertTriangleIcon, MapIcon } from "lucide-react";
+import { Fragment, useMemo, useState } from "react";
+import { AlertTriangleIcon, ChevronRightIcon, MapIcon } from "lucide-react";
 
+import { MusteriAdIlce } from "@/components/sevkiyat/MusteriAdIlce";
 import { ScrollBottomFade } from "@/components/ui/ScrollBottomFade";
 import { useScrollBottomFade } from "@/hooks/useScrollBottomFade";
 import type { Bolge } from "@/lib/rota/bolge";
@@ -24,13 +25,20 @@ interface Satir {
 }
 
 /**
- * Bölge → yük → araç tablosu.
+ * Bölge → yük → araç tablosu, satırları açılabilir.
  *
  * Araç kartları "bu araçta ne var" sorusunu cevaplıyor; buradaki soru tersi:
  * "bu bölgeye kim gidiyor, bölündü mü". Bölünmüş bölge sahada aynı ilçeye iki
  * kez gitmek demek — ekranda görünmezse fark edilmiyor.
+ *
+ * Satır açılınca bölgedeki müşteriler tek tek görünüyor: kim, ne kadar yük,
+ * hangi araçta. Kapalıyken yalnız toplam vardı; "bu 245 kg kimin" sorusu ancak
+ * araç kartları taranarak cevaplanabiliyordu.
  */
 export function BolgeOzeti({ bolgeler, durakAraci, loading }: BolgeOzetiProps) {
+  /** Aynı anda tek bölge açık — panel dar, birden fazlası listeyi boğuyor. */
+  const [acikKod, setAcikKod] = useState<string | null>(null);
+
   const satirlar = useMemo<Satir[]>(() => {
     return bolgeler
       .map((bolge) => {
@@ -90,53 +98,118 @@ export function BolgeOzeti({ bolgeler, durakAraci, loading }: BolgeOzetiProps) {
           </p>
         ) : (
           <ul className="divide-y divide-border/50">
-            {satirlar.map(({ bolge, araclar, atanmamis }) => (
-              <li
-                key={bolge.kod + bolge.ad}
-                className="flex min-w-0 flex-col gap-1 px-3.5 py-2"
-                title={
-                  bolge.ilceler.length > 0
-                    ? `İlçeler: ${bolge.ilceler.join(", ")}`
-                    : "İlçe bilgisi olmayan duraklar koordinata göre kümelendi"
-                }
-              >
-                <div className="flex min-w-0 items-baseline gap-2">
-                  <span className="min-w-0 flex-1 truncate text-[13px] text-foreground">
-                    {bolge.ad}
-                  </span>
-                  <span className="shrink-0 font-mono text-[11.5px] text-muted-foreground tabular-nums">
-                    {formatNumber(bolge.duraklar.length)} durak ·{" "}
-                    {formatKg(Math.round(bolge.kg))} · {Math.round(bolge.depoyaKm)} km
-                  </span>
-                </div>
-                <div className="flex min-w-0 flex-wrap items-center gap-1">
-                  {araclar.length === 0 ? (
-                    <span className="text-[11px] text-muted-foreground">
-                      araca atanmadı
-                    </span>
-                  ) : (
-                    araclar.map((a) => (
-                      <span
-                        key={a}
-                        className={cn(
-                          "rounded border px-1.5 py-0.5 text-[11px]",
-                          araclar.length > 1
-                            ? "border-amber-500/40 text-amber-600 dark:text-amber-400"
-                            : "border-border/70 text-muted-foreground"
-                        )}
-                      >
-                        {a}
+            {satirlar.map(({ bolge, araclar, atanmamis }) => {
+              const acik = acikKod === bolge.kod;
+              return (
+                <Fragment key={bolge.kod}>
+                  <li>
+                    <button
+                      type="button"
+                      onClick={() => setAcikKod(acik ? null : bolge.kod)}
+                      aria-expanded={acik}
+                      className={cn(
+                        "flex w-full min-w-0 flex-col gap-1 px-3.5 py-2 text-left transition-colors",
+                        acik ? "bg-muted/40" : "hover:bg-muted/30"
+                      )}
+                      title={
+                        bolge.ilceler.length > 0
+                          ? `İlçeler: ${bolge.ilceler.join(", ")}`
+                          : "İlçe bilgisi olmayan duraklar koordinata göre kümelendi"
+                      }
+                    >
+                      <span className="flex min-w-0 items-center gap-1.5">
+                        <ChevronRightIcon
+                          className={cn(
+                            "size-3 shrink-0 text-muted-foreground transition-transform",
+                            acik && "rotate-90"
+                          )}
+                          strokeWidth={2}
+                          aria-hidden
+                        />
+                        <span className="min-w-0 flex-1 truncate text-[13px] text-foreground">
+                          {bolge.ad}
+                        </span>
+                        <span className="shrink-0 font-mono text-[11.5px] text-muted-foreground tabular-nums">
+                          {formatNumber(bolge.duraklar.length)} durak ·{" "}
+                          {formatKg(Math.round(bolge.kg))} ·{" "}
+                          {Math.round(bolge.depoyaKm)} km
+                        </span>
                       </span>
-                    ))
-                  )}
-                  {atanmamis > 0 && araclar.length > 0 ? (
-                    <span className="text-[11px] text-muted-foreground">
-                      +{formatNumber(atanmamis)} havuzda
-                    </span>
+
+                      <span className="flex min-w-0 flex-wrap items-center gap-1 pl-[18px]">
+                        {araclar.length === 0 ? (
+                          <span className="text-[11px] text-muted-foreground">
+                            araca atanmadı
+                          </span>
+                        ) : (
+                          araclar.map((a) => (
+                            <span
+                              key={a}
+                              className={cn(
+                                "rounded border px-1.5 py-0.5 text-[11px]",
+                                araclar.length > 1
+                                  ? "border-amber-500/40 text-amber-600 dark:text-amber-400"
+                                  : "border-border/70 text-muted-foreground"
+                              )}
+                            >
+                              {a}
+                            </span>
+                          ))
+                        )}
+                        {atanmamis > 0 && araclar.length > 0 ? (
+                          <span className="text-[11px] text-muted-foreground">
+                            +{formatNumber(atanmamis)} havuzda
+                          </span>
+                        ) : null}
+                      </span>
+                    </button>
+                  </li>
+
+                  {acik ? (
+                    <li className="bg-muted/20">
+                      <ul className="divide-y divide-border/40">
+                        {/* Ağır durak üstte: bölgeyi kim taşıyor, önce o okunur. */}
+                        {[...bolge.duraklar]
+                          .sort((a, b) => b.kg - a.kg)
+                          .map((d) => {
+                            const arac = durakAraci.get(d.musteriKodu) ?? null;
+                            return (
+                              <li
+                                key={d.musteriKodu}
+                                className="flex min-w-0 items-center gap-2 py-1.5 pr-3.5 pl-8"
+                              >
+                                <span className="flex min-w-0 flex-1 flex-col">
+                                  <MusteriAdIlce
+                                    ad={d.unvan}
+                                    ilce={d.ilce ?? null}
+                                    className="text-[12.5px] text-foreground"
+                                  />
+                                  <span
+                                    className={cn(
+                                      "truncate text-[11px]",
+                                      arac
+                                        ? "text-muted-foreground"
+                                        : "text-amber-600 dark:text-amber-400"
+                                    )}
+                                  >
+                                    {arac ?? "havuzda — araca atanmadı"}
+                                  </span>
+                                </span>
+                                <span className="shrink-0 text-right font-mono text-[11.5px] text-muted-foreground tabular-nums">
+                                  {formatKg(Math.round(d.kg))}
+                                  <span className="block opacity-70">
+                                    {formatNumber(Math.round(d.cuvalEsdeger))} çuval
+                                  </span>
+                                </span>
+                              </li>
+                            );
+                          })}
+                      </ul>
+                    </li>
                   ) : null}
-                </div>
-              </li>
-            ))}
+                </Fragment>
+              );
+            })}
           </ul>
         )}
       </div>
