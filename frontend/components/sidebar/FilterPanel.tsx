@@ -4,7 +4,6 @@ import {
   memo,
   useEffect,
   useId,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -149,8 +148,6 @@ export const FilterPanel = memo(function FilterPanel({
   const [panelOpen, setPanelOpen] = useState(false);
   const searchWrapRef = useRef<HTMLDivElement | null>(null);
   const overlayRef = useRef<HTMLDivElement | null>(null);
-  const overlayBodyRef = useRef<HTMLDivElement | null>(null);
-  const [overlayBodyH, setOverlayBodyH] = useState<number | null>(null);
 
   const showList = listOpen && search.trim().length >= 2;
 
@@ -270,16 +267,6 @@ export const FilterPanel = memo(function FilterPanel({
       document.removeEventListener("keydown", onKey);
     };
   }, [isOverlay]);
-
-  useLayoutEffect(() => {
-    if (!isOverlay || !panelOpen) {
-      setOverlayBodyH(null);
-      return;
-    }
-    if (overlayBodyH != null) return;
-    const el = overlayBodyRef.current;
-    if (el) setOverlayBodyH(el.offsetHeight);
-  }, [isOverlay, panelOpen, overlayBodyH]);
 
   const handleSelectMusteri = (hit: MusteriSearchHit) => {
     onSearchSelect(hit);
@@ -581,13 +568,9 @@ export const FilterPanel = memo(function FilterPanel({
           ) : null}
         </div>
         {panelOpen ? (
-          <div className="mt-2 rounded-2xl border border-border/45 bg-popover/66 text-popover-foreground shadow-[0_14px_40px_-16px_rgba(0,0,0,0.55)] backdrop-blur-[24px] backdrop-saturate-150">
-            <div
-              ref={overlayBodyRef}
-              className="flex max-h-[min(36rem,calc(100dvh-11rem))] min-h-0 flex-col overflow-hidden rounded-2xl"
-              style={overlayBodyH != null ? { height: overlayBodyH } : undefined}
-            >
-              {showList && overlayBodyH != null ? (
+          <div className="isolate mt-2 [transform:translateZ(0)] overflow-hidden rounded-2xl border border-border/45 bg-popover/66 text-popover-foreground shadow-[0_14px_40px_-16px_rgba(0,0,0,0.55)] backdrop-blur-[24px] backdrop-saturate-150">
+            <div className="flex max-h-[min(36rem,calc(100dvh-11rem))] min-h-0 flex-col">
+              {showList ? (
                 <ul
                   role="listbox"
                   className="min-h-0 flex-1 overflow-y-auto overscroll-contain py-1"
