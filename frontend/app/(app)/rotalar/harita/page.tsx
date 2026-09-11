@@ -16,13 +16,17 @@ import {
   type DurakSecimi,
   type EklemeOnizlemesi,
 } from "@/components/rota/DurakDetayKarti";
-import { PlanKarnesi } from "@/components/rota/PlanKarnesi";
+import {
+  PlanKarnesi,
+  type AktifDoluluk,
+  type DolulukFarki,
+} from "@/components/rota/PlanKarnesi";
 import { aracRengi, RotaHaritasi, type HaritaRotasi } from "@/components/rota/RotaHaritasi";
 import { AppSidebarMobileTrigger } from "@/components/sidebar/AppSidebar";
 import { toastManager } from "@/components/ui/toast";
 import { useKayitliPlanlar, type KayitliDurak } from "@/hooks/useKayitliPlanlar";
 import { useRaporTazeligi } from "@/hooks/useMusteriRaporlama";
-import { ROTA_REPORT_ID, type RotaDuragi } from "@/hooks/useRotaPlani";
+import { ROTA_REPORT_ID, type RotaAraci, type RotaDuragi } from "@/hooks/useRotaPlani";
 import { formatKg, formatNumber } from "@/lib/format";
 import { dolulukHesapla } from "@/lib/rota/atama";
 import { kriterleriHesapla, type KriterAnahtari } from "@/lib/rota/kriter";
@@ -140,7 +144,15 @@ export default function RotaHaritasiSayfasi() {
   const [seciliDurak, setSeciliDurak] = useState<DurakSecimi | null>(null);
   const [cikariliyor, setCikariliyor] = useState(false);
   const [ekleniyorAracKod, setEkleniyorAracKod] = useState<string | null>(null);
+  /** Son ekle/çıkar eyleminin öncesi/sonrası — karnedeki geçici rozet bunu okur. */
+  const [dolulukFarki, setDolulukFarki] = useState<DolulukFarki | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  /** `Doluluk.baglayiciKisit`e göre bağlayıcı yüzde — modül genelinde tekrarlanan hesap. */
+  const hesaplaYuzde = useCallback((arac: RotaAraci, liste: RotaDuragi[]): number => {
+    const d = dolulukHesapla(arac, liste);
+    return d.baglayiciKisit === "agirlik" ? (d.kgYuzde ?? d.cuvalYuzde) : d.cuvalYuzde;
+  }, []);
 
   /**
    * Rotadan çıkar — KAYITLI moddaki dondurulmuş plana dokunmaz (o zaten
@@ -153,7 +165,21 @@ export default function RotaHaritasiSayfasi() {
     const { durak, rota } = seciliDurak;
     setCikariliyor(true);
     try {
+      const arac = canli.aracBul(rota.aracKod);
+      const eskiListe = canli.aracDuraklari(rota.aracKod);
+      const eskiYuzde = arac ? hesaplaYuzde(arac, eskiListe) : null;
+
       canli.durakCikar(durak.musteriKodu);
+
+      if (arac && eskiYuzde != null) {
+        const yeniListe = eskiListe.filter((d) => d.musteriKodu !== durak.musteriKodu);
+        setDolulukFarki({
+          aracKod: rota.aracKod,
+          eskiYuzde,
+          yeniYuzde: hesaplaYuzde(arac, yeniListe),
+          zaman: Date.now(),
+        });
+      }
       toastManager.add({
         type: "success",
         title: `${durak.unvan} rotadan çıkarıldı`,
@@ -163,7 +189,7 @@ export default function RotaHaritasiSayfasi() {
       setCikariliyor(false);
       setSeciliDurak(null);
     }
-  }, [gecmisMod, seciliDurak, cikariliyor, canli]);
+  }, [gecmisMod, seciliDurak, cikariliyor, canli, hesaplaYuzde]);
 
   /**
    * Bir araca tıklanınca ÖNCE bu çağrılır — hiçbir şeyi değiştirmez, yalnız
@@ -208,8 +234,18 @@ export default function RotaHaritasiSayfasi() {
       if (!arac) return;
       setEkleniyorAracKod(aracKod);
       try {
+        const eskiListe = canli.aracDuraklari(aracKod);
+        const eskiYuzde = hesaplaYuzde(arac, eskiListe);
+
         canli.durakEkle(durak.musteriKodu, aracKod);
-        const yeniListe = [...canli.aracDuraklari(aracKod), durak];
+        const yeniListe = [...eskiListe, durak];
+
+        setDolulukFarki({
+          aracKod,
+          eskiYuzde,
+          yeniYuzde: hesaplaYuzde(arac, yeniListe),
+          zaman: Date.now(),
+        });
         toastManager.add({
           type: "success",
           title: `${durak.unvan} → ${arac.ad}`,
@@ -224,7 +260,7 @@ export default function RotaHaritasiSayfasi() {
         setSeciliDurak(null);
       }
     },
-    [gecmisMod, seciliDurak, ekleniyorAracKod, canli]
+    [gecmisMod, seciliDurak, ekleniyorAracKod, canli, hesaplaYuzde]
   );
 
   /** Kayıtlı günün/planın hangi tarihe ait olduğu — başlıkta gösterilecek. */
@@ -271,6 +307,32 @@ export default function RotaHaritasiSayfasi() {
     odak != null && yuklu.some((r) => r.aracKod === odak) ? odak : null;
 
   /**
+   * Odaklanılan aracın tam kaydı — yalnız CANLI modda: `canli.aracBul` bugünün
+   * taslağını okur, kayıtlı/dondurulmuş bir günün yanında anlamsız olurdu.
+   * "Rotaya ekle"nin tek-hedef modu (`DurakDetayKarti.aktifArac`) VE plan
+   * karnesindeki doluluk satırı aynı kaynaktan besleniyor.
+   */
+  const odakliArac = useMemo<RotaAraci | null>(
+    () => (!gecmisMod && gecerliOdak != null ? canli.aracBul(gecerliOdak) : null),
+    [gecmisMod, gecerliOdak, canli]
+  );
+
+  const aktifDoluluk = useMemo<AktifDoluluk | null>(() => {
+    if (!odakliArac) return null;
+    const liste = canli.aracDuraklari(odakliArac.kod);
+    const yuzde = hesaplaYuzde(odakliArac, liste);
+    const doluluk = liste.length > 0 ? dolulukHesapla(odakliArac, liste) : null;
+    return {
+      aracKod: odakliArac.kod,
+      aracAd: odakliArac.ad,
+      yuzde,
+      kg: doluluk?.kg ?? 0,
+      kapasiteKg: odakliArac.maxKg,
+      asim: doluluk?.asim ?? false,
+    };
+  }, [odakliArac, canli, hesaplaYuzde]);
+
+  /**
    * Odak ya da karne vurgusu değişince görünen küme değişir (`gorunenRotalar`/
    * `gorunenHavuz`) — açık durak kartı artık haritada hiç çizilmeyen bir
    * marker'a ait kalabilir. Aynı şekilde canlı/kayıtlı geçişinde de kapanır.
@@ -298,16 +360,20 @@ export default function RotaHaritasiSayfasi() {
       ? yuklu.filter((r) => karneAraclari.includes(r.aracKod))
       : yuklu;
 
-  // Tek araca odaklanınca havuz dikkat dağıtır; gizli tutuluyor.
-  // Karne "yerleşmeyen durak" satırını gösteriyorsa havuz asıl konu — açılır.
+  /**
+   * Eskiden tek araca odaklanınca havuz tamamen gizleniyordu ("dikkat
+   * dağıtır" gerekçesiyle). Artık gizlenmiyor: havuzdaki bir noktaya
+   * tıklayıp "Rotaya ekle" ile doğrudan odaklanılan araca eklemek bu
+   * görünürlüğe bağlı — `DurakDetayKarti`nin tek-hedef modu (bkz. `aktifArac`
+   * aşağıda). Karne "yerleşmeyen durak" satırını gösteriyorsa o suçlularla
+   * sınırlanır; aksi halde normal `havuzGoster` anahtarı geçerli.
+   */
   const gorunenHavuz =
-    gecerliOdak != null
-      ? []
-      : karneDuraklari.length > 0
-        ? havuz.filter((d) => karneDuraklari.includes(d.musteriKodu))
-        : havuzGoster
-          ? havuz
-          : [];
+    karneDuraklari.length > 0
+      ? havuz.filter((d) => karneDuraklari.includes(d.musteriKodu))
+      : havuzGoster
+        ? havuz
+        : [];
 
   const odakla = (aracKod: string) =>
     setOdak((o) => (o === aracKod ? null : aracKod));
@@ -429,15 +495,14 @@ export default function RotaHaritasiSayfasi() {
                 <button
                   type="button"
                   onClick={() => setHavuzGoster((o) => !o)}
-                  aria-pressed={havuzGoster && gecerliOdak == null}
-                  disabled={gecerliOdak != null}
+                  aria-pressed={havuzGoster}
                   className={cn(
                     "flex w-full items-center gap-2 border-t border-border/40 px-2.5 py-2 text-left transition-colors hover:bg-accent/30",
-                    (!havuzGoster || gecerliOdak != null) && "opacity-40"
+                    !havuzGoster && "opacity-40"
                   )}
                   title={
                     gecerliOdak != null
-                      ? "Tek araca odaklıyken atanmamış duraklar gizli"
+                      ? "Atanmamış durakları göster/gizle — tıklayıp doğrudan bu araca ekleyebilirsiniz"
                       : "Atanmamış durakları göster/gizle"
                   }
                 >
@@ -489,6 +554,9 @@ export default function RotaHaritasiSayfasi() {
                   // Araç odağı karne vurgusunu ezmesin diye sıfırlanır.
                   if (anahtar != null) setOdak(null);
                 }}
+                aktifDoluluk={aktifDoluluk}
+                dolulukFarki={dolulukFarki}
+                onDolulukFarkiBitti={() => setDolulukFarki(null)}
               />
             ) : null}
 
@@ -526,6 +594,7 @@ export default function RotaHaritasiSayfasi() {
           secim={seciliDurak}
           containerRef={containerRef}
           filo={gecmisMod ? null : canli.araclar}
+          aktifArac={odakliArac ? { kod: odakliArac.kod, ad: odakliArac.ad } : null}
           onClose={() => setSeciliDurak(null)}
           onRotadanCikar={gecmisMod ? null : durakRotadanCikar}
           onRotayaEklemeOnizle={gecmisMod ? null : durakEklemeOnizle}

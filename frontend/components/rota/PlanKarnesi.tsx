@@ -1,13 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import {
   AlertTriangleIcon,
   CheckCircle2Icon,
   ChevronDownIcon,
   CircleAlertIcon,
   ClipboardCheckIcon,
+  TruckIcon,
 } from "lucide-react";
+import gsap from "gsap";
+import { useReducedMotion } from "motion/react";
 
 import {
   karneOzeti,
@@ -16,7 +19,28 @@ import {
   type KriterDurumu,
 } from "@/lib/rota/kriter";
 import { GsapCollapse } from "@/components/ui/gsap-collapse";
+import { formatKg, formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
+
+/** Odaklanılan aracın güncel doluluğu — karnenin en üstünde, her zaman görünür. */
+export interface AktifDoluluk {
+  aracKod: string;
+  aracAd: string;
+  yuzde: number;
+  kg: number;
+  /** İstiap haddi teyitli değilse null — o zaman yalnız çuval yüzdesi bağlayıcı. */
+  kapasiteKg: number | null;
+  asim: boolean;
+}
+
+/** Bir ekle/çıkar eyleminin öncesi/sonrası — geçici rozet bunun için. */
+export interface DolulukFarki {
+  aracKod: string;
+  eskiYuzde: number;
+  yeniYuzde: number;
+  /** `Date.now()` — art arda gelen aynı yüzdeli olaylarda bile rozeti yeniden tetiklemek için `key`. */
+  zaman: number;
+}
 
 interface PlanKarnesiProps {
   kriterler: Kriter[];
@@ -28,6 +52,12 @@ interface PlanKarnesiProps {
   onVurgula: (anahtar: KriterAnahtari | null) => void;
   /** Şu an vurgulanan kriter — satır seçili görünür. */
   vurgulanan: KriterAnahtari | null;
+  /** `null` ise hiçbir araca odaklanılmamış — satır hiç gösterilmez. */
+  aktifDoluluk: AktifDoluluk | null;
+  /** Son ekle/çıkar eyleminin farkı — rozet kendi kendine animasyonla kaybolur. */
+  dolulukFarki: DolulukFarki | null;
+  /** Rozet solma animasyonunu bitirince çağrılır — state'i temizlemek için. */
+  onDolulukFarkiBitti: () => void;
   className?: string;
 }
 
@@ -75,14 +105,41 @@ export function PlanKarnesi({
   kriterler,
   onVurgula,
   vurgulanan,
+  aktifDoluluk,
+  dolulukFarki,
+  onDolulukFarkiBitti,
   className,
 }: PlanKarnesiProps) {
   const [acik, setAcik] = useState(true);
 
+  const dolulukSatiri = aktifDoluluk ? (
+    <div className="flex h-9 shrink-0 items-center gap-1.5 border-b border-border/40 px-3">
+      <TruckIcon className="size-3.5 shrink-0 text-muted-foreground" strokeWidth={1.75} aria-hidden />
+      <span className="min-w-0 flex-1 truncate text-[12px] text-foreground">
+        Doluluk — {aktifDoluluk.aracAd}
+      </span>
+      {dolulukFarki && dolulukFarki.aracKod === aktifDoluluk.aracKod ? (
+        <FarkRozeti key={dolulukFarki.zaman} fark={dolulukFarki} onBitti={onDolulukFarkiBitti} />
+      ) : null}
+      <span
+        className={cn(
+          "shrink-0 font-mono text-[11.5px] tabular-nums",
+          aktifDoluluk.asim ? "text-destructive" : "text-muted-foreground"
+        )}
+      >
+        %{Math.round(aktifDoluluk.yuzde)} · {formatKg(Math.round(aktifDoluluk.kg))}
+        {aktifDoluluk.kapasiteKg != null ? ` / ${formatKg(Math.round(aktifDoluluk.kapasiteKg))}` : ""}
+      </span>
+    </div>
+  ) : null;
+
   if (kriterler.length === 0) {
     return (
-      <div className={cn("px-3 py-2 text-[12px] text-muted-foreground", className)}>
-        Henüz dağıtım yok — planlama ekranından yükü araçlara dağıtın.
+      <div className={cn("flex min-w-0 flex-col", className)}>
+        {dolulukSatiri}
+        <div className="px-3 py-2 text-[12px] text-muted-foreground">
+          Henüz dağıtım yok — planlama ekranından yükü araçlara dağıtın.
+        </div>
       </div>
     );
   }
@@ -97,6 +154,8 @@ export function PlanKarnesi({
 
   return (
     <div className={cn("flex min-w-0 flex-col", className)}>
+      {dolulukSatiri}
+
       <button
         type="button"
         onClick={() => setAcik((o) => !o)}
@@ -150,6 +209,71 @@ export function PlanKarnesi({
         </ul>
       </GsapCollapse>
     </div>
+  );
+}
+
+/**
+ * Bir ekle/çıkar eyleminin öncesi/sonrası farkını gösteren geçici rozet.
+ * GSAP ile belirip (`fromTo`), bir süre kalıp, kendiliğinden solup kayboluyor
+ * — kaybolma bitince `onBitti` çağrılır ki üst bileşen state'i temizlesin.
+ * Artan yüzde `--success`, azalan `--destructive` — ev rengi konvansiyonu.
+ */
+function FarkRozeti({ fark, onBitti }: { fark: DolulukFarki; onBitti: () => void }) {
+  const reduced = useReducedMotion();
+  const ref = useRef<HTMLSpanElement>(null);
+  const bittiRef = useRef(onBitti);
+  bittiRef.current = onBitti;
+
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    gsap.killTweensOf(el);
+
+    if (reduced) {
+      gsap.set(el, { opacity: 1 });
+      const t = window.setTimeout(() => bittiRef.current(), 1800);
+      return () => window.clearTimeout(t);
+    }
+
+    gsap.fromTo(
+      el,
+      { opacity: 0, y: -4, scale: 0.92 },
+      { opacity: 1, y: 0, scale: 1, duration: 0.24, ease: "power2.out" }
+    );
+    const t = window.setTimeout(() => {
+      gsap.to(el, {
+        opacity: 0,
+        y: -4,
+        duration: 0.35,
+        ease: "power2.in",
+        onComplete: () => bittiRef.current(),
+      });
+    }, 2600);
+    return () => {
+      window.clearTimeout(t);
+      gsap.killTweensOf(el);
+    };
+    // Yalnız mount'ta kurulsun — her yeni fark, `key`'le (çağıran tarafta
+    // aracKod+yeniYuzde) yeniden mount edilip baştan tetikleniyor.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const delta = Math.round(fark.yeniYuzde - fark.eskiYuzde);
+  const artti = delta > 0;
+  const azaldi = delta < 0;
+
+  return (
+    <span
+      ref={ref}
+      style={{ opacity: 0 }}
+      className={cn(
+        "shrink-0 rounded px-1 py-px font-mono text-[10.5px] font-semibold tabular-nums",
+        artti ? "bg-success/15 text-success" : azaldi ? "bg-destructive/15 text-destructive" : "text-muted-foreground"
+      )}
+    >
+      {artti ? "+" : ""}
+      {delta}%
+    </span>
   );
 }
 
