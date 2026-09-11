@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangleIcon,
   ChevronRightIcon,
@@ -8,7 +8,11 @@ import {
   MapIcon,
   MapPinIcon,
   PackagePlusIcon,
+  TruckIcon,
+  XIcon,
 } from "lucide-react";
+import gsap from "gsap";
+import { useReducedMotion } from "motion/react";
 
 import { MusteriAdIlce } from "@/components/sevkiyat/MusteriAdIlce";
 import { ScrollBottomFade } from "@/components/ui/ScrollBottomFade";
@@ -19,6 +23,16 @@ import { bolgeRengi } from "@/lib/rota/bolge-renk";
 import type { Bolge } from "@/lib/rota/bolge";
 import { cn } from "@/lib/utils";
 
+/** `onBolgeOnizle`'nin döndürdüğü, henüz HİÇBİR ŞEYE dokunmamış önizleme. */
+export interface BolgeYuklemeOnizlemesi {
+  aracAd: string;
+  eklenenSayisi: number;
+  toplamDurak: number;
+  kg: number;
+  yuzde: number;
+  asim: boolean;
+}
+
 interface BolgeOzetiProps {
   bolgeler: Bolge[];
   /** musteriKodu → aracAd. Plana girmemiş durak haritada olmaz. */
@@ -27,9 +41,13 @@ interface BolgeOzetiProps {
   filo: RotaAraci[];
   loading: boolean;
   /**
-   * Bölgedeki havuzda kalan durakları `aracKod`'a (remove+add) yükler; sonra
-   * doluluğu bildirir, rotasını kurar ve haritayı açar — çağıran (sayfa)
-   * bu üçünü tek eylemde birleştiriyor.
+   * Bir araca tıklanınca ÖNCE bu çağrılır — hiçbir şeyi değiştirmez, yalnız
+   * "yüklenirse ne olur" sorusunu cevaplar. Sonuç aşağı kayan panelde gösterilir.
+   */
+  onBolgeOnizle: (musteriKodlari: string[], aracKod: string) => BolgeYuklemeOnizlemesi | null;
+  /**
+   * Kullanıcı önizlemeyi ONAYLADIKTAN SONRA çağrılır: durakları `aracKod`'a
+   * (remove+add) yükler, rotasını kurar ve haritayı açar.
    */
   onBolgeYukle: (musteriKodlari: string[], aracKod: string) => void | Promise<void>;
 }
@@ -77,6 +95,7 @@ export function BolgeOzeti({
   durakAraci,
   filo,
   loading,
+  onBolgeOnizle,
   onBolgeYukle,
 }: BolgeOzetiProps) {
   /** Aynı anda tek bölge açık — birden fazlası listeyi boğuyor. */
@@ -146,7 +165,7 @@ export function BolgeOzeti({
     satirlar.length
   );
 
-  const ortakSatirProps = { durakAraci, filo, onBolgeYukle };
+  const ortakSatirProps = { durakAraci, filo, onBolgeOnizle, onBolgeYukle };
 
   return (
     <section
@@ -224,6 +243,7 @@ export function BolgeOzeti({
 interface OrtakSatirProps {
   durakAraci: Map<string, string>;
   filo: RotaAraci[];
+  onBolgeOnizle: (musteriKodlari: string[], aracKod: string) => BolgeYuklemeOnizlemesi | null;
   onBolgeYukle: (musteriKodlari: string[], aracKod: string) => void | Promise<void>;
 }
 
@@ -322,6 +342,7 @@ function BolgeSatiri({
   girintili = false,
   durakAraci,
   filo,
+  onBolgeOnizle,
   onBolgeYukle,
 }: OrtakSatirProps & {
   satir: Satir;
@@ -335,18 +356,34 @@ function BolgeSatiri({
     () => bolge.duraklar.filter((d) => !durakAraci.has(d.musteriKodu)).map((d) => d.musteriKodu),
     [bolge.duraklar, durakAraci]
   );
-  /** Tıklanan araç — istek sürerken o düğme kilitlenip döner, diğerleri kalır. */
-  const [yukleniyorAracKod, setYukleniyorAracKod] = useState<string | null>(null);
+  /**
+   * Tıklanan ama HENÜZ ONAYLANMAMIŞ araç — aşağıda önizleme paneli açık
+   * olduğu sürece dolu. Doğrudan `onBolgeYukle` çağırmıyor; yalnız hangi
+   * aracın önizleneceğini seçiyor. Satır kapanınca sıfırlanır.
+   */
+  const [seciliAracKod, setSeciliAracKod] = useState<string | null>(null);
+  /** Onay sonrası istek sürerken düğmeler kilitlenip döner. */
+  const [yukleniyor, setYukleniyor] = useState(false);
 
-  const yukle = async (aracKod: string) => {
-    if (yukleniyorAracKod != null) return;
-    setYukleniyorAracKod(aracKod);
+  useEffect(() => {
+    if (!acik) setSeciliAracKod(null);
+  }, [acik]);
+
+  const onizleme = useMemo(
+    () => (seciliAracKod != null ? onBolgeOnizle(havuzdakiKodlar, seciliAracKod) : null),
+    [seciliAracKod, havuzdakiKodlar, onBolgeOnizle]
+  );
+
+  const onayla = async () => {
+    if (seciliAracKod == null || yukleniyor) return;
+    setYukleniyor(true);
     try {
-      await onBolgeYukle(havuzdakiKodlar, aracKod);
+      await onBolgeYukle(havuzdakiKodlar, seciliAracKod);
       // Başarılıysa sayfa haritaya yönlendiriliyor — bu bileşen kalksa da
       // kalmasa da fark etmez, ayrıca sıfırlamaya gerek yok.
     } finally {
-      setYukleniyorAracKod(null);
+      setYukleniyor(false);
+      setSeciliAracKod(null);
     }
   };
 
@@ -431,9 +468,10 @@ function BolgeSatiri({
           {/*
             ARACA YÜKLE — panelin işlevi. Eskiden bu satır "Araca sabitle"ydi:
             yalnız GELECEKTEKİ otomatik dağıtımı etkiliyordu, o an hiçbir şeyi
-            taşımıyordu. Artık bir araca tıklamak o bölgenin havuzda kalan
-            duraklarını HEMEN o araca taşır (`onBolgeYukle`, sayfada doluluk
-            bildirimi + rota kurma + haritaya yönlendirmeyle birleşik).
+            taşımıyordu. Sonra tek tıkla HEMEN taşıyıp haritaya atlıyordu —
+            geri alması yoktu. Artık iki adım: araca tıklamak yalnız SEÇER ve
+            aşağıda doluluk önizlemesini açar; taşıma + rota kurma + haritaya
+            yönlendirme yalnız "Onayla" ile olur.
           */}
           {havuzdakiKodlar.length > 0 && filo.length > 0 ? (
             <div
@@ -446,22 +484,28 @@ function BolgeSatiri({
                 Havuzdaki {formatNumber(havuzdakiKodlar.length)} durağı araca yükle
               </span>
               {filo.map((a) => {
-                const buYukleniyor = yukleniyorAracKod === a.kod;
+                const buSecili = seciliAracKod === a.kod;
+                const buYukleniyor = buSecili && yukleniyor;
                 return (
                   <button
                     key={a.kod}
                     type="button"
-                    disabled={yukleniyorAracKod != null}
-                    onClick={() => void yukle(a.kod)}
-                    title={`${havuzdakiKodlar.length} durağı ${a.ad} aracına yükle, rotasını oluştur ve haritada göster`}
+                    disabled={yukleniyor}
+                    onClick={() => setSeciliAracKod((k) => (k === a.kod ? null : a.kod))}
+                    aria-pressed={buSecili}
+                    title={`${havuzdakiKodlar.length} durağı ${a.ad} aracına yüklemeyi önizle`}
                     className={cn(
                       "flex shrink-0 items-center gap-1 rounded border px-1.5 py-0.5 text-[11px] transition-colors",
-                      "border-border/70 text-muted-foreground hover:border-foreground/40 hover:text-foreground",
-                      yukleniyorAracKod != null && !buYukleniyor && "opacity-40"
+                      buSecili
+                        ? "border-foreground/50 bg-foreground/5 text-foreground"
+                        : "border-border/70 text-muted-foreground hover:border-foreground/40 hover:text-foreground",
+                      yukleniyor && !buSecili && "opacity-40"
                     )}
                   >
                     {buYukleniyor ? (
                       <LoaderIcon className="size-3 shrink-0 animate-spin" strokeWidth={2} aria-hidden />
+                    ) : buSecili ? (
+                      <TruckIcon className="size-3 shrink-0" strokeWidth={2} aria-hidden />
                     ) : (
                       <PackagePlusIcon className="size-3 shrink-0" strokeWidth={2} aria-hidden />
                     )}
@@ -470,6 +514,17 @@ function BolgeSatiri({
                 );
               })}
             </div>
+          ) : null}
+
+          {onizleme ? (
+            <BolgeOnizlemePaneli
+              key={seciliAracKod}
+              onizleme={onizleme}
+              yukleniyor={yukleniyor}
+              girintili={girintili}
+              onOnayla={() => void onayla()}
+              onVazgec={() => setSeciliAracKod(null)}
+            />
           ) : null}
 
           <ul className="divide-y divide-border/40">
@@ -514,5 +569,114 @@ function BolgeSatiri({
         </li>
       ) : null}
     </Fragment>
+  );
+}
+
+/**
+ * Bir araç seçilince açılan doluluk önizlemesi — "Onayla"ya kadar hiçbir şey
+ * taşınmaz. Üstten alta GSAP ile smooth iner (`segmented-switch.tsx`'teki
+ * hibrit desen: `useLayoutEffect` + `gsap.killTweensOf` + azaltılmış hareket
+ * tercihi düz `gsap.set`'e düşer, aksi halde `height/opacity/y` animasyonu).
+ */
+function BolgeOnizlemePaneli({
+  onizleme,
+  yukleniyor,
+  girintili,
+  onOnayla,
+  onVazgec,
+}: {
+  onizleme: BolgeYuklemeOnizlemesi;
+  yukleniyor: boolean;
+  girintili: boolean;
+  onOnayla: () => void;
+  onVazgec: () => void;
+}) {
+  const reduced = useReducedMotion();
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const innerRef = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    const wrap = wrapRef.current;
+    const inner = innerRef.current;
+    if (!wrap || !inner) return;
+    const height = inner.getBoundingClientRect().height;
+    gsap.killTweensOf(wrap);
+    if (reduced) {
+      gsap.set(wrap, { height: "auto", opacity: 1, y: 0 });
+      return;
+    }
+    gsap.fromTo(
+      wrap,
+      { height: 0, opacity: 0, y: -6 },
+      {
+        height,
+        opacity: 1,
+        y: 0,
+        duration: 0.32,
+        ease: "power2.out",
+        onComplete: () => gsap.set(wrap, { height: "auto" }),
+      }
+    );
+    // Yalnız mount'ta çalışsın — `key` ile her araç değişiminde yeniden
+    // mount edilip animasyon tekrar tetikleniyor zaten.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return (
+    <div ref={wrapRef} className="overflow-hidden" style={{ height: 0, opacity: 0 }}>
+      <div
+        ref={innerRef}
+        className={cn(
+          "flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 border-b border-border/40 bg-muted/30 py-2 pr-3.5",
+          girintili ? "pl-[3.25rem]" : "pl-8"
+        )}
+      >
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <span className="text-[12px] font-medium text-foreground">
+            {onizleme.aracAd} — {formatNumber(onizleme.eklenenSayisi)} durak eklenecek
+          </span>
+          <span
+            className={cn(
+              "font-mono text-[11px] tabular-nums",
+              onizleme.asim ? "text-destructive" : "text-muted-foreground"
+            )}
+          >
+            Toplam {formatNumber(onizleme.toplamDurak)} durak · {formatKg(Math.round(onizleme.kg))} ·
+            doluluk %{Math.round(onizleme.yuzde)}
+            {onizleme.asim ? " · kapasite aşımı" : ""}
+          </span>
+        </div>
+        <div className="flex shrink-0 items-center gap-1.5">
+          <button
+            type="button"
+            onClick={onVazgec}
+            disabled={yukleniyor}
+            className="flex items-center gap-1 rounded border border-border/70 px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:border-foreground/40 hover:text-foreground disabled:opacity-40"
+          >
+            <XIcon className="size-3 shrink-0" strokeWidth={2} aria-hidden />
+            Vazgeç
+          </button>
+          <button
+            type="button"
+            onClick={onOnayla}
+            disabled={yukleniyor}
+            title="Durakları bu araca yükle, rotasını oluştur ve haritada göster"
+            className={cn(
+              "flex items-center gap-1 rounded border px-2 py-1 text-[11px] font-medium transition-colors disabled:opacity-60",
+              onizleme.asim
+                ? "border-caution/50 bg-caution/10 text-caution hover:bg-caution/15"
+                : "border-foreground/30 bg-foreground text-background hover:bg-foreground/90"
+            )}
+          >
+            {yukleniyor ? (
+              <LoaderIcon className="size-3 shrink-0 animate-spin" strokeWidth={2} aria-hidden />
+            ) : (
+              <MapIcon className="size-3 shrink-0" strokeWidth={2} aria-hidden />
+            )}
+            Onayla ve haritada göster
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }

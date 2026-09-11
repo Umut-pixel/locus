@@ -151,12 +151,58 @@ export default function RotalarPage() {
   );
 
   /**
-   * Bölgeler panelinin "Araca yükle" eylemi.
-   *
-   * Eskiden bu panel salt-okunurdu ("bak, hangi bölge nerede"); tek işlevi
-   * "Araca sabitle" idi — o da yalnız GELECEKTEKİ otomatik dağıtımı etkiliyor,
-   * o an hiçbir şeyi taşımıyordu. Bu, tıklanan araca HEMEN yüklüyor, doluluğu
-   * gösteriyor, rotasını kuruyor ve haritada açıyor — dört adımı bir tıkla.
+   * Bölgenin havuzda kalan durakları + bir aracın MEVCUT yükü birleşince
+   * ortaya çıkacak durum. Hem önizleme (onayla'dan ÖNCE gösterilen) hem
+   * gerçek yükleme (onayla'dan SONRA) AYNI hesabı kullanıyor — ikisi
+   * ayrışırsa "önizlemede %70 dedi, yükleyince %85 çıktı" gibi bir tutarsızlık
+   * olurdu.
+   */
+  const bolgeYuklemeHesabi = useCallback(
+    (musteriKodlari: string[], aracKod: string) => {
+      const arac = araclar.find((a) => a.kod === aracKod);
+      if (!arac) return null;
+
+      const mevcutListe = aracDuraklari(aracKod);
+      const mevcutKodlar = new Set(mevcutListe.map((d) => d.musteriKodu));
+      const eklenenler = musteriKodlari
+        .filter((kod) => !mevcutKodlar.has(kod))
+        .map((kod) => duraklar.find((d) => d.musteriKodu === kod))
+        .filter((d): d is RotaDuragi => d != null);
+      const yeniListe = [...mevcutListe, ...eklenenler];
+      const doluluk = dolulukHesapla(arac, yeniListe);
+      const yuzde =
+        doluluk.baglayiciKisit === "agirlik"
+          ? (doluluk.kgYuzde ?? doluluk.cuvalYuzde)
+          : doluluk.cuvalYuzde;
+
+      return { arac, yeniListe, eklenenler, doluluk, yuzde };
+    },
+    [araclar, aracDuraklari, duraklar]
+  );
+
+  /**
+   * Bölgeler panelinde bir araç tıklanınca ÖNCE bu çağrılır — hiçbir şeyi
+   * değiştirmez, yalnız "yüklenirse ne olur" sorusunu cevaplar. Kullanıcı
+   * "Onayla" demeden plana dokunulmaz.
+   */
+  const bolgeYuklemeOnizle = useCallback(
+    (musteriKodlari: string[], aracKod: string) => {
+      const hesap = bolgeYuklemeHesabi(musteriKodlari, aracKod);
+      if (!hesap) return null;
+      return {
+        aracAd: hesap.arac.ad,
+        eklenenSayisi: hesap.eklenenler.length,
+        toplamDurak: hesap.yeniListe.length,
+        kg: hesap.doluluk.kg,
+        yuzde: hesap.yuzde,
+        asim: hesap.doluluk.asim,
+      };
+    },
+    [bolgeYuklemeHesabi]
+  );
+
+  /**
+   * Kullanıcı önizlemeyi ONAYLADIKTAN SONRA çağrılır — asıl yükleme burada.
    *
    * `durakCikar`+`durakEkle` çifti `birak`la (sürükle-bırak) AYNI desen:
    * `durakEkle`'yi tek başına çağırmak, durak zaten başka bir araçtaysa
@@ -169,27 +215,14 @@ export default function RotalarPage() {
    */
   const bolgeyiAracaYukle = useCallback(
     async (musteriKodlari: string[], aracKod: string) => {
-      const arac = araclar.find((a) => a.kod === aracKod);
-      if (!arac) return;
-
-      const mevcutListe = aracDuraklari(aracKod);
-      const mevcutKodlar = new Set(mevcutListe.map((d) => d.musteriKodu));
-      const eklenenler = musteriKodlari
-        .filter((kod) => !mevcutKodlar.has(kod))
-        .map((kod) => duraklar.find((d) => d.musteriKodu === kod))
-        .filter((d): d is RotaDuragi => d != null);
-      const yeniListe = [...mevcutListe, ...eklenenler];
+      const hesap = bolgeYuklemeHesabi(musteriKodlari, aracKod);
+      if (!hesap) return;
+      const { arac, yeniListe, eklenenler, doluluk, yuzde } = hesap;
 
       for (const kod of musteriKodlari) {
         durakCikar(kod);
         durakEkle(kod, aracKod);
       }
-
-      const doluluk = dolulukHesapla(arac, yeniListe);
-      const yuzde =
-        doluluk.baglayiciKisit === "agirlik"
-          ? (doluluk.kgYuzde ?? doluluk.cuvalYuzde)
-          : doluluk.cuvalYuzde;
 
       toastManager.add({
         type: doluluk.asim ? "warning" : "success",
@@ -208,7 +241,7 @@ export default function RotalarPage() {
 
       router.push(`/rotalar/harita?odakArac=${encodeURIComponent(aracKod)}`);
     },
-    [araclar, aracDuraklari, duraklar, durakCikar, durakEkle, optimizeEt, router]
+    [bolgeYuklemeHesabi, durakCikar, durakEkle, optimizeEt, router]
   );
 
   return (
@@ -432,6 +465,7 @@ export default function RotalarPage() {
             durakAraci={durakAraci}
             filo={araclar}
             loading={loading}
+            onBolgeOnizle={bolgeYuklemeOnizle}
             onBolgeYukle={bolgeyiAracaYukle}
           />
 
