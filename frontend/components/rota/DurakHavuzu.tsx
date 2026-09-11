@@ -262,7 +262,10 @@ function DurakSatiri({
           !pasif && !konumsuz && "hover:bg-accent/50",
           tutulabilir && "cursor-grab active:cursor-grabbing",
           !tutulabilir && (pasif || konumsuz) && "cursor-default",
-          (pasif || konumsuz) && "opacity-60"
+          // Yalnız KONUMSUZ (gerçekten plana giremeyen) durak soluklaşır.
+          // `pasif` (araç henüz seçilmedi) EN SIK GÖRÜLEN durum — onu da
+          // soluklaştırmak listenin varsayılan hâlini soluk gösteriyordu.
+          konumsuz && "opacity-60"
         )}
         title={
           konumsuz

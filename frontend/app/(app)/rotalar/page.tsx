@@ -147,6 +147,23 @@ export default function RotalarPage() {
     [durakCikar, durakEkle]
   );
 
+  /**
+   * Bölgeler paneline işlev: "Havuzdaki N durağı X'e yükle" — bütün bölgeyi
+   * tek tıkla seçili araca taşır. `birak`la aynı remove+add deseni; yalnız
+   * `durakEkle`'yi tek başına çağırmak, durak zaten başka bir araçtaysa
+   * (`cikanAraclar` dışı, elle yüklenmiş) onu İKİ araçta birden bırakırdı.
+   */
+  const bolgeyiSeciliAracaYukle = useCallback(
+    (musteriKodlari: string[]) => {
+      if (seciliArac == null) return;
+      for (const kod of musteriKodlari) {
+        durakCikar(kod);
+        durakEkle(kod, seciliArac);
+      }
+    },
+    [seciliArac, durakCikar, durakEkle]
+  );
+
   return (
     <SuruklemeSaglayici etkin={fareVar} onBirak={birak}>
     <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden bg-background">
@@ -278,7 +295,8 @@ export default function RotalarPage() {
           <KayitliPlanlar />
         ) : (
         <>
-        <div className="flex flex-col gap-3 p-3">
+        {/* `pb-10`: liste tam sayfa/panel kenarına yapışıp göz yormasın diye. */}
+        <div className="flex flex-col gap-3 p-3 pb-10">
           {/*
             Etki paneli + harita geçişi — TEK, TAM GENİŞLİK satır.
             Etki paneli ÖLÇTÜĞÜ ŞEYİN (araçlar) üstünde duruyor; harita geçişi
@@ -370,6 +388,8 @@ export default function RotalarPage() {
             onSabitle={bolgeSabitle}
             sabitlemeAcik={tercihler.strateji === "bolge"}
             loading={loading}
+            seciliArac={seciliArac}
+            onBolgeYukle={bolgeyiSeciliAracaYukle}
           />
 
           <GuzergahLinkleri rotalar={rotalar} />
