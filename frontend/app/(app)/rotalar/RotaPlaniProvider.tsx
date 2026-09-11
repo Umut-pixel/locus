@@ -99,7 +99,8 @@ interface RotaPlaniDegeri {
    * senaryolar için (bkz. tanımdaki yorum).
    */
   optimizeEt: (aracKod: string, duraklarOverride?: RotaDuragi[]) => Promise<void>;
-  optimizeEdilen: string | null;
+  /** Şu an optimize edilmekte olan araç kodları — birden fazlası aynı anda sürebilir. */
+  optimizeEdilenler: string[];
   rotaBilgileri: Record<string, RotaBilgisi>;
   optimizeHatalari: Record<string, string>;
 
@@ -300,7 +301,14 @@ export function RotaPlaniProvider({ children }: { children: ReactNode }) {
   }, [plan, taslagiYaz]);
 
   const [seciliArac, setSeciliArac] = useState<string | null>(null);
-  const [optimizeEdilen, setOptimizeEdilen] = useState<string | null>(null);
+  /**
+   * Şu an optimize edilmekte olan araçlar — otomatik optimize birden fazla
+   * aracı AYNI ANDA tetikleyebildiği için (ör. "Otomatik dağıt" sonrası) tek
+   * bir string yeterli değil; her yeni çağrı bir öncekinin üzerine yazardı ve
+   * ilk biteni "bitti" saydığı an spinner hâlâ süren diğer araçlar için de
+   * kapanırdı.
+   */
+  const [optimizeEdilenler, setOptimizeEdilenler] = useState<string[]>([]);
   const [rotaBilgileri, setRotaBilgileri] = useState<
     Record<string, RotaBilgisi>
   >({});
@@ -492,7 +500,7 @@ export function RotaPlaniProvider({ children }: { children: ReactNode }) {
       );
       if (liste.length < 2) return;
 
-      setOptimizeEdilen(aracKod);
+      setOptimizeEdilenler((o) => (o.includes(aracKod) ? o : [...o, aracKod]));
       setOptimizeHatalari((o) => {
         const sonraki = { ...o };
         delete sonraki[aracKod];
@@ -545,7 +553,7 @@ export function RotaPlaniProvider({ children }: { children: ReactNode }) {
             err instanceof Error ? err.message : "Optimizasyon başarısız.",
         }));
       } finally {
-        setOptimizeEdilen(null);
+        setOptimizeEdilenler((o) => o.filter((k) => k !== aracKod));
       }
     },
     [aracDuraklari]
@@ -763,7 +771,7 @@ export function RotaPlaniProvider({ children }: { children: ReactNode }) {
       durakCikar,
       aracTemizle,
       optimizeEt,
-      optimizeEdilen,
+      optimizeEdilenler,
       rotaBilgileri,
       optimizeHatalari,
       mevcutSonuc,
@@ -782,7 +790,7 @@ export function RotaPlaniProvider({ children }: { children: ReactNode }) {
       atananlar.size, bolgeler, durakBolgesi, sabitlemeler, bolgeSabitle,
       aracDuraklari, aracBul, rotalar, seciliArac, otomatikDagit,
       hepsiniTemizle, durakEkle, durakCikar, aracTemizle, optimizeEt,
-      optimizeEdilen, rotaBilgileri, optimizeHatalari, mevcutSonuc, mevcutMetrik,
+      optimizeEdilenler, rotaBilgileri, optimizeHatalari, mevcutSonuc, mevcutMetrik,
       etkiSecenekleri, planiKaydet, kaydediliyor, kayitDurumu,
       taslakKaydet, taslakKaydediliyor, sonKayitZamani,
     ]

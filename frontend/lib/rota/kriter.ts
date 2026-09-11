@@ -256,6 +256,21 @@ function asimYuzdesi(y: AracYuku): number {
   return Math.round(Math.max(y.doluluk.kgYuzde ?? 0, y.doluluk.cuvalYuzde));
 }
 
+/**
+ * Bağlayıcı kısıtta ne kadar yer kaldı. Tek başına "%92" sahada "bir durak
+ * daha sığar mı" sorusunu cevaplamıyordu — kalan kg/çuval açıkça yazılıyor.
+ * Ağırlık bağlayıcıysa ve `maxKg` teyitliyse kg, aksi halde çuval gösterilir
+ * (`kalanKapasite` ikisini de döner, `dolulukHesapla`nın aynı mantığıyla).
+ */
+function bosKapasiteMetni(y: AracYuku): string {
+  const kalan = kalanKapasite(y.arac, y.duraklar);
+  const agirlikBaglayici = y.doluluk.baglayiciKisit === "agirlik";
+  if (agirlikBaglayici && kalan.kg != null) {
+    return kalan.kg > 0 ? `${Math.round(kalan.kg)} kg boş` : "boş yok";
+  }
+  return kalan.cuval > 0 ? `${Math.round(kalan.cuval)} çuval boş` : "boş yok";
+}
+
 /** Risk of Damage — ruhsat/hacim aşımı, karışık yük, ölçüsü bilinmeyen satır. */
 function yukRiskiKriteri(g: KriterGirdisi): Kriter {
   const dolu = yuklu(g.yukler);
@@ -278,7 +293,7 @@ function yukRiskiKriteri(g: KriterGirdisi): Kriter {
     const dolulukListesi = dolu
       .slice()
       .sort((a, b) => asimYuzdesi(b) - asimYuzdesi(a))
-      .map((y) => `${y.arac.ad} %${asimYuzdesi(y)}`)
+      .map((y) => `${y.arac.ad} %${asimYuzdesi(y)} (${bosKapasiteMetni(y)})`)
       .join(", ");
     parcalar.push(`Araç başına doluluk: ${dolulukListesi}.`);
   }

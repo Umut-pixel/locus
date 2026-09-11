@@ -76,6 +76,17 @@ const DURUM_SINIFI: Record<KriterDurumu, string> = {
   sorun: "text-destructive",
 };
 
+/**
+ * Yüzde taşıyan satırlarda (şu an yalnız "Yük riski") "iyi" nötr gri değil
+ * YEŞİL — "aşım yok" olumlu bir sonuç, gri kalırsa fark edilmiyordu. Diğer
+ * kriterlerin "iyi"si (DURUM_SINIFI) BİLEREK nötr kalıyor, burası değişmiyor.
+ */
+const YUZDE_DURUM_SINIFI: Record<KriterDurumu, string> = {
+  iyi: "text-success",
+  dikkat: "text-caution",
+  sorun: "text-destructive",
+};
+
 const DURUM_ETIKETI: Record<KriterDurumu, string> = {
   iyi: "sorun yok",
   dikkat: "dikkat",
@@ -347,6 +358,81 @@ export function KayitRozeti({ zaman }: { zaman: number }) {
   );
 }
 
+/**
+ * "Rota hesaplanıyor…" — bir ya da daha fazla araç Google Routes'tan cevap
+ * beklerken görünen kart, plan karnesinin HEMEN ÜSTÜNDE ayrı bir kart olarak.
+ * Optimize artık yalnız düğmeyle değil kendiliğinden de tetiklendiği için
+ * (bkz. RotaPlaniProvider) arka planda bir şey olduğu görünür olmalı — aksi
+ * halde kullanıcı süre neden hâlâ "ölçülmedi" diye sorar. Çalışırken solup
+ * kaybolmuyor, `calisanSayisi` 0'a düşene kadar sabit kalıyor.
+ */
+export function OptimizeCalisiyorKart({ calisanSayisi }: { calisanSayisi: number }) {
+  return (
+    <div className="flex items-center gap-2 px-3 py-2.5">
+      <LoaderIcon
+        className="size-3.5 shrink-0 animate-spin text-muted-foreground"
+        strokeWidth={2}
+        aria-hidden
+      />
+      <span className="text-[12px] text-foreground">
+        {calisanSayisi <= 1
+          ? "Rota hesaplanıyor…"
+          : `${calisanSayisi} araç için rota hesaplanıyor…`}
+      </span>
+    </div>
+  );
+}
+
+/**
+ * "Rota güncellendi" — `OptimizeCalisiyorKart` kapanır kapanmaz kısa bir süre
+ * gösterilen onay, `KayitRozeti` ile aynı GSAP fade deseni. `onBitti` çağıran
+ * tarafın state'ini temizliyor ki kart sonsuza dek (görünmez de olsa) takılı
+ * kalmasın — `dolulukFarki`/`FarkRozeti` çiftinin aynısı.
+ */
+export function OptimizeTamamKart({ onBitti }: { onBitti: () => void }) {
+  const reduced = useReducedMotion();
+  const ref = useRef<HTMLDivElement>(null);
+  const bittiRef = useRef(onBitti);
+  bittiRef.current = onBitti;
+
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    gsap.killTweensOf(el);
+
+    if (reduced) {
+      gsap.set(el, { opacity: 1 });
+      const t = window.setTimeout(() => bittiRef.current(), 1600);
+      return () => window.clearTimeout(t);
+    }
+
+    gsap.fromTo(el, { opacity: 0, y: -4 }, { opacity: 1, y: 0, duration: 0.22, ease: "power2.out" });
+    const t = window.setTimeout(() => {
+      gsap.to(el, {
+        opacity: 0,
+        y: -4,
+        duration: 0.3,
+        ease: "power2.in",
+        onComplete: () => bittiRef.current(),
+      });
+    }, 1800);
+    return () => {
+      window.clearTimeout(t);
+      gsap.killTweensOf(el);
+    };
+    // Yalnız mount'ta kurulsun — çağıran taraf her yeni tamamlanmada `key`
+    // ile yeniden mount ediyor (`KayitRozeti`teki desenin aynısı).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return (
+    <div ref={ref} style={{ opacity: 0 }} className="flex items-center gap-2 px-3 py-2.5">
+      <CheckCircle2Icon className="size-3.5 shrink-0 text-success" strokeWidth={2} aria-hidden />
+      <span className="text-[12px] text-foreground">Rota güncellendi</span>
+    </div>
+  );
+}
+
 function KriterSatiri({
   kriter,
   secili,
@@ -377,13 +463,15 @@ function KriterSatiri({
         <span
           className={cn(
             "font-mono text-[11.5px] tabular-nums",
-            // Yuzde taşıyan satırda (Yük riski) düz durum rengi yerine
-            // %100'e yaklaştıkça kızaran sürekli bir gradyan kullanılıyor —
-            // ikisi karışmasın diye className yalnız `yuzde` yokken devrede.
-            kriter.yuzde == null &&
-              (kriter.durum === "iyi" ? "text-muted-foreground" : DURUM_SINIFI[kriter.durum])
+            // Yüzde taşıyan satırda (Yük riski) "iyi" gri değil yeşil —
+            // "aşım yok" olumlu bir sonuç, sürekli gradyan yerine ayrık
+            // durum rengi kullanılıyor (bkz. YUZDE_DURUM_SINIFI).
+            kriter.yuzde == null
+              ? kriter.durum === "iyi"
+                ? "text-muted-foreground"
+                : DURUM_SINIFI[kriter.durum]
+              : YUZDE_DURUM_SINIFI[kriter.durum]
           )}
-          style={kriter.yuzde != null ? { color: dolulukTonu(kriter.yuzde) } : undefined}
         >
           {kriter.deger}
         </span>

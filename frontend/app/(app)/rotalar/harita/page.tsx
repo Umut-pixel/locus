@@ -6,10 +6,13 @@ import { useSearchParams } from "next/navigation";
 import {
   ArchiveIcon,
   ArrowLeftIcon,
+  ExternalLinkIcon,
   GripHorizontalIcon,
   LayersIcon,
   LoaderIcon,
+  MapIcon,
   SaveIcon,
+  SendIcon,
   TruckIcon,
 } from "lucide-react";
 
@@ -20,6 +23,8 @@ import {
 } from "@/components/rota/DurakDetayKarti";
 import {
   KayitRozeti,
+  OptimizeCalisiyorKart,
+  OptimizeTamamKart,
   PlanKarnesi,
   type AktifDoluluk,
   type DolulukFarki,
@@ -27,12 +32,14 @@ import {
 import { aracRengi, RotaHaritasi, type HaritaRotasi } from "@/components/rota/RotaHaritasi";
 import { AppSidebarMobileTrigger } from "@/components/sidebar/AppSidebar";
 import { GsapAutoHeight } from "@/components/ui/gsap-auto-height";
+import { GsapCollapse } from "@/components/ui/gsap-collapse";
 import { SegmentedSwitch } from "@/components/ui/segmented-switch";
 import { toastManager } from "@/components/ui/toast";
 import { useKayitliPlanlar, type KayitliDurak } from "@/hooks/useKayitliPlanlar";
 import { useRaporTazeligi } from "@/hooks/useMusteriRaporlama";
 import { ROTA_REPORT_ID, type RotaAraci, type RotaDuragi } from "@/hooks/useRotaPlani";
 import { useSurukleblirKart } from "@/hooks/useSurukleblirKart";
+import { googleMapsDirUrl } from "@/lib/depot";
 import { formatKg, formatNumber } from "@/lib/format";
 import { dolulukHesapla } from "@/lib/rota/atama";
 import { bolgeRengi } from "@/lib/rota/bolge-renk";
@@ -169,6 +176,22 @@ export default function RotaHaritasiSayfasi() {
   const [ekleniyorAracKod, setEkleniyorAracKod] = useState<string | null>(null);
   /** Son ekle/çıkar eyleminin öncesi/sonrası — karnedeki geçici rozet bunu okur. */
   const [dolulukFarki, setDolulukFarki] = useState<DolulukFarki | null>(null);
+  /**
+   * Optimize edilmekte olan araç sayısı 0'a düşünce (`OptimizeCalisiyorKart`
+   * kapanınca) kısa bir "Rota güncellendi" onayı göstermek için — yalnız
+   * GEÇİŞİ (>0 → 0) yakalıyoruz, aksi halde ilk render'da (hiç optimize
+   * çalışmamışken) da tetiklenirdi.
+   */
+  const [optimizeTamamZamani, setOptimizeTamamZamani] = useState<number | null>(null);
+  const oncekiOptimizeSayisiRef = useRef(0);
+  useEffect(() => {
+    if (oncekiOptimizeSayisiRef.current > 0 && canli.optimizeEdilenler.length === 0) {
+      setOptimizeTamamZamani(Date.now());
+    }
+    oncekiOptimizeSayisiRef.current = canli.optimizeEdilenler.length;
+  }, [canli.optimizeEdilenler.length]);
+  /** "Haritada göster" — Kaydet'in yanındaki düğme, araç başına Maps/gönder listesini açar. */
+  const [haritaLinkleriAcik, setHaritaLinkleriAcik] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   /**
    * Sol üst (Planlamaya dön + araç/bölge listesi) kart sürüklenebilir. Sağ
@@ -480,6 +503,35 @@ export default function RotaHaritasiSayfasi() {
   };
 
   /**
+   * "Haritada göster" düğmesinin listesindeki her satır bunu çağırır —
+   * cihaz destekliyorsa (çoğu mobil, bazı masaüstü tarayıcı) OS'in kendi
+   * paylaşım sayfasını açar; desteklemiyorsa bağlantı panoya kopyalanır ki
+   * WhatsApp/SMS'e elle yapıştırılabilsin. İkisi de "gönder" ihtiyacını
+   * karşılıyor, Google Maps'te açmak (ayrı bir `<a target="_blank">`) zaten
+   * kendi başına çalışıyor, bu yalnız o linki BAŞKASINA iletmek için.
+   */
+  const baglantiPaylas = async (url: string, baslik: string) => {
+    if (typeof navigator !== "undefined" && navigator.share) {
+      try {
+        await navigator.share({ title: baslik, url });
+        return;
+      } catch {
+        // Kullanıcı paylaşım sayfasını iptal etti — panoya kopyalamaya düş.
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      toastManager.add({
+        type: "success",
+        title: "Bağlantı kopyalandı",
+        description: baslik,
+      });
+    } catch {
+      toastManager.add({ type: "error", title: "Bağlantı kopyalanamadı" });
+    }
+  };
+
+  /**
    * Kaydedilenler'den bir gün/plan seçilince (`?gun=`/`?planId=` navigasyonu)
    * harita o rotalara kaysın — `RotaHaritasi` artık mount'ta bir kez fit
    * ediyor, mod değişince kendiliğinden değil (bkz. RotaHaritasi üstteki not).
@@ -780,7 +832,31 @@ export default function RotaHaritasiSayfasi() {
           göre hesaplanıyor, dondurulmuş bir günün yanında göstermek yanıltıcı
           olurdu). Kayıtlı modda yerine sade bir özet çipi var.
         */}
-        <div className="flex justify-end">
+        <div className="flex flex-col items-end gap-2">
+          {/*
+            Optimize durumu — plan karnesinin HEMEN ÜSTÜNDE, aynı cam+genişlik.
+            Optimize artık yalnız düğmeyle değil kendiliğinden de (bkz.
+            RotaPlaniProvider) tetiklendiği için arka planda bir şey olduğu
+            görünür olmalı, aksi halde süre neden "ölçülmedi" belirsiz kalırdı.
+          */}
+          {canli.optimizeEdilenler.length > 0 || optimizeTamamZamani != null ? (
+            <div
+              className={cn(
+                "pointer-events-auto flex w-[min(100%,20rem)] min-w-0 flex-col overflow-hidden rounded-2xl",
+                CAM
+              )}
+            >
+              {canli.optimizeEdilenler.length > 0 ? (
+                <OptimizeCalisiyorKart calisanSayisi={canli.optimizeEdilenler.length} />
+              ) : (
+                <OptimizeTamamKart
+                  key={optimizeTamamZamani}
+                  onBitti={() => setOptimizeTamamZamani(null)}
+                />
+              )}
+            </div>
+          ) : null}
+
           <div
             className={cn(
               "pointer-events-auto flex w-[min(100%,20rem)] min-w-0 flex-col overflow-hidden rounded-2xl",
@@ -802,59 +878,128 @@ export default function RotaHaritasiSayfasi() {
                     ? () => canli.optimizeEt(odakliArac.kod)
                     : null
                 }
-                optimizeEdiliyor={odakliArac != null && canli.optimizeEdilen === odakliArac.kod}
+                optimizeEdiliyor={
+                  odakliArac != null && canli.optimizeEdilenler.includes(odakliArac.kod)
+                }
               />
             ) : null}
 
             {yuklu.length > 0 ? (
-              <div className="flex shrink-0 items-center gap-2 border-t border-border/40 px-3 py-1.5 first:border-t-0">
-                <TruckIcon
-                  className="size-3.5 shrink-0 text-muted-foreground"
-                  strokeWidth={1.75}
-                  aria-hidden
-                />
-                <span className="font-mono text-[12px] text-foreground tabular-nums">
-                  {formatNumber(gorunenRotalar.length)} araç ·{" "}
-                  {formatNumber(toplamDurak)} durak
-                </span>
-                {gecerliFiltre.tur === "karne" ? (
-                  <button
-                    type="button"
-                    onClick={() => setFiltre({ tur: "hepsi" })}
-                    className="shrink-0 text-[11.5px] text-muted-foreground underline-offset-2 transition-colors hover:text-foreground hover:underline"
-                  >
-                    Vurguyu kaldır
-                  </button>
-                ) : null}
-                {!gecmisMod ? (
-                  <>
-                    {/*
-                      Otomatik kayıt her ~1,5sn'de bir kendiliğinden çalışıyor
-                      (RotaPlaniProvider) — bu rozet HER yazımda (otomatik ya
-                      da bu düğmeyle elle, ikisi aynı yola çıkıyor) beliriyor.
-                      Genel toastManager'ı bilerek kullanmıyoruz: sık tetiklenen
-                      bir onay için normal toast yığını hızla kirlenirdi.
-                    */}
-                    {canli.sonKayitZamani != null ? (
-                      <KayitRozeti key={canli.sonKayitZamani} zaman={canli.sonKayitZamani} />
-                    ) : null}
+              <>
+                <div className="flex shrink-0 flex-wrap items-center gap-2 border-t border-border/40 px-3 py-1.5 first:border-t-0">
+                  <TruckIcon
+                    className="size-3.5 shrink-0 text-muted-foreground"
+                    strokeWidth={1.75}
+                    aria-hidden
+                  />
+                  <span className="font-mono text-[12px] text-foreground tabular-nums">
+                    {formatNumber(gorunenRotalar.length)} araç ·{" "}
+                    {formatNumber(toplamDurak)} durak
+                  </span>
+                  {gecerliFiltre.tur === "karne" ? (
                     <button
                       type="button"
-                      onClick={() => void canli.taslakKaydet()}
-                      disabled={canli.taslakKaydediliyor}
-                      title="Taslağı şimdi kaydet — zaten kendiliğinden de kaydediliyor, sayfa yenilense de kaybolmaz"
-                      className="ml-auto flex shrink-0 items-center gap-1 rounded border border-border/70 px-1.5 py-0.5 text-[11px] text-muted-foreground transition-colors hover:border-foreground/40 hover:text-foreground disabled:opacity-50"
+                      onClick={() => setFiltre({ tur: "hepsi" })}
+                      className="shrink-0 text-[11.5px] text-muted-foreground underline-offset-2 transition-colors hover:text-foreground hover:underline"
                     >
-                      {canli.taslakKaydediliyor ? (
-                        <LoaderIcon className="size-3 shrink-0 animate-spin" strokeWidth={2} aria-hidden />
-                      ) : (
-                        <SaveIcon className="size-3 shrink-0" strokeWidth={1.75} aria-hidden />
-                      )}
-                      Kaydet
+                      Vurguyu kaldır
                     </button>
-                  </>
+                  ) : null}
+                  {!gecmisMod ? (
+                    <>
+                      {/*
+                        Otomatik kayıt her ~1,5sn'de bir kendiliğinden çalışıyor
+                        (RotaPlaniProvider) — bu rozet HER yazımda (otomatik ya
+                        da bu düğmeyle elle, ikisi aynı yola çıkıyor) beliriyor.
+                        Genel toastManager'ı bilerek kullanmıyoruz: sık tetiklenen
+                        bir onay için normal toast yığını hızla kirlenirdi.
+                      */}
+                      {canli.sonKayitZamani != null ? (
+                        <KayitRozeti key={canli.sonKayitZamani} zaman={canli.sonKayitZamani} />
+                      ) : null}
+                      <button
+                        type="button"
+                        onClick={() => setHaritaLinkleriAcik((o) => !o)}
+                        aria-pressed={haritaLinkleriAcik}
+                        title="Güzergahı Google Maps'te aç ya da bağlantısını gönder"
+                        className="ml-auto flex shrink-0 items-center gap-1 rounded border border-border/70 px-1.5 py-0.5 text-[11px] text-muted-foreground transition-colors hover:border-foreground/40 hover:text-foreground"
+                      >
+                        <MapIcon className="size-3 shrink-0" strokeWidth={1.75} aria-hidden />
+                        Haritada göster
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void canli.taslakKaydet()}
+                        disabled={canli.taslakKaydediliyor}
+                        title="Taslağı şimdi kaydet — zaten kendiliğinden de kaydediliyor, sayfa yenilense de kaybolmaz"
+                        className="flex shrink-0 items-center gap-1 rounded border border-border/70 px-1.5 py-0.5 text-[11px] text-muted-foreground transition-colors hover:border-foreground/40 hover:text-foreground disabled:opacity-50"
+                      >
+                        {canli.taslakKaydediliyor ? (
+                          <LoaderIcon className="size-3 shrink-0 animate-spin" strokeWidth={2} aria-hidden />
+                        ) : (
+                          <SaveIcon className="size-3 shrink-0" strokeWidth={1.75} aria-hidden />
+                        )}
+                        Kaydet
+                      </button>
+                    </>
+                  ) : null}
+                </div>
+
+                {/*
+                  "Haritada göster" listesi — şu an görünen (filtreye uyan)
+                  her araç için Google Maps bağlantısı: dışa link olarak aç,
+                  ya da OS paylaşım sayfasından/panodan başka birine gönder.
+                */}
+                {!gecmisMod ? (
+                  <GsapCollapse open={haritaLinkleriAcik} className="border-t border-border/40">
+                    <ul className="flex flex-col divide-y divide-border/30">
+                      {gorunenRotalar.map((r) => {
+                        const konumlu = r.duraklar.filter(
+                          (d): d is RotaDuragi & { lat: number; lon: number } =>
+                            d.lat != null && d.lon != null
+                        );
+                        if (konumlu.length === 0) return null;
+                        const url = googleMapsDirUrl(konumlu, {
+                          includeDepot: true,
+                          roundTrip: true,
+                        });
+                        return (
+                          <li key={r.aracKod} className="flex min-w-0 items-center gap-2 px-3 py-1.5">
+                            <span
+                              className="size-2 shrink-0 rounded-full"
+                              style={{ background: r.renk }}
+                              aria-hidden
+                            />
+                            <span className="min-w-0 flex-1 truncate text-[12px] text-foreground">
+                              {r.aracAd}
+                            </span>
+                            <span className="shrink-0 font-mono text-[11px] text-muted-foreground tabular-nums">
+                              {formatNumber(konumlu.length)} durak
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => void baglantiPaylas(url, r.aracAd)}
+                              title={`${r.aracAd} — bağlantıyı gönder/kopyala`}
+                              className="shrink-0 rounded p-1 text-muted-foreground transition-colors hover:text-foreground"
+                            >
+                              <SendIcon className="size-3.5" strokeWidth={1.75} aria-hidden />
+                            </button>
+                            <a
+                              href={url}
+                              target="_blank"
+                              rel="noopener noreferrer nofollow"
+                              title={`${r.aracAd} — Google Maps'te aç`}
+                              className="shrink-0 rounded p-1 text-muted-foreground transition-colors hover:text-foreground"
+                            >
+                              <ExternalLinkIcon className="size-3.5" strokeWidth={1.75} aria-hidden />
+                            </a>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </GsapCollapse>
                 ) : null}
-              </div>
+              </>
             ) : null}
           </div>
         </div>

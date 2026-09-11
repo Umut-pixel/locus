@@ -56,7 +56,7 @@ export default function YukDetayiSayfasi({
     durakCikar,
     aracTemizle,
     optimizeEt,
-    optimizeEdilen,
+    optimizeEdilenler,
     rotaBilgileri,
     optimizeHatalari,
   } = useRotaPlaniBaglami();
@@ -133,10 +133,10 @@ export default function YukDetayiSayfasi({
           <button
             type="button"
             onClick={() => void optimizeEt(aracKod)}
-            disabled={optimizeEdilen === aracKod}
+            disabled={optimizeEdilenler.includes(aracKod)}
             className="flex shrink-0 items-center gap-1.5 rounded border border-border px-2.5 py-1.5 text-[12px] text-foreground transition-colors hover:bg-accent disabled:opacity-40"
           >
-            {optimizeEdilen === aracKod ? (
+            {optimizeEdilenler.includes(aracKod) ? (
               <LoaderIcon className="size-3.5 animate-spin" strokeWidth={1.75} aria-hidden />
             ) : (
               <RouteIcon className="size-3.5" strokeWidth={1.75} aria-hidden />
