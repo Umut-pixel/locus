@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   useSyncExternalStore,
   type ReactNode,
@@ -112,6 +113,15 @@ interface RotaPlaniDegeri {
   planiKaydet: () => Promise<void>;
   kaydediliyor: boolean;
   kayitDurumu: KayitDurumu | null;
+
+  /**
+   * Taslağın Supabase'teki (`rota_taslaklari`, kaynak=harita-canli) yedeği —
+   * sayfa yenilenince `plan` kaybolmasın diye. `plan` değiştikçe kendiliğinden
+   * (debounce'lu) yazılır; bu yalnız kullanıcının "Kaydet" düğmesiyle o anki
+   * hâli ANINDA yazdırması için.
+   */
+  taslakKaydet: () => Promise<void>;
+  taslakKaydediliyor: boolean;
 }
 
 const Baglam = createContext<RotaPlaniDegeri | null>(null);
@@ -184,6 +194,102 @@ export function RotaPlaniProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const [plan, setPlan] = useState<Plan>({});
+
+  /**
+   * Taslak kalıcılığı — `plan` yalnız React state'teydi, sayfa yenilenince
+   * (F5, sekme kapanıp açılınca) o günün tüm dağıtımı sıfırlanıyordu.
+   * `/api/rota/taslak` (rota_taslaklari, kaynak=harita-canli) mount'ta son
+   * taslağı yükler, sonrasında her değişiklikte kısa bir gecikmeyle
+   * kendiliğinden yazar. 1 günlük TTL cron'u (rota_taslak_temizligi)
+   * terk edilmiş taslakları temizliyor.
+   */
+  const taslakIdRef = useRef<string | null>(null);
+  const taslakZamanlayiciRef = useRef<number | null>(null);
+  /** Mount'taki ilk yükleme tamamlanana kadar `plan` değişikliklerini yazma — aksi halde boş taslağı hemen üzerine yazardık. */
+  const ilkYuklemeRef = useRef(true);
+  const [taslakKaydediliyor, setTaslakKaydediliyor] = useState(false);
+
+  useEffect(() => {
+    let iptal = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/rota/taslak");
+        const json = (await res.json()) as {
+          taslak?: { id: string; plan: Plan } | null;
+          error?: string;
+        };
+        if (iptal || !res.ok || !json.taslak) return;
+        taslakIdRef.current = json.taslak.id;
+        setPlan(json.taslak.plan);
+      } catch {
+        // Sessiz — taslak yüklenemezse kullanıcı sıfırdan başlar, kritik değil.
+      } finally {
+        if (!iptal) ilkYuklemeRef.current = false;
+      }
+    })();
+    return () => {
+      iptal = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const taslagiYaz = useCallback(async (guncelPlan: Plan) => {
+    setTaslakKaydediliyor(true);
+    try {
+      const res = await fetch("/api/rota/taslak", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: taslakIdRef.current, plan: guncelPlan }),
+      });
+      const json = (await res.json()) as { id?: string | null; error?: string };
+      if (res.ok) taslakIdRef.current = json.id ?? null;
+    } catch {
+      // Sessiz otomatik kayıt — kullanıcı "Kaydet" ile elle tekrar dener.
+    } finally {
+      setTaslakKaydediliyor(false);
+    }
+  }, []);
+
+  // `plan` değişince kısa bir gecikmeyle otomatik yaz — her tek durak
+  // sürüklemesinde ayrı istek atmasın diye debounce'lu.
+  useEffect(() => {
+    if (ilkYuklemeRef.current) return;
+    if (taslakZamanlayiciRef.current != null) window.clearTimeout(taslakZamanlayiciRef.current);
+    taslakZamanlayiciRef.current = window.setTimeout(() => {
+      taslakZamanlayiciRef.current = null;
+      void taslagiYaz(plan);
+    }, 1500);
+    return () => {
+      if (taslakZamanlayiciRef.current != null) {
+        window.clearTimeout(taslakZamanlayiciRef.current);
+        taslakZamanlayiciRef.current = null;
+      }
+    };
+  }, [plan, taslagiYaz]);
+
+  // Sekme kapanmadan hemen önce bekleyen bir kayıt varsa best-effort gönder.
+  useEffect(() => {
+    const onUnload = () => {
+      if (taslakZamanlayiciRef.current == null) return;
+      try {
+        const body = JSON.stringify({ id: taslakIdRef.current, plan });
+        navigator.sendBeacon("/api/rota/taslak", new Blob([body], { type: "application/json" }));
+      } catch {
+        /* best-effort */
+      }
+    };
+    window.addEventListener("beforeunload", onUnload);
+    return () => window.removeEventListener("beforeunload", onUnload);
+  }, [plan]);
+
+  const taslakKaydet = useCallback(async () => {
+    if (taslakZamanlayiciRef.current != null) {
+      window.clearTimeout(taslakZamanlayiciRef.current);
+      taslakZamanlayiciRef.current = null;
+    }
+    await taslagiYaz(plan);
+  }, [plan, taslagiYaz]);
+
   const [seciliArac, setSeciliArac] = useState<string | null>(null);
   const [optimizeEdilen, setOptimizeEdilen] = useState<string | null>(null);
   const [rotaBilgileri, setRotaBilgileri] = useState<
@@ -626,6 +732,8 @@ export function RotaPlaniProvider({ children }: { children: ReactNode }) {
       planiKaydet,
       kaydediliyor,
       kayitDurumu,
+      taslakKaydet,
+      taslakKaydediliyor,
     }),
     [
       loading, error, duraklar, araclar, soforler, filo, ozet, tazele,
@@ -635,6 +743,7 @@ export function RotaPlaniProvider({ children }: { children: ReactNode }) {
       hepsiniTemizle, durakEkle, durakCikar, aracTemizle, optimizeEt,
       optimizeEdilen, rotaBilgileri, optimizeHatalari, mevcutSonuc, mevcutMetrik,
       etkiSecenekleri, planiKaydet, kaydediliyor, kayitDurumu,
+      taslakKaydet, taslakKaydediliyor,
     ]
   );
 

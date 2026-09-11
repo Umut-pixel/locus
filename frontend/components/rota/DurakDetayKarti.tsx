@@ -11,6 +11,7 @@ import {
 } from "react";
 import {
   AlertTriangleIcon,
+  GripHorizontalIcon,
   LoaderIcon,
   MapIcon,
   MapPinIcon,
@@ -24,6 +25,7 @@ import { EntityNotesButton } from "@/components/map/EntityNotesButton";
 import { Button } from "@/components/ui/button";
 import { GsapCollapse } from "@/components/ui/gsap-collapse";
 import type { RotaAraci, RotaDuragi } from "@/hooks/useRotaPlani";
+import { useSurukleblirKart } from "@/hooks/useSurukleblirKart";
 import { formatCurrency, formatKg, formatNumber } from "@/lib/format";
 import { RISK_COLORS, RISK_LABELS } from "@/lib/risk-style";
 import { cn } from "@/lib/utils";
@@ -91,8 +93,8 @@ interface DurakDetayKartiProps {
 /**
  * Numaralı bir durağa (ya da havuzdaki bir noktaya) tıklanınca haritada açılan
  * bilgi kartı — `CustomerDetailPanel`'in cam dizaynıyla aynı dil, ama tek
- * sayfalı ve sürüklenemez: rota durağı, müşteri kartının drag/sheet
- * karmaşıklığını gerektirmiyor.
+ * sayfalı: rota durağı, müşteri kartının sayfa/sheet karmaşıklığını
+ * gerektirmiyor. Üstteki tutamaçtan sürüklenebilir (`useSurukleblirKart`).
  *
  * Aynı satır iki farklı modda görünür:
  * - GÜZERGAHTA: "N. durak · Araç" rozeti + "Rotadan çıkar".
@@ -113,6 +115,7 @@ export function DurakDetayKarti({
   const { durak, rota, nokta } = secim;
   const cardRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ left: number; top: number } | null>(null);
+  const surukle = useSurukleblirKart(containerRef, cardRef);
   const busy = cikariliyor || ekleniyorAracKod != null;
 
   /**
@@ -163,14 +166,22 @@ export function DurakDetayKarti({
         position: "absolute",
         left: pos?.left ?? nokta.x,
         top: pos?.top ?? nokta.y,
-        width: CARD_W,
         visibility: pos ? "visible" : "hidden",
+        ...surukle.style,
       }}
       className={cn(
-        "pointer-events-auto z-30 flex max-h-[min(70vh,26rem)] flex-col overflow-hidden rounded-2xl",
+        // Dar (mobil) viewport'ta CARD_W'a sıkışmasın — konteynerin
+        // genişliğinden kenar boşluğu düşülerek küçülür.
+        "pointer-events-auto z-30 flex w-[min(18rem,calc(100%-24px))] max-h-[min(70vh,26rem)] flex-col overflow-hidden rounded-2xl",
         CAM
       )}
     >
+      <div
+        {...surukle.tutamacProps}
+        className="flex h-4 shrink-0 items-center justify-center text-muted-foreground/40"
+      >
+        <GripHorizontalIcon className="size-3.5" aria-hidden />
+      </div>
       <div className="flex shrink-0 items-start justify-between gap-2 border-b border-border/40 px-3.5 py-2.5">
         <div className="min-w-0">
           <p className="font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">

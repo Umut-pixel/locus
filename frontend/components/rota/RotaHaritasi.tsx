@@ -529,7 +529,13 @@ export function RotaHaritasi({ rotalar, havuz, onDurakSec, onBosaTikla }: RotaHa
     });
     mapRef.current = map;
     styleUrlRef.current = mapboxStyleForTheme(themeRef.current);
-    map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), "bottom-right");
+    // +/- yakınlaştırma düğmeleri yalnız dokunmatikte: masaüstünde fare
+    // tekerleği zaten var, düğmeler yalnız haritanın köşesini kaplıyordu.
+    const dokunmatikDuzen =
+      typeof window !== "undefined" && window.matchMedia("(max-width: 1023px)").matches;
+    if (dokunmatikDuzen) {
+      map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), "bottom-right");
+    }
     const unobserve = observeMapContainer(map, el);
 
     const onStyle = () => {

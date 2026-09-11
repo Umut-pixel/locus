@@ -251,10 +251,15 @@ function esneklikKriteri(g: KriterGirdisi): Kriter {
   };
 }
 
+/** Bir aracın aştığı kısıt yüzdesi — ağırlık/hacimden hangisi daha yüksekse o. */
+function asimYuzdesi(y: AracYuku): number {
+  return Math.round(Math.max(y.doluluk.kgYuzde ?? 0, y.doluluk.cuvalYuzde));
+}
+
 /** Risk of Damage — ruhsat/hacim aşımı, karışık yük, ölçüsü bilinmeyen satır. */
 function yukRiskiKriteri(g: KriterGirdisi): Kriter {
   const dolu = yuklu(g.yukler);
-  const asanlar = dolu.filter((y) => y.doluluk.asim).map((y) => y.arac.kod);
+  const asanlar = dolu.filter((y) => y.doluluk.asim);
   const olcusuzler = dolu
     .filter((y) => y.doluluk.olcusuzVar)
     .map((y) => y.arac.kod);
@@ -266,8 +271,12 @@ function yukRiskiKriteri(g: KriterGirdisi): Kriter {
 
   const parcalar: string[] = [];
   if (asanlar.length > 0) {
+    // Araç ismi + aşım yüzdesi — sayı tek başına "hangi araç, ne kadar"
+    // sorusunu cevaplamıyordu, sahada kontrol edecek kişi araca gitmeden
+    // önce bilmeli.
+    const liste = asanlar.map((y) => `${y.arac.ad} %${asimYuzdesi(y)}`).join(", ");
     parcalar.push(
-      `${asanlar.length} araçta istiap haddi ya da hacim aşılıyor — bu plan kâğıtta geçerli, sahada değil.`
+      `İstiap haddi ya da hacim aşılıyor: ${liste} — bu plan kâğıtta geçerli, sahada değil.`
     );
   }
   if (olcusuzler.length > 0) {
@@ -280,11 +289,19 @@ function yukRiskiKriteri(g: KriterGirdisi): Kriter {
   return {
     anahtar: "yukRiski",
     ad: "Yük riski",
-    deger: asanlar.length > 0 ? `${asanlar.length} araçta aşım` : "aşım yok",
+    deger:
+      asanlar.length === 0
+        ? "aşım yok"
+        : asanlar.length === 1
+          ? `${asanlar[0]!.arac.ad} %${asimYuzdesi(asanlar[0]!)}`
+          : `${asanlar.length} araçta aşım — en yüksek %${Math.max(...asanlar.map(asimYuzdesi))}`,
     durum,
     kaynak: dolu.length === 0 ? "veri-yok" : "olculen",
     aciklama: parcalar.join(" "),
-    suclular: { araclar: [...new Set([...asanlar, ...olcusuzler])], duraklar: [] },
+    suclular: {
+      araclar: [...new Set([...asanlar.map((y) => y.arac.kod), ...olcusuzler])],
+      duraklar: [],
+    },
   };
 }
 

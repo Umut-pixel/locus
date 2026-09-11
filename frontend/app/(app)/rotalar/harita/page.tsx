@@ -6,8 +6,10 @@ import { useSearchParams } from "next/navigation";
 import {
   ArchiveIcon,
   ArrowLeftIcon,
+  GripHorizontalIcon,
   LayersIcon,
   LoaderIcon,
+  SaveIcon,
   TruckIcon,
 } from "lucide-react";
 
@@ -23,12 +25,15 @@ import {
 } from "@/components/rota/PlanKarnesi";
 import { aracRengi, RotaHaritasi, type HaritaRotasi } from "@/components/rota/RotaHaritasi";
 import { AppSidebarMobileTrigger } from "@/components/sidebar/AppSidebar";
+import { SegmentedSwitch } from "@/components/ui/segmented-switch";
 import { toastManager } from "@/components/ui/toast";
 import { useKayitliPlanlar, type KayitliDurak } from "@/hooks/useKayitliPlanlar";
 import { useRaporTazeligi } from "@/hooks/useMusteriRaporlama";
 import { ROTA_REPORT_ID, type RotaAraci, type RotaDuragi } from "@/hooks/useRotaPlani";
+import { useSurukleblirKart } from "@/hooks/useSurukleblirKart";
 import { formatKg, formatNumber } from "@/lib/format";
 import { dolulukHesapla } from "@/lib/rota/atama";
+import { bolgeRengi } from "@/lib/rota/bolge-renk";
 import { kriterleriHesapla, type KriterAnahtari } from "@/lib/rota/kriter";
 import { cn } from "@/lib/utils";
 
@@ -51,6 +56,20 @@ function tarihMetni(iso: string): string {
     year: "numeric",
   });
 }
+
+/**
+ * Haritanın görünüm filtresi — TEK bir seçim, dört mod. Eskiden `odak`
+ * (araç) ve `karneAnahtari` (karne satırı) AYRI state'lerdi ve birbirini
+ * "elle" temizliyorlardı (bir yeri seçince diğerini `null`'lamak gerekiyordu)
+ * — bu senkronizasyonu unutan bir çağrı, iki filtrenin birden aktif kalıp
+ * `gorunenRotalar`'ı beklenmedik şekilde boşaltmasına yol açabiliyordu.
+ * Ayrı bir "bölge" modu da bu yüzden buraya, aynı ayrık birliğe eklendi.
+ */
+type GorunumFiltresi =
+  | { tur: "hepsi" }
+  | { tur: "arac"; aracKod: string }
+  | { tur: "bolge"; bolgeKod: string }
+  | { tur: "karne"; anahtar: KriterAnahtari };
 
 /**
  * Kaydedilmiş bir durak — dondurulmuş kayıttan gelir, canlı `RotaDuragi`nin
@@ -98,7 +117,7 @@ export default function RotaHaritasiSayfasi() {
   /**
    * Bölgeler panelindeki "Araca yükle" eylemi buraya `?odakArac=` ile
    * yönlendiriyor — ilk karede o aracı odaklanmış getirir. Yalnız BAŞLANGIÇ
-   * değeri; sonrasında `odak` normal state, kullanıcı serbestçe değiştirebilir.
+   * değeri; sonrasında `filtre` normal state, kullanıcı serbestçe değiştirebilir.
    */
   const odakAracParam = searchParams.get("odakArac");
 
@@ -130,15 +149,13 @@ export default function RotaHaritasiSayfasi() {
     ]
   );
 
-  /**
-   * Karnede seçili satır. Yalnız ANAHTAR saklanıyor; suçlular her zaman güncel
-   * `kriterler`den türetiliyor — plan değiştiğinde vurgu bayat kalmasın.
-   */
-  const [karneAnahtari, setKarneAnahtari] = useState<KriterAnahtari | null>(null);
-
-  /** Tek araca odaklan — null ise hepsi görünür. */
-  const [odak, setOdak] = useState<string | null>(() => odakAracParam);
+  /** Görünüm filtresi — bkz. `GorunumFiltresi` tanımı. */
+  const [filtre, setFiltre] = useState<GorunumFiltresi>(() =>
+    odakAracParam ? { tur: "arac", aracKod: odakAracParam } : { tur: "hepsi" }
+  );
   const [havuzGoster, setHavuzGoster] = useState(true);
+  /** Sol üst karttaki liste sekmesi — araç filtresi + bölge filtresi aynı kartı paylaşıyor. */
+  const [liste, setListe] = useState<"araclar" | "bolgeler">("araclar");
 
   /** Haritada tıklanan durak — bilgi kartı bunun üzerine kurulur. */
   const [seciliDurak, setSeciliDurak] = useState<DurakSecimi | null>(null);
@@ -147,6 +164,9 @@ export default function RotaHaritasiSayfasi() {
   /** Son ekle/çıkar eyleminin öncesi/sonrası — karnedeki geçici rozet bunu okur. */
   const [dolulukFarki, setDolulukFarki] = useState<DolulukFarki | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  /** Sol üst (Planlamaya dön + araç/bölge listesi) ve sağ alt (plan karnesi) kartları sürüklenebilir. */
+  const solKart = useSurukleblirKart(containerRef);
+  const sagKart = useSurukleblirKart(containerRef);
 
   /** `Doluluk.baglayiciKisit`e göre bağlayıcı yüzde — modül genelinde tekrarlanan hesap. */
   const hesaplaYuzde = useCallback((arac: RotaAraci, liste: RotaDuragi[]): number => {
@@ -302,9 +322,32 @@ export default function RotaHaritasiSayfasi() {
     [rotalar]
   );
 
-  // Odaklanılan araç plandan çıkarsa odak kendiliğinden düşsün.
-  const gecerliOdak =
-    odak != null && yuklu.some((r) => r.aracKod === odak) ? odak : null;
+  /**
+   * Filtrenin GEÇERLİLİĞİ — hedefi plandan düşmüş bir filtre kendiliğinden
+   * "hepsi"ye döner: araç plandan çıkarsa, karne satırı artık kimseyi
+   * suçlamıyorsa, ya da bölge/karne modundayken kayıtlı plana geçilirse
+   * (ikisi de yalnız CANLI planın o anki hesabına ait — dondurulmuş bir
+   * günün yanında ne bölge kümesi ne kriter anlamlı, `araç` filtresi hariç:
+   * o kayıtlı modda da geçerli, belirli bir aracın geçmiş rotasına bakmak
+   * meşru bir ihtiyaç).
+   */
+  const gecerliFiltre = useMemo<GorunumFiltresi>(() => {
+    if (filtre.tur === "arac") {
+      return yuklu.some((r) => r.aracKod === filtre.aracKod) ? filtre : { tur: "hepsi" };
+    }
+    if (gecmisMod) return { tur: "hepsi" };
+    if (filtre.tur === "bolge") {
+      return canli.bolgeler.some((b) => b.kod === filtre.bolgeKod) ? filtre : { tur: "hepsi" };
+    }
+    if (filtre.tur === "karne") {
+      const k = kriterler.find((x) => x.anahtar === filtre.anahtar);
+      const vurgulanabilir = k != null && (k.suclular.araclar.length > 0 || k.suclular.duraklar.length > 0);
+      return vurgulanabilir ? filtre : { tur: "hepsi" };
+    }
+    return filtre;
+  }, [filtre, gecmisMod, yuklu, canli.bolgeler, kriterler]);
+
+  const gecerliOdak = gecerliFiltre.tur === "arac" ? gecerliFiltre.aracKod : null;
 
   /**
    * Odaklanılan aracın tam kaydı — yalnız CANLI modda: `canli.aracBul` bugünün
@@ -333,50 +376,69 @@ export default function RotaHaritasiSayfasi() {
   }, [odakliArac, canli, hesaplaYuzde]);
 
   /**
-   * Odak ya da karne vurgusu değişince görünen küme değişir (`gorunenRotalar`/
-   * `gorunenHavuz`) — açık durak kartı artık haritada hiç çizilmeyen bir
-   * marker'a ait kalabilir. Aynı şekilde canlı/kayıtlı geçişinde de kapanır.
+   * Filtre değişince görünen küme değişir (`gorunenRotalar`/`gorunenHavuz`)
+   * — açık durak kartı artık haritada hiç çizilmeyen bir marker'a ait
+   * kalabilir. Aynı şekilde canlı/kayıtlı geçişinde de kapanır.
    */
   useEffect(() => {
     setSeciliDurak(null);
-  }, [gecerliOdak, karneAnahtari, gecmisMod]);
+  }, [gecerliFiltre, gecmisMod]);
 
   /**
    * Karne satırı seçilince harita o satırın suçlularını gösterir: sayıyı
-   * okuyup aracı elle aramak yerine sorun doğrudan görünür. Araç odağı
-   * (soldaki liste) daha spesifik olduğu için önceliği o alıyor. Kayıtlı
-   * modda karne yok, bu yüzden bu blok hep boş kalır.
+   * okuyup aracı elle aramak yerine sorun doğrudan görünür.
    */
   const secilenKriter =
-    karneAnahtari != null
-      ? (kriterler.find((k) => k.anahtar === karneAnahtari) ?? null)
+    gecerliFiltre.tur === "karne"
+      ? (kriterler.find((k) => k.anahtar === gecerliFiltre.anahtar) ?? null)
       : null;
-  const karneAraclari = secilenKriter?.suclular.araclar ?? [];
-  const karneDuraklari = secilenKriter?.suclular.duraklar ?? [];
-
-  const gorunenRotalar = gecerliOdak
-    ? yuklu.filter((r) => r.aracKod === gecerliOdak)
-    : karneAraclari.length > 0
-      ? yuklu.filter((r) => karneAraclari.includes(r.aracKod))
-      : yuklu;
 
   /**
    * Eskiden tek araca odaklanınca havuz tamamen gizleniyordu ("dikkat
    * dağıtır" gerekçesiyle). Artık gizlenmiyor: havuzdaki bir noktaya
    * tıklayıp "Rotaya ekle" ile doğrudan odaklanılan araca eklemek bu
    * görünürlüğe bağlı — `DurakDetayKarti`nin tek-hedef modu (bkz. `aktifArac`
-   * aşağıda). Karne "yerleşmeyen durak" satırını gösteriyorsa o suçlularla
-   * sınırlanır; aksi halde normal `havuzGoster` anahtarı geçerli.
+   * aşağıda).
    */
-  const gorunenHavuz =
-    karneDuraklari.length > 0
-      ? havuz.filter((d) => karneDuraklari.includes(d.musteriKodu))
-      : havuzGoster
-        ? havuz
-        : [];
+  const { gorunenRotalar, gorunenHavuz } = useMemo(() => {
+    if (gecerliFiltre.tur === "arac") {
+      return {
+        gorunenRotalar: yuklu.filter((r) => r.aracKod === gecerliFiltre.aracKod),
+        gorunenHavuz: havuzGoster ? havuz : [],
+      };
+    }
+    if (gecerliFiltre.tur === "bolge") {
+      const buBolgede = (kod: string) => canli.durakBolgesi.get(kod)?.kod === gecerliFiltre.bolgeKod;
+      return {
+        // Bölgeye değen HER aracın TAM rotası gösterilir, yalnız o bölgedeki
+        // durakları değil — şoför sahada zaten tüm rotayı görecek.
+        gorunenRotalar: yuklu.filter((r) => r.duraklar.some((d) => buBolgede(d.musteriKodu))),
+        gorunenHavuz: havuzGoster ? havuz.filter((d) => buBolgede(d.musteriKodu)) : [],
+      };
+    }
+    if (gecerliFiltre.tur === "karne" && secilenKriter) {
+      const { araclar, duraklar } = secilenKriter.suclular;
+      return {
+        gorunenRotalar: araclar.length > 0 ? yuklu.filter((r) => araclar.includes(r.aracKod)) : yuklu,
+        gorunenHavuz:
+          duraklar.length > 0
+            ? havuz.filter((d) => duraklar.includes(d.musteriKodu))
+            : havuzGoster
+              ? havuz
+              : [],
+      };
+    }
+    // "hepsi" — varsayılan: bekleyen tüm siparişler aktif olarak görünür.
+    return { gorunenRotalar: yuklu, gorunenHavuz: havuzGoster ? havuz : [] };
+  }, [gecerliFiltre, secilenKriter, yuklu, havuz, havuzGoster, canli.durakBolgesi]);
 
-  const odakla = (aracKod: string) =>
-    setOdak((o) => (o === aracKod ? null : aracKod));
+  const araciFiltrele = (aracKod: string) =>
+    setFiltre((f) => (f.tur === "arac" && f.aracKod === aracKod ? { tur: "hepsi" } : { tur: "arac", aracKod }));
+
+  const bolgeyiFiltrele = (bolgeKod: string) =>
+    setFiltre((f) =>
+      f.tur === "bolge" && f.bolgeKod === bolgeKod ? { tur: "hepsi" } : { tur: "bolge", bolgeKod }
+    );
 
   const toplamDurak = gorunenRotalar.reduce((t, r) => t + r.duraklar.length, 0);
 
@@ -391,7 +453,17 @@ export default function RotaHaritasiSayfasi() {
 
       <div className="pointer-events-none absolute inset-0 z-10 flex flex-col justify-between gap-2 p-2 sm:p-3 md:p-4">
         {/* Sol üst: geri + araç listesi — ikisi ayrı kart, DurakDetayKarti'yle aynı "her panel kendi camı" dili */}
-        <div className="flex min-h-0 flex-col items-start gap-2">
+        <div
+          ref={solKart.cardRef}
+          style={solKart.style}
+          className="flex min-h-0 flex-col items-start gap-2"
+        >
+          <div
+            {...solKart.tutamacProps}
+            className="pointer-events-auto flex h-4 w-full items-center justify-center text-muted-foreground/40"
+          >
+            <GripHorizontalIcon className="size-3.5" aria-hidden />
+          </div>
           <div
             className={cn(
               "pointer-events-auto flex shrink-0 items-center gap-2 rounded-2xl px-2.5 py-2",
@@ -436,8 +508,60 @@ export default function RotaHaritasiSayfasi() {
               </div>
             ) : null}
 
+            {!gecmisMod && canli.bolgeler.length > 0 ? (
+              <div className="shrink-0 border-b border-border/40 px-2.5 py-1.5">
+                <SegmentedSwitch
+                  value={liste}
+                  onChange={setListe}
+                  ariaLabel="Liste seçimi"
+                  options={[
+                    { value: "araclar", label: "Araçlar" },
+                    { value: "bolgeler", label: "Bölgeler" },
+                  ]}
+                />
+              </div>
+            ) : null}
+
             <div className="max-h-[60vh] min-h-0 overflow-y-auto">
-              {yuklu.length === 0 ? (
+              {liste === "bolgeler" && !gecmisMod ? (
+                <ul className="divide-y divide-border/30">
+                  {canli.bolgeler.map((b) => {
+                    const secili = gecerliFiltre.tur === "bolge" && gecerliFiltre.bolgeKod === b.kod;
+                    const solgun = gecerliFiltre.tur === "bolge" && !secili;
+                    return (
+                      <li key={b.kod}>
+                        <button
+                          type="button"
+                          onClick={() => bolgeyiFiltrele(b.kod)}
+                          aria-pressed={secili}
+                          className={cn(
+                            "flex w-full min-w-0 items-center gap-2 px-2.5 py-2 text-left transition-colors",
+                            secili ? "bg-accent/50" : "hover:bg-accent/30",
+                            solgun && "opacity-40"
+                          )}
+                          title={
+                            secili
+                              ? `${b.ad} — tıkla, tüm bölgelere dön`
+                              : `${b.ad} — yalnız bu bölgeyi göster`
+                          }
+                        >
+                          <span
+                            className="size-2.5 shrink-0 rounded-full ring-2 ring-background/60"
+                            style={{ background: bolgeRengi(b.kod) }}
+                            aria-hidden
+                          />
+                          <span className="min-w-0 flex-1 truncate text-[12.5px] text-foreground">
+                            {b.ad}
+                          </span>
+                          <span className="shrink-0 font-mono text-[11.5px] text-muted-foreground tabular-nums">
+                            {formatNumber(b.duraklar.length)} · {formatKg(Math.round(b.kg))}
+                          </span>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : yuklu.length === 0 ? (
                 <p className="flex items-center gap-2 px-2.5 py-3 text-[12px] text-muted-foreground">
                   {loading ? (
                     <>
@@ -460,7 +584,7 @@ export default function RotaHaritasiSayfasi() {
                       <li key={r.aracKod}>
                         <button
                           type="button"
-                          onClick={() => odakla(r.aracKod)}
+                          onClick={() => araciFiltrele(r.aracKod)}
                           aria-pressed={secili}
                           className={cn(
                             "flex w-full min-w-0 items-center gap-2 px-2.5 py-2 text-left transition-colors",
@@ -491,7 +615,7 @@ export default function RotaHaritasiSayfasi() {
                 </ul>
               )}
 
-              {havuz.length > 0 ? (
+              {havuz.length > 0 && liste === "araclar" ? (
                 <button
                   type="button"
                   onClick={() => setHavuzGoster((o) => !o)}
@@ -520,14 +644,14 @@ export default function RotaHaritasiSayfasi() {
               ) : null}
             </div>
 
-            {gecerliOdak != null ? (
+            {gecerliFiltre.tur !== "hepsi" ? (
               <button
                 type="button"
-                onClick={() => setOdak(null)}
+                onClick={() => setFiltre({ tur: "hepsi" })}
                 className="flex shrink-0 items-center gap-1.5 border-t border-border/40 px-2.5 py-2 text-[11.5px] text-muted-foreground transition-colors hover:text-foreground"
               >
                 <LayersIcon className="size-3.5" strokeWidth={1.75} aria-hidden />
-                Tüm araçları göster
+                Tümünü göster
               </button>
             ) : null}
           </div>
@@ -539,21 +663,26 @@ export default function RotaHaritasiSayfasi() {
           olurdu). Kayıtlı modda yerine sade bir özet çipi var.
         */}
         <div className="flex justify-end">
-          <div
-            className={cn(
-              "pointer-events-auto flex w-[min(100%,20rem)] min-w-0 flex-col overflow-hidden rounded-2xl",
-              CAM
-            )}
-          >
+          <div ref={sagKart.cardRef} style={sagKart.style} className="flex min-w-0 flex-col items-end">
+            <div
+              {...sagKart.tutamacProps}
+              className="pointer-events-auto flex h-4 w-full items-center justify-center text-muted-foreground/40"
+            >
+              <GripHorizontalIcon className="size-3.5" aria-hidden />
+            </div>
+            <div
+              className={cn(
+                "pointer-events-auto flex w-[min(100%,20rem)] min-w-0 flex-col overflow-hidden rounded-2xl",
+                CAM
+              )}
+            >
             {!gecmisMod ? (
               <PlanKarnesi
                 kriterler={kriterler}
-                vurgulanan={karneAnahtari}
-                onVurgula={(anahtar) => {
-                  setKarneAnahtari(anahtar);
-                  // Araç odağı karne vurgusunu ezmesin diye sıfırlanır.
-                  if (anahtar != null) setOdak(null);
-                }}
+                vurgulanan={gecerliFiltre.tur === "karne" ? gecerliFiltre.anahtar : null}
+                onVurgula={(anahtar) =>
+                  setFiltre(anahtar != null ? { tur: "karne", anahtar } : { tur: "hepsi" })
+                }
                 aktifDoluluk={aktifDoluluk}
                 dolulukFarki={dolulukFarki}
                 onDolulukFarkiBitti={() => setDolulukFarki(null)}
@@ -577,17 +706,38 @@ export default function RotaHaritasiSayfasi() {
                   {formatNumber(gorunenRotalar.length)} araç ·{" "}
                   {formatNumber(toplamDurak)} durak
                 </span>
-                {karneAnahtari != null ? (
+                {gecerliFiltre.tur === "karne" ? (
                   <button
                     type="button"
-                    onClick={() => setKarneAnahtari(null)}
-                    className="ml-auto shrink-0 text-[11.5px] text-muted-foreground underline-offset-2 transition-colors hover:text-foreground hover:underline"
+                    onClick={() => setFiltre({ tur: "hepsi" })}
+                    className="shrink-0 text-[11.5px] text-muted-foreground underline-offset-2 transition-colors hover:text-foreground hover:underline"
                   >
                     Vurguyu kaldır
                   </button>
                 ) : null}
+                {!gecmisMod ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void canli.taslakKaydet().then(() => {
+                        toastManager.add({ type: "success", title: "Taslak kaydedildi" });
+                      });
+                    }}
+                    disabled={canli.taslakKaydediliyor}
+                    title="Taslağı şimdi kaydet — zaten kendiliğinden de kaydediliyor, sayfa yenilense de kaybolmaz"
+                    className="ml-auto flex shrink-0 items-center gap-1 rounded border border-border/70 px-1.5 py-0.5 text-[11px] text-muted-foreground transition-colors hover:border-foreground/40 hover:text-foreground disabled:opacity-50"
+                  >
+                    {canli.taslakKaydediliyor ? (
+                      <LoaderIcon className="size-3 shrink-0 animate-spin" strokeWidth={2} aria-hidden />
+                    ) : (
+                      <SaveIcon className="size-3 shrink-0" strokeWidth={1.75} aria-hidden />
+                    )}
+                    Kaydet
+                  </button>
+                ) : null}
               </div>
             ) : null}
+            </div>
           </div>
         </div>
       </div>
