@@ -200,6 +200,10 @@ function PortfoyTile({
           spacing={16}
           notchCornerRadius={2}
           inactiveFillOpacity={0.35}
+          // Varsayılan `--border` koyu temada neredeyse görünmezdi (L≈0.24);
+          // `--muted-foreground` ikisi de aydınlık/koyu için ayrı tanımlı,
+          // dolu olmayan çubuklar artık gerçekten "açık gri" okunuyor.
+          inactiveFill="var(--muted-foreground)"
           activeFill={renk}
         />
       </div>

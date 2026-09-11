@@ -78,6 +78,64 @@ export function aracRengi(index: number): string {
   return ARAC_RENKLERI[index % ARAC_RENKLERI.length]!;
 }
 
+/**
+ * Hex rengi beyaza doğru açar — HSL'de yalnız lightness yükseltiliyor
+ * (düz RGB-beyaz karışımı bazı tonları soluklaştırıyordu, HSL doygunluğu
+ * daha iyi koruyor). Yalnız KOYU harita zemininde kullanılıyor: araç renkleri
+ * (`ARAC_RENKLERI`) açık temada tasarlanmış, koyu uydu/harita zemininde
+ * "çok koyu" okunuyordu — bu yalnız haritadaki çizim için; kart/liste
+ * noktaları (`baglam.renk`, sidebar) hâlâ orijinal, tutarlı rengi kullanıyor.
+ */
+function hexAcikVer(hex: string, artis: number): string {
+  const r = parseInt(hex.slice(1, 3), 16) / 255;
+  const g = parseInt(hex.slice(3, 5), 16) / 255;
+  const b = parseInt(hex.slice(5, 7), 16) / 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  let h = 0;
+  let s = 0;
+  const l = (max + min) / 2;
+  const d = max - min;
+  if (d !== 0) {
+    s = d / (1 - Math.abs(2 * l - 1));
+    switch (max) {
+      case r:
+        h = ((g - b) / d) % 6;
+        break;
+      case g:
+        h = (b - r) / d + 2;
+        break;
+      default:
+        h = (r - g) / d + 4;
+    }
+    h *= 60;
+    if (h < 0) h += 360;
+  }
+  const yeniL = Math.min(1, l + artis);
+  const c = (1 - Math.abs(2 * yeniL - 1)) * s;
+  const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+  const m = yeniL - c / 2;
+  let r2 = 0;
+  let g2 = 0;
+  let b2 = 0;
+  if (h < 60) [r2, g2, b2] = [c, x, 0];
+  else if (h < 120) [r2, g2, b2] = [x, c, 0];
+  else if (h < 180) [r2, g2, b2] = [0, c, x];
+  else if (h < 240) [r2, g2, b2] = [0, x, c];
+  else if (h < 300) [r2, g2, b2] = [x, 0, c];
+  else [r2, g2, b2] = [c, 0, x];
+  const toHex = (v: number) =>
+    Math.round((v + m) * 255)
+      .toString(16)
+      .padStart(2, "0");
+  return `#${toHex(r2)}${toHex(g2)}${toHex(b2)}`;
+}
+
+/** Haritada ÇİZİLECEK renk — koyu temada biraz açılır, açık temada aynen kalır. */
+function haritaRengi(hex: string, karanlikMi: boolean): string {
+  return karanlikMi ? hexAcikVer(hex, 0.14) : hex;
+}
+
 type LngLat = [number, number];
 
 export interface HaritaRotasi {
@@ -414,6 +472,9 @@ export function RotaHaritasi({
     for (const m of markersRef.current) m.remove();
     markersRef.current = [];
 
+    // Yalnız haritadaki ÇİZİM için — bkz. `haritaRengi` tanımı.
+    const karanlikMi = themeRef.current === "dark";
+
     markersRef.current.push(
       new mapboxgl.Marker({ element: createDepotEl(), anchor: "bottom" })
         .setLngLat(DEPOT.lngLat)
@@ -432,7 +493,7 @@ export function RotaHaritasi({
         const aci = yonAcisi(DEPOT.lngLat, [ilk.lon, ilk.lat]);
         markersRef.current.push(
           new mapboxgl.Marker({
-            element: createYonEl(rota.aracAd, rota.renk, aci),
+            element: createYonEl(rota.aracAd, haritaRengi(rota.renk, karanlikMi), aci),
             anchor: "center",
             offset: [0, -34],
           })
@@ -443,7 +504,10 @@ export function RotaHaritasi({
 
       rota.duraklar.forEach((d, i) => {
         if (d.lat == null || d.lon == null) return;
-        const el = createStopEl(i + 1, d.unvan, rota.renk);
+        const el = createStopEl(i + 1, d.unvan, haritaRengi(rota.renk, karanlikMi));
+        // `baglam.renk` bilerek ORİJİNAL renk — durak kartı/sidebar noktaları
+        // haritanın koyu-tema düzeltmesinden bağımsız, hep aynı tutarlı tonu
+        // gösteriyor.
         const baglam: DurakRotaBaglami = {
           aracKod: rota.aracKod,
           aracAd: rota.aracAd,
@@ -479,7 +543,7 @@ export function RotaHaritasi({
       features: rotalarGuncel
         .map((r, i) => ({
           coords: rotaNoktalari(r.duraklar),
-          renk: r.renk,
+          renk: haritaRengi(r.renk, karanlikMi),
           kaymasi: seritKaymasiHesapla(i, rotalarGuncel.length),
         }))
         .filter((x) => x.coords.length >= 2)
@@ -522,7 +586,11 @@ export function RotaHaritasi({
         const coords = rotaNoktalari(r.duraklar);
         if (coords.length < 2) return null;
         const yol = await fetchDrivingRoute(coords, ac.signal);
-        return lineFeature(yol ?? coords, r.renk, seritKaymasiHesapla(i, rotalarGuncel.length));
+        return lineFeature(
+          yol ?? coords,
+          haritaRengi(r.renk, karanlikMi),
+          seritKaymasiHesapla(i, rotalarGuncel.length)
+        );
       })
     )
       .then((features) => {
