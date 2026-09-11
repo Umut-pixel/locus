@@ -344,7 +344,11 @@ export default function RotaHaritasiSayfasi() {
     if (filtre.tur === "arac") {
       return yuklu.some((r) => r.aracKod === filtre.aracKod) ? filtre : { tur: "hepsi" };
     }
-    if (gecmisMod) return { tur: "hepsi" };
+    // `filtre` zaten "hepsi" ise AYNI referansı döndür — aksi halde her
+    // render'da yeni bir nesne üretilir, alttaki self-heal effect'i bunu
+    // "değişti" sanıp `setFiltre`'i sonsuz döngüye sokar (gecmisMod true
+    // olduğu her karede yeniden tetiklenir).
+    if (gecmisMod) return filtre.tur === "hepsi" ? filtre : { tur: "hepsi" };
     if (filtre.tur === "bolge") {
       return canli.bolgeler.some((b) => b.kod === filtre.bolgeKod) ? filtre : { tur: "hepsi" };
     }

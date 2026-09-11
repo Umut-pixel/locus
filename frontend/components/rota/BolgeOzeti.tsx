@@ -6,7 +6,6 @@ import {
   ChevronRightIcon,
   LoaderIcon,
   MapIcon,
-  MapPinIcon,
   PackagePlusIcon,
   TruckIcon,
   XIcon,
@@ -294,7 +293,17 @@ function IzmirDali({
           strokeWidth={2}
           aria-hidden
         />
-        <MapPinIcon className="size-3 shrink-0 text-muted-foreground" strokeWidth={1.75} aria-hidden />
+        {/*
+          Diğer şehir satırlarıyla AYNI nokta dili — İzmir'in 6 rutunun kendi
+          renkleri var (`IZMIR_RUT_RENKLERI`), bu üst satır onlardan hiçbirini
+          taşımıyor; "izmir" kendi başına bir bölge kodu değil ama `bolgeRengi`
+          hash'lediği için ona da sabit, tutarlı bir renk veriyor.
+        */}
+        <span
+          className="size-2 shrink-0 rounded-full"
+          style={{ background: bolgeRengi("izmir") }}
+          aria-hidden
+        />
         <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-foreground">
           İzmir
         </span>
