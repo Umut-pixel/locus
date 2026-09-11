@@ -7,6 +7,8 @@ import {
   ChevronDownIcon,
   CircleAlertIcon,
   ClipboardCheckIcon,
+  LoaderIcon,
+  RouteIcon,
   TruckIcon,
 } from "lucide-react";
 import gsap from "gsap";
@@ -58,6 +60,12 @@ interface PlanKarnesiProps {
   dolulukFarki: DolulukFarki | null;
   /** Rozet solma animasyonunu bitirince çağrılır — state'i temizlemek için. */
   onDolulukFarkiBitti: () => void;
+  /**
+   * Odaklanılan aracın güzergahını Google Routes ile yeniden sıralar.
+   * `null` ise düğme hiç gösterilmez (kayıtlı mod, ya da 2'den az durak).
+   */
+  onOptimizeEt: (() => void | Promise<void>) | null;
+  optimizeEdiliyor: boolean;
   className?: string;
 }
 
@@ -108,6 +116,8 @@ export function PlanKarnesi({
   aktifDoluluk,
   dolulukFarki,
   onDolulukFarkiBitti,
+  onOptimizeEt,
+  optimizeEdiliyor,
   className,
 }: PlanKarnesiProps) {
   const [acik, setAcik] = useState(true);
@@ -118,6 +128,22 @@ export function PlanKarnesi({
       <span className="min-w-0 flex-1 truncate text-[12px] text-foreground">
         Doluluk — {aktifDoluluk.aracAd}
       </span>
+      {onOptimizeEt ? (
+        <button
+          type="button"
+          onClick={() => void onOptimizeEt()}
+          disabled={optimizeEdiliyor}
+          title="Bu aracın güzergahını Google Routes ile yeniden sırala"
+          className="flex shrink-0 items-center gap-1 rounded border border-border/70 px-1.5 py-0.5 text-[10.5px] text-muted-foreground transition-colors hover:border-foreground/40 hover:text-foreground disabled:opacity-50"
+        >
+          {optimizeEdiliyor ? (
+            <LoaderIcon className="size-3 shrink-0 animate-spin" strokeWidth={2} aria-hidden />
+          ) : (
+            <RouteIcon className="size-3 shrink-0" strokeWidth={1.75} aria-hidden />
+          )}
+          Optimize et
+        </button>
+      ) : null}
       {dolulukFarki && dolulukFarki.aracKod === aktifDoluluk.aracKod ? (
         <FarkRozeti key={dolulukFarki.zaman} fark={dolulukFarki} onBitti={onDolulukFarkiBitti} />
       ) : null}

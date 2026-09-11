@@ -557,6 +557,12 @@ export default function RotaHaritasiSayfasi() {
                 aktifDoluluk={aktifDoluluk}
                 dolulukFarki={dolulukFarki}
                 onDolulukFarkiBitti={() => setDolulukFarki(null)}
+                onOptimizeEt={
+                  odakliArac && canli.aracDuraklari(odakliArac.kod).length >= 2
+                    ? () => canli.optimizeEt(odakliArac.kod)
+                    : null
+                }
+                optimizeEdiliyor={odakliArac != null && canli.optimizeEdilen === odakliArac.kod}
               />
             ) : null}
 

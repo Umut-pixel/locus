@@ -238,12 +238,22 @@ function rotaNoktalari(duraklar: RotaDuragi[]): LngLat[] {
 /**
  * Plan haritası — araç başına ayrı renkli güzergâh, atanmamış duraklar soluk.
  * Yol oturtma mevcut Mapbox Directions katmanıyla; başarısız olursa düz çizgi.
+ *
+ * Harita instance'ı YALNIZ BİR KEZ kurulur (mount). `rotalar`/`havuz`
+ * değiştiğinde harita SÖKÜLÜP YENİDEN KURULMUYOR — yalnız marker'lar ve rota
+ * çizgisi güncelleniyor, kamera olduğu yerde kalıyor. Eskiden her durak
+ * ekleme/çıkarmada (`planKey` değiştiğinde) tüm harita yeniden kuruluyordu:
+ * stil+tile'lar yeniden yükleniyor, `revealStageVeil` perdesi tekrar
+ * oynuyordu — kullanıcıya tam bir sayfa yenilemesi gibi görünüyordu.
  */
 export function RotaHaritasi({ rotalar, havuz, onDurakSec, onBosaTikla }: RotaHaritasiProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const stageVeilRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const styleUrlRef = useRef<string | null>(null);
+  const markersRef = useRef<mapboxgl.Marker[]>([]);
+  /** Sürüş rotası isteği — her `redraw` yenisini kurar, öncekini iptal eder. */
+  const routeAbortRef = useRef<AbortController | null>(null);
   const { theme } = useTheme();
   // Harita init effect'i tema değerini ref üzerinden okur; ref render sırasında
   // değil effect'te güncellenir (react-hooks/refs).
@@ -253,10 +263,9 @@ export function RotaHaritasi({ rotalar, havuz, onDurakSec, onBosaTikla }: RotaHa
   }, [theme]);
 
   /**
-   * Tıklama callback'leri de ref üzerinden okunuyor — aşağıdaki ana effect'in
-   * bağımlılığı yalnız `planKey`; sayfa her render'da yeni bir fonksiyon
-   * kimliği geçse bile (useCallback'siz) haritanın tamamen yeniden kurulup
-   * yeniden fit edilmesine yol açmasın.
+   * Tıklama callback'leri de ref üzerinden okunuyor — kurulum effect'i
+   * yalnız mount'ta çalışıyor, sayfa her render'da yeni bir fonksiyon
+   * kimliği geçse bile (useCallback'siz) haritayı etkilemesin.
    */
   const onDurakSecRef = useRef(onDurakSec);
   const onBosaTiklaRef = useRef(onBosaTikla);
@@ -265,7 +274,7 @@ export function RotaHaritasi({ rotalar, havuz, onDurakSec, onBosaTikla }: RotaHa
     onBosaTiklaRef.current = onBosaTikla;
   }, [onDurakSec, onBosaTikla]);
 
-  /** Yeniden çizim anahtarı — atama değişince harita güncellensin. */
+  /** Yeniden çizim anahtarı — atama değişince güncellensin. */
   const planKey = useMemo(
     () =>
       JSON.stringify([
@@ -275,35 +284,244 @@ export function RotaHaritasi({ rotalar, havuz, onDurakSec, onBosaTikla }: RotaHa
     [rotalar, havuz]
   );
 
+  /**
+   * En güncel rotalar/havuz — kurulum effect'i yalnız mount'ta çalıştığı
+   * için `style.load` (async, tile yüklemesi kadar geç tetiklenebilir) o
+   * anki en taze veriyi buradan okumalı; mount anındaki closure değerini
+   * değil (o an muhtemelen boş/başlangıç durumu).
+   */
+  const rotalarRef = useRef(rotalar);
+  const havuzRef = useRef(havuz);
+  useEffect(() => {
+    rotalarRef.current = rotalar;
+    havuzRef.current = havuz;
+  }, [rotalar, havuz]);
+
+  const ensureLineLayers = (map: mapboxgl.Map) => {
+    if (!map.getSource(LINE_SOURCE)) {
+      map.addSource(LINE_SOURCE, {
+        type: "geojson",
+        data: { type: "FeatureCollection", features: [] },
+      });
+    }
+    // Apple Maps deseni: kalın nötr kontur + üstünde dolgun renkli çekirdek.
+    // Zoom'a göre kalınlaşıyor ki şehir içinde de kırsalda da okunur kalsın.
+    if (!map.getLayer(LINE_CASING)) {
+      map.addLayer({
+        id: LINE_CASING,
+        type: "line",
+        source: LINE_SOURCE,
+        layout: { "line-cap": "round", "line-join": "round" },
+        paint: {
+          "line-color": themeRef.current === "dark" ? "#0b0f14" : "#ffffff",
+          "line-width": ["interpolate", ["linear"], ["zoom"], 6, 6, 12, 10, 16, 14],
+          "line-opacity": 0.9,
+          "line-blur": 0.6,
+        },
+      });
+    }
+    if (!map.getLayer(LINE_LAYER)) {
+      map.addLayer({
+        id: LINE_LAYER,
+        type: "line",
+        source: LINE_SOURCE,
+        layout: { "line-cap": "round", "line-join": "round" },
+        paint: {
+          "line-color": ["get", "renk"],
+          "line-width": ["interpolate", ["linear"], ["zoom"], 6, 3, 12, 6, 16, 9],
+          "line-opacity": 1,
+        },
+      });
+    }
+
+    // Gidiş yönü okları — Google/Apple'daki gibi çizgi boyunca tekrar eder.
+    // Numaralı duraklar sırayı söylüyordu ama iki durak arasında aracın hangi
+    // yöne aktığı okunmuyordu; dönüş bacağı gidiş bacağının üstüne bindiğinde
+    // güzergâh özellikle karışık görünüyordu.
+    if (!map.hasImage(ARROW_IMAGE)) {
+      const img = okGoruntusu();
+      if (img) map.addImage(ARROW_IMAGE, img, { pixelRatio: 2 });
+    }
+    if (map.hasImage(ARROW_IMAGE) && !map.getLayer(LINE_ARROWS)) {
+      map.addLayer({
+        id: LINE_ARROWS,
+        type: "symbol",
+        source: LINE_SOURCE,
+        // Uzakta seyrek, yakında sık: z8'de her ~160px, z14'te her ~70px.
+        layout: {
+          "symbol-placement": "line",
+          "symbol-spacing": ["interpolate", ["linear"], ["zoom"], 8, 160, 14, 70],
+          "icon-image": ARROW_IMAGE,
+          "icon-size": ["interpolate", ["linear"], ["zoom"], 8, 0.5, 14, 0.8],
+          "icon-rotation-alignment": "map",
+          "icon-pitch-alignment": "map",
+          // Ok, çizgiyi takip ettiği için üst üste binmesi sorun değil;
+          // eleme açık kalırsa kalabalık koridorda oklar kayboluyor.
+          "icon-allow-overlap": true,
+          "icon-ignore-placement": true,
+          "icon-offset": [0, 0],
+        },
+        paint: { "icon-opacity": 0.95 },
+      });
+    }
+  };
+
+  /**
+   * Marker'ları ve rota çizgisini günceller — haritayı YENİDEN KURMADAN.
+   * `fitCamera` yalnız ilk açılışta true: sonraki her düzenlemede kullanıcının
+   * baktığı yer sabit kalır, ekleme/çıkarma "gerçek zamanlı" hissettirir.
+   */
+  const redraw = (
+    map: mapboxgl.Map,
+    rotalarGuncel: HaritaRotasi[],
+    havuzGuncel: RotaDuragi[],
+    fitCamera: boolean
+  ) => {
+    for (const m of markersRef.current) m.remove();
+    markersRef.current = [];
+
+    markersRef.current.push(
+      new mapboxgl.Marker({ element: createDepotEl(), anchor: "bottom" })
+        .setLngLat(DEPOT.lngLat)
+        .setPopup(
+          new mapboxgl.Popup({ offset: 16, closeButton: false, className: "petshop-popup" }).setHTML(
+            popupHtml(DEPOT.label, DEPOT.address)
+          )
+        )
+        .addTo(map)
+    );
+
+    for (const rota of rotalarGuncel) {
+      // Depoda, ilk durağa bakan yön oku — araç başına bir tane.
+      const ilk = rota.duraklar.find((d) => d.lat != null && d.lon != null);
+      if (ilk?.lat != null && ilk.lon != null) {
+        const aci = yonAcisi(DEPOT.lngLat, [ilk.lon, ilk.lat]);
+        markersRef.current.push(
+          new mapboxgl.Marker({
+            element: createYonEl(rota.aracAd, rota.renk, aci),
+            anchor: "center",
+            offset: [0, -34],
+          })
+            .setLngLat(DEPOT.lngLat)
+            .addTo(map)
+        );
+      }
+
+      rota.duraklar.forEach((d, i) => {
+        if (d.lat == null || d.lon == null) return;
+        const el = createStopEl(i + 1, d.unvan, rota.renk);
+        const baglam: DurakRotaBaglami = {
+          aracKod: rota.aracKod,
+          aracAd: rota.aracAd,
+          renk: rota.renk,
+          sira: i + 1,
+        };
+        el.addEventListener("click", (ev) => {
+          ev.stopPropagation();
+          const nokta = map.project([d.lon!, d.lat!]);
+          onDurakSecRef.current?.({ durak: d, rota: baglam, nokta: { x: nokta.x, y: nokta.y } });
+        });
+        markersRef.current.push(
+          new mapboxgl.Marker({ element: el, anchor: "center" }).setLngLat([d.lon, d.lat]).addTo(map)
+        );
+      });
+    }
+
+    for (const d of havuzGuncel) {
+      if (d.lat == null || d.lon == null) continue;
+      const el = createHavuzEl(d.unvan);
+      el.addEventListener("click", (ev) => {
+        ev.stopPropagation();
+        const nokta = map.project([d.lon!, d.lat!]);
+        onDurakSecRef.current?.({ durak: d, rota: null, nokta: { x: nokta.x, y: nokta.y } });
+      });
+      markersRef.current.push(
+        new mapboxgl.Marker({ element: el, anchor: "center" }).setLngLat([d.lon, d.lat]).addTo(map)
+      );
+    }
+
+    const duzCizgiler: GeoJSON.FeatureCollection<GeoJSON.LineString> = {
+      type: "FeatureCollection",
+      features: rotalarGuncel
+        .map((r) => ({ coords: rotaNoktalari(r.duraklar), renk: r.renk }))
+        .filter((x) => x.coords.length >= 2)
+        .map((x) => lineFeature(x.coords, x.renk)),
+    };
+    (map.getSource(LINE_SOURCE) as mapboxgl.GeoJSONSource | undefined)?.setData(duzCizgiler);
+
+    if (fitCamera) {
+      const fitTargets: LngLat[] = [DEPOT.lngLat];
+      for (const r of rotalarGuncel) {
+        for (const d of r.duraklar) {
+          if (d.lat != null && d.lon != null) fitTargets.push([d.lon, d.lat]);
+        }
+      }
+      for (const d of havuzGuncel) {
+        if (d.lat != null && d.lon != null) fitTargets.push([d.lon, d.lat]);
+      }
+
+      if (fitTargets.length === 1) {
+        map.easeTo({ center: fitTargets[0], zoom: 11, duration: 0 });
+      } else {
+        const bounds = new mapboxgl.LngLatBounds();
+        for (const c of fitTargets) bounds.extend(c);
+        map.fitBounds(bounds, {
+          padding: { top: 56, bottom: 48, left: 48, right: 56 },
+          maxZoom: 12,
+          duration: 0,
+        });
+      }
+    }
+
+    // Yolları oturt — önceki istek varsa iptal edilip yenisi kurulur, araç
+    // başına tek istek; hata olursa düz çizgi kalır.
+    routeAbortRef.current?.abort();
+    const ac = new AbortController();
+    routeAbortRef.current = ac;
+
+    void Promise.all(
+      rotalarGuncel.map(async (r) => {
+        const coords = rotaNoktalari(r.duraklar);
+        if (coords.length < 2) return null;
+        const yol = await fetchDrivingRoute(coords, ac.signal);
+        return lineFeature(yol ?? coords, r.renk);
+      })
+    )
+      .then((features) => {
+        if (ac.signal.aborted) return;
+        const kalan = features.filter(
+          (f): f is GeoJSON.Feature<GeoJSON.LineString> => f !== null
+        );
+        if (kalan.length === 0) return;
+        const src = map.getSource(LINE_SOURCE) as mapboxgl.GeoJSONSource | undefined;
+        if (!src) return;
+        // Güzergâh depodan başlayarak çiziliyor — PetshopMap'teki rota
+        // animasyonunun aynısı; hareket azaltma açıksa anında görünür.
+        void revealRouteLine(
+          { type: "FeatureCollection", features: kalan },
+          (fc) => src.setData(fc),
+          { duration: 1.1, signal: ac.signal }
+        );
+      })
+      .catch((err: unknown) => {
+        if ((err as Error).name === "AbortError") return;
+      });
+  };
+
+  // Harita YALNIZ BİR KEZ kurulur (mount/unmount). Aşağıdaki ikinci effect
+  // rotalar/havuz değiştiğinde devreye girer ve `redraw` ile günceller —
+  // harita burada asla yeniden kurulmaz.
   useEffect(() => {
     const el = containerRef.current;
     if (!el || !MAPBOX_TOKEN) return;
 
     mapboxgl.accessToken = MAPBOX_TOKEN;
 
-    const fitTargets: LngLat[] = [DEPOT.lngLat];
-    for (const r of rotalar) {
-      for (const d of r.duraklar) {
-        if (d.lat != null && d.lon != null) fitTargets.push([d.lon, d.lat]);
-      }
-    }
-    for (const d of havuz) {
-      if (d.lat != null && d.lon != null) fitTargets.push([d.lon, d.lat]);
-    }
-
-    const duzCizgiler: GeoJSON.FeatureCollection<GeoJSON.LineString> = {
-      type: "FeatureCollection",
-      features: rotalar
-        .map((r) => ({ coords: rotaNoktalari(r.duraklar), renk: r.renk }))
-        .filter((x) => x.coords.length >= 2)
-        .map((x) => lineFeature(x.coords, x.renk)),
-    };
-
     const map = new mapboxgl.Map({
       container: el,
       ...mapRenderOptions(themeRef.current),
-      center: fitTargets[0] ?? DEPOT.lngLat,
-      zoom: fitTargets.length <= 1 ? 11 : 8,
+      center: DEPOT.lngLat,
+      zoom: 11,
       attributionControl: false,
       // cooperativeGestures kapalı: "yakınlaştırmak için ctrl + kaydır"
       // uyarısı tam ekran planlama haritasında gereksiz engel.
@@ -313,192 +531,13 @@ export function RotaHaritasi({ rotalar, havuz, onDurakSec, onBosaTikla }: RotaHa
     styleUrlRef.current = mapboxStyleForTheme(themeRef.current);
     map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), "bottom-right");
     const unobserve = observeMapContainer(map, el);
-    const markers: mapboxgl.Marker[] = [];
-    const ac = new AbortController();
-
-    const addMarkers = () => {
-      for (const m of markers) m.remove();
-      markers.length = 0;
-
-      markers.push(
-        new mapboxgl.Marker({ element: createDepotEl(), anchor: "bottom" })
-          .setLngLat(DEPOT.lngLat)
-          .setPopup(
-            new mapboxgl.Popup({ offset: 16, closeButton: false, className: "petshop-popup" }).setHTML(
-              popupHtml(DEPOT.label, DEPOT.address)
-            )
-          )
-          .addTo(map)
-      );
-
-      for (const rota of rotalar) {
-        // Depoda, ilk durağa bakan yön oku — araç başına bir tane.
-        const ilk = rota.duraklar.find((d) => d.lat != null && d.lon != null);
-        if (ilk?.lat != null && ilk.lon != null) {
-          const aci = yonAcisi(DEPOT.lngLat, [ilk.lon, ilk.lat]);
-          markers.push(
-            new mapboxgl.Marker({
-              element: createYonEl(rota.aracAd, rota.renk, aci),
-              anchor: "center",
-              offset: [0, -34],
-            })
-              .setLngLat(DEPOT.lngLat)
-              .addTo(map)
-          );
-        }
-
-        rota.duraklar.forEach((d, i) => {
-          if (d.lat == null || d.lon == null) return;
-          const el = createStopEl(i + 1, d.unvan, rota.renk);
-          const baglam: DurakRotaBaglami = {
-            aracKod: rota.aracKod,
-            aracAd: rota.aracAd,
-            renk: rota.renk,
-            sira: i + 1,
-          };
-          el.addEventListener("click", (ev) => {
-            ev.stopPropagation();
-            const nokta = map.project([d.lon!, d.lat!]);
-            onDurakSecRef.current?.({ durak: d, rota: baglam, nokta: { x: nokta.x, y: nokta.y } });
-          });
-          markers.push(new mapboxgl.Marker({ element: el, anchor: "center" }).setLngLat([d.lon, d.lat]).addTo(map));
-        });
-      }
-
-      for (const d of havuz) {
-        if (d.lat == null || d.lon == null) continue;
-        const el = createHavuzEl(d.unvan);
-        el.addEventListener("click", (ev) => {
-          ev.stopPropagation();
-          const nokta = map.project([d.lon!, d.lat!]);
-          onDurakSecRef.current?.({ durak: d, rota: null, nokta: { x: nokta.x, y: nokta.y } });
-        });
-        markers.push(new mapboxgl.Marker({ element: el, anchor: "center" }).setLngLat([d.lon, d.lat]).addTo(map));
-      }
-    };
-
-    const fit = () => {
-      if (fitTargets.length === 1) {
-        map.easeTo({ center: fitTargets[0], zoom: 11, duration: 0 });
-        return;
-      }
-      const bounds = new mapboxgl.LngLatBounds();
-      for (const c of fitTargets) bounds.extend(c);
-      map.fitBounds(bounds, {
-        padding: { top: 56, bottom: 48, left: 48, right: 56 },
-        maxZoom: 12,
-        duration: 0,
-      });
-    };
-
-    const ensureLineLayers = () => {
-      if (!map.getSource(LINE_SOURCE)) {
-        map.addSource(LINE_SOURCE, { type: "geojson", data: duzCizgiler });
-      }
-      // Apple Maps deseni: kalın nötr kontur + üstünde dolgun renkli çekirdek.
-      // Zoom'a göre kalınlaşıyor ki şehir içinde de kırsalda da okunur kalsın.
-      if (!map.getLayer(LINE_CASING)) {
-        map.addLayer({
-          id: LINE_CASING,
-          type: "line",
-          source: LINE_SOURCE,
-          layout: { "line-cap": "round", "line-join": "round" },
-          paint: {
-            "line-color": themeRef.current === "dark" ? "#0b0f14" : "#ffffff",
-            "line-width": ["interpolate", ["linear"], ["zoom"], 6, 6, 12, 10, 16, 14],
-            "line-opacity": 0.9,
-            "line-blur": 0.6,
-          },
-        });
-      }
-      if (!map.getLayer(LINE_LAYER)) {
-        map.addLayer({
-          id: LINE_LAYER,
-          type: "line",
-          source: LINE_SOURCE,
-          layout: { "line-cap": "round", "line-join": "round" },
-          paint: {
-            "line-color": ["get", "renk"],
-            "line-width": ["interpolate", ["linear"], ["zoom"], 6, 3, 12, 6, 16, 9],
-            "line-opacity": 1,
-          },
-        });
-      }
-
-      // Gidiş yönü okları — Google/Apple'daki gibi çizgi boyunca tekrar eder.
-      // Numaralı duraklar sırayı söylüyordu ama iki durak arasında aracın hangi
-      // yöne aktığı okunmuyordu; dönüş bacağı gidiş bacağının üstüne bindiğinde
-      // güzergâh özellikle karışık görünüyordu.
-      if (!map.hasImage(ARROW_IMAGE)) {
-        const img = okGoruntusu();
-        if (img) map.addImage(ARROW_IMAGE, img, { pixelRatio: 2 });
-      }
-      if (map.hasImage(ARROW_IMAGE) && !map.getLayer(LINE_ARROWS)) {
-        map.addLayer({
-          id: LINE_ARROWS,
-          type: "symbol",
-          source: LINE_SOURCE,
-          // Uzakta seyrek, yakında sık: z8'de her ~160px, z14'te her ~70px.
-          layout: {
-            "symbol-placement": "line",
-            "symbol-spacing": [
-              "interpolate",
-              ["linear"],
-              ["zoom"],
-              8,
-              160,
-              14,
-              70,
-            ],
-            "icon-image": ARROW_IMAGE,
-            "icon-size": ["interpolate", ["linear"], ["zoom"], 8, 0.5, 14, 0.8],
-            "icon-rotation-alignment": "map",
-            "icon-pitch-alignment": "map",
-            // Ok, çizgiyi takip ettiği için üst üste binmesi sorun değil;
-            // eleme açık kalırsa kalabalık koridorda oklar kayboluyor.
-            "icon-allow-overlap": true,
-            "icon-ignore-placement": true,
-            "icon-offset": [0, 0],
-          },
-          paint: { "icon-opacity": 0.95 },
-        });
-      }
-    };
 
     const onStyle = () => {
       applyMapRuntimeTuning(map, themeRef.current);
-      ensureLineLayers();
-      addMarkers();
-      fit();
-
-      // Yolları oturt — araç başına tek istek, hata olursa düz çizgi kalır
-      void Promise.all(
-        rotalar.map(async (r) => {
-          const coords = rotaNoktalari(r.duraklar);
-          if (coords.length < 2) return null;
-          const yol = await fetchDrivingRoute(coords, ac.signal);
-          return lineFeature(yol ?? coords, r.renk);
-        })
-      )
-        .then((features) => {
-          if (ac.signal.aborted) return;
-          const kalan = features.filter(
-            (f): f is GeoJSON.Feature<GeoJSON.LineString> => f !== null
-          );
-          if (kalan.length === 0) return;
-          const src = map.getSource(LINE_SOURCE) as mapboxgl.GeoJSONSource | undefined;
-          if (!src) return;
-          // Güzergâh depodan başlayarak çiziliyor — PetshopMap'teki rota
-          // animasyonunun aynısı; hareket azaltma açıksa anında görünür.
-          void revealRouteLine(
-            { type: "FeatureCollection", features: kalan },
-            (fc) => src.setData(fc),
-            { duration: 1.1, signal: ac.signal }
-          );
-        })
-        .catch((err: unknown) => {
-          if ((err as Error).name === "AbortError") return;
-        });
+      ensureLineLayers(map);
+      // İlk çizimde kamera fit edilir; sonraki her `redraw` (bkz. aşağıdaki
+      // ikinci effect) kamerayı oynatmaz.
+      redraw(map, rotalarRef.current, havuzRef.current, true);
     };
 
     map.on("style.load", onStyle);
@@ -509,12 +548,29 @@ export function RotaHaritasi({ rotalar, havuz, onDurakSec, onBosaTikla }: RotaHa
     map.on("click", () => onBosaTiklaRef.current?.());
 
     return () => {
-      ac.abort();
+      routeAbortRef.current?.abort();
       unobserve();
-      for (const m of markers) m.remove();
+      for (const m of markersRef.current) m.remove();
+      markersRef.current = [];
       map.remove();
       mapRef.current = null;
     };
+    // Kasıtlı olarak yalnız mount/unmount — bkz. üstteki not. rotalar/havuz
+    // değişimi ayrı, aşağıdaki effect'in işi.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Rotalar/havuz değişince: haritayı YENİDEN KURMADAN yalnız marker'ları ve
+  // rota çizgisini güncelle. Kamerayı OYNATMIYOR — kullanıcı neye bakıyorsa
+  // öyle kalır, ekleme/çıkarma bir "sayfa yenilemesi" gibi hissettirmez.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    // Stil henüz yüklenmediyse `onStyle` zaten ilk `redraw`'ı yapacak —
+    // burada erken/eksik bir çizim denemeyelim.
+    if (!map.isStyleLoaded()) return;
+    redraw(map, rotalar, havuz, false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [planKey]);
 
   useEffect(() => {
