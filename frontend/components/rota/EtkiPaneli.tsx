@@ -20,6 +20,13 @@ interface EtkiPaneliProps {
   /** Karşılaştırılan alternatifler (ilki genelde mevcut olanla aynı). */
   secenekler: EtkiSecenegi[];
   loading: boolean;
+  /**
+   * Şeridin sağ ucuna eklenen üçüncü bölme — "Haritayı aç" burada.
+   * Harita eskiden kendi başına ayrı bir kart olarak sol sütundaydı; bu
+   * şerit zaten araçlar bölümünün hemen üstünde durduğu için "araçlar
+   * sekmesi üzerindeki kısım" ile birleşmesi buraya taşınmasıyla oldu.
+   */
+  sag?: React.ReactNode;
 }
 
 function yuzde(n: number): string {
@@ -33,7 +40,7 @@ function yuzde(n: number): string {
  * ama doluluk %64, doluluk stratejisinde 588 km ve %78" gibi. Hiçbiri
  * Google çağrısı yapmaz — mesafe kuş uçuşu, doluluk zaten yerel hesap.
  */
-export function EtkiPaneli({ mevcut, secenekler, loading }: EtkiPaneliProps) {
+export function EtkiPaneli({ mevcut, secenekler, loading, sag }: EtkiPaneliProps) {
   return (
     <div
       className={cn(
@@ -154,6 +161,10 @@ export function EtkiPaneli({ mevcut, secenekler, loading }: EtkiPaneliProps) {
             );
           })}
         </div>
+      ) : null}
+
+      {sag ? (
+        <div className="flex shrink-0 items-center bg-background">{sag}</div>
       ) : null}
     </div>
   );
