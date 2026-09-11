@@ -11,7 +11,11 @@ import {
   TruckIcon,
 } from "lucide-react";
 
-import { DurakDetayKarti, type DurakSecimi } from "@/components/rota/DurakDetayKarti";
+import {
+  DurakDetayKarti,
+  type DurakSecimi,
+  type EklemeOnizlemesi,
+} from "@/components/rota/DurakDetayKarti";
 import { PlanKarnesi } from "@/components/rota/PlanKarnesi";
 import { aracRengi, RotaHaritasi, type HaritaRotasi } from "@/components/rota/RotaHaritasi";
 import { AppSidebarMobileTrigger } from "@/components/sidebar/AppSidebar";
@@ -20,6 +24,7 @@ import { useKayitliPlanlar, type KayitliDurak } from "@/hooks/useKayitliPlanlar"
 import { useRaporTazeligi } from "@/hooks/useMusteriRaporlama";
 import { ROTA_REPORT_ID, type RotaDuragi } from "@/hooks/useRotaPlani";
 import { formatKg, formatNumber } from "@/lib/format";
+import { dolulukHesapla } from "@/lib/rota/atama";
 import { kriterleriHesapla, type KriterAnahtari } from "@/lib/rota/kriter";
 import { cn } from "@/lib/utils";
 
@@ -159,6 +164,33 @@ export default function RotaHaritasiSayfasi() {
       setSeciliDurak(null);
     }
   }, [gecmisMod, seciliDurak, cikariliyor, canli]);
+
+  /**
+   * Bir araca tıklanınca ÖNCE bu çağrılır — hiçbir şeyi değiştirmez, yalnız
+   * "eklenirse ne olur" sorusunu cevaplar. `BolgeOzeti`nin toplu bölge
+   * yüklemesindeki önizleme adımıyla aynı desen, tek durak için.
+   */
+  const durakEklemeOnizle = useCallback(
+    (aracKod: string): EklemeOnizlemesi | null => {
+      if (!seciliDurak || seciliDurak.rota != null) return null;
+      const arac = canli.aracBul(aracKod);
+      if (!arac) return null;
+      const mevcutListe = canli.aracDuraklari(aracKod);
+      if (mevcutListe.some((d) => d.musteriKodu === seciliDurak.durak.musteriKodu)) return null;
+      const yeniListe = [...mevcutListe, seciliDurak.durak];
+      const doluluk = dolulukHesapla(arac, yeniListe);
+      const yuzde =
+        doluluk.baglayiciKisit === "agirlik" ? (doluluk.kgYuzde ?? doluluk.cuvalYuzde) : doluluk.cuvalYuzde;
+      return {
+        aracAd: arac.ad,
+        toplamDurak: yeniListe.length,
+        kg: doluluk.kg,
+        yuzde,
+        asim: doluluk.asim,
+      };
+    },
+    [seciliDurak, canli]
+  );
 
   /**
    * Havuzdaki bir durağı bir araca ekle — `BolgeOzeti`'nin toplu yükleme
@@ -488,11 +520,15 @@ export default function RotaHaritasiSayfasi() {
 
       {seciliDurak ? (
         <DurakDetayKarti
+          // Durak değişince kart tamamen yeniden kurulsun — önizleme için
+          // tıklanan araç gibi iç state bir öncekinden kalmasın.
+          key={seciliDurak.durak.musteriKodu}
           secim={seciliDurak}
           containerRef={containerRef}
           filo={gecmisMod ? null : canli.araclar}
           onClose={() => setSeciliDurak(null)}
           onRotadanCikar={gecmisMod ? null : durakRotadanCikar}
+          onRotayaEklemeOnizle={gecmisMod ? null : durakEklemeOnizle}
           onRotayaEkle={gecmisMod ? null : durakRotayaEkle}
           cikariliyor={cikariliyor}
           ekleniyorAracKod={ekleniyorAracKod}

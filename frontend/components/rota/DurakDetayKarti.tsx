@@ -1,16 +1,19 @@
 "use client";
 
-import { useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from "react";
+import { useLayoutEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
 import {
   AlertTriangleIcon,
   LoaderIcon,
+  MapIcon,
   MapPinIcon,
   PackagePlusIcon,
   Trash2Icon,
+  TruckIcon,
   XIcon,
 } from "lucide-react";
 
 import { EntityNotesButton } from "@/components/map/EntityNotesButton";
+import { GsapCollapse } from "@/components/ui/gsap-collapse";
 import type { RotaAraci, RotaDuragi } from "@/hooks/useRotaPlani";
 import { formatCurrency, formatKg, formatNumber } from "@/lib/format";
 import { RISK_COLORS, RISK_LABELS } from "@/lib/risk-style";
@@ -41,6 +44,15 @@ export interface DurakSecimi {
   nokta: { x: number; y: number };
 }
 
+/** `onRotayaEklemeOnizle`'nin döndürdüğü, henüz HİÇBİR ŞEYE dokunmamış önizleme. */
+export interface EklemeOnizlemesi {
+  aracAd: string;
+  toplamDurak: number;
+  kg: number;
+  yuzde: number;
+  asim: boolean;
+}
+
 interface DurakDetayKartiProps {
   secim: DurakSecimi;
   containerRef: RefObject<HTMLDivElement | null>;
@@ -49,6 +61,13 @@ interface DurakDetayKartiProps {
   onClose: () => void;
   /** `null` ise eylem yok (kayıtlı moddaki dondurulmuş plan salt okunur). */
   onRotadanCikar: (() => void | Promise<void>) | null;
+  /**
+   * Bir araca tıklanınca ÖNCE bu çağrılır — hiçbir şeyi değiştirmez, yalnız
+   * "eklenirse ne olur" sorusunu cevaplar. `BolgeOzeti`nin toplu yükleme
+   * akışıyla aynı iki adımlı desen: seç → önizle → onayla.
+   */
+  onRotayaEklemeOnizle: ((aracKod: string) => EklemeOnizlemesi | null) | null;
+  /** Kullanıcı önizlemeyi ONAYLADIKTAN SONRA çağrılır. */
   onRotayaEkle: ((aracKod: string) => void | Promise<void>) | null;
   cikariliyor: boolean;
   ekleniyorAracKod: string | null;
@@ -70,6 +89,7 @@ export function DurakDetayKarti({
   filo,
   onClose,
   onRotadanCikar,
+  onRotayaEklemeOnizle,
   onRotayaEkle,
   cikariliyor,
   ekleniyorAracKod,
@@ -78,6 +98,18 @@ export function DurakDetayKarti({
   const cardRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ left: number; top: number } | null>(null);
   const busy = cikariliyor || ekleniyorAracKod != null;
+
+  /**
+   * Tıklanan ama HENÜZ ONAYLANMAMIŞ araç — `onRotayaEkle` doğrudan
+   * çağrılmıyor, yalnız hangi aracın önizleneceği seçiliyor. Kart her yeni
+   * durak seçiminde (`secim.durak.musteriKodu` değişince, çağıran tarafta
+   * `key` ile) yeniden kurulduğu için ekstra bir sıfırlama gerekmiyor.
+   */
+  const [seciliAracKod, setSeciliAracKod] = useState<string | null>(null);
+  const onizleme = useMemo(
+    () => (seciliAracKod != null ? (onRotayaEklemeOnizle?.(seciliAracKod) ?? null) : null),
+    [seciliAracKod, onRotayaEklemeOnizle]
+  );
 
   useLayoutEffect(() => {
     const card = cardRef.current;
@@ -228,22 +260,28 @@ export function DurakDetayKarti({
             <span className="text-[11px] text-muted-foreground">Rotaya ekle</span>
             <div className="flex flex-wrap gap-1">
               {filo.map((a) => {
-                const buEkleniyor = ekleniyorAracKod === a.kod;
+                const buSecili = seciliAracKod === a.kod;
+                const buEkleniyor = buSecili && ekleniyorAracKod === a.kod;
                 return (
                   <button
                     key={a.kod}
                     type="button"
                     disabled={busy}
-                    onClick={() => void onRotayaEkle(a.kod)}
-                    title={`${durak.unvan} → ${a.ad} aracına ekle, güzergahı yeniden hesapla`}
+                    onClick={() => setSeciliAracKod((k) => (k === a.kod ? null : a.kod))}
+                    aria-pressed={buSecili}
+                    title={`${durak.unvan} → ${a.ad} aracına eklemeyi önizle`}
                     className={cn(
                       "flex shrink-0 items-center gap-1 rounded border px-1.5 py-0.5 text-[11px] transition-colors",
-                      "border-border/70 text-muted-foreground hover:border-foreground/40 hover:text-foreground",
+                      buSecili
+                        ? "border-foreground/50 bg-foreground/5 text-foreground"
+                        : "border-border/70 text-muted-foreground hover:border-foreground/40 hover:text-foreground",
                       busy && !buEkleniyor && "opacity-40"
                     )}
                   >
                     {buEkleniyor ? (
                       <LoaderIcon className="size-3 shrink-0 animate-spin" strokeWidth={2} aria-hidden />
+                    ) : buSecili ? (
+                      <TruckIcon className="size-3 shrink-0" strokeWidth={2} aria-hidden />
                     ) : (
                       <PackagePlusIcon className="size-3 shrink-0" strokeWidth={2} aria-hidden />
                     )}
@@ -252,6 +290,53 @@ export function DurakDetayKarti({
                 );
               })}
             </div>
+
+            <GsapCollapse open={onizleme != null}>
+              {onizleme ? (
+                <div className="flex flex-col gap-1.5 rounded-md border border-border/50 bg-muted/30 px-2.5 py-2">
+                  <span
+                    className={cn(
+                      "font-mono text-[11px] tabular-nums",
+                      onizleme.asim ? "text-destructive" : "text-muted-foreground"
+                    )}
+                  >
+                    {onizleme.aracAd} sonrası: {formatNumber(onizleme.toplamDurak)} durak ·{" "}
+                    {formatKg(Math.round(onizleme.kg))} · doluluk %{Math.round(onizleme.yuzde)}
+                    {onizleme.asim ? " · kapasite aşımı" : ""}
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setSeciliAracKod(null)}
+                      disabled={busy}
+                      className="flex items-center gap-1 rounded border border-border/70 px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:border-foreground/40 hover:text-foreground disabled:opacity-40"
+                    >
+                      <XIcon className="size-3 shrink-0" strokeWidth={2} aria-hidden />
+                      Vazgeç
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => seciliAracKod && void onRotayaEkle(seciliAracKod)}
+                      disabled={busy}
+                      title="Durağı bu araca ekle, güzergahı yeniden hesapla"
+                      className={cn(
+                        "flex flex-1 items-center justify-center gap-1 rounded border px-2 py-1 text-[11px] font-medium transition-colors disabled:opacity-60",
+                        onizleme.asim
+                          ? "border-caution/50 bg-caution/10 text-caution hover:bg-caution/15"
+                          : "border-foreground/30 bg-foreground text-background hover:bg-foreground/90"
+                      )}
+                    >
+                      {ekleniyorAracKod === seciliAracKod ? (
+                        <LoaderIcon className="size-3 shrink-0 animate-spin" strokeWidth={2} aria-hidden />
+                      ) : (
+                        <MapIcon className="size-3 shrink-0" strokeWidth={2} aria-hidden />
+                      )}
+                      Onayla ve ekle
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+            </GsapCollapse>
           </div>
         ) : null}
 
