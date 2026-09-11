@@ -43,6 +43,20 @@ export interface OptimizasyonSonucu {
   trafik: TrafikTercihi;
 }
 
+/**
+ * `OptimizasyonSonucu`'nun istemcide saklanan özeti — bir aracın son
+ * optimizasyonundan kalan süre/mesafe. `RotaPlaniProvider` bunu araç koduna
+ * göre tutuyor; araç kartları ve gün uzunluğu hesabı buradan okuyor.
+ *
+ * (Eskiden `components/rota/AracKarti.tsx` içinde tanımlıydı; o bileşen hiç
+ * render edilmiyordu ve tek canlı ihracı bu tipti.)
+ */
+export interface RotaBilgisi {
+  saniye: number;
+  metre: number;
+  trafik: string;
+}
+
 interface GoogleLeg {
   duration?: string;
   distanceMeters?: number;

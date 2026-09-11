@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { LoaderIcon, TruckIcon, UserIcon, XIcon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -112,9 +112,62 @@ export function FiloKadroPaneli({ onKapat, onDegisti }: FiloKadroPaneliProps) {
     [onDegisti]
   );
 
+  /**
+   * Modal davranışı — `role="dialog" aria-modal="true"` yazıyordu ama odak
+   * tuzağı, ilk odak, Escape ve odak iadesi yoktu: klavye kullanıcısı Tab ile
+   * arkadaki sayfaya düşüyor, Escape ile çıkamıyordu.
+   */
+  const katmanRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const oncekiOdak = document.activeElement as HTMLElement | null;
+    // İlk odağı panelin kendisine ver; içerik yüklenmeden önce de çalışsın.
+    katmanRef.current?.focus({ preventScroll: true });
+    return () => oncekiOdak?.focus?.({ preventScroll: true });
+  }, []);
+
+  const odaklanabilirler = useCallback((): HTMLElement[] => {
+    const kok = katmanRef.current;
+    if (!kok) return [];
+    return [
+      ...kok.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      ),
+    ].filter((el) => el.offsetParent !== null || el === document.activeElement);
+  }, []);
+
+  const tuslar = useCallback(
+    (event: React.KeyboardEvent<HTMLDivElement>) => {
+      if (event.key === "Escape") {
+        event.stopPropagation();
+        onKapat();
+        return;
+      }
+      if (event.key !== "Tab") return;
+
+      const liste = odaklanabilirler();
+      if (liste.length === 0) return;
+      const ilk = liste[0]!;
+      const son = liste[liste.length - 1]!;
+      const aktif = document.activeElement;
+
+      if (event.shiftKey && (aktif === ilk || aktif === katmanRef.current)) {
+        event.preventDefault();
+        son.focus();
+      } else if (!event.shiftKey && aktif === son) {
+        event.preventDefault();
+        ilk.focus();
+      }
+    },
+    [odaklanabilirler, onKapat]
+  );
+
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-background/80 p-4 backdrop-blur-sm sm:p-8"
+      ref={katmanRef}
+      onKeyDown={tuslar}
+      tabIndex={-1}
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-background/80 p-4 outline-none backdrop-blur-sm sm:p-8"
       role="dialog"
       aria-modal="true"
       aria-label="Filo ve kadro"

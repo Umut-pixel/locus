@@ -18,7 +18,16 @@ export interface Tercihler {
   strateji: Strateji;
   /** Bu yüzdenin altında doluluk "yarı boş çıkıyor" uyarısı verir. */
   dolulukEsigi: number;
-  /** Uzak duraklar şehir içi turla aynı araca binmesin. */
+  /**
+   * Uzak duraklar şehir içi turla aynı araca binmesin.
+   *
+   * VARSAYILAN AÇIK (2026-09-11'den önce kapalıydı). Kapalıyken ("Karışık")
+   * `sweepKumele` yalnız açıya bakıp kapasite dolana kadar dolduruyor —
+   * coğrafi kimlik motora hiç girmiyor. Gerçek sevkiyat günlerinde ölçüldü
+   * (bkz. `bolge.ts` başlığı): Transit Aydın (4 km) + İstanbul (325 km);
+   * NPR 10 Balıkesir + Çanakkale + İzmir (10-241 km). "Bölge" stratejisinde
+   * bu ayar zaten anlamsız (yapı gereği uzak/yakın hiç karışmıyor).
+   */
   uzakAyir: boolean;
 }
 
@@ -44,7 +53,12 @@ export const VARSAYILAN_TERCIHLER: Tercihler = Object.freeze({
   gunPenceresi: null,
   strateji: "bolge",
   dolulukEsigi: 70,
-  uzakAyir: false,
+  // Eskiden false'tu — "Coğrafi"/"Doluluk" stratejisinde tek bir aracın
+  // şehir içi turla birlikte 300+ km uzaktaki bir durağı da almasına izin
+  // veriyordu (bkz. Tercihler.uzakAyir yorumu). "Bölge" varsayılan strateji
+  // olduğu için bu ayarın çoğu kullanıcıya etkisi yok; yine de doğru varsayılan
+  // "Bölge" dışındaki stratejileri deneyenler için de güvenli olmalı.
+  uzakAyir: true,
 }) as Tercihler;
 
 /** Ekrandaki pencere seçenekleri. */
@@ -81,7 +95,15 @@ export const STRATEJILER: ReadonlyArray<{
   },
 ];
 
-const ANAHTAR = "rota-tercihleri-v1";
+/**
+ * v1 → v2 (2026-09-11): `uzakAyir` varsayılanı `false`den `true`ya döndü.
+ * Anahtar bilerek değişti — v1'de zaten `false` yazılmış (o zamanki
+ * varsayılan) kayıtlar `typeof === "boolean"` kontrolünden geçerli bir seçim
+ * gibi görünüp eski (güvensiz) davranışta kalırdı. Sürüm atlaması herkesi
+ * yeni, güvenli varsayılana sıfırlıyor; diğer tercihler (strateji, doluluk
+ * eşiği) de bir kerelik sıfırlanıyor, kayda değer bir kayıp değil.
+ */
+const ANAHTAR = "rota-tercihleri-v2";
 
 function sayiVeyaNull(v: unknown): number | null {
   if (v === null) return null;
@@ -105,7 +127,15 @@ export function tercihleriTemizle(ham: unknown): Tercihler {
       Number.isFinite(esik) && esik >= 0 && esik <= 100
         ? esik
         : VARSAYILAN_TERCIHLER.dolulukEsigi,
-    uzakAyir: o.uzakAyir === true,
+    // Diğer alanlarla AYNI DESEN: geçersiz/eksik değer varsayılana düşer.
+    // Eskiden `o.uzakAyir === true` idi — kayıtta alan hiç yoksa (eski
+    // sürümden kalma boş obje) sessizce `false`'a düşüyordu ve varsayılanı
+    // `true` yapmak bu yüzden tek başına yetmiyordu; kayıtlı tercihi olan
+    // kullanıcı hep eski (güvensiz) davranışta kalıyordu.
+    uzakAyir:
+      typeof o.uzakAyir === "boolean"
+        ? o.uzakAyir
+        : VARSAYILAN_TERCIHLER.uzakAyir,
   };
 }
 

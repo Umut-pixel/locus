@@ -21,6 +21,7 @@ import { DEPOT } from "@/lib/depot";
 import { formatKg, formatNumber } from "@/lib/format";
 import { dolulukHesapla } from "@/lib/rota/atama";
 import {
+  BAYAT_GUN,
   gunUzunlugu,
   saatMetni,
   sonrakiKalkis,
@@ -225,7 +226,7 @@ export default function YukDetayiSayfasi({
                     baglayici={!agirlikBaglayici}
                   />
                   {baglayiciYuzde < tercihler.dolulukEsigi && duraklar.length > 0 ? (
-                    <p className="flex items-start gap-1.5 text-[11.5px] text-amber-500">
+                    <p className="flex items-start gap-1.5 text-[11.5px] text-caution">
                       <AlertTriangleIcon className="mt-px size-3 shrink-0" strokeWidth={2} aria-hidden />
                       <span>
                         Hedef doluluğun (%{tercihler.dolulukEsigi}) altında — durak
@@ -234,7 +235,7 @@ export default function YukDetayiSayfasi({
                     </p>
                   ) : null}
                   {doluluk.olcusuzVar ? (
-                    <p className="flex items-start gap-1.5 text-[11.5px] text-amber-500">
+                    <p className="flex items-start gap-1.5 text-[11.5px] text-caution">
                       <AlertTriangleIcon className="mt-px size-3 shrink-0" strokeWidth={2} aria-hidden />
                       <span>Ölçüsü bilinmeyen ürün var — gerçek yük daha ağır olabilir.</span>
                     </p>
@@ -396,7 +397,9 @@ export default function YukDetayiSayfasi({
                       <span
                         className={cn(
                           "shrink-0 font-mono text-[11px] tabular-nums",
-                          d.yasGun >= 30 ? "text-amber-500" : "text-muted-foreground"
+                          d.yasGun >= BAYAT_GUN
+                            ? "text-caution"
+                            : "text-muted-foreground"
                         )}
                       >
                         {formatNumber(d.yasGun)} günlük
@@ -507,7 +510,7 @@ function Bar({
         <div
           className={cn(
             "h-full rounded-full",
-            asim ? "bg-destructive" : baglayici ? "bg-amber-400" : "bg-foreground/40"
+            asim ? "bg-destructive" : baglayici ? "bg-caution" : "bg-foreground/40"
           )}
           style={{ width: `${Math.min(100, yuzde ?? 0)}%` }}
         />

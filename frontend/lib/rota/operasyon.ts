@@ -28,6 +28,23 @@ export const TAKOGRAF_MOLA_SN = 30 * 60;
  */
 export const DUSUK_DOLULUK_ESIGI = 70;
 
+/**
+ * Bir araçtaki en yakın-en uzak durak farkı bu km'yi geçerse uyarı verilir.
+ * Sahadaki vaka: Aydın (4 km) ile İstanbul (325 km) aynı araçta. Sağlıklı
+ * bölge turları 81-108 km bandında kalıyor, kötü günler 224-240 km'deydi.
+ *
+ * Tek yerde durmalı: araç kartındaki rozet ile etki panelindeki ölçü aynı
+ * eşiği kullanmazsa ekran kendisiyle çelişir.
+ */
+export const YAYILIM_UYARI_KM = 150;
+
+/**
+ * Bu yaştan eski bekleyen sipariş sarı yanar. Tarih penceresi "hepsi"ndeyken
+ * aylardır bekleyen bir sipariş sessizce her plana girebilir — filtrelemek
+ * yerine görünür kılıyoruz, kararı planlayıcı verir.
+ */
+export const BAYAT_GUN = 30;
+
 /** Pazar sevkiyat yok. Melih: "pazar hariç her gün". `Date.getDay()` değeri. */
 const PAZAR = 0;
 
@@ -95,6 +112,13 @@ export function gunUzunlugu(params: {
 /** Kalkış + tur süresi. Araç kartındaki "08:30 → 15:40" için. */
 export function varisZamani(kalkis: Date, toplamSaniye: number): Date {
   return new Date(kalkis.getTime() + toplamSaniye * 1000);
+}
+
+/** "3 sa 20 dk" / "45 dk" — tur sürelerinin ortak biçimi. */
+export function sureMetni(saniye: number): string {
+  const dk = Math.round(saniye / 60);
+  if (dk < 60) return `${dk} dk`;
+  return `${Math.floor(dk / 60)} sa ${dk % 60} dk`;
 }
 
 /** "08:30" biçiminde yerel saat. */
