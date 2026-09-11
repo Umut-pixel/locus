@@ -6,6 +6,7 @@ import {
   ChevronRightIcon,
   MapIcon,
   MapPinIcon,
+  PackagePlusIcon,
   PinIcon,
 } from "lucide-react";
 
@@ -30,6 +31,10 @@ interface BolgeOzetiProps {
   /** Sabitleme yalnız bölge stratejisinde anlamlı; sweep/ffd yok sayar. */
   sabitlemeAcik: boolean;
   loading: boolean;
+  /** Seçili araç — dolu geldiğinde her satırda "bu bölgeyi yükle" eylemi açılır. */
+  seciliArac: string | null;
+  /** Bölgedeki havuzda kalan durakları seçili araca (remove+add) yükler. */
+  onBolgeYukle: (musteriKodlari: string[]) => void;
 }
 
 interface Satir {
@@ -60,7 +65,13 @@ function rutNumarasi(kod: string): number | null {
  * kodlarıyla geliyor — düz listede aynı anda 6 satır tutuyorlardı, "karışık
  * görünüyor" şikâyeti buradan geldi. Artık tek bir "İzmir" üst satırın altında
  * toplanıp katlanıyorlar; diğer şehirler (Balıkesir, Muğla…) değişmeden düz
- * satır olarak kalıyor.
+ * satır olarak kalıyor. İzmir depo şehri olduğu için liste EN BAŞTA —
+ * uzaklığa göre sıralamaya bırakılırsa bazı günler dibe düşüyordu.
+ *
+ * İŞLEV: panel eskiden salt-okunurdu (yalnız "bak, hangi bölge nerede").
+ * Bir araç seçiliyken her satırın açılan detayında "Havuzdaki N durağı X'e
+ * yükle" düğmesi çıkıyor — havuzdan tek tek sürüklemek yerine bütün bölgeyi
+ * bir tıkla seçili araca taşır (`onBolgeYukle`).
  */
 export function BolgeOzeti({
   bolgeler,
@@ -70,6 +81,8 @@ export function BolgeOzeti({
   onSabitle,
   sabitlemeAcik,
   loading,
+  seciliArac,
+  onBolgeYukle,
 }: BolgeOzetiProps) {
   /** Aynı anda tek bölge açık — birden fazlası listeyi boğuyor. */
   const [acikKod, setAcikKod] = useState<string | null>(null);
@@ -123,25 +136,37 @@ export function BolgeOzeti({
   /** Başlıktaki sayaç: kaç AYRI GRUP var — 6 rut kullanıcı için tek "İzmir". */
   const grupSayisi = digerSatirlari.length + (izmirVar ? 1 : 0);
 
-  /** Diğer şehirler + tek "İzmir" satırı, hep birlikte uzaklığa göre sıralı. */
-  type RenderOge =
-    | { tur: "satir"; satir: Satir; anahtarKm: number }
-    | { tur: "izmir"; anahtarKm: number };
+  /**
+   * İzmir HER ZAMAN EN BAŞTA — depo şehri, günün asıl işi. Diğer şehirler
+   * ardından uzaklığa göre (satirlar zaten öyle sıralı, digerSatirlari onu
+   * bozmadan filtreliyor).
+   */
+  type RenderOge = { tur: "satir"; satir: Satir } | { tur: "izmir" };
   const renderListesi = useMemo<RenderOge[]>(() => {
-    const liste: RenderOge[] = digerSatirlari.map((s) => ({
-      tur: "satir",
-      satir: s,
-      anahtarKm: s.bolge.depoyaKm,
-    }));
-    if (izmirVar) liste.push({ tur: "izmir", anahtarKm: izmirToplam.enUzakKm });
-    return liste.sort((a, b) => b.anahtarKm - a.anahtarKm);
-  }, [digerSatirlari, izmirVar, izmirToplam.enUzakKm]);
+    const liste: RenderOge[] = [];
+    if (izmirVar) liste.push({ tur: "izmir" });
+    for (const s of digerSatirlari) liste.push({ tur: "satir", satir: s });
+    return liste;
+  }, [izmirVar, digerSatirlari]);
 
   const { wrapperRef, scrollRef } = useScrollBottomFade<HTMLElement, HTMLDivElement>(
     satirlar.length
   );
 
-  const ortakSatirProps = { durakAraci, filo, sabitlemeler, onSabitle, sabitlemeAcik };
+  const seciliAracAdi = seciliArac
+    ? (filo.find((a) => a.kod === seciliArac)?.ad ?? null)
+    : null;
+
+  const ortakSatirProps = {
+    durakAraci,
+    filo,
+    sabitlemeler,
+    onSabitle,
+    sabitlemeAcik,
+    seciliArac,
+    seciliAracAdi,
+    onBolgeYukle,
+  };
 
   return (
     <section
@@ -222,6 +247,9 @@ interface OrtakSatirProps {
   sabitlemeler: Record<string, string>;
   onSabitle: (bolgeKod: string, aracKod: string | null) => void;
   sabitlemeAcik: boolean;
+  seciliArac: string | null;
+  seciliAracAdi: string | null;
+  onBolgeYukle: (musteriKodlari: string[]) => void;
 }
 
 /**
@@ -322,6 +350,9 @@ function BolgeSatiri({
   sabitlemeler,
   onSabitle,
   sabitlemeAcik,
+  seciliArac,
+  seciliAracAdi,
+  onBolgeYukle,
 }: OrtakSatirProps & {
   satir: Satir;
   acik: boolean;
@@ -329,6 +360,12 @@ function BolgeSatiri({
   /** İzmir dalının çocuğu — ekstra sol boşluk, dala bağlanan dirsek çizgisi. */
   girintili?: boolean;
 }) {
+  /** Havuzda kalan (henüz araca atanmamış) durakların kodları — yükleme hedefi. */
+  const havuzdakiKodlar = useMemo(
+    () => bolge.duraklar.filter((d) => !durakAraci.has(d.musteriKodu)).map((d) => d.musteriKodu),
+    [bolge.duraklar, durakAraci]
+  );
+
   return (
     <Fragment>
       <li className={girintili ? "relative" : undefined}>
@@ -414,6 +451,39 @@ function BolgeSatiri({
 
       {acik ? (
         <li className="bg-muted/20">
+          {/*
+            BÖLGEYİ SEÇİLİ ARACA YÜKLE — panelin tek işlevi buydu: bak, hangi
+            bölge nerede. Havuzdan tek tek sürüklemek yerine bütün bölgeyi bir
+            tıkla seçili araca taşır. `DurakHavuzu`daki "önce araç seç" akışıyla
+            aynı dil: araç seçili değilse buton yerine aynı yönerge çıkıyor.
+          */}
+          {havuzdakiKodlar.length > 0 ? (
+            <div
+              className={cn(
+                "border-b border-border/40 py-1.5 pr-3.5",
+                girintili ? "pl-[3.25rem]" : "pl-8"
+              )}
+            >
+              {seciliArac ? (
+                <button
+                  type="button"
+                  onClick={() => onBolgeYukle(havuzdakiKodlar)}
+                  className="flex items-center gap-1.5 rounded bg-foreground px-2 py-1 text-[11.5px] font-medium text-background transition-opacity hover:opacity-90"
+                  title={`Bu bölgede havuzda ${formatNumber(havuzdakiKodlar.length)} durak var — hepsini ${seciliAracAdi} aracına yükle`}
+                >
+                  <PackagePlusIcon className="size-3 shrink-0" strokeWidth={2} aria-hidden />
+                  Havuzdaki {formatNumber(havuzdakiKodlar.length)} durağı{" "}
+                  {seciliAracAdi}&apos;a yükle
+                </button>
+              ) : (
+                <p className="text-[11px] text-muted-foreground">
+                  {formatNumber(havuzdakiKodlar.length)} durak havuzda — bir araç kartı
+                  seçin, bu bölgeyi tek tıkla o araca yükleyin.
+                </p>
+              )}
+            </div>
+          ) : null}
+
           {/*
             Günlük sabitleme. Kalıcı bölge-araç eşlemesi bilerek yok: aynı
             bölge bir gün 200, ertesi gün 900 çuval olabiliyor ve sabit eşleme
