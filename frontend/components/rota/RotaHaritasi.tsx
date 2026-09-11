@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 
+import type { DurakRotaBaglami, DurakSecimi } from "@/components/rota/DurakDetayKarti";
 import type { RotaDuragi } from "@/hooks/useRotaPlani";
 import { DEPOT } from "@/lib/depot";
 import { fetchDrivingRoute } from "@/lib/mapbox-directions";
@@ -90,6 +91,10 @@ interface RotaHaritasiProps {
   rotalar: HaritaRotasi[];
   /** Henüz atanmamış duraklar — soluk noktalarla gösterilir. */
   havuz: RotaDuragi[];
+  /** Numaralı bir durağa ya da havuzdaki bir noktaya tıklanınca. */
+  onDurakSec?: (secim: DurakSecimi) => void;
+  /** Boş bir noktaya tıklanınca — açık kartı kapatmak için. */
+  onBosaTikla?: () => void;
 }
 
 function escapeHtml(value: string): string {
@@ -139,14 +144,30 @@ function createStopEl(index: number, label: string, renk: string): HTMLButtonEle
   return el;
 }
 
-/** Atanmamış durak — soluk, numarasız. */
+/**
+ * Atanmamış (havuzdaki) durak — gri, üstü çizili, numarasız; yalnız konum
+ * işareti kalır. Aynı işaret bir rotadan ÇIKARILAN durak için de kullanılıyor:
+ * `durakCikar` sonrası durak zaten bu havuz listesine düşüyor, ayrı bir
+ * "az önce çıkarıldı" durumu tutulmuyor — görsel olarak "artık rotada değil"
+ * demek yeterli. Eskiden 11px düz nokta idi, tıklanabilir bir eylem taşımadığı
+ * için göze çarpmıyordu; artık numaralı duraklarla aynı boyutta ve tıklanınca
+ * "rotaya ekle" kartını açıyor.
+ */
 function createHavuzEl(label: string): HTMLButtonElement {
   const el = document.createElement("button");
   el.type = "button";
   el.setAttribute("aria-label", label);
-  el.title = `${label} — henüz araca atanmadı`;
+  el.title = `${label} — henüz araca atanmadı, rotaya eklemek için tıklayın`;
   el.style.cssText =
-    "width:11px;height:11px;border-radius:999px;border:1.5px solid rgba(255,255,255,0.85);background:#94a3b8;padding:0;cursor:pointer;opacity:0.75";
+    "display:flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:999px;border:0;background:transparent;padding:0;cursor:pointer;box-shadow:0 1px 5px rgba(28,29,32,0.35);border-radius:999px";
+  el.innerHTML = `
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx="12" cy="12" r="11" fill="#94a3b8" stroke="#fff" stroke-width="2"/>
+      <path d="M12 6.4a3.7 3.7 0 0 0-3.7 3.7c0 3 3.7 6.6 3.7 6.6s3.7-3.6 3.7-6.6A3.7 3.7 0 0 0 12 6.4Z" fill="#fff"/>
+      <circle cx="12" cy="10" r="1.35" fill="#94a3b8"/>
+      <line x1="4.5" y1="19.5" x2="19.5" y2="4.5" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/>
+    </svg>
+  `;
   return el;
 }
 
@@ -218,7 +239,7 @@ function rotaNoktalari(duraklar: RotaDuragi[]): LngLat[] {
  * Plan haritası — araç başına ayrı renkli güzergâh, atanmamış duraklar soluk.
  * Yol oturtma mevcut Mapbox Directions katmanıyla; başarısız olursa düz çizgi.
  */
-export function RotaHaritasi({ rotalar, havuz }: RotaHaritasiProps) {
+export function RotaHaritasi({ rotalar, havuz, onDurakSec, onBosaTikla }: RotaHaritasiProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const stageVeilRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
@@ -230,6 +251,19 @@ export function RotaHaritasi({ rotalar, havuz }: RotaHaritasiProps) {
   useEffect(() => {
     themeRef.current = theme;
   }, [theme]);
+
+  /**
+   * Tıklama callback'leri de ref üzerinden okunuyor — aşağıdaki ana effect'in
+   * bağımlılığı yalnız `planKey`; sayfa her render'da yeni bir fonksiyon
+   * kimliği geçse bile (useCallback'siz) haritanın tamamen yeniden kurulup
+   * yeniden fit edilmesine yol açmasın.
+   */
+  const onDurakSecRef = useRef(onDurakSec);
+  const onBosaTiklaRef = useRef(onBosaTikla);
+  useEffect(() => {
+    onDurakSecRef.current = onDurakSec;
+    onBosaTiklaRef.current = onBosaTikla;
+  }, [onDurakSec, onBosaTikla]);
 
   /** Yeniden çizim anahtarı — atama değişince harita güncellensin. */
   const planKey = useMemo(
@@ -315,37 +349,31 @@ export function RotaHaritasi({ rotalar, havuz }: RotaHaritasiProps) {
 
         rota.duraklar.forEach((d, i) => {
           if (d.lat == null || d.lon == null) return;
-          markers.push(
-            new mapboxgl.Marker({
-              element: createStopEl(i + 1, d.unvan, rota.renk),
-              anchor: "center",
-            })
-              .setLngLat([d.lon, d.lat])
-              .setPopup(
-                new mapboxgl.Popup({ offset: 14, closeButton: false, className: "petshop-popup" }).setHTML(
-                  popupHtml(
-                    `${i + 1}. ${d.unvan}`,
-                    `${rota.aracAd} · ${Math.round(d.kg)} kg`
-                  )
-                )
-              )
-              .addTo(map)
-          );
+          const el = createStopEl(i + 1, d.unvan, rota.renk);
+          const baglam: DurakRotaBaglami = {
+            aracKod: rota.aracKod,
+            aracAd: rota.aracAd,
+            renk: rota.renk,
+            sira: i + 1,
+          };
+          el.addEventListener("click", (ev) => {
+            ev.stopPropagation();
+            const nokta = map.project([d.lon!, d.lat!]);
+            onDurakSecRef.current?.({ durak: d, rota: baglam, nokta: { x: nokta.x, y: nokta.y } });
+          });
+          markers.push(new mapboxgl.Marker({ element: el, anchor: "center" }).setLngLat([d.lon, d.lat]).addTo(map));
         });
       }
 
       for (const d of havuz) {
         if (d.lat == null || d.lon == null) continue;
-        markers.push(
-          new mapboxgl.Marker({ element: createHavuzEl(d.unvan), anchor: "center" })
-            .setLngLat([d.lon, d.lat])
-            .setPopup(
-              new mapboxgl.Popup({ offset: 12, closeButton: false, className: "petshop-popup" }).setHTML(
-                popupHtml(d.unvan, `Atanmadı · ${Math.round(d.kg)} kg`)
-              )
-            )
-            .addTo(map)
-        );
+        const el = createHavuzEl(d.unvan);
+        el.addEventListener("click", (ev) => {
+          ev.stopPropagation();
+          const nokta = map.project([d.lon!, d.lat!]);
+          onDurakSecRef.current?.({ durak: d, rota: null, nokta: { x: nokta.x, y: nokta.y } });
+        });
+        markers.push(new mapboxgl.Marker({ element: el, anchor: "center" }).setLngLat([d.lon, d.lat]).addTo(map));
       }
     };
 
@@ -475,6 +503,10 @@ export function RotaHaritasi({ rotalar, havuz }: RotaHaritasiProps) {
 
     map.on("style.load", onStyle);
     map.once("idle", () => revealStageVeil(stageVeilRef.current));
+    // Boş bir noktaya tıklamak açık durak kartını kapatır — durak/depo
+    // marker'ları kendi dinleyicilerinde `stopPropagation` çağırdığı için
+    // bu yalnız gerçekten boş haritaya tıklanınca tetiklenir.
+    map.on("click", () => onBosaTiklaRef.current?.());
 
     return () => {
       ac.abort();

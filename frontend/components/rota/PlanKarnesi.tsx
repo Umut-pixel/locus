@@ -15,6 +15,7 @@ import {
   type KriterAnahtari,
   type KriterDurumu,
 } from "@/lib/rota/kriter";
+import { GsapCollapse } from "@/components/ui/gsap-collapse";
 import { cn } from "@/lib/utils";
 
 interface PlanKarnesiProps {
@@ -129,23 +130,25 @@ export function PlanKarnesi({
         />
       </button>
 
-      <ul hidden={!acik} className="flex flex-col border-t border-border/40">
-        {kriterler.map((k) => {
-          const vurgulanabilir =
-            k.suclular.araclar.length > 0 || k.suclular.duraklar.length > 0;
-          const secili = vurgulanan === k.anahtar;
-          return (
-            <li key={k.anahtar} className="border-b border-border/25 last:border-b-0">
-              <KriterSatiri
-                kriter={k}
-                secili={secili}
-                vurgulanabilir={vurgulanabilir}
-                onSec={() => onVurgula(secili ? null : k.anahtar)}
-              />
-            </li>
-          );
-        })}
-      </ul>
+      <GsapCollapse open={acik} className="border-t border-border/40">
+        <ul className="flex flex-col">
+          {kriterler.map((k) => {
+            const vurgulanabilir =
+              k.suclular.araclar.length > 0 || k.suclular.duraklar.length > 0;
+            const secili = vurgulanan === k.anahtar;
+            return (
+              <li key={k.anahtar} className="border-b border-border/25 last:border-b-0">
+                <KriterSatiri
+                  kriter={k}
+                  secili={secili}
+                  vurgulanabilir={vurgulanabilir}
+                  onSec={() => onVurgula(secili ? null : k.anahtar)}
+                />
+              </li>
+            );
+          })}
+        </ul>
+      </GsapCollapse>
     </div>
   );
 }
@@ -215,11 +218,11 @@ function KriterSatiri({
         Açıklama görünür metin, `title` değil: bu cümleler kararın gerekçesi
         ve dokunmatikte/ekran okuyucuda kaybolmamalı.
       */}
-      {aciklamaAcik ? (
+      <GsapCollapse open={aciklamaAcik}>
         <p className="px-3 pb-2 text-[11px] leading-relaxed text-muted-foreground">
           {kriter.aciklama}
         </p>
-      ) : null}
+      </GsapCollapse>
     </div>
   );
 }

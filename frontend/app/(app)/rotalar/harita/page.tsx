@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
@@ -11,9 +11,11 @@ import {
   TruckIcon,
 } from "lucide-react";
 
+import { DurakDetayKarti, type DurakSecimi } from "@/components/rota/DurakDetayKarti";
 import { PlanKarnesi } from "@/components/rota/PlanKarnesi";
 import { aracRengi, RotaHaritasi, type HaritaRotasi } from "@/components/rota/RotaHaritasi";
 import { AppSidebarMobileTrigger } from "@/components/sidebar/AppSidebar";
+import { toastManager } from "@/components/ui/toast";
 import { useKayitliPlanlar, type KayitliDurak } from "@/hooks/useKayitliPlanlar";
 import { useRaporTazeligi } from "@/hooks/useMusteriRaporlama";
 import { ROTA_REPORT_ID, type RotaDuragi } from "@/hooks/useRotaPlani";
@@ -129,6 +131,70 @@ export default function RotaHaritasiSayfasi() {
   const [odak, setOdak] = useState<string | null>(() => odakAracParam);
   const [havuzGoster, setHavuzGoster] = useState(true);
 
+  /** Haritada tıklanan durak — bilgi kartı bunun üzerine kurulur. */
+  const [seciliDurak, setSeciliDurak] = useState<DurakSecimi | null>(null);
+  const [cikariliyor, setCikariliyor] = useState(false);
+  const [ekleniyorAracKod, setEkleniyorAracKod] = useState<string | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  /**
+   * Rotadan çıkar — KAYITLI moddaki dondurulmuş plana dokunmaz (o zaten
+   * `canli.durakCikar` yerine kendi salt-okunur verisiyle gösteriliyor;
+   * `gecmisMod` kontrolü burada yalnız düğmenin yanlışlıkla bugünün CANLI
+   * taslağını değiştirmesini engelliyor).
+   */
+  const durakRotadanCikar = useCallback(async () => {
+    if (gecmisMod || !seciliDurak?.rota || cikariliyor) return;
+    const { durak, rota } = seciliDurak;
+    setCikariliyor(true);
+    try {
+      canli.durakCikar(durak.musteriKodu);
+      toastManager.add({
+        type: "success",
+        title: `${durak.unvan} rotadan çıkarıldı`,
+        description: `${rota.aracAd} — durak havuza geri döndü.`,
+      });
+    } finally {
+      setCikariliyor(false);
+      setSeciliDurak(null);
+    }
+  }, [gecmisMod, seciliDurak, cikariliyor, canli]);
+
+  /**
+   * Havuzdaki bir durağı bir araca ekle — `BolgeOzeti`'nin toplu yükleme
+   * akışındaki AYNI stale-closure önlemi: `optimizeEt`'e `aracDuraklari`'nın
+   * henüz güncellenmemiş (React state batching) hâli yerine elimizdeki taze
+   * listeyi (`duraklarOverride`) veriyoruz.
+   */
+  const durakRotayaEkle = useCallback(
+    async (aracKod: string) => {
+      if (gecmisMod || !seciliDurak || seciliDurak.rota != null || ekleniyorAracKod != null) {
+        return;
+      }
+      const { durak } = seciliDurak;
+      const arac = canli.aracBul(aracKod);
+      if (!arac) return;
+      setEkleniyorAracKod(aracKod);
+      try {
+        canli.durakEkle(durak.musteriKodu, aracKod);
+        const yeniListe = [...canli.aracDuraklari(aracKod), durak];
+        toastManager.add({
+          type: "success",
+          title: `${durak.unvan} → ${arac.ad}`,
+          description: "Rotaya eklendi, güzergah yeniden hesaplanıyor…",
+        });
+        const koordinatli = yeniListe.filter((d) => d.lat != null && d.lon != null);
+        if (koordinatli.length >= 2) {
+          await canli.optimizeEt(aracKod, yeniListe);
+        }
+      } finally {
+        setEkleniyorAracKod(null);
+        setSeciliDurak(null);
+      }
+    },
+    [gecmisMod, seciliDurak, ekleniyorAracKod, canli]
+  );
+
   /** Kayıtlı günün/planın hangi tarihe ait olduğu — başlıkta gösterilecek. */
   const gecmisTarih = useMemo(() => {
     if (!gecmisMod) return null;
@@ -173,6 +239,15 @@ export default function RotaHaritasiSayfasi() {
     odak != null && yuklu.some((r) => r.aracKod === odak) ? odak : null;
 
   /**
+   * Odak ya da karne vurgusu değişince görünen küme değişir (`gorunenRotalar`/
+   * `gorunenHavuz`) — açık durak kartı artık haritada hiç çizilmeyen bir
+   * marker'a ait kalabilir. Aynı şekilde canlı/kayıtlı geçişinde de kapanır.
+   */
+  useEffect(() => {
+    setSeciliDurak(null);
+  }, [gecerliOdak, karneAnahtari, gecmisMod]);
+
+  /**
    * Karne satırı seçilince harita o satırın suçlularını gösterir: sayıyı
    * okuyup aracı elle aramak yerine sorun doğrudan görünür. Araç odağı
    * (soldaki liste) daha spesifik olduğu için önceliği o alıyor. Kayıtlı
@@ -208,29 +283,39 @@ export default function RotaHaritasiSayfasi() {
   const toplamDurak = gorunenRotalar.reduce((t, r) => t + r.duraklar.length, 0);
 
   return (
-    <div className="relative isolate min-h-0 min-w-0 flex-1 overflow-hidden">
-      <RotaHaritasi rotalar={gorunenRotalar} havuz={gorunenHavuz} />
+    <div ref={containerRef} className="relative isolate min-h-0 min-w-0 flex-1 overflow-hidden">
+      <RotaHaritasi
+        rotalar={gorunenRotalar}
+        havuz={gorunenHavuz}
+        onDurakSec={setSeciliDurak}
+        onBosaTikla={() => setSeciliDurak(null)}
+      />
 
       <div className="pointer-events-none absolute inset-0 z-10 flex flex-col justify-between gap-2 p-2 sm:p-3 md:p-4">
-        {/* Sol üst: geri + araç listesi */}
-        <div className="flex min-h-0 flex-wrap items-start gap-2">
+        {/* Sol üst: geri + araç listesi — ikisi ayrı kart, DurakDetayKarti'yle aynı "her panel kendi camı" dili */}
+        <div className="flex min-h-0 flex-col items-start gap-2">
+          <div
+            className={cn(
+              "pointer-events-auto flex shrink-0 items-center gap-2 rounded-2xl px-2.5 py-2",
+              CAM
+            )}
+          >
+            <AppSidebarMobileTrigger embedded />
+            <Link
+              href="/rotalar"
+              className="flex min-w-0 items-center gap-1.5 text-[12px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <ArrowLeftIcon className="size-3.5 shrink-0" strokeWidth={1.75} aria-hidden />
+              <span className="truncate">Planlamaya dön</span>
+            </Link>
+          </div>
+
           <div
             className={cn(
               "pointer-events-auto flex min-w-0 max-w-[20rem] flex-col overflow-hidden rounded-2xl",
               CAM
             )}
           >
-            <div className="flex h-11 shrink-0 items-center gap-2 border-b border-border/40 px-2.5">
-              <AppSidebarMobileTrigger embedded />
-              <Link
-                href="/rotalar"
-                className="flex min-w-0 items-center gap-1.5 text-[12px] font-medium text-muted-foreground transition-colors hover:text-foreground"
-              >
-                <ArrowLeftIcon className="size-3.5 shrink-0" strokeWidth={1.75} aria-hidden />
-                <span className="truncate">Planlamaya dön</span>
-              </Link>
-            </div>
-
             {/*
               Kayıtlı mod rozeti — bu haritanın CANLI taslak olmadığı, geçmişe
               dondurulmuş bir gün olduğu açık olmalı. Aksi halde "Kaydedilenler"
@@ -400,6 +485,19 @@ export default function RotaHaritasiSayfasi() {
           </div>
         </div>
       </div>
+
+      {seciliDurak ? (
+        <DurakDetayKarti
+          secim={seciliDurak}
+          containerRef={containerRef}
+          filo={gecmisMod ? null : canli.araclar}
+          onClose={() => setSeciliDurak(null)}
+          onRotadanCikar={gecmisMod ? null : durakRotadanCikar}
+          onRotayaEkle={gecmisMod ? null : durakRotayaEkle}
+          cikariliyor={cikariliyor}
+          ekleniyorAracKod={ekleniyorAracKod}
+        />
+      ) : null}
     </div>
   );
 }
