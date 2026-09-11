@@ -168,7 +168,9 @@ function yerlesmemeNedeniGruplaniyor() {
     { durak: durak("z", 10, 100), neden: "koordinat-yok" },
   ];
   const k = bul(kriterleriHesapla(girdi({ yerlesmeyen })), "guvenilirlik");
-  assert.equal(k.durum, "sorun", "koordinat-yok ağır neden");
+  // Neden ne olursa olsun (koordinatsız dahil) yerleşmeyen durak en fazla
+  // "dikkat" — kırmızıyı yalnız veri bayatlığı gibi ayrı bir sinyal taşır.
+  assert.equal(k.durum, "dikkat", "yerleşmeyen durak uyarı, sorun değil");
   assert.match(k.aciklama, /2 durak araç var, şoför yok/);
   assert.match(k.aciklama, /1 durak koordinatı yok/);
   assert.deepEqual(k.suclular.duraklar, ["x", "y", "z"]);
@@ -185,7 +187,7 @@ function bayatVeriGuvenilirligiDusuruyor() {
   console.log("kriter: bayat veri güvenilirliği düşürüyor ok");
 }
 
-function soforsuzYukluAracSorun() {
+function soforsuzYukluAracDikkat() {
   const filo: FiloSecimi<Arac> = {
     secilen: [NPR, KANGOO],
     atamalar: { npr10: MEHMET }, // Kangoo'ya şoför düşmedi
@@ -206,9 +208,9 @@ function soforsuzYukluAracSorun() {
     ),
     "surusGuvenligi"
   );
-  assert.equal(k.durum, "sorun");
+  assert.equal(k.durum, "dikkat");
   assert.deepEqual(k.suclular.araclar, ["kangoo"]);
-  console.log("kriter: şoförsüz yüklü araç sorun ok");
+  console.log("kriter: şoförsüz yüklü araç dikkat ok");
 }
 
 function kapasiteAsimiSorun() {
@@ -258,12 +260,11 @@ function ozetEnKotuyuTasiyor() {
   assert.equal(temiz.sorun, 0);
   assert.equal(temiz.durum, "iyi");
 
+  // yerlesmeyen artık her nedende en fazla "dikkat" ürettiği için (bkz.
+  // yerlesmemeNedeniGruplaniyor) burada gerçekten "sorun" üreten ayrı bir
+  // sinyal kullanılıyor: çok bayat veri.
   const bozuk = karneOzeti(
-    kriterleriHesapla(
-      girdi({
-        yerlesmeyen: [{ durak: durak("z", 10, 100), neden: "kapasite-yetersiz" }],
-      })
-    )
+    kriterleriHesapla(girdi({ veriYasiSaat: 100 }))
   );
   assert.ok(bozuk.sorun >= 1);
   assert.equal(bozuk.durum, "sorun");
@@ -287,7 +288,7 @@ uzunGunUyariyor();
 maliyetDaimaTahmini();
 yerlesmemeNedeniGruplaniyor();
 bayatVeriGuvenilirligiDusuruyor();
-soforsuzYukluAracSorun();
+soforsuzYukluAracDikkat();
 kapasiteAsimiSorun();
 yayilimVeBolunmeSahaZorlugu();
 ozetEnKotuyuTasiyor();

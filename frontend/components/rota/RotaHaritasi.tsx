@@ -211,13 +211,31 @@ function createYonEl(aracAd: string, renk: string, aci: number): HTMLDivElement 
 
 function lineFeature(
   coords: LngLat[],
-  renk: string
+  renk: string,
+  seritKaymasi: number
 ): GeoJSON.Feature<GeoJSON.LineString> {
   return {
     type: "Feature",
-    properties: { renk },
+    properties: { renk, kaymasi: seritKaymasi },
     geometry: { type: "LineString", coordinates: coords },
   };
+}
+
+/** Aynı yolu paylaşan araçları ekranda ayırmak için piksel cinsinden şerit aralığı. */
+const SERIT_ARALIGI_PX = 3.5;
+
+/**
+ * Bir aracın kaç numaralı "şeritte" çizileceği — `count` kadar araç aynı
+ * yolu paylaşıyorsa (depodan çıkışta neredeyse hep öyle) çizgiler tam
+ * üst üste binip yalnız birini gösteriyordu; her araca sabit küçük bir
+ * perpendicular offset vererek Apple/Google'ın toplu taşıma haritalarındaki
+ * gibi paralel, renk renk ayrılmış şeritler oluşturuyor. `index`, `rotalar`
+ * dizisindeki sırası — aynı zamanda `aracRengi(index)`in kullandığı sıra,
+ * yani renk ile şerit konumu hep eşleşir.
+ */
+function seritKaymasiHesapla(index: number, count: number): number {
+  if (count <= 1) return 0;
+  return (index - (count - 1) / 2) * SERIT_ARALIGI_PX;
 }
 
 /**
@@ -317,6 +335,8 @@ export function RotaHaritasi({ rotalar, havuz, onDurakSec, onBosaTikla }: RotaHa
           "line-width": ["interpolate", ["linear"], ["zoom"], 6, 6, 12, 10, 16, 14],
           "line-opacity": 0.9,
           "line-blur": 0.6,
+          // Aynı yolu paylaşan araçlar üst üste binmesin — bkz. seritKaymasiHesapla.
+          "line-offset": ["get", "kaymasi"],
         },
       });
     }
@@ -330,6 +350,7 @@ export function RotaHaritasi({ rotalar, havuz, onDurakSec, onBosaTikla }: RotaHa
           "line-color": ["get", "renk"],
           "line-width": ["interpolate", ["linear"], ["zoom"], 6, 3, 12, 6, 16, 9],
           "line-opacity": 1,
+          "line-offset": ["get", "kaymasi"],
         },
       });
     }
@@ -443,9 +464,13 @@ export function RotaHaritasi({ rotalar, havuz, onDurakSec, onBosaTikla }: RotaHa
     const duzCizgiler: GeoJSON.FeatureCollection<GeoJSON.LineString> = {
       type: "FeatureCollection",
       features: rotalarGuncel
-        .map((r) => ({ coords: rotaNoktalari(r.duraklar), renk: r.renk }))
+        .map((r, i) => ({
+          coords: rotaNoktalari(r.duraklar),
+          renk: r.renk,
+          kaymasi: seritKaymasiHesapla(i, rotalarGuncel.length),
+        }))
         .filter((x) => x.coords.length >= 2)
-        .map((x) => lineFeature(x.coords, x.renk)),
+        .map((x) => lineFeature(x.coords, x.renk, x.kaymasi)),
     };
     (map.getSource(LINE_SOURCE) as mapboxgl.GeoJSONSource | undefined)?.setData(duzCizgiler);
 
@@ -480,11 +505,11 @@ export function RotaHaritasi({ rotalar, havuz, onDurakSec, onBosaTikla }: RotaHa
     routeAbortRef.current = ac;
 
     void Promise.all(
-      rotalarGuncel.map(async (r) => {
+      rotalarGuncel.map(async (r, i) => {
         const coords = rotaNoktalari(r.duraklar);
         if (coords.length < 2) return null;
         const yol = await fetchDrivingRoute(coords, ac.signal);
-        return lineFeature(yol ?? coords, r.renk);
+        return lineFeature(yol ?? coords, r.renk, seritKaymasiHesapla(i, rotalarGuncel.length));
       })
     )
       .then((features) => {

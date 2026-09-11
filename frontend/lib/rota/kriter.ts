@@ -90,12 +90,6 @@ const NEDEN_METNI: Record<YerlesmeyenDurak["neden"], string> = {
   "sofor-yok": "araç var, şoför yok",
 };
 
-/** Yerleşmeme nedenlerinden hangileri planı gerçekten bozar. */
-const AGIR_NEDENLER: ReadonlySet<YerlesmeyenDurak["neden"]> = new Set([
-  "koordinat-yok",
-  "kapasite-yetersiz",
-]);
-
 /** Durumların en kötüsü — birden çok sinyali tek satırda toplarken. */
 function enKotu(...durumlar: KriterDurumu[]): KriterDurumu {
   if (durumlar.includes("sorun")) return "sorun";
@@ -314,7 +308,6 @@ function guvenilirlikKriteri(g: KriterGirdisi): Kriter {
     sayac.set(y.neden, liste);
   }
 
-  const agirVar = [...sayac.keys()].some((n) => AGIR_NEDENLER.has(n));
   const yasSaat = g.veriYasiSaat;
   const veriDurumu: KriterDurumu =
     yasSaat == null
@@ -325,10 +318,11 @@ function guvenilirlikKriteri(g: KriterGirdisi): Kriter {
           ? "dikkat"
           : "iyi";
 
-  const durum = enKotu(
-    agirVar ? "sorun" : g.yerlesmeyen.length > 0 ? "dikkat" : "iyi",
-    veriDurumu
-  );
+  // Yerleşmeyen durak — nedeni ne olursa olsun (koordinatsız, kapasite,
+  // şoför…) en fazla "dikkat": planlamacının haberi olsun istiyoruz ama bu
+  // tek başına "sorun" (kırmızı) düzeyinde bir engel değil, sık karşılaşılan
+  // ve genelde bir sonraki turda ya da elle çözülen bir durum.
+  const durum = enKotu(g.yerlesmeyen.length > 0 ? "dikkat" : "iyi", veriDurumu);
 
   const parcalar: string[] = [];
   if (sayac.size > 0) {
@@ -386,8 +380,11 @@ function surusGuvenligiKriteri(g: KriterGirdisi): Kriter {
     })
     .map((y) => y.arac.kod);
 
+  // Şoförsüz yüklü araç da en fazla "dikkat": kadro güne göre değişebiliyor,
+  // planlama aşamasında sık rastlanan, genelde şoför ataması tamamlanınca
+  // kendiliğinden kapanan geçici bir durum — "sorun" (kırmızı) fazla ağır.
   const durum = enKotu(
-    soforsuz.length > 0 ? "sorun" : "iyi",
+    soforsuz.length > 0 ? "dikkat" : "iyi",
     molali.length > 0 ? "dikkat" : "iyi"
   );
 
@@ -396,7 +393,7 @@ function surusGuvenligiKriteri(g: KriterGirdisi): Kriter {
     parcalar.push(
       `${soforsuz.length} yüklü araca şoför düşmedi — kadro ${
         g.filo.soforSayisi.B + g.filo.soforSayisi.C
-      } kişi. Bu plan sahada uygulanamaz.`
+      } kişi. Şoför atanmadan bu araç sahaya çıkamaz.`
     );
   }
   if (molali.length > 0) {
