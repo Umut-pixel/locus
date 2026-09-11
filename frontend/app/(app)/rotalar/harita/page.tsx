@@ -2,11 +2,23 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowLeftIcon, LayersIcon, TruckIcon } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import {
+  ArchiveIcon,
+  ArrowLeftIcon,
+  LayersIcon,
+  LoaderIcon,
+  TruckIcon,
+} from "lucide-react";
 
-import { RotaHaritasi } from "@/components/rota/RotaHaritasi";
+import { PlanKarnesi } from "@/components/rota/PlanKarnesi";
+import { aracRengi, RotaHaritasi, type HaritaRotasi } from "@/components/rota/RotaHaritasi";
 import { AppSidebarMobileTrigger } from "@/components/sidebar/AppSidebar";
+import { useKayitliPlanlar, type KayitliDurak } from "@/hooks/useKayitliPlanlar";
+import { useRaporTazeligi } from "@/hooks/useMusteriRaporlama";
+import { ROTA_REPORT_ID, type RotaDuragi } from "@/hooks/useRotaPlani";
 import { formatKg, formatNumber } from "@/lib/format";
+import { kriterleriHesapla, type KriterAnahtari } from "@/lib/rota/kriter";
 import { cn } from "@/lib/utils";
 
 import { useRotaPlaniBaglami } from "../RotaPlaniProvider";
@@ -19,6 +31,39 @@ const CAM =
   "border border-border/45 bg-popover/66 text-popover-foreground " +
   "shadow-[0_14px_40px_-16px_rgba(0,0,0,0.55)] backdrop-blur-[24px] backdrop-saturate-150";
 
+function tarihMetni(iso: string): string {
+  const d = new Date(`${iso}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString("tr-TR", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+}
+
+/**
+ * Kaydedilmiş bir durak — dondurulmuş kayıttan gelir, canlı `RotaDuragi`nin
+ * yalnız bir kısmını taşır. Eksik alanlar (sipariş sayısı, brüt tutar, yaş)
+ * haritanın hiç kullanmadığı alanlar; nötr varsayılanla dolduruluyor.
+ */
+function kayitliyiRotaDuraginaCevir(d: KayitliDurak): RotaDuragi {
+  return {
+    musteriKodu: d.musteriKodu,
+    unvan: d.unvan ?? d.musteriKodu,
+    lat: d.lat,
+    lon: d.lon,
+    kg: d.kg,
+    cuvalEsdeger: d.cuvalEsdeger,
+    olcusuzSatir: 0,
+    ilce: d.ilce,
+    sehir: d.sehir,
+    riskDurumu: d.riskDurumu,
+    siparisSayisi: 0,
+    brutTutar: 0,
+    yasGun: null,
+  };
+}
+
 /**
  * Tam ekran rota haritası.
  *
@@ -26,13 +71,91 @@ const CAM =
  * `pointer-events-none` overlay katmanı, panellerde `pointer-events-auto`.
  * Perde `RotaHaritasi` içindeki `revealStageVeil` ile kalkıyor — harita bu
  * rotaya girildiğinde mount edildiği için geçiş her seferinde oynuyor.
+ *
+ * İki mod var:
+ * - CANLI (varsayılan): üzerinde çalışılan taslak, `RotaPlaniProvider`'dan.
+ * - KAYITLI (`?gun=` ya da `?planId=` verilince): `Kaydedilenler` sekmesinden
+ *   "haritada göster" ile açılan, o günkü DONDURULMUŞ plan — salt okunur,
+ *   plan karnesi yok (karne canlı plana göre hesaplanıyor, dondurulmuş bir
+ *   günün yanında göstermek yanıltıcı olurdu).
  */
 export default function RotaHaritasiSayfasi() {
-  const { rotalar, havuz, loading } = useRotaPlaniBaglami();
+  const searchParams = useSearchParams();
+  const gecmisGun = searchParams.get("gun");
+  const gecmisPlanId = searchParams.get("planId");
+  const gecmisMod = gecmisGun != null || gecmisPlanId != null;
+
+  const canli = useRotaPlaniBaglami();
+  const kayitli = useKayitliPlanlar();
+
+  /** Sipariş verisinin yaşı — güvenilirlik kriterine giriyor (yalnız canlı modda). */
+  const { saatOnce } = useRaporTazeligi(ROTA_REPORT_ID);
+
+  const kriterler = useMemo(
+    () =>
+      gecmisMod
+        ? []
+        : kriterleriHesapla({
+            metrik: canli.mevcutMetrik,
+            yukler: canli.mevcutSonuc.yukler,
+            filo: canli.filo,
+            yerlesmeyen: canli.mevcutSonuc.yerlesmeyen,
+            rotaBilgileri: canli.rotaBilgileri,
+            veriYasiSaat: saatOnce,
+          }),
+    [
+      gecmisMod,
+      canli.mevcutMetrik,
+      canli.mevcutSonuc,
+      canli.filo,
+      canli.rotaBilgileri,
+      saatOnce,
+    ]
+  );
+
+  /**
+   * Karnede seçili satır. Yalnız ANAHTAR saklanıyor; suçlular her zaman güncel
+   * `kriterler`den türetiliyor — plan değiştiğinde vurgu bayat kalmasın.
+   */
+  const [karneAnahtari, setKarneAnahtari] = useState<KriterAnahtari | null>(null);
 
   /** Tek araca odaklan — null ise hepsi görünür. */
   const [odak, setOdak] = useState<string | null>(null);
   const [havuzGoster, setHavuzGoster] = useState(true);
+
+  /** Kayıtlı günün/planın hangi tarihe ait olduğu — başlıkta gösterilecek. */
+  const gecmisTarih = useMemo(() => {
+    if (!gecmisMod) return null;
+    if (gecmisGun) return gecmisGun;
+    const plan = kayitli.gunler
+      .flatMap((g) => g.planlar)
+      .find((p) => p.id === gecmisPlanId);
+    return plan?.planTarihi ?? null;
+  }, [gecmisMod, gecmisGun, gecmisPlanId, kayitli.gunler]);
+
+  /** Kayıtlı moddaki rotalar — o günün ya da o tek planın araçları. */
+  const gecmisRotalar = useMemo<HaritaRotasi[]>(() => {
+    if (!gecmisMod) return [];
+    const planlar = gecmisPlanId
+      ? kayitli.gunler
+          .flatMap((g) => g.planlar)
+          .filter((p) => p.id === gecmisPlanId)
+      : (kayitli.gunler.find((g) => g.planTarihi === gecmisGun)?.planlar ?? []);
+
+    return planlar.map((p, i) => ({
+      aracKod: p.aracKod,
+      aracAd: p.aracAd,
+      renk: aracRengi(i),
+      duraklar: p.duraklar
+        .slice()
+        .sort((a, b) => a.sira - b.sira)
+        .map(kayitliyiRotaDuraginaCevir),
+    }));
+  }, [gecmisMod, gecmisGun, gecmisPlanId, kayitli.gunler]);
+
+  const rotalar = gecmisMod ? gecmisRotalar : canli.rotalar;
+  const havuz = gecmisMod ? ([] as RotaDuragi[]) : canli.havuz;
+  const loading = gecmisMod ? kayitli.loading : canli.loading;
 
   const yuklu = useMemo(
     () => rotalar.filter((r) => r.duraklar.length > 0),
@@ -43,12 +166,35 @@ export default function RotaHaritasiSayfasi() {
   const gecerliOdak =
     odak != null && yuklu.some((r) => r.aracKod === odak) ? odak : null;
 
+  /**
+   * Karne satırı seçilince harita o satırın suçlularını gösterir: sayıyı
+   * okuyup aracı elle aramak yerine sorun doğrudan görünür. Araç odağı
+   * (soldaki liste) daha spesifik olduğu için önceliği o alıyor. Kayıtlı
+   * modda karne yok, bu yüzden bu blok hep boş kalır.
+   */
+  const secilenKriter =
+    karneAnahtari != null
+      ? (kriterler.find((k) => k.anahtar === karneAnahtari) ?? null)
+      : null;
+  const karneAraclari = secilenKriter?.suclular.araclar ?? [];
+  const karneDuraklari = secilenKriter?.suclular.duraklar ?? [];
+
   const gorunenRotalar = gecerliOdak
     ? yuklu.filter((r) => r.aracKod === gecerliOdak)
-    : yuklu;
+    : karneAraclari.length > 0
+      ? yuklu.filter((r) => karneAraclari.includes(r.aracKod))
+      : yuklu;
 
   // Tek araca odaklanınca havuz dikkat dağıtır; gizli tutuluyor.
-  const gorunenHavuz = havuzGoster && gecerliOdak == null ? havuz : [];
+  // Karne "yerleşmeyen durak" satırını gösteriyorsa havuz asıl konu — açılır.
+  const gorunenHavuz =
+    gecerliOdak != null
+      ? []
+      : karneDuraklari.length > 0
+        ? havuz.filter((d) => karneDuraklari.includes(d.musteriKodu))
+        : havuzGoster
+          ? havuz
+          : [];
 
   const odakla = (aracKod: string) =>
     setOdak((o) => (o === aracKod ? null : aracKod));
@@ -79,12 +225,41 @@ export default function RotaHaritasiSayfasi() {
               </Link>
             </div>
 
+            {/*
+              Kayıtlı mod rozeti — bu haritanın CANLI taslak olmadığı, geçmişe
+              dondurulmuş bir gün olduğu açık olmalı. Aksi halde "Kaydedilenler"
+              sekmesinden gelen biri bugünün planını görüyor sanabilir.
+            */}
+            {gecmisMod ? (
+              <div className="flex shrink-0 items-center gap-1.5 border-b border-border/40 bg-accent/30 px-2.5 py-1.5">
+                <ArchiveIcon className="size-3 shrink-0 text-muted-foreground" strokeWidth={1.75} aria-hidden />
+                <span className="min-w-0 flex-1 truncate text-[11.5px] text-muted-foreground">
+                  Kaydedilmiş plan
+                  {gecmisTarih ? ` — ${tarihMetni(gecmisTarih)}` : ""}
+                </span>
+                <Link
+                  href="/rotalar/harita"
+                  className="shrink-0 text-[11px] text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+                  title="Bugünkü canlı taslağa dön"
+                >
+                  Canlıya dön
+                </Link>
+              </div>
+            ) : null}
+
             <div className="max-h-[60vh] min-h-0 overflow-y-auto">
               {yuklu.length === 0 ? (
-                <p className="px-2.5 py-3 text-[12px] text-muted-foreground">
-                  {loading
-                    ? "Yükleniyor…"
-                    : "Henüz araca durak atanmadı — planlama ekranından dağıtın."}
+                <p className="flex items-center gap-2 px-2.5 py-3 text-[12px] text-muted-foreground">
+                  {loading ? (
+                    <>
+                      <LoaderIcon className="size-3.5 shrink-0 animate-spin" strokeWidth={1.75} aria-hidden />
+                      Yükleniyor…
+                    </>
+                  ) : gecmisMod ? (
+                    "Bu tarihte kayıtlı plan bulunamadı."
+                  ) : (
+                    "Henüz araca durak atanmadı — planlama ekranından dağıtın."
+                  )}
                 </p>
               ) : (
                 <ul className="divide-y divide-border/30">
@@ -170,27 +345,54 @@ export default function RotaHaritasiSayfasi() {
           </div>
         </div>
 
-        {/* Sağ alt: özet */}
-        {yuklu.length > 0 ? (
-          <div className="flex justify-end">
-            <div
-              className={cn(
-                "pointer-events-auto flex items-center gap-2 rounded-xl px-3 py-1.5",
-                CAM
-              )}
-            >
-              <TruckIcon
-                className="size-3.5 shrink-0 text-muted-foreground"
-                strokeWidth={1.75}
-                aria-hidden
+        {/*
+          Sağ alt: plan karnesi + özet (yalnız CANLI modda — karne canlı plana
+          göre hesaplanıyor, dondurulmuş bir günün yanında göstermek yanıltıcı
+          olurdu). Kayıtlı modda yerine sade bir özet çipi var.
+        */}
+        <div className="flex justify-end">
+          <div
+            className={cn(
+              "pointer-events-auto flex w-[min(100%,20rem)] min-w-0 flex-col overflow-hidden rounded-2xl",
+              CAM
+            )}
+          >
+            {!gecmisMod ? (
+              <PlanKarnesi
+                kriterler={kriterler}
+                vurgulanan={karneAnahtari}
+                onVurgula={(anahtar) => {
+                  setKarneAnahtari(anahtar);
+                  // Araç odağı karne vurgusunu ezmesin diye sıfırlanır.
+                  if (anahtar != null) setOdak(null);
+                }}
               />
-              <span className="font-mono text-[12px] text-foreground tabular-nums">
-                {formatNumber(gorunenRotalar.length)} araç ·{" "}
-                {formatNumber(toplamDurak)} durak
-              </span>
-            </div>
+            ) : null}
+
+            {yuklu.length > 0 ? (
+              <div className="flex shrink-0 items-center gap-2 border-t border-border/40 px-3 py-1.5 first:border-t-0">
+                <TruckIcon
+                  className="size-3.5 shrink-0 text-muted-foreground"
+                  strokeWidth={1.75}
+                  aria-hidden
+                />
+                <span className="font-mono text-[12px] text-foreground tabular-nums">
+                  {formatNumber(gorunenRotalar.length)} araç ·{" "}
+                  {formatNumber(toplamDurak)} durak
+                </span>
+                {karneAnahtari != null ? (
+                  <button
+                    type="button"
+                    onClick={() => setKarneAnahtari(null)}
+                    className="ml-auto shrink-0 text-[11.5px] text-muted-foreground underline-offset-2 transition-colors hover:text-foreground hover:underline"
+                  >
+                    Vurguyu kaldır
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
           </div>
-        ) : null}
+        </div>
       </div>
     </div>
   );

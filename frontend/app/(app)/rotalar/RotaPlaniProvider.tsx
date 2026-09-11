@@ -4,13 +4,13 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
   useSyncExternalStore,
   type ReactNode,
 } from "react";
 
-import type { RotaBilgisi } from "@/components/rota/AracKarti";
 import { aracRengi, type HaritaRotasi } from "@/components/rota/RotaHaritasi";
 import type { EtkiSecenegi } from "@/components/rota/EtkiPaneli";
 import {
@@ -23,10 +23,13 @@ import { DEPOT } from "@/lib/depot";
 import { formatNumber } from "@/lib/format";
 import {
   dolulukHesapla,
+  yerlesmemeNedeni,
+  type AtamaSonucu,
   type FiloSecimi,
   type Sofor,
 } from "@/lib/rota/atama";
 import { bolgele, type Bolge } from "@/lib/rota/bolge";
+import type { RotaBilgisi } from "@/lib/rota/google-routes";
 import { sonrakiKalkis } from "@/lib/rota/operasyon";
 import { planMetrigi, planOlustur, type PlanMetrigi } from "@/lib/rota/planla";
 import {
@@ -95,6 +98,8 @@ interface RotaPlaniDegeri {
   optimizeHatalari: Record<string, string>;
 
   // Ölçüm
+  /** Planın atama sonucu biçimi — metrik ve plan karnesi aynı kaynaktan okur. */
+  mevcutSonuc: AtamaSonucu;
   mevcutMetrik: PlanMetrigi;
   etkiSecenekleri: EtkiSecenegi[];
 
@@ -184,6 +189,16 @@ export function RotaPlaniProvider({ children }: { children: ReactNode }) {
   >({});
   const [kaydediliyor, setKaydediliyor] = useState(false);
   const [kayitDurumu, setKayitDurumu] = useState<KayitDurumu | null>(null);
+
+  /**
+   * Başarı şeridi kendiliğinden kapanır — eskiden kalıcıydı ve sayfayı sürekli
+   * aşağı itiyordu. Hata mesajı kalır: kullanıcının görmesi gereken bir iş var.
+   */
+  useEffect(() => {
+    if (kayitDurumu?.tur !== "ok") return;
+    const t = setTimeout(() => setKayitDurumu(null), 6000);
+    return () => clearTimeout(t);
+  }, [kayitDurumu]);
 
   const durakHaritasi = useMemo(() => {
     const m = new Map<string, RotaDuragi>();
@@ -473,19 +488,36 @@ export function RotaPlaniProvider({ children }: { children: ReactNode }) {
    * Ekrandaki planın ölçümü. Elle düzenlenmiş plan da dahil — kullanıcı bir
    * durağı taşıdığında doluluk ve güzergâh anında güncellenir.
    */
-  const mevcutMetrik = useMemo(
-    () =>
-      planMetrigi({
-        yukler: araclar.map((arac) => {
-          const d = aracDuraklari(arac.kod);
-          return { arac, duraklar: d, doluluk: dolulukHesapla(arac, d) };
-        }),
-        yerlesmeyen: havuz.map((durak) => ({
-          durak,
-          neden: "arac-yok" as const,
-        })),
+  /**
+   * Ekrandaki planın atama sonucu biçiminde hâli. Hem metrik hem plan karnesi
+   * bunu okuyor — iki yerde ayrı kurulursa ölçüm ile karne ayrışır.
+   */
+  const mevcutSonuc = useMemo<AtamaSonucu>(
+    () => ({
+      yukler: araclar.map((arac) => {
+        const d = aracDuraklari(arac.kod);
+        return { arac, duraklar: d, doluluk: dolulukHesapla(arac, d) };
       }),
-    [araclar, aracDuraklari, havuz]
+      /*
+        Neden ARTIK SABİT DEĞİL. Üç strateji de durak başına gerçek nedeni
+        hesaplıyor (`koordinat-yok` / `kapasite-yetersiz` / `arac-yok` /
+        `sofor-yok`) ama burada hepsi "arac-yok" diye eziliyordu: ekran
+        "N durak havuzda" diyor, NİÇİN olduğunu hiç söylemiyordu.
+      */
+      yerlesmeyen: havuz.map((durak) => ({
+        durak,
+        neden:
+          durak.lat == null || durak.lon == null
+            ? ("koordinat-yok" as const)
+            : yerlesmemeNedeni(durak, cikanAraclar, araclar),
+      })),
+    }),
+    [araclar, cikanAraclar, aracDuraklari, havuz]
+  );
+
+  const mevcutMetrik = useMemo(
+    () => planMetrigi(mevcutSonuc),
+    [mevcutSonuc]
   );
 
   /**
@@ -493,6 +525,10 @@ export function RotaPlaniProvider({ children }: { children: ReactNode }) {
    * "coğrafi mi doluluk mu" sorusu denemeden cevaplanabilsin diye.
    */
   const etkiSecenekleri = useMemo<EtkiSecenegi[]>(() => {
+    // `sabitlemeler` BURADA DA geçilmeli: `otomatikDagit` geçiyor. Geçilmezse
+    // kullanıcı bir bölgeyi araca sabitledikten sonra bu kart sabitlemesiz
+    // planın sayılarını gösterirken buton sabitlemeli plan üretiyordu —
+    // önizleme ile eylem sessizce ayrışıyordu.
     const uret = (strateji: Tercihler["strateji"], uzakAyir: boolean) =>
       planMetrigi(
         planOlustur({
@@ -502,6 +538,7 @@ export function RotaPlaniProvider({ children }: { children: ReactNode }) {
           depo: DEPOT,
           strateji,
           uzakAyir,
+          sabitlemeler,
         })
       );
 
@@ -531,6 +568,7 @@ export function RotaPlaniProvider({ children }: { children: ReactNode }) {
     araclar,
     tercihler.strateji,
     tercihler.uzakAyir,
+    sabitlemeler,
     tercihDegis,
   ]);
 
@@ -568,6 +606,7 @@ export function RotaPlaniProvider({ children }: { children: ReactNode }) {
       optimizeEdilen,
       rotaBilgileri,
       optimizeHatalari,
+      mevcutSonuc,
       mevcutMetrik,
       etkiSecenekleri,
       planiKaydet,
@@ -580,7 +619,7 @@ export function RotaPlaniProvider({ children }: { children: ReactNode }) {
       atananlar.size, bolgeler, durakBolgesi, sabitlemeler, bolgeSabitle,
       aracDuraklari, aracBul, rotalar, seciliArac, otomatikDagit,
       hepsiniTemizle, durakEkle, durakCikar, aracTemizle, optimizeEt,
-      optimizeEdilen, rotaBilgileri, optimizeHatalari, mevcutMetrik,
+      optimizeEdilen, rotaBilgileri, optimizeHatalari, mevcutSonuc, mevcutMetrik,
       etkiSecenekleri, planiKaydet, kaydediliyor, kayitDurumu,
     ]
   );

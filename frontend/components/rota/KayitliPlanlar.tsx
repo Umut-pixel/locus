@@ -1,10 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import {
   ArchiveIcon,
   ChevronDownIcon,
   LoaderIcon,
+  MapIcon,
   MapPinOffIcon,
   RotateCwIcon,
   TruckIcon,
@@ -123,10 +125,25 @@ function GunKarti({ gun }: { gun: KayitliGun }) {
         <h3 className="text-[13px] font-medium text-foreground">
           {tarihMetni(gun.planTarihi)}
         </h3>
-        <span className="font-mono text-[11.5px] text-muted-foreground tabular-nums">
-          {formatNumber(gun.planlar.length)} araç ·{" "}
-          {formatNumber(gun.toplamDurak)} durak · {formatKg(Math.round(gun.toplamKg))}
-        </span>
+        <div className="flex shrink-0 items-center gap-3">
+          <span className="font-mono text-[11.5px] text-muted-foreground tabular-nums">
+            {formatNumber(gun.planlar.length)} araç ·{" "}
+            {formatNumber(gun.toplamDurak)} durak · {formatKg(Math.round(gun.toplamKg))}
+          </span>
+          {/*
+            O günün TÜM araçlarını birden haritada göster — dondurulmuş bir
+            kaydı görmek için önce canlı plana bakıp "hangi araç neredeydi"
+            diye tek tek açmaya gerek kalmasın.
+          */}
+          <Link
+            href={`/rotalar/harita?gun=${encodeURIComponent(gun.planTarihi)}`}
+            className="flex shrink-0 items-center gap-1 text-[11.5px] text-muted-foreground underline-offset-2 transition-colors hover:text-foreground hover:underline"
+            title="Bu günün tüm araçlarını haritada göster"
+          >
+            <MapIcon className="size-3" strokeWidth={1.75} aria-hidden />
+            Haritada göster
+          </Link>
+        </div>
       </header>
 
       <div className="divide-y divide-border/40">
@@ -153,11 +170,18 @@ function PlanSatiri({ plan }: { plan: KayitliPlan }) {
 
   return (
     <div className="flex flex-col">
+      {/*
+        Satır İKİ AYRI etkileşim taşıyor: aç/kapa (buton) ve haritaya git
+        (link). `<a>` bir `<button>`in içine geçersiz HTML olacağı için
+        ikisi kardeş — `<Link>` en dışta olamaz, "Haritada göster" o yüzden
+        ayrı bir öğe olarak butonun YANINDA duruyor.
+      */}
+      <div className="flex min-w-0 items-center gap-2 px-3.5 py-2 transition-colors hover:bg-accent/40">
       <button
         type="button"
         onClick={() => setAcik((o) => !o)}
         aria-expanded={acik}
-        className="flex min-w-0 items-center gap-2 px-3.5 py-2 text-left transition-colors hover:bg-accent/40"
+        className="flex min-w-0 flex-1 items-center gap-2 text-left"
       >
         <TruckIcon
           className="size-3.5 shrink-0 text-muted-foreground"
@@ -206,6 +230,19 @@ function PlanSatiri({ plan }: { plan: KayitliPlan }) {
           aria-hidden
         />
       </button>
+
+      {/* Tek aracın rotasını haritada göster — satırın kendi aç/kapa'sından bağımsız. */}
+      {plan.duraklar.length > 0 ? (
+        <Link
+          href={`/rotalar/harita?planId=${encodeURIComponent(plan.id)}`}
+          className="flex shrink-0 items-center gap-1 rounded border border-border/70 px-1.5 py-0.5 text-[11px] text-muted-foreground transition-colors hover:border-foreground/40 hover:text-foreground"
+          title={`${plan.aracAd} — rotayı haritada göster`}
+        >
+          <MapIcon className="size-3 shrink-0" strokeWidth={1.75} aria-hidden />
+          <span className="hidden sm:inline">Haritada göster</span>
+        </Link>
+      ) : null}
+      </div>
 
       {acik ? (
         plan.duraklar.length === 0 ? (

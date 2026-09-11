@@ -3,12 +3,14 @@
 import { useCallback, useMemo, useState } from "react";
 import Link from "next/link";
 import {
+  AlertTriangleIcon,
   CheckIcon,
   ChevronRightIcon,
   ExternalLinkIcon,
   LoaderIcon,
   MapIcon,
   SaveIcon,
+  SendIcon,
   SparklesIcon,
   Undo2Icon,
 } from "lucide-react";
@@ -18,15 +20,14 @@ import { DurakHavuzu } from "@/components/rota/DurakHavuzu";
 import { EtkiPaneli } from "@/components/rota/EtkiPaneli";
 import { FiloKadroPaneli } from "@/components/rota/FiloKadroPaneli";
 import { KayitliPlanlar } from "@/components/rota/KayitliPlanlar";
-import { PaletIzgarasi } from "@/components/rota/PaletIzgarasi";
 import {
   HAVUZ_HEDEFI,
   SuruklemeSaglayici,
   useSurukleme,
   type SurukleYuku,
 } from "@/components/rota/surukleme";
-import { RotaOzetSeridi } from "@/components/rota/RotaOzetSeridi";
-import { TercihCubugu } from "@/components/rota/TercihCubugu";
+import { PlanDurumSeridi } from "@/components/rota/PlanDurumSeridi";
+import { TercihCekmecesi } from "@/components/rota/TercihCekmecesi";
 import type { HaritaRotasi } from "@/components/rota/RotaHaritasi";
 import { AppSidebarMobileTrigger } from "@/components/sidebar/AppSidebar";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
@@ -40,12 +41,19 @@ import { DEPOT, depoyaKm, googleMapsDirUrl } from "@/lib/depot";
 import { formatKg, formatNumber } from "@/lib/format";
 import { dolulukHesapla } from "@/lib/rota/atama";
 import type { Bolge } from "@/lib/rota/bolge";
+import { bolgeRengi } from "@/lib/rota/bolge-renk";
+import type { RotaBilgisi } from "@/lib/rota/google-routes";
+import {
+  gunUzunlugu,
+  saatMetni,
+  sonrakiKalkis,
+  sureMetni,
+  varisZamani,
+  YAYILIM_UYARI_KM,
+} from "@/lib/rota/operasyon";
 import { cn } from "@/lib/utils";
 
 import { useRotaPlaniBaglami } from "./RotaPlaniProvider";
-
-/** Bir araçtaki en yakın-en uzak durak farkı bu km'yi geçerse uyarı verilir. */
-const YAYILIM_UYARI_KM = 150;
 
 /**
  * Rota planlama — bento ana sayfa.
@@ -82,6 +90,7 @@ export default function RotalarPage() {
     durakCikar,
     mevcutMetrik,
     etkiSecenekleri,
+    rotaBilgileri,
     planiKaydet,
     kaydediliyor,
     kayitDurumu,
@@ -193,6 +202,10 @@ export default function RotalarPage() {
               type="button"
               onClick={() => void planiKaydet()}
               disabled={kaydediliyor}
+              /* Metin `sm` altında gizli, ikonlar `aria-hidden` — etiket olmazsa
+                 dar ekranda düğmenin erişilebilir adı hiç yok. */
+              aria-label="Planı kaydet"
+              title="Planı kaydet"
               className="flex shrink-0 items-center gap-1.5 rounded bg-foreground px-2.5 py-1.5 text-[12px] font-medium text-background transition-opacity hover:opacity-90 disabled:opacity-40"
             >
               {kaydediliyor ? (
@@ -206,13 +219,20 @@ export default function RotalarPage() {
         ) : null}
       </header>
 
+      {/* Durum mesajları duyurulmalı: `otomatikDagit` ve kaydetme ekranın
+          yarısını değiştiriyor ama modülde hiç canlı bölge yoktu. */}
       {error ? (
-        <p className="shrink-0 border-b border-destructive/25 bg-destructive/10 px-3.5 py-1.5 text-[12px] text-destructive">
+        <p
+          role="alert"
+          className="shrink-0 border-b border-destructive/25 bg-destructive/10 px-3.5 py-1.5 text-[12px] text-destructive"
+        >
           {error}
         </p>
       ) : null}
       {kayitDurumu ? (
         <p
+          role="status"
+          aria-live="polite"
           className={cn(
             "flex shrink-0 items-center gap-1.5 border-b px-3.5 py-1.5 text-[12px]",
             kayitDurumu.tur === "ok"
@@ -227,38 +247,49 @@ export default function RotalarPage() {
         </p>
       ) : null}
 
+      {/*
+        Durum şeridi kaydırma kabının DIŞINDA: ölçüm işin yanında kalmalı.
+        Eskiden özet + tercihler + etki üst üste üç tam genişlik şeritti
+        (~280px) ve hiçbiri sticky olmadığı için araç kartlarına inince hepsi
+        ekrandan kayıyordu.
+      */}
+      {sekme === "planlama" ? (
+        <PlanDurumSeridi
+          ozet={ozet}
+          filo={filo}
+          loading={loading}
+          sag={
+            <TercihCekmecesi
+              tercihler={tercihler}
+              onDegis={tercihDegis}
+              aracSayisi={araclar.length}
+              otomatikAracSayisi={cikanAraclar.length}
+              soforSayisi={ozet.soforSayisi.B + ozet.soforSayisi.C}
+              onFiloDuzenle={() => setFiloPaneliAcik(true)}
+              loading={loading}
+            />
+          }
+        />
+      ) : null}
+
       <div className="min-h-0 flex-1 overflow-y-auto">
         {sekme === "kayitli" ? (
           <KayitliPlanlar />
         ) : (
         <>
-        <RotaOzetSeridi ozet={ozet} filo={filo} loading={loading} />
-
-        <TercihCubugu
-          tercihler={tercihler}
-          onDegis={tercihDegis}
-          aracSayisi={araclar.length}
-          otomatikAracSayisi={cikanAraclar.length}
-          soforSayisi={ozet.soforSayisi.B + ozet.soforSayisi.C}
-          onFiloDuzenle={() => setFiloPaneliAcik(true)}
-          loading={loading}
-        />
-
-        <EtkiPaneli
-          mevcut={mevcutMetrik}
-          secenekler={etkiSecenekleri}
-          loading={loading}
-        />
-
         <div className="grid gap-3 p-3 lg:grid-cols-3 lg:items-start">
           {/* Sol sütun: haritaya geçiş + havuz */}
           <div className="flex min-w-0 flex-col gap-3">
             <HaritaKarti
               durakSayisi={haritaDurakSayisi}
               aracSayisi={yukluAraclar.length}
-              rotalar={rotalar}
             />
-            <section className="flex h-[26rem] min-w-0 flex-col overflow-hidden rounded-lg border border-border">
+            {/*
+              Yükseklik viewport'a bağlı: sabit 26rem yatay telefonda tek
+              başına ekranı aşıyordu. İç kaydırma için yine kesin bir yükseklik
+              gerekiyor, o yüzden `max-h` değil `min()`.
+            */}
+            <section className="flex h-[min(26rem,60vh)] min-w-0 flex-col overflow-hidden rounded-lg border border-border">
               <DurakHavuzu
                 duraklar={havuz}
                 seciliAracAdi={seciliAracAdi}
@@ -272,7 +303,14 @@ export default function RotalarPage() {
               "bu bölgeye kim gidiyor, bölündü mü". Bölünmüş bölge sahada aynı
               ilçeye iki kez gitmek demek, görünmezse fark edilmiyor.
             */}
-            <div className="h-[18rem] min-w-0">
+            {/*
+              Sarmalayıcı FLEX olmalı — düz blok div'de `BolgeOzeti`'nin
+              yüksekliği içeriğe göre kalıyor, içindeki `flex-1 min-h-0
+              overflow-y-auto` hiç devreye girmiyor ve liste 18rem'lik yuvadan
+              taşıyordu. Havuzun sarmalayıcısı (üstte) bu yüzden doğru çalışıyor.
+            */}
+            {/* `max-h` — panel kapalıyken yalnız 44px başlık, açıkken 18rem'de durur. */}
+            <div className="flex max-h-[18rem] min-w-0 flex-col overflow-hidden">
               <BolgeOzeti
                 bolgeler={bolgeler}
                 durakAraci={durakAraci}
@@ -287,6 +325,21 @@ export default function RotalarPage() {
 
           {/* Sağ: araç bento kartları */}
           <section className="min-w-0 lg:col-span-2">
+            {/*
+              Etki paneli ÖLÇTÜĞÜ ŞEYİN yanında. Eskiden sayfanın en üstünde,
+              araç kartlarından ~600px yukarıdaydı ve iş sırasında ekrandan
+              kayıyordu. Strateji seçimi de artık yalnız burada: aynı üç
+              seçenek tercih çubuğunda bir kez daha, üstelik sonucu
+              göstermeden duruyordu.
+            */}
+            <div className="mb-3 overflow-hidden rounded-lg border border-border">
+              <EtkiPaneli
+                mevcut={mevcutMetrik}
+                secenekler={etkiSecenekleri}
+                loading={loading}
+              />
+            </div>
+
             <h2 className="mb-2 text-[12px] font-medium tracking-[0.06em] text-muted-foreground uppercase">
               Araçlar
             </h2>
@@ -295,18 +348,24 @@ export default function RotalarPage() {
                 {loading ? "Filo yükleniyor…" : "Aktif araç tanımlı değil."}
               </p>
             ) : (
-              <div className="grid gap-3 xl:grid-cols-2">
+              /*
+                `xl` idi: 1024-1279px arasında kartlar üçte iki genişlikte bir
+                sütunda tek sıra diziliyordu — ekranın en çok israf edilen
+                bandı. Palet ızgarası kalktığı için kartlar artık `md`'de iki
+                sıraya rahat sığıyor.
+              */
+              <div className="grid gap-3 md:grid-cols-2">
                 {gosterilecekAraclar.map((a) => (
                   <AracBentoKarti
                     key={a.kod}
                     arac={a}
                     duraklar={aracDuraklari(a.kod)}
                     soforAdi={filo.atamalar[a.kod]?.ad ?? null}
+                    rotaBilgi={rotaBilgileri[a.kod] ?? null}
                     dolulukEsigi={tercihler.dolulukEsigi}
                     otomatikDisi={!cikanKodSeti.has(a.kod)}
                     secili={seciliArac === a.kod}
                     durakBolgesi={durakBolgesi}
-                    onDurakCikar={durakCikar}
                     onSec={() =>
                       setSeciliArac(seciliArac === a.kod ? null : a.kod)
                     }
@@ -365,11 +424,9 @@ function Sekme({
 function HaritaKarti({
   durakSayisi,
   aracSayisi,
-  rotalar,
 }: {
   durakSayisi: number;
   aracSayisi: number;
-  rotalar: HaritaRotasi[];
 }) {
   return (
     <section className="flex flex-col justify-between gap-3 rounded-lg border border-border bg-accent/20 p-4">
@@ -380,7 +437,10 @@ function HaritaKarti({
         </h2>
         <p className="text-[12.5px] text-muted-foreground">
           {durakSayisi > 0
-            ? `${formatNumber(aracSayisi)} araç · ${formatNumber(durakSayisi)} durak`
+            ? // "durak" bu ekranda dört farklı paydayla geçiyordu; buradaki
+              // yalnız KOORDİNATLI ve atanmış olanlar — nitelenmezse üstteki
+              // toplamla çelişiyor gibi okunuyor.
+              `${formatNumber(aracSayisi)} araç · haritada ${formatNumber(durakSayisi)} durak`
             : "Henüz güzergâh yok — önce durakları dağıtın."}
         </p>
         <p className="truncate text-[11.5px] text-muted-foreground opacity-70">
@@ -388,26 +448,12 @@ function HaritaKarti({
         </p>
       </div>
 
-      {/* Araç renkleri — haritadaki lejantın önizlemesi */}
-      {rotalar.some((r) => r.duraklar.length > 0) ? (
-        <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
-          {rotalar
-            .filter((r) => r.duraklar.length > 0)
-            .map((r) => (
-              <span
-                key={r.aracKod}
-                className="flex items-center gap-1 text-[11px] text-muted-foreground"
-              >
-                <span
-                  className="size-2 shrink-0 rounded-full"
-                  style={{ background: r.renk }}
-                  aria-hidden
-                />
-                {r.aracAd}
-              </span>
-            ))}
-        </div>
-      ) : null}
+      {/*
+        Araç renk lejantı BURADAN KALDIRILDI: aynı renkli nokta + araç adı
+        listesi aşağıdaki "Şoförlere gönder" bloğunda bir kez daha, orada
+        tıklanabilir hâlde duruyordu. Aynı ekranda üçüncü kopyası da harita
+        sayfasında.
+      */}
 
       <Link
         href="/rotalar/harita"
@@ -424,16 +470,18 @@ function AracBentoKarti({
   arac,
   duraklar,
   soforAdi,
+  rotaBilgi,
   dolulukEsigi,
   otomatikDisi,
   secili,
-  onDurakCikar,
   onSec,
   durakBolgesi,
 }: {
   arac: RotaAraci;
   duraklar: RotaDuragi[];
   soforAdi: string | null;
+  /** Son optimizasyondan kalan süre/mesafe — yoksa gün uzunluğu gösterilmez. */
+  rotaBilgi: RotaBilgisi | null;
   dolulukEsigi: number;
   /** musteriKodu → bölge; kart hangi bölgeleri taşıdığını gösterir. */
   durakBolgesi: Map<string, Bolge>;
@@ -444,8 +492,6 @@ function AracBentoKarti({
    */
   otomatikDisi: boolean;
   secili: boolean;
-  /** Palet gözüne tıklayınca durak havuza geri alınır. */
-  onDurakCikar: (musteriKodu: string) => void;
   onSec: () => void;
 }) {
   const { durum, etkin: surukleyebilir } = useSurukleme();
@@ -458,14 +504,18 @@ function AracBentoKarti({
     : doluluk.cuvalYuzde;
   const dusuk = duraklar.length > 0 && !doluluk.asim && yuzde < dolulukEsigi;
 
-  /** Bu araç hangi bölgeleri taşıyor. */
-  const bolgeAdlari = useMemo(() => {
-    const set = new Set<string>();
+  /**
+   * Bu araç hangi bölgeleri taşıyor — kod renk için, ad rozet metni için.
+   * `aracBolgeleri` (sayfanın üstündeki tüm plan bölgelerini taşıyan
+   * `bolgeler`den KASITLI ayrı isim — aynı kelime iki farklı şey anlatmasın.
+   */
+  const aracBolgeleri = useMemo(() => {
+    const m = new Map<string, string>();
     for (const d of duraklar) {
       const b = durakBolgesi.get(d.musteriKodu);
-      if (b) set.add(b.ad);
+      if (b) m.set(b.kod, b.ad);
     }
-    return [...set];
+    return [...m.entries()].map(([kod, ad]) => ({ kod, ad }));
   }, [duraklar, durakBolgesi]);
 
   /**
@@ -479,6 +529,26 @@ function AracBentoKarti({
       .map((d) => depoyaKm({ lat: d.lat as number, lon: d.lon as number }));
     return kmler.length < 2 ? 0 : Math.max(...kmler) - Math.min(...kmler);
   }, [duraklar]);
+
+  /**
+   * Turun gerçek gün uzunluğu — Google yalnız SÜRÜŞ süresini veriyor; boşaltma
+   * ve takograf molası eklenmezse "bu güne sığar mı" sorusu yanlış cevaplanır.
+   * Bu gösterge yazılmıştı ama hiç render edilmeyen `AracKarti.tsx` içinde
+   * kalmıştı; planlama ekranı bu soruyu hiç sormuyordu.
+   */
+  const gun = useMemo(
+    () =>
+      rotaBilgi
+        ? gunUzunlugu({
+            surusSaniye: rotaBilgi.saniye,
+            durakSayisi: duraklar.length,
+            takograf: arac.takograf,
+          })
+        : null,
+    [rotaBilgi, duraklar.length, arac.takograf]
+  );
+  const varis = gun ? varisZamani(sonrakiKalkis(), gun.toplamSaniye) : null;
+
   const hedefOlabilir = suruklemeAktif;
   const birakilacak = hedefte;
   /** Yük var ama şoför düşmemiş — 3 şoför, 4 araç dolduysa biri şoförsüz kalır. */
@@ -504,14 +574,12 @@ function AracBentoKarti({
         >
           {arac.ad}
         </Link>
-        {soforsuzYuklu ? (
-          <span
-            className="shrink-0 rounded bg-amber-500/15 px-1.5 py-0.5 text-[11px] font-medium text-amber-600 dark:text-amber-400"
-            title="Bu araca yük konuldu ama şoför düşmedi. Kadroda 3 şoför var; dördüncü araç çıkacaksa şoförü elle ayarlanmalı."
-          >
-            şoför atanmadı
-          </span>
-        ) : otomatikDisi && duraklar.length === 0 ? (
+        {/*
+          "şoför atanmadı" rozeti KALDIRILDI: hemen altındaki şoför satırı
+          zaten aynı şeyi yazıyordu — aynı kartta, ~20px arayla, aynı koşulda
+          iki kez. Uyarı artık o satırın kendisinde (aşağıda).
+        */}
+        {otomatikDisi && duraklar.length === 0 ? (
           <span
             className="shrink-0 rounded border border-border/70 px-1.5 py-0.5 text-[11px] text-muted-foreground"
             title="Otomatik dağıtım bu aracı kullanmadı — yük buna ihtiyaç duymadı. Araç kilitli değil: durak sürükleyerek ya da seçip havuzdan tıklayarak elle yükleyebilirsiniz."
@@ -523,7 +591,7 @@ function AracBentoKarti({
             aşım
           </span>
         ) : dusuk ? (
-          <span className="shrink-0 rounded bg-amber-500/15 px-1.5 py-0.5 text-[11px] font-medium text-amber-600 dark:text-amber-400">
+          <span className="shrink-0 rounded bg-caution/15 px-1.5 py-0.5 text-[11px] font-medium text-caution">
             yarı boş
           </span>
         ) : null}
@@ -533,7 +601,20 @@ function AracBentoKarti({
       </div>
 
       <div className="flex min-w-0 items-center gap-2 text-[11.5px] text-muted-foreground">
-        <span className="min-w-0 flex-1 truncate">
+        <span
+          className={cn(
+            "flex min-w-0 flex-1 items-center gap-1 truncate",
+            soforsuzYuklu && "font-medium text-caution"
+          )}
+          title={
+            soforsuzYuklu
+              ? "Bu araca yük konuldu ama şoför düşmedi. Kadroda 3 şoför var; dördüncü araç çıkacaksa şoförü elle ayarlanmalı."
+              : undefined
+          }
+        >
+          {soforsuzYuklu ? (
+            <AlertTriangleIcon className="size-3 shrink-0" strokeWidth={2} aria-hidden />
+          ) : null}
           {soforAdi ?? "Şoför atanmadı"}
         </span>
         <span className="shrink-0 tabular-nums">
@@ -544,19 +625,25 @@ function AracBentoKarti({
         </span>
       </div>
 
-      {bolgeAdlari.length > 0 ? (
+      {aracBolgeleri.length > 0 ? (
         <div className="flex min-w-0 flex-wrap items-center gap-1">
-          {bolgeAdlari.map((ad) => (
+          {aracBolgeleri.map(({ kod, ad }) => (
             <span
-              key={ad}
-              className="max-w-full truncate rounded border border-border/70 px-1.5 py-0.5 text-[11px] text-muted-foreground"
+              key={kod}
+              className="flex max-w-full min-w-0 items-center gap-1 truncate rounded border border-border/70 px-1.5 py-0.5 text-[11px] text-muted-foreground"
             >
-              {ad}
+              {/* Havuz ve bölge özetiyle AYNI renk — bkz. bolgeRengi. */}
+              <span
+                className="size-1.5 shrink-0 rounded-full"
+                style={{ background: bolgeRengi(kod) }}
+                aria-hidden
+              />
+              <span className="min-w-0 truncate">{ad}</span>
             </span>
           ))}
           {yayilimKm > YAYILIM_UYARI_KM ? (
             <span
-              className="shrink-0 cursor-help rounded bg-amber-500/15 px-1.5 py-0.5 text-[11px] font-medium text-amber-600 dark:text-amber-400"
+              className="shrink-0 cursor-help rounded bg-caution/15 px-1.5 py-0.5 text-[11px] font-medium text-caution"
               title={`En yakın ve en uzak durak arasında ${Math.round(yayilimKm)} km var — bu araç iki ayrı işi birlikte taşıyor.`}
             >
               {Math.round(yayilimKm)} km yayılım
@@ -565,12 +652,30 @@ function AracBentoKarti({
         </div>
       ) : null}
 
-      <PaletIzgarasi
-        arac={arac}
-        duraklar={duraklar}
-        aracKod={arac.kod}
-        onDurakCikar={onDurakCikar}
-      />
+      {/*
+        Palet ızgarası BİLEREK burada değil, araç detay sayfasında
+        (`/rotalar/[aracKod]`). Kartın yarısını kaplıyordu, boş araçta 18
+        kesikli göz çiziyordu ve dolu bir göze tıklamak — karışık palette iki+
+        müşteriyi birden — onaysız olarak araçtan düşürüyordu. Hangi karışık
+        paleti kimin indireceği bir rota planlama kararı değil.
+      */}
+
+      {gun && varis ? (
+        <p className="flex min-w-0 flex-wrap items-baseline gap-x-1.5 text-[11.5px] text-muted-foreground tabular-nums">
+          <span className="text-foreground">
+            {saatMetni(sonrakiKalkis())} → {saatMetni(varis)}
+          </span>
+          <span>({sureMetni(gun.toplamSaniye)} depoya dönüşle)</span>
+          {gun.molaSaniye > 0 ? (
+            <span
+              className="cursor-help text-caution"
+              title={`Kesintisiz sürüş 4,5 saati aşıyor — ${sureMetni(gun.molaSaniye)} takograf molası eklendi.`}
+            >
+              + mola
+            </span>
+          ) : null}
+        </p>
+      ) : null}
 
       {/* Her araç yüklenebilir — otomatik dağıtımın seçimi burayı bağlamıyor. */}
       <button
@@ -596,13 +701,24 @@ function AracBentoKarti({
   );
 }
 
-/** Şoföre gönderilebilecek, araç başına Google Maps güzergâh linki. */
+/**
+ * Şoföre gönderilebilecek, araç başına Google Maps güzergâh linki.
+ *
+ * Bu blok ekranın ÜRETTİĞİ ŞEY — akşam yapılan işin çıktısı. Eskiden iki sıra
+ * uzun kartın altında, başlıksız bir chip satırıydı: sayfanın en küçük, en son
+ * ve en sessiz öğesi. Artık kendi başlığı var.
+ */
 function GuzergahLinkleri({ rotalar }: { rotalar: HaritaRotasi[] }) {
   const dolu = rotalar.filter((r) => r.duraklar.length > 0);
   if (dolu.length === 0) return null;
 
   return (
-    <div className="flex flex-wrap items-center gap-2 pt-3">
+    <section className="mt-3 flex flex-col gap-2 rounded-lg border border-border bg-accent/20 p-3">
+      <h2 className="flex items-center gap-1.5 text-[12px] font-medium tracking-[0.06em] text-muted-foreground uppercase">
+        <SendIcon className="size-3.5" strokeWidth={1.75} aria-hidden />
+        Şoförlere gönder
+      </h2>
+      <div className="flex flex-wrap items-center gap-2">
       {dolu.map((r) => {
         const konumlu = r.duraklar.filter(
           (d): d is RotaDuragi & { lat: number; lon: number } =>
@@ -630,7 +746,8 @@ function GuzergahLinkleri({ rotalar }: { rotalar: HaritaRotasi[] }) {
           </a>
         );
       })}
-    </div>
+      </div>
+    </section>
   );
 }
 
@@ -656,7 +773,7 @@ function VeriTazeligi() {
       <span
         className={cn(
           "size-2 shrink-0 rounded-full",
-          kritik ? "bg-red-400" : uyari ? "bg-amber-400" : "bg-emerald-400"
+          kritik ? "bg-destructive" : uyari ? "bg-caution" : "bg-success"
         )}
         aria-hidden
       />
@@ -664,7 +781,7 @@ function VeriTazeligi() {
       <span
         className={cn(
           "font-mono text-[12.5px] font-medium tabular-nums",
-          kritik ? "text-red-400" : uyari ? "text-amber-400" : "text-foreground"
+          kritik ? "text-destructive" : uyari ? "text-caution" : "text-foreground"
         )}
       >
         {metin}

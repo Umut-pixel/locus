@@ -171,12 +171,24 @@ export function SuruklemeSaglayici({
   );
 }
 
+/**
+ * Sağlayıcı yoksa GÜVENLİ VARSAYILAN döner — fırlatmaz.
+ *
+ * `PaletIzgarasi` (`Slot`) bu hook'u koşulsuz çağırıyor ve hem sürükleme
+ * destekli planlama ekranında (`SuruklemeSaglayici` içinde) hem de araç
+ * detay sayfasında (`/rotalar/[aracKod]`, sarmalayıcı YOK) kullanılıyor.
+ * Sağlayıcısız kullanımda sürükleme yalnız inert olur — `tut`/`basla` zaten
+ * `aracKod == null` gibi kendi koşullarıyla korunuyor, tıklama akışı etkilenmez.
+ */
+const VARSAYILAN: Baglam = {
+  durum: null,
+  basla: () => {},
+  suruklendiMi: () => false,
+  etkin: false,
+};
+
 export function useSurukleme(): Baglam {
-  const v = useContext(Ctx);
-  if (!v) {
-    throw new Error("useSurukleme yalnız SuruklemeSaglayici içinde kullanılabilir.");
-  }
-  return v;
+  return useContext(Ctx) ?? VARSAYILAN;
 }
 
 /** Sürüklenen durağın imleci takip eden kartı — body'ye portal'lanır. */

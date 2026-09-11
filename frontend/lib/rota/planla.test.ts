@@ -1,5 +1,6 @@
 import type { Arac, Durak, Sofor } from "./atama";
 import { filoSec, surulebilirKirp } from "./atama";
+import { bolgele } from "./bolge";
 import { planMetrigi, planOlustur, UZAK_ESIGI_KM, uzakMi } from "./planla";
 import {
   tercihAbone,
@@ -193,7 +194,13 @@ console.log("filoSec: elle seçim şoför kısıtını delemiyor ok");
   if (bozuk.dolulukEsigi !== VARSAYILAN_TERCIHLER.dolulukEsigi) {
     fail("aralık dışı eşik varsayılana düşmeli");
   }
-  if (bozuk.uzakAyir !== false) fail("boolean olmayan değer false olmalı");
+  // uzakAyir de AYNI DESENİ izlemeli: boolean olmayan değer varsayılana
+  // düşer — sabit `false`e değil. Bu, varsayılan `true`ya çevrildiğinde
+  // (2026-09-11) eski/bozuk kayıtların hâlâ güvensiz davranışta takılı
+  // kalmasını önleyen düzeltmenin kendisi.
+  if (bozuk.uzakAyir !== VARSAYILAN_TERCIHLER.uzakAyir) {
+    fail("boolean olmayan uzakAyir varsayılana düşmeli");
+  }
   // Elle filo seçimi kaldırıldı; eski kayıtta kalan alan yok sayılmalı.
   if ("aracKodlari" in bozuk) fail("aracKodlari tercihlerden düşmeli");
 
@@ -204,6 +211,9 @@ console.log("filoSec: elle seçim şoför kısıtını delemiyor ok");
   ) {
     fail("null girdi varsayılan tercihleri vermeli");
   }
+  if (bos.uzakAyir !== VARSAYILAN_TERCIHLER.uzakAyir) {
+    fail("null girdi uzakAyir'de de varsayılanı vermeli");
+  }
   // Geçerli seçim korunmalı — varsayılan değişti diye kullanıcının seçtiği
   // strateji sessizce değişmesin.
   if (tercihleriTemizle({ strateji: "sweep" }).strateji !== "sweep") {
@@ -211,6 +221,14 @@ console.log("filoSec: elle seçim şoför kısıtını delemiyor ok");
   }
   if (tercihleriTemizle({ strateji: "ffd" }).strateji !== "ffd") {
     fail("ffd korunmalı");
+  }
+  // Kullanıcının BİLEREK "Karışık" (false) seçmiş olması da korunmalı —
+  // varsayılan true'ya döndü diye açık seçim sessizce ezilmemeli.
+  if (tercihleriTemizle({ uzakAyir: false }).uzakAyir !== false) {
+    fail("açıkça false seçilmiş uzakAyir korunmalı");
+  }
+  if (tercihleriTemizle({ uzakAyir: true }).uzakAyir !== true) {
+    fail("açıkça true seçilmiş uzakAyir korunmalı");
   }
 }
 console.log("tercihleriTemizle ok");
@@ -316,3 +334,109 @@ console.log("tercih deposu: SSR uyumu + abonelik ok");
   if (k3.cikan.length !== 2) fail("2 araç da çıkmalı");
 }
 console.log("surulebilirKirp: elle seçim korunuyor ok");
+
+// ---------------------------------------------------------------------------
+// Sabitleme önizlemeye de girmeli — `EtkiPaneli` regresyonu
+// ---------------------------------------------------------------------------
+//
+// Sahadaki hata: `otomatikDagit` `planOlustur`'a `sabitlemeler` geçiyordu,
+// etki panelini besleyen `uret()` geçmiyordu. Kullanıcı bir bölgeyi araca
+// sabitleyince kart SABİTLEMESİZ planın sayılarını gösterirken buton
+// SABİTLEMELİ plan üretiyordu; önizleme ile eylem sessizce ayrışıyordu.
+//
+// Bu test argümanın çıktıyı gerçekten değiştirdiğini kilitliyor: değiştirmiyor
+// olsaydı yukarıdaki hata fark edilmezdi.
+{
+  const duraklar = [
+    durakAt("A1", 30, 0, 400),
+    durakAt("A2", 32, 5, 400),
+    durakAt("B1", 30, 180, 400),
+    durakAt("B2", 32, 185, 400),
+  ];
+  const araclar = [NPR10, { ...NPR10, kod: "npr2", ad: "Isuzu NPR 2" }];
+
+  const sabitlemesiz = planOlustur({
+    duraklar, araclar, tumFilo: araclar, depo: DEPO,
+    strateji: "bolge", uzakAyir: false,
+  });
+
+  // Sabitlemesiz planda ilk bölge hangi araca düştüyse, onu ÖTEKİ araca sabitle.
+  const ilkYuk = sabitlemesiz.yukler.find((y) => y.duraklar.length > 0);
+  if (!ilkYuk) fail("sabitlemesiz plan boş çıktı — test kurulumu bozuk");
+  const ilkDurak = ilkYuk.duraklar[0]!;
+
+  const bolgeler = bolgele(duraklar, DEPO);
+  const hedefBolge = bolgeler.find((b) =>
+    b.duraklar.some((d) => d.musteriKodu === ilkDurak.musteriKodu)
+  );
+  if (!hedefBolge) fail("durağın bölgesi bulunamadı");
+
+  const otekiArac = araclar.find((a) => a.kod !== ilkYuk.arac.kod)!;
+  const sabitlemeli = planOlustur({
+    duraklar, araclar, tumFilo: araclar, depo: DEPO,
+    strateji: "bolge", uzakAyir: false,
+    sabitlemeler: { [hedefBolge.kod]: otekiArac.kod },
+  });
+
+  const nereye = (sonuc: typeof sabitlemesiz) =>
+    sonuc.yukler.find((y) =>
+      y.duraklar.some((d) => d.musteriKodu === ilkDurak.musteriKodu)
+    )?.arac.kod;
+
+  if (nereye(sabitlemeli) !== otekiArac.kod) {
+    fail(
+      `sabitlenen bölge ${otekiArac.kod} aracına gitmeliydi, ` +
+        `giden: ${nereye(sabitlemeli)}`
+    );
+  }
+  if (nereye(sabitlemesiz) === nereye(sabitlemeli)) {
+    fail("sabitleme sonucu değiştirmedi — test ayrışmayı yakalayamaz");
+  }
+
+  // Ölçüm de ayrışıyor olmalı: önizleme bu argümanı atlarsa yanlış sayı gösterir.
+  const m1 = planMetrigi(sabitlemesiz);
+  const m2 = planMetrigi(sabitlemeli);
+  if (m1.yerlesenDurak !== m2.yerlesenDurak) {
+    fail("sabitleme yerleşen durak sayısını değiştirmemeli");
+  }
+}
+console.log("planOlustur: sabitleme önizlemeye de giriyor ok");
+
+// ---------------------------------------------------------------------------
+// Varsayılan tercih uzak/yakın karışmasına İZİN VERMEMELİ
+// ---------------------------------------------------------------------------
+//
+// 2026-09-11 vakası: kullanıcı "tek aracı İzmir genelinde dolaştırıp sonra
+// çok uzak bir ilçeye de gönderiyoruz, mantıksız" diye bildirdi. Kök neden:
+// `uzakAyir` varsayılanı `false`ti — "Bölge" dışındaki stratejilerde (Coğrafi/
+// Doluluk) hiçbir coğrafi güvence yoktu. Bu test varsayılan tercihin GÜVENLİ
+// tarafta olduğunu kilitliyor; birisi `VARSAYILAN_TERCIHLER.uzakAyir`'i
+// sessizce `false`'a çevirirse burada kırılmalı.
+{
+  if (VARSAYILAN_TERCIHLER.uzakAyir !== true) {
+    fail("VARSAYILAN_TERCIHLER.uzakAyir true olmalı — aksi 'Coğrafi'/'Doluluk' stratejisinde uzak+yakın karışmasını geri getirir");
+  }
+
+  const duraklar = [
+    durakAt("IZMIR1", 15, 0, 300),
+    durakAt("IZMIR2", 20, 5, 300),
+    durakAt("COKUZAK", 480, 10, 300),
+  ];
+  const filo = [NPR10];
+
+  const varsayilanla = planOlustur({
+    duraklar, araclar: filo, tumFilo: filo, depo: DEPO,
+    strateji: "sweep", uzakAyir: VARSAYILAN_TERCIHLER.uzakAyir,
+  });
+  for (const y of varsayilanla.yukler) {
+    if (y.duraklar.length === 0) continue;
+    const uzakVar = y.duraklar.some(uzakMi);
+    const yakinVar = y.duraklar.some((d) => !uzakMi(d));
+    if (uzakVar && yakinVar) {
+      fail(
+        `varsayılan tercihle ${y.arac.ad} hem 480 km'lik hem 15-20 km'lik durak taşıyor`
+      );
+    }
+  }
+}
+console.log("planOlustur: varsayılan tercih uzak+yakın karıştırmıyor ok");

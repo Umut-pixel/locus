@@ -174,7 +174,7 @@ export function sigarMi(arac: Arac, mevcut: Durak[], aday: Durak): boolean {
  * bir araç boşta ama şoförü yok diye plana girmediyse, kullanıcıya
  * "araç yok" demek yanlış olur.
  */
-function yerlesmemeNedeni(
+export function yerlesmemeNedeni(
   durak: Durak,
   kullanilan: Arac[],
   tumFilo: Arac[]

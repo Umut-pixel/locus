@@ -133,11 +133,22 @@ export interface Tur {
 // ---------------------------------------------------------------------------
 
 /** Türkçe İ/I tuzağına düşmeden normalize et. */
+/**
+ * Türkçe İ/I/ı/i dörtlüsüne rağmen TUTARLI anahtar üretir.
+ *
+ * Eski yöntem (İ→I, ı→i, sonra tr-TR büyült) girdinin ZATEN hangi harfleri
+ * taşıdığına duyarlıydı: "İZMİR" → "IZMIR" ama "İzmir" → "IZMİR" (4. harf
+ * farklı) çıkıyordu — aynı kelimenin iki yazımı farklı anahtara düşüyordu.
+ * Doğrusu: ÖNCE tr-TR küçült (İ→i, I→ı — Türkçe kuralı bunu garanti eder),
+ * SONRA ı→i ile dotless/dotted'ı TEK harfe indir, EN SON yerelden bağımsız
+ * (düz JS) büyült. Bu sırada artık İ/ı kalmadığı için son adım girdinin asıl
+ * yazımından etkilenmiyor — "İZMİR", "İzmir", "izmir" hepsi "IZMIR" olur.
+ */
 function anahtar(value: string | null | undefined): string {
   return (value ?? "")
-    .replace(/İ/g, "I")
+    .toLocaleLowerCase("tr-TR")
     .replace(/ı/g, "i")
-    .toLocaleUpperCase("tr-TR")
+    .toUpperCase()
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -198,6 +209,67 @@ function bandiBul(km: number): MesafeBandi {
   }
   return "uzak";
 }
+
+// ---------------------------------------------------------------------------
+// İzmir iç rutları — sabit, elle kurulmuş bölgeler
+// ---------------------------------------------------------------------------
+//
+// Depo İzmir'de (Menderes) olduğu için müşterilerin büyük kısmı tek bantta
+// (şehir içi/yakın) toplanıyor ve genel bant+açı-sektörü kümelemesi otomatik
+// dağıtımı 6-8 dilime bölüyordu — sahanın gerçek yol coğrafyasını değil,
+// depoya kuş uçuşu mesafe+açıyı yansıtıyordu. Melih'in tarif ettiği 6 rut
+// (2026-09-11) yol ağına göre kurulmuş: örn. RUT 3 Beydağ+Kiraz'ı Küçük
+// Menderes vadisindeki komşularıyla tutuyor — bunları batıya/merkeze
+// dağıtmak ekstra km yaratırdı.
+//
+// 30 İzmir ilçesinin TAMAMI burada — boşta kalan ilçe otomatik kümelemeye
+// düşmesin diye kapsam kasıtlı tam.
+const IZMIR_RUTLARI: ReadonlyArray<{
+  kod: string;
+  ad: string;
+  ilceler: readonly string[];
+}> = [
+  {
+    kod: "izmir-rut-1",
+    ad: "RUT 1 — Kuzey",
+    ilceler: ["Bergama", "Dikili", "Kınık", "Aliağa", "Foça"],
+  },
+  {
+    kod: "izmir-rut-2",
+    ad: "RUT 2 — Kuzey/Merkez",
+    ilceler: ["Menemen", "Çiğli", "Karşıyaka", "Bayraklı", "Bornova"],
+  },
+  {
+    kod: "izmir-rut-3",
+    ad: "RUT 3 — Küçük Menderes",
+    ilceler: ["Kemalpaşa", "Bayındır", "Tire", "Ödemiş", "Beydağ", "Kiraz"],
+  },
+  {
+    kod: "izmir-rut-4",
+    ad: "RUT 4 — Güney",
+    ilceler: ["Torbalı", "Menderes", "Gaziemir", "Selçuk", "Seferihisar"],
+  },
+  {
+    kod: "izmir-rut-5",
+    ad: "RUT 5 — Yarımada",
+    ilceler: ["Karaburun", "Çeşme", "Urla", "Güzelbahçe", "Narlıdere"],
+  },
+  {
+    kod: "izmir-rut-6",
+    ad: "RUT 6 — Merkez",
+    ilceler: ["Konak", "Karabağlar", "Balçova", "Buca"],
+  },
+];
+
+/** "İZMİR/BERGAMA" gibi — `ilceAnahtari`'nin ürettiği anahtarla aynı biçim. */
+const IZMIR_ILCE_RUT: ReadonlyMap<string, (typeof IZMIR_RUTLARI)[number]> =
+  new Map(
+    IZMIR_RUTLARI.flatMap((rut) =>
+      rut.ilceler.map(
+        (ilce) => [`${anahtar("İzmir")}/${anahtar(ilce)}`, rut] as const
+      )
+    )
+  );
 
 interface Konumlu extends Durak {
   lat: number;
@@ -319,12 +391,27 @@ export function bolgele(
     k.aci = depoAcisi(k.merkez, depo);
   }
 
-  // 2) (bant, sektör) → bölge.
+  // 2) (bant, sektör) → bölge — İZMİR İÇİN ELLE KURULMUŞ RUT'LAR ÖNCELİKLİ.
+  // Bir ilçe RUT listesindeyse otomatik bant/açı kümelemesine hiç girmiyor;
+  // 6 rut sabit kalıyor (bkz. IZMIR_RUTLARI yorumu).
   const kovalar = new Map<
     string,
-    { bant: MesafeBandi; sektor: number; sektorSayisi: number; uyeler: IlceKumesi[] }
+    {
+      sektor: number;
+      sektorSayisi: number;
+      uyeler: IlceKumesi[];
+      rut?: (typeof IZMIR_RUTLARI)[number];
+    }
   >();
   for (const k of ilceler.values()) {
+    const rut = IZMIR_ILCE_RUT.get(k.anahtar);
+    if (rut) {
+      const liste = kovalar.get(rut.kod);
+      if (liste) liste.uyeler.push(k);
+      else kovalar.set(rut.kod, { sektor: 0, sektorSayisi: 1, uyeler: [k], rut });
+      continue;
+    }
+
     const bant = bandiBul(k.km);
     const sektorSayisi = BANT_SEKTOR[bant];
     const sektor =
@@ -332,16 +419,23 @@ export function bolgele(
     const kod = `${bant}-s${sektor}`;
     const liste = kovalar.get(kod);
     if (liste) liste.uyeler.push(k);
-    else kovalar.set(kod, { bant, sektor, sektorSayisi, uyeler: [k] });
+    else kovalar.set(kod, { sektor, sektorSayisi, uyeler: [k] });
   }
 
   let bolgeler = [...kovalar.values()].map((kova) =>
-    bolgeKur(kova.bant, kova.sektor, kova.sektorSayisi, kova.uyeler, depo)
+    bolgeKur(kova.sektor, kova.sektorSayisi, kova.uyeler, depo, kova.rut)
   );
 
-  // 3) Küçük bölgeleri komşusuna kat.
+  // 3) Küçük bölgeleri komşusuna kat — RUT'LAR HARİÇ. Rutlar elle kurulmuş
+  // sabit gruplar (ör. RUT 3 zaten Beydağ+Kiraz'ı Küçük Menderes'e özellikle
+  // katıyor); otomatik birleştirme onları başka bir rutla ya da genel bir
+  // bölgeyle sessizce karıştırmamalı.
   const esik = secenekler.birlestirmeEsigiCuval ?? 0;
-  if (esik > 0) bolgeler = kucukleriBirlestir(bolgeler, esik, depo);
+  if (esik > 0) {
+    const rutlar = bolgeler.filter((b) => b.kod.startsWith("izmir-rut-"));
+    const digerleri = bolgeler.filter((b) => !b.kod.startsWith("izmir-rut-"));
+    bolgeler = [...rutlar, ...kucukleriBirlestir(digerleri, esik, depo)];
+  }
 
   // 4) Aynı ad iki bantta çıkabilir ("İzmir — Batı" hem şehir içi hem yakın).
   //    Sektör içinde çakışma imkânsız ama bantlar arasında mümkün; yalnız
@@ -356,37 +450,50 @@ export function bolgele(
 }
 
 function bolgeKur(
-  bant: MesafeBandi,
   sektor: number,
   sektorSayisi: number,
   uyeler: IlceKumesi[],
-  depo: { lat: number; lon: number }
+  depo: { lat: number; lon: number },
+  /** Verilirse ad/kod sabitlenir — otomatik "şehir + yön" adlandırması atlanır. */
+  rut?: { kod: string; ad: string }
 ): Bolge {
   const duraklar = uyeler
     .flatMap((u) => u.duraklar)
     .sort((a, b) => depoAcisi(a, depo) - depoAcisi(b, depo));
   const merkez = agirlikMerkezi(uyeler.flatMap((u) => u.duraklar));
   const km = kmArasi(depo, merkez);
+  // Bant GRUP merkezinden hesaplanır, tek bir üyeden değil — genel yolda
+  // zaten aynı sonucu verir (kova zaten tek banttaki üyeleri topluyor), RUT
+  // gruplarında ise üyeler farklı bantlara düşebildiği için doğrusu bu.
+  const bant = bandiBul(km);
   const { kg, cuvalEsdeger } = toplamlar(duraklar);
 
-  // Ad: baskın şehir (en çok duraklı) + yön. Birden fazla şehir varsa "+N".
-  const sehirSayaci = new Map<string, number>();
-  for (const u of uyeler) {
-    const ad = u.sehir?.trim();
-    if (!ad) continue;
-    sehirSayaci.set(ad, (sehirSayaci.get(ad) ?? 0) + u.duraklar.length);
+  let kod: string;
+  let ad: string;
+  if (rut) {
+    kod = rut.kod;
+    ad = rut.ad;
+  } else {
+    // Ad: baskın şehir (en çok duraklı) + yön. Birden fazla şehir varsa "+N".
+    const sehirSayaci = new Map<string, number>();
+    for (const u of uyeler) {
+      const sehirAdi = u.sehir?.trim();
+      if (!sehirAdi) continue;
+      sehirSayaci.set(sehirAdi, (sehirSayaci.get(sehirAdi) ?? 0) + u.duraklar.length);
+    }
+    const sirali = [...sehirSayaci.entries()].sort((a, b) => b[1] - a[1]);
+    const baskin = sirali[0]?.[0];
+    const yon = sektorYonu(sektor, sektorSayisi);
+    kod = `${bant}-s${sektor}`;
+    ad = baskin
+      ? sirali.length > 1
+        ? `${baslikYap(baskin)} +${sirali.length - 1} — ${yon}`
+        : `${baslikYap(baskin)} — ${yon}`
+      : `${yon} — ${Math.round(km)} km`;
   }
-  const sirali = [...sehirSayaci.entries()].sort((a, b) => b[1] - a[1]);
-  const baskin = sirali[0]?.[0];
-  const yon = sektorYonu(sektor, sektorSayisi);
-  const ad = baskin
-    ? sirali.length > 1
-      ? `${baslikYap(baskin)} +${sirali.length - 1} — ${yon}`
-      : `${baslikYap(baskin)} — ${yon}`
-    : `${yon} — ${Math.round(km)} km`;
 
   return {
-    kod: `${bant}-s${sektor}`,
+    kod,
     ad,
     bant,
     duraklar,

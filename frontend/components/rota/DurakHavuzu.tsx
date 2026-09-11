@@ -12,12 +12,8 @@ import { depoyaKm } from "@/lib/depot";
 import { UZAK_ESIGI_KM } from "@/lib/rota/planla";
 import { HAVUZ_HEDEFI, useSurukleme } from "./surukleme";
 
-/**
- * Bu yaştan eski bekleyen sipariş sarı yanar. Tarih penceresi "hepsi"ndeyken
- * aylardır bekleyen bir sipariş sessizce her plana girebilir — filtrelemek
- * yerine görünür kılıyoruz, kararı planlayıcı verir.
- */
-const BAYAT_GUN = 30;
+import { bolgeRengi } from "@/lib/rota/bolge-renk";
+import { BAYAT_GUN } from "@/lib/rota/operasyon";
 import { formatKg, formatNumber } from "@/lib/format";
 import { RISK_COLORS, RISK_SHORT_LABELS } from "@/lib/risk-style";
 import { cn } from "@/lib/utils";
@@ -34,6 +30,8 @@ interface DurakHavuzuProps {
 
 interface HavuzGrubu {
   ad: string;
+  /** Bölgesiz grupta null — renk noktası ve `BolgeOzeti` ile eşleşme buradan. */
+  kod: string | null;
   ilceler: string[];
   km: number | null;
   duraklar: RotaDuragi[];
@@ -68,6 +66,7 @@ export function DurakHavuzu({
       const ad = b?.ad ?? BOLGESIZ;
       const grup = m.get(ad) ?? {
         ad,
+        kod: b?.kod ?? null,
         ilceler: b?.ilceler ?? [],
         km: b?.depoyaKm ?? null,
         duraklar: [],
@@ -99,18 +98,20 @@ export function DurakHavuzu({
       // Araçtan geri sürüklenen durak buraya bırakılıyor.
       data-birak-hedef={HAVUZ_HEDEFI}
       className={cn(
-        "relative flex min-w-0 flex-col border-b border-border transition-colors lg:border-r lg:border-b-0",
+        // Kenarlık sarmalayıcı kartta — burada `lg:border-r` eski yan yana
+        // düzenden kalmıştı ve yuvarlak kartın içinde başıboş bir çizgi çiziyordu.
+        "relative flex min-w-0 flex-col overflow-hidden transition-colors",
         havuzHedefte && "bg-accent/40 ring-2 ring-inset ring-foreground/30"
       )}
     >
       <header className="flex h-11 shrink-0 items-center justify-between gap-3 border-b border-border/60 px-3.5">
         <h2 className="flex min-w-0 items-center gap-1.5 text-[12px] font-medium tracking-[0.06em] text-muted-foreground uppercase">
           <PackageIcon
-            className={cn("size-3.5 shrink-0", !bos && "text-amber-400")}
+            className={cn("size-3.5 shrink-0", !bos && "text-caution")}
             strokeWidth={1.75}
             aria-hidden
           />
-          <span className="truncate">Bekleyen yük</span>
+          <span className="truncate">Havuzda kalan</span>
         </h2>
         {!bos ? (
           <span className="shrink-0 font-mono text-[12.5px] font-medium text-foreground tabular-nums">
@@ -127,7 +128,7 @@ export function DurakHavuzu({
               ? `Tıklanan durak → ${seciliAracAdi}`
               : etkin
                 ? "Bir araç seçin ya da durağı araç kartına sürükleyin"
-                : "Yüklemek için önce sağdan bir araç seçin"}
+                : "Yüklemek için önce bir araç kartı seçin"}
         </span>
       </p>
 
@@ -161,6 +162,19 @@ export function DurakHavuzu({
                       : "İlçe bilgisi olmayan duraklar koordinat hücresine göre kümelendi"
                   }
                 >
+                  {/*
+                    Bölge rengi — liste hep aynı gri metindi, hangi siparişin
+                    hangi bölgeye ait olduğu yalnız okuyarak anlaşılıyordu.
+                    Renk `BolgeOzeti` ve araç kartlarındaki bölge rozetleriyle
+                    AYNI (bkz. `bolgeRengi`), ekranlar arası takip edilebilsin.
+                  */}
+                  {g.kod ? (
+                    <span
+                      className="size-2 shrink-0 rounded-full"
+                      style={{ background: bolgeRengi(g.kod) }}
+                      aria-hidden
+                    />
+                  ) : null}
                   <span className="min-w-0 flex-1 truncate text-[12px] font-medium text-foreground">
                     {g.ad}
                   </span>
@@ -232,22 +246,29 @@ function DurakSatiri({
         suruluyor && "opacity-40"
       )}
     >
+      {/*
+        `disabled` DEĞİL, `aria-disabled`: dokunmatikte sürükleme kapalı olduğu
+        için araç seçilmeden önce havuzun TAMAMI devre dışı kalıyordu — hem ilk
+        dokunuş boşa gidiyor hem de liste sekme sırasından tümüyle düşüyordu.
+        Artık satır odaklanabilir, tıklama no-op ve neden `title`'da.
+      */}
       <button
         type="button"
         onPointerDown={tutulabilir ? (e) => onSuruklemeBasla(e, durak) : undefined}
-        onClick={onSec}
-        disabled={pasif && !tutulabilir}
+        onClick={pasif || konumsuz ? undefined : onSec}
+        aria-disabled={pasif || konumsuz}
         className={cn(
           "flex w-full min-w-0 flex-col gap-1 px-3.5 py-2 text-left transition-colors",
           !pasif && !konumsuz && "hover:bg-accent/50",
           tutulabilir && "cursor-grab active:cursor-grabbing",
-          !tutulabilir && (pasif || konumsuz) && "cursor-default"
+          !tutulabilir && (pasif || konumsuz) && "cursor-default",
+          (pasif || konumsuz) && "opacity-60"
         )}
         title={
           konumsuz
             ? "Koordinatı yok — haritaya konamaz, plana giremez"
             : pasif
-              ? `${durak.unvan} — bir araç seçin ya da araç kartına sürükleyin`
+              ? `${durak.unvan} — önce bir araç kartı seçin ya da durağı karta sürükleyin`
               : `${durak.unvan} durağını seçili araca ekle`
         }
       >
@@ -277,7 +298,7 @@ function DurakSatiri({
             <span
               className={cn(
                 "shrink-0 tabular-nums",
-                uzaklikKm >= UZAK_ESIGI_KM && "text-amber-400"
+                uzaklikKm >= UZAK_ESIGI_KM && "text-caution"
               )}
               title={
                 uzaklikKm >= UZAK_ESIGI_KM
@@ -292,7 +313,7 @@ function DurakSatiri({
             <span
               className={cn(
                 "shrink-0 tabular-nums",
-                durak.yasGun >= BAYAT_GUN && "text-amber-400"
+                durak.yasGun >= BAYAT_GUN && "text-caution"
               )}
               title={
                 durak.yasGun >= BAYAT_GUN
@@ -311,7 +332,7 @@ function DurakSatiri({
           ) : null}
           {durak.olcusuzSatir > 0 ? (
             <span
-              className="flex shrink-0 items-center gap-1 text-amber-400"
+              className="flex shrink-0 items-center gap-1 text-caution"
               title={`${durak.olcusuzSatir} satırın ölçüsü bilinmiyor — yük olduğundan az görünüyor.`}
             >
               <AlertTriangleIcon className="size-3" strokeWidth={2} aria-hidden />

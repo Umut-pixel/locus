@@ -1,6 +1,7 @@
 "use client";
 
-import { LayersIcon } from "lucide-react";
+import { useState } from "react";
+import { LayersIcon, XIcon } from "lucide-react";
 
 import type { RotaAraci, RotaDuragi } from "@/hooks/useRotaPlani";
 import { PALET_CUVAL, paletlereYerlestir, type PaletSlotu } from "@/lib/rota/palet";
@@ -15,8 +16,9 @@ interface PaletIzgarasiProps {
   onDurakSec?: (musteriKodu: string) => void;
   vurgulananMusteri?: string | null;
   /**
-   * Verilirse slot içeriği havuza geri alınabilir: tıklayınca çıkar,
-   * sürükleyince başka araca ya da havuza taşınır.
+   * Verilirse slot içeriği havuza geri alınabilir: gözün × düğmesiyle çıkar,
+   * sürükleyince başka araca ya da havuza taşınır. Gözün kendisine tıklamak
+   * ÇIKARMAZ — yalnız seçer (bkz. Slot içindeki not).
    */
   onDurakCikar?: (musteriKodu: string) => void;
   /** Sürüklenen durağın kaynağı — hangi araçtan çıktığı. */
@@ -55,7 +57,7 @@ export function PaletIzgarasi({
         </span>
         {karisikSayisi > 0 ? (
           <span
-            className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[11px] font-medium text-amber-600 dark:text-amber-400"
+            className="rounded bg-caution/15 px-1.5 py-0.5 text-[11px] font-medium text-caution"
             title="Karışık palette birden fazla müşterinin malı var — elle indiriliyor"
           >
             {formatNumber(karisikSayisi)} karışık palet
@@ -115,8 +117,18 @@ function Slot({
   /** Slottaki farklı müşteriler — çıkarma hepsini havuza döndürür. */
   const musteriKodlari = [...new Set(slot.duraklar.map((d) => d.musteriKodu))];
   const cikarilabilir = !bos && onDurakCikar != null;
-  const tiklanabilir =
-    !bos && (cikarilabilir || (onDurakSec != null && ilkMusteri != null));
+  /**
+   * Göze TIKLAMAK artık çıkarmıyor.
+   *
+   * Izgara okunacak bir gösterge gibi duruyor (başlık, doluluk zemini, çuval
+   * sayısı) ama dolu bir göze tıklamak müşteriyi araçtan düşürüyordu — karışık
+   * palette tek tıkla ikisini birden, onaysız ve geri alınamaz şekilde.
+   * Çıkarma artık açık bir × düğmesinde; birden fazla müşteriyi etkiliyorsa
+   * tek adımlık onay istiyor.
+   */
+  const tiklanabilir = !bos && onDurakSec != null && ilkMusteri != null;
+  const [onayBekliyor, setOnayBekliyor] = useState(false);
+  const cokluCikarma = musteriKodlari.length > 1;
   const suruluyor =
     durum != null &&
     slot.duraklar.some((d) => d.musteriKodu === durum.musteriKodu);
@@ -131,19 +143,26 @@ function Slot({
             `${d.sira}. ${d.unvan}: ${formatNumber(Math.round(d.cuval))} çuval / ${formatKg(d.kg)}`
         )
         .join("\n") +
-      (cikarilabilir
-        ? "\n\nTıkla → havuza geri al · sürükle → başka araca taşı"
-        : "");
+      (cikarilabilir ? "\n\nSürükle → başka araca taşı · × → havuza geri al" : "");
 
   const tikla = () => {
-    // Sürükleme sonrası gelen click çıkarmayı tetiklemesin.
+    // Sürükleme sonrası gelen click seçimi tekrar uygulamasın.
     if (suruklendiMi()) return;
-    if (cikarilabilir) {
-      for (const kod of musteriKodlari) onDurakCikar(kod);
-      return;
-    }
     if (ilkMusteri != null) onDurakSec?.(ilkMusteri);
   };
+
+  const cikar = () => {
+    if (cokluCikarma && !onayBekliyor) {
+      setOnayBekliyor(true);
+      return;
+    }
+    setOnayBekliyor(false);
+    for (const kod of musteriKodlari) onDurakCikar?.(kod);
+  };
+
+  const cikarEtiketi = cokluCikarma
+    ? `${slot.etiket} gözündeki ${formatNumber(musteriKodlari.length)} müşteriyi havuza geri al`
+    : `${slot.duraklar[0]?.unvan ?? slot.etiket} durağını havuza geri al`;
 
   const tut = (event: React.PointerEvent) => {
     if (aracKod == null || ilkMusteri == null) return;
@@ -151,31 +170,36 @@ function Slot({
     if (tam) basla(event, { durak: tam, kaynakAracKod: aracKod });
   };
 
-  const Kap = tiklanabilir ? "button" : "div";
+  // Sürükleme çıkarmadan bağımsız: göz dolu ve araç biliniyorsa tutulabilir.
+  const surukleyebilir = !bos && aracKod != null && ilkMusteri != null;
+  const etkilesimli = tiklanabilir || surukleyebilir;
+  const Kap = etkilesimli ? "button" : "div";
 
   return (
+    <div className="relative min-w-0">
     <Kap
-      {...(tiklanabilir
+      {...(etkilesimli
         ? {
             type: "button" as const,
             onClick: tikla,
-            onPointerDown: cikarilabilir ? tut : undefined,
+            onPointerDown: surukleyebilir ? tut : undefined,
           }
         : {})}
       title={baslik}
       className={cn(
-        "relative flex min-w-0 flex-col gap-1 overflow-hidden rounded border p-2 text-left transition-colors",
+        "relative flex h-full w-full min-w-0 flex-col gap-1 overflow-hidden rounded border p-2 text-left transition-colors",
         bos
           ? slot.agirlikKilitli
             ? "border-dashed border-border/50 bg-muted/20"
             : "border-dashed border-border/70"
           : slot.karisik
-            ? "border-amber-500/50 bg-amber-500/5"
+            ? "border-caution/50 bg-caution/5"
             : "border-border bg-accent/30",
         vurgulu && "ring-2 ring-foreground/40",
         suruluyor && "opacity-40",
-        tiklanabilir && "hover:border-foreground/40",
-        cikarilabilir && "cursor-grab active:cursor-grabbing"
+        etkilesimli && "hover:border-foreground/40",
+        surukleyebilir && "cursor-grab active:cursor-grabbing",
+        cikarilabilir && "pr-6"
       )}
     >
       {/* Doluluk zemini — slotun ne kadarı dolu, arka planda */}
@@ -183,7 +207,7 @@ function Slot({
         <span
           className={cn(
             "absolute inset-x-0 bottom-0 -z-10",
-            slot.karisik ? "bg-amber-500/15" : "bg-foreground/10"
+            slot.karisik ? "bg-caution/15" : "bg-foreground/10"
           )}
           style={{ height: `${yuzde}%` }}
           aria-hidden
@@ -195,7 +219,7 @@ function Slot({
           {slot.etiket}
         </span>
         {slot.karisik ? (
-          <span className="size-1.5 shrink-0 rounded-full bg-amber-500" aria-hidden />
+          <span className="size-1.5 shrink-0 rounded-full bg-caution" aria-hidden />
         ) : null}
       </span>
 
@@ -214,8 +238,36 @@ function Slot({
               ? ` · +${formatNumber(slot.duraklar.length - 1)}`
               : ""}
           </span>
+          {/* "Karışık" yalnız renkle anlatılmasın — nokta `aria-hidden`. */}
+          {slot.karisik ? (
+            <span className="text-[10.5px] font-medium text-caution">karışık</span>
+          ) : null}
         </>
       )}
     </Kap>
+
+    {cikarilabilir ? (
+      <button
+        type="button"
+        onClick={cikar}
+        onBlur={() => setOnayBekliyor(false)}
+        aria-label={onayBekliyor ? `${cikarEtiketi} — onaylamak için tekrar tıklayın` : cikarEtiketi}
+        title={
+          onayBekliyor
+            ? "Onaylamak için tekrar tıklayın"
+            : cokluCikarma
+              ? `${cikarEtiketi} (${formatNumber(musteriKodlari.length)} müşteri — onay ister)`
+              : cikarEtiketi
+        }
+        className={cn(
+          "absolute top-1 right-1 flex size-5 shrink-0 items-center justify-center rounded",
+          "text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",
+          onayBekliyor && "bg-destructive/15 text-destructive hover:bg-destructive/20"
+        )}
+      >
+        <XIcon className="size-3" strokeWidth={2} aria-hidden />
+      </button>
+    ) : null}
+    </div>
   );
 }

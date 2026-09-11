@@ -3,6 +3,7 @@
 import { ArrowRightIcon } from "lucide-react";
 
 import type { PlanMetrigi } from "@/lib/rota/planla";
+import { YAYILIM_UYARI_KM } from "@/lib/rota/operasyon";
 import { formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -36,7 +37,8 @@ export function EtkiPaneli({ mevcut, secenekler, loading }: EtkiPaneliProps) {
   return (
     <div
       className={cn(
-        "flex flex-wrap items-stretch gap-px border-b border-border bg-border transition-opacity",
+        // Kenarlık sarmalayıcı kartta; `gap-px` + `bg-border` bölmeleri ayırır.
+        "flex flex-wrap items-stretch gap-px bg-border transition-opacity",
         loading && "opacity-40"
       )}
     >
@@ -88,7 +90,7 @@ export function EtkiPaneli({ mevcut, secenekler, loading }: EtkiPaneliProps) {
           etiket="Max yayılım"
           deger={`${formatNumber(Math.round(mevcut.maxYayilimKm))} km`}
           alt="bir araçtaki en yakın-en uzak farkı"
-          vurgu={mevcut.maxYayilimKm > 150}
+          vurgu={mevcut.maxYayilimKm > YAYILIM_UYARI_KM}
         />
         {mevcut.asimVar ? (
           <span className="rounded bg-destructive/15 px-1.5 py-0.5 text-[11px] font-medium text-destructive">
@@ -102,37 +104,55 @@ export function EtkiPaneli({ mevcut, secenekler, loading }: EtkiPaneliProps) {
           <span className="shrink-0 text-[11.5px] text-muted-foreground">
             Alternatif
           </span>
-          {secenekler.map((s) => (
-            <button
-              key={s.etiket}
-              type="button"
-              onClick={s.onSec}
-              disabled={s.secili}
-              title={
-                `${s.etiket}: ${formatNumber(s.metrik.yerlesenDurak)} durak, ` +
-                `${yuzde(s.metrik.ortDoluluk)} doluluk, ` +
-                `${formatNumber(Math.round(s.metrik.toplamKm))} km, ` +
-                `${formatNumber(s.metrik.aracSayisi)} araç, ` +
-                `${formatNumber(s.metrik.bolunmusBolge)} bölünmüş bölge, ` +
-                `max yayılım ${formatNumber(Math.round(s.metrik.maxYayilimKm))} km`
-              }
-              className={cn(
-                "flex shrink-0 items-center gap-1 rounded border px-1.5 py-0.5 text-[11.5px] transition-colors",
-                s.secili
-                  ? "cursor-default border-foreground/30 bg-accent/50 text-foreground"
-                  : "border-border/70 text-muted-foreground hover:text-foreground"
-              )}
-            >
-              <span>{s.etiket}</span>
-              <span className="tabular-nums opacity-70">
-                {yuzde(s.metrik.ortDoluluk)} ·{" "}
-                {formatNumber(Math.round(s.metrik.toplamKm))} km
-              </span>
-              {!s.secili ? (
-                <ArrowRightIcon className="size-3" strokeWidth={2} aria-hidden />
-              ) : null}
-            </button>
-          ))}
+          {secenekler.map((s) => {
+            const ozet =
+              `${formatNumber(s.metrik.yerlesenDurak)} durak, ` +
+              `${yuzde(s.metrik.ortDoluluk)} doluluk, ` +
+              `${formatNumber(Math.round(s.metrik.toplamKm))} km, ` +
+              `${formatNumber(s.metrik.aracSayisi)} araç, ` +
+              `${formatNumber(s.metrik.bolunmusBolge)} bölünmüş bölge, ` +
+              `max yayılım ${formatNumber(Math.round(s.metrik.maxYayilimKm))} km`;
+            return (
+              <button
+                key={s.etiket}
+                type="button"
+                onClick={s.onSec}
+                /*
+                  `disabled` DEĞİL: seçili seçeneği devre dışı bırakmak onu sekme
+                  sırasından ve ekran okuyucudan düşürüyordu — yani hangi
+                  stratejinin yürürlükte olduğu klavyeyle anlaşılamıyordu.
+                  Modülün geri kalanı zaten `aria-pressed` kullanıyor.
+                */
+                aria-pressed={s.secili}
+                aria-label={`${s.etiket} stratejisi — ${ozet}`}
+                title={`${s.etiket}: ${ozet}`}
+                className={cn(
+                  "flex shrink-0 items-center gap-1 rounded border px-1.5 py-0.5 text-[11.5px] transition-colors",
+                  s.secili
+                    ? "border-foreground/30 bg-accent/50 text-foreground"
+                    : "border-border/70 text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <span>{s.etiket}</span>
+                <span className="tabular-nums opacity-70">
+                  {yuzde(s.metrik.ortDoluluk)} ·{" "}
+                  {formatNumber(Math.round(s.metrik.toplamKm))} km
+                </span>
+                {/*
+                  Bölünmüş bölge sahada aynı ilçeye iki kez gitmek demek —
+                  yalnız tooltip'te kalmamalı, seçim bunun üzerinden yapılıyor.
+                */}
+                {s.metrik.bolunmusBolge > 0 ? (
+                  <span className="tabular-nums text-caution">
+                    · {formatNumber(s.metrik.bolunmusBolge)} bölünmüş
+                  </span>
+                ) : null}
+                {!s.secili ? (
+                  <ArrowRightIcon className="size-3" strokeWidth={2} aria-hidden />
+                ) : null}
+              </button>
+            );
+          })}
         </div>
       ) : null}
     </div>
@@ -158,7 +178,7 @@ function Olcu({
       <span
         className={cn(
           "shrink-0 font-mono text-[12.5px] font-medium tabular-nums",
-          vurgu ? "text-amber-400" : "text-foreground"
+          vurgu ? "text-caution" : "text-foreground"
         )}
       >
         {deger}

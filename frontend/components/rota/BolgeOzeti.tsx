@@ -1,9 +1,16 @@
 "use client";
 
 import { Fragment, useMemo, useState } from "react";
-import { AlertTriangleIcon, ChevronRightIcon, MapIcon, PinIcon } from "lucide-react";
+import {
+  AlertTriangleIcon,
+  ChevronDownIcon,
+  ChevronRightIcon,
+  MapIcon,
+  PinIcon,
+} from "lucide-react";
 
 import { MusteriAdIlce } from "@/components/sevkiyat/MusteriAdIlce";
+import { bolgeRengi } from "@/lib/rota/bolge-renk";
 import { ScrollBottomFade } from "@/components/ui/ScrollBottomFade";
 import { useScrollBottomFade } from "@/hooks/useScrollBottomFade";
 import type { Bolge } from "@/lib/rota/bolge";
@@ -54,6 +61,15 @@ export function BolgeOzeti({
 }: BolgeOzetiProps) {
   /** Aynı anda tek bölge açık — panel dar, birden fazlası listeyi boğuyor. */
   const [acikKod, setAcikKod] = useState<string | null>(null);
+  /**
+   * Panelin kendisi VARSAYILAN KAPALI.
+   *
+   * İçeriği doğrulama, iş değil: "bu bölgeye kim gidiyor, bölündü mü". Sürekli
+   * açık 288px'lik bir kutu olarak durduğunda planlama ekranındaki on bir
+   * sürekli açık bölgeden biriydi. Başlıktaki özet (kaç bölge, kaçı bölünmüş)
+   * kapalıyken de görünüyor — sorun varsa zaten oradan okunuyor.
+   */
+  const [panelAcik, setPanelAcik] = useState(false);
 
   const satirlar = useMemo<Satir[]>(() => {
     return bolgeler
@@ -81,28 +97,50 @@ export function BolgeOzeti({
       ref={wrapperRef}
       className="relative flex min-w-0 flex-col overflow-hidden rounded-lg border border-border"
     >
-      <header className="flex h-11 shrink-0 items-center justify-between gap-3 border-b border-border/60 px-3.5">
-        <h2 className="flex min-w-0 items-center gap-1.5 text-[12px] font-medium tracking-[0.06em] text-muted-foreground uppercase">
-          <MapIcon className="size-3.5 shrink-0" strokeWidth={1.75} aria-hidden />
-          <span className="truncate">Bölgeler</span>
-        </h2>
-        {bolunmus > 0 ? (
-          <span
-            className="flex shrink-0 cursor-help items-center gap-1 text-[11.5px] font-medium text-amber-600 dark:text-amber-400"
-            title="Aynı bölgeye birden fazla araç gidiyor — sahada aynı ilçeye iki kez gitmek demek."
-          >
-            <AlertTriangleIcon className="size-3" strokeWidth={2} aria-hidden />
-            {formatNumber(bolunmus)} bölünmüş
+      <h2>
+        <button
+          type="button"
+          onClick={() => setPanelAcik((o) => !o)}
+          aria-expanded={panelAcik}
+          title={
+            panelAcik
+              ? "Bölge listesini kapat"
+              : "Hangi bölgeye kim gidiyor, bölündü mü — listeyi aç"
+          }
+          className={cn(
+            "flex h-11 w-full shrink-0 items-center justify-between gap-3 px-3.5 text-left transition-colors hover:bg-accent/40",
+            panelAcik && "border-b border-border/60"
+          )}
+        >
+          <span className="flex min-w-0 items-center gap-1.5 text-[12px] font-medium tracking-[0.06em] text-muted-foreground uppercase">
+            <MapIcon className="size-3.5 shrink-0" strokeWidth={1.75} aria-hidden />
+            <span className="truncate">Bölgeler</span>
           </span>
-        ) : (
-          <span className="shrink-0 font-mono text-[12.5px] text-muted-foreground tabular-nums">
-            {formatNumber(satirlar.length)}
+          <span className="flex shrink-0 items-center gap-2">
+            {bolunmus > 0 ? (
+              <span className="flex items-center gap-1 text-[11.5px] font-medium text-caution">
+                <AlertTriangleIcon className="size-3" strokeWidth={2} aria-hidden />
+                {formatNumber(bolunmus)} bölünmüş
+              </span>
+            ) : null}
+            <span className="font-mono text-[12.5px] text-muted-foreground tabular-nums">
+              {formatNumber(satirlar.length)}
+            </span>
+            <ChevronDownIcon
+              className={cn(
+                "size-3.5 text-muted-foreground transition-transform",
+                panelAcik && "rotate-180"
+              )}
+              strokeWidth={1.75}
+              aria-hidden
+            />
           </span>
-        )}
-      </header>
+        </button>
+      </h2>
 
       <div
         ref={scrollRef}
+        hidden={!panelAcik}
         className={cn(
           "min-h-0 flex-1 overflow-y-auto transition-opacity",
           loading && "opacity-40"
@@ -142,6 +180,12 @@ export function BolgeOzeti({
                           strokeWidth={2}
                           aria-hidden
                         />
+                        {/* Havuz listesiyle AYNI renk — bkz. bolgeRengi. */}
+                        <span
+                          className="size-2 shrink-0 rounded-full"
+                          style={{ background: bolgeRengi(bolge.kod) }}
+                          aria-hidden
+                        />
                         <span className="min-w-0 flex-1 truncate text-[13px] text-foreground">
                           {bolge.ad}
                         </span>
@@ -171,7 +215,7 @@ export function BolgeOzeti({
                               className={cn(
                                 "rounded border px-1.5 py-0.5 text-[11px]",
                                 araclar.length > 1
-                                  ? "border-amber-500/40 text-amber-600 dark:text-amber-400"
+                                  ? "border-caution/40 text-caution"
                                   : "border-border/70 text-muted-foreground"
                               )}
                             >
@@ -252,7 +296,7 @@ export function BolgeOzeti({
                                       "truncate text-[11px]",
                                       arac
                                         ? "text-muted-foreground"
-                                        : "text-amber-600 dark:text-amber-400"
+                                        : "text-caution"
                                     )}
                                   >
                                     {arac ?? "havuzda — araca atanmadı"}
@@ -276,7 +320,7 @@ export function BolgeOzeti({
           </ul>
         )}
       </div>
-      <ScrollBottomFade />
+      {panelAcik ? <ScrollBottomFade /> : null}
     </section>
   );
 }
