@@ -122,6 +122,8 @@ interface RotaPlaniDegeri {
    */
   taslakKaydet: () => Promise<void>;
   taslakKaydediliyor: boolean;
+  /** Son başarılı taslak yazımının anı (`Date.now()`) — küçük onay rozeti bunu izler. */
+  sonKayitZamani: number | null;
 }
 
 const Baglam = createContext<RotaPlaniDegeri | null>(null);
@@ -208,6 +210,8 @@ export function RotaPlaniProvider({ children }: { children: ReactNode }) {
   /** Mount'taki ilk yükleme tamamlanana kadar `plan` değişikliklerini yazma — aksi halde boş taslağı hemen üzerine yazardık. */
   const ilkYuklemeRef = useRef(true);
   const [taslakKaydediliyor, setTaslakKaydediliyor] = useState(false);
+  /** Son BAŞARILI yazımın anı — küçük "Otomatik kaydedildi" rozetini tetikler. */
+  const [sonKayitZamani, setSonKayitZamani] = useState<number | null>(null);
 
   useEffect(() => {
     let iptal = false;
@@ -242,7 +246,12 @@ export function RotaPlaniProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify({ id: taslakIdRef.current, plan: guncelPlan }),
       });
       const json = (await res.json()) as { id?: string | null; error?: string };
-      if (res.ok) taslakIdRef.current = json.id ?? null;
+      if (res.ok) {
+        taslakIdRef.current = json.id ?? null;
+        // Yalnız gerçekten bir şey YAZILDIYSA rozet göster — plan boşalıp
+        // taslak silinirken "kaydedildi" demek yanıltıcı olurdu.
+        if (json.id != null) setSonKayitZamani(Date.now());
+      }
     } catch {
       // Sessiz otomatik kayıt — kullanıcı "Kaydet" ile elle tekrar dener.
     } finally {
@@ -734,6 +743,7 @@ export function RotaPlaniProvider({ children }: { children: ReactNode }) {
       kayitDurumu,
       taslakKaydet,
       taslakKaydediliyor,
+      sonKayitZamani,
     }),
     [
       loading, error, duraklar, araclar, soforler, filo, ozet, tazele,
@@ -743,7 +753,7 @@ export function RotaPlaniProvider({ children }: { children: ReactNode }) {
       hepsiniTemizle, durakEkle, durakCikar, aracTemizle, optimizeEt,
       optimizeEdilen, rotaBilgileri, optimizeHatalari, mevcutSonuc, mevcutMetrik,
       etkiSecenekleri, planiKaydet, kaydediliyor, kayitDurumu,
-      taslakKaydet, taslakKaydediliyor,
+      taslakKaydet, taslakKaydediliyor, sonKayitZamani,
     ]
   );
 

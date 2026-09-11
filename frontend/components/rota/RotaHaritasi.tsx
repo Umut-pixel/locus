@@ -95,6 +95,13 @@ interface RotaHaritasiProps {
   onDurakSec?: (secim: DurakSecimi) => void;
   /** Boş bir noktaya tıklanınca — açık kartı kapatmak için. */
   onBosaTikla?: () => void;
+  /**
+   * Belirli bir alana yumuşak kaydırma isteği — ör. Bölgeler listesinde bir
+   * bölgeye tıklanınca. `zaman` her istekte değişir (aynı bölgeye art arda
+   * tıklansa bile yeniden tetiklensin diye); `noktalar` boşsa hiçbir şey
+   * olmaz.
+   */
+  ucusHedefi?: { noktalar: LngLat[]; zaman: number } | null;
 }
 
 function escapeHtml(value: string): string {
@@ -264,7 +271,13 @@ function rotaNoktalari(duraklar: RotaDuragi[]): LngLat[] {
  * stil+tile'lar yeniden yükleniyor, `revealStageVeil` perdesi tekrar
  * oynuyordu — kullanıcıya tam bir sayfa yenilemesi gibi görünüyordu.
  */
-export function RotaHaritasi({ rotalar, havuz, onDurakSec, onBosaTikla }: RotaHaritasiProps) {
+export function RotaHaritasi({
+  rotalar,
+  havuz,
+  onDurakSec,
+  onBosaTikla,
+  ucusHedefi,
+}: RotaHaritasiProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const stageVeilRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
@@ -616,6 +629,33 @@ export function RotaHaritasi({ rotalar, havuz, onDurakSec, onBosaTikla }: RotaHa
     }
     applyMapStyle(map, theme);
   }, [theme]);
+
+  // Bölgeler listesinde bir bölgeye tıklanınca — diğer redraw'ların aksine
+  // burada kamera BİLEREK oynuyor, kullanıcı "oraya git" dedi.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !ucusHedefi || ucusHedefi.noktalar.length === 0) return;
+
+    if (ucusHedefi.noktalar.length === 1) {
+      map.flyTo({
+        center: ucusHedefi.noktalar[0],
+        zoom: Math.max(map.getZoom(), 12),
+        duration: 1200,
+        essential: true,
+      });
+      return;
+    }
+
+    const bounds = new mapboxgl.LngLatBounds();
+    for (const c of ucusHedefi.noktalar) bounds.extend(c);
+    map.fitBounds(bounds, {
+      padding: { top: 56, bottom: 48, left: 48, right: 56 },
+      maxZoom: 13,
+      duration: 1200,
+      essential: true,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ucusHedefi?.zaman]);
 
   if (!MAPBOX_TOKEN) {
     return (

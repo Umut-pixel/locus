@@ -22,6 +22,7 @@ import {
 } from "@/lib/rota/kriter";
 import { GsapCollapse } from "@/components/ui/gsap-collapse";
 import { formatKg, formatNumber } from "@/lib/format";
+import { dolulukTonu } from "@/lib/rota/doluluk-renk";
 import { cn } from "@/lib/utils";
 
 /** Odaklanılan aracın güncel doluluğu — karnenin en üstünde, her zaman görünür. */
@@ -148,10 +149,8 @@ export function PlanKarnesi({
         <FarkRozeti key={dolulukFarki.zaman} fark={dolulukFarki} onBitti={onDolulukFarkiBitti} />
       ) : null}
       <span
-        className={cn(
-          "shrink-0 font-mono text-[11.5px] tabular-nums",
-          aktifDoluluk.asim ? "text-destructive" : "text-muted-foreground"
-        )}
+        className="shrink-0 font-mono text-[11.5px] tabular-nums"
+        style={{ color: dolulukTonu(aktifDoluluk.yuzde) }}
       >
         %{Math.round(aktifDoluluk.yuzde)} · {formatKg(Math.round(aktifDoluluk.kg))}
         {aktifDoluluk.kapasiteKg != null ? ` / ${formatKg(Math.round(aktifDoluluk.kapasiteKg))}` : ""}
@@ -303,6 +302,51 @@ function FarkRozeti({ fark, onBitti }: { fark: DolulukFarki; onBitti: () => void
   );
 }
 
+/**
+ * "Otomatik kaydedildi" — her taslak yazımında (otomatik ya da "Kaydet"
+ * düğmesiyle elle, ikisi de aynı yola çıkıyor) beliren küçük, kendiliğinden
+ * kaybolan rozet. Genel `toastManager`'ı bilerek kullanmıyor: her ~1,5
+ * saniyelik düzenlemede bir tetiklendiği için normal toast yığını hızla
+ * kirlenirdi — bu yalnız Kaydet düğmesinin yanında duran sessiz bir onay.
+ */
+export function KayitRozeti({ zaman }: { zaman: number }) {
+  const reduced = useReducedMotion();
+  const ref = useRef<HTMLSpanElement>(null);
+
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    gsap.killTweensOf(el);
+
+    if (reduced) {
+      gsap.set(el, { opacity: 1 });
+      const t = window.setTimeout(() => gsap.to(el, { opacity: 0, duration: 0.2 }), 1600);
+      return () => window.clearTimeout(t);
+    }
+
+    gsap.fromTo(el, { opacity: 0, y: 4 }, { opacity: 1, y: 0, duration: 0.22, ease: "power2.out" });
+    const t = window.setTimeout(() => {
+      gsap.to(el, { opacity: 0, y: 4, duration: 0.3, ease: "power2.in" });
+    }, 2000);
+    return () => {
+      window.clearTimeout(t);
+      gsap.killTweensOf(el);
+    };
+    // `key={zaman}` çağıran tarafta her yeni kayıtta yeniden mount ediyor.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [zaman]);
+
+  return (
+    <span
+      ref={ref}
+      style={{ opacity: 0 }}
+      className="shrink-0 text-[11px] text-muted-foreground"
+    >
+      Otomatik kaydedildi
+    </span>
+  );
+}
+
 function KriterSatiri({
   kriter,
   secili,
@@ -333,8 +377,13 @@ function KriterSatiri({
         <span
           className={cn(
             "font-mono text-[11.5px] tabular-nums",
-            kriter.durum === "iyi" ? "text-muted-foreground" : DURUM_SINIFI[kriter.durum]
+            // Yuzde taşıyan satırda (Yük riski) düz durum rengi yerine
+            // %100'e yaklaştıkça kızaran sürekli bir gradyan kullanılıyor —
+            // ikisi karışmasın diye className yalnız `yuzde` yokken devrede.
+            kriter.yuzde == null &&
+              (kriter.durum === "iyi" ? "text-muted-foreground" : DURUM_SINIFI[kriter.durum])
           )}
+          style={kriter.yuzde != null ? { color: dolulukTonu(kriter.yuzde) } : undefined}
         >
           {kriter.deger}
         </span>

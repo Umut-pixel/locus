@@ -19,12 +19,14 @@ import {
   type EklemeOnizlemesi,
 } from "@/components/rota/DurakDetayKarti";
 import {
+  KayitRozeti,
   PlanKarnesi,
   type AktifDoluluk,
   type DolulukFarki,
 } from "@/components/rota/PlanKarnesi";
 import { aracRengi, RotaHaritasi, type HaritaRotasi } from "@/components/rota/RotaHaritasi";
 import { AppSidebarMobileTrigger } from "@/components/sidebar/AppSidebar";
+import { GsapAutoHeight } from "@/components/ui/gsap-auto-height";
 import { SegmentedSwitch } from "@/components/ui/segmented-switch";
 import { toastManager } from "@/components/ui/toast";
 import { useKayitliPlanlar, type KayitliDurak } from "@/hooks/useKayitliPlanlar";
@@ -154,8 +156,12 @@ export default function RotaHaritasiSayfasi() {
     odakAracParam ? { tur: "arac", aracKod: odakAracParam } : { tur: "hepsi" }
   );
   const [havuzGoster, setHavuzGoster] = useState(true);
-  /** Sol üst karttaki liste sekmesi — araç filtresi + bölge filtresi aynı kartı paylaşıyor. */
-  const [liste, setListe] = useState<"araclar" | "bolgeler">("araclar");
+  /** Sol üst karttaki liste sekmesi — araç/bölge filtresi + kayıtlı plan geçmişi aynı kartı paylaşıyor. */
+  const [liste, setListe] = useState<"araclar" | "bolgeler" | "kaydedilenler">("araclar");
+  /** Bölgeler ya da Kaydedilenler'den bir yere tıklanınca haritanın kayacağı hedef. */
+  const [ucusHedefi, setUcusHedefi] = useState<{ noktalar: [number, number][]; zaman: number } | null>(
+    null
+  );
 
   /** Haritada tıklanan durak — bilgi kartı bunun üzerine kurulur. */
   const [seciliDurak, setSeciliDurak] = useState<DurakSecimi | null>(null);
@@ -435,12 +441,48 @@ export default function RotaHaritasiSayfasi() {
   const araciFiltrele = (aracKod: string) =>
     setFiltre((f) => (f.tur === "arac" && f.aracKod === aracKod ? { tur: "hepsi" } : { tur: "arac", aracKod }));
 
-  const bolgeyiFiltrele = (bolgeKod: string) =>
-    setFiltre((f) =>
-      f.tur === "bolge" && f.bolgeKod === bolgeKod ? { tur: "hepsi" } : { tur: "bolge", bolgeKod }
-    );
+  /**
+   * Bölgeye tıklayınca filtrelemenin YANINDA harita da o bölgeye kayar —
+   * yalnız hangi bölgede olduğunu değil, NEREDE olduğunu da göstersin.
+   * Seçim kaldırılırken (aynı bölgeye ikinci tıklama) kaydırma yok, yalnız
+   * yeni bir bölge SEÇİLİRKEN.
+   */
+  const bolgeyiFiltrele = (bolgeKod: string) => {
+    const zatenSecili = filtre.tur === "bolge" && filtre.bolgeKod === bolgeKod;
+    setFiltre(zatenSecili ? { tur: "hepsi" } : { tur: "bolge", bolgeKod });
+    if (zatenSecili) return;
+    const bolge = canli.bolgeler.find((b) => b.kod === bolgeKod);
+    const noktalar = (bolge?.duraklar ?? [])
+      .filter((d) => d.lat != null && d.lon != null)
+      .map((d): [number, number] => [d.lon!, d.lat!]);
+    if (noktalar.length > 0) setUcusHedefi({ noktalar, zaman: Date.now() });
+  };
+
+  /**
+   * Kaydedilenler'den bir gün/plan seçilince (`?gun=`/`?planId=` navigasyonu)
+   * harita o rotalara kaysın — `RotaHaritasi` artık mount'ta bir kez fit
+   * ediyor, mod değişince kendiliğinden değil (bkz. RotaHaritasi üstteki not).
+   */
+  useEffect(() => {
+    if (!gecmisMod) return;
+    const noktalar: [number, number][] = [];
+    for (const r of gecmisRotalar) {
+      for (const d of r.duraklar) {
+        if (d.lat != null && d.lon != null) noktalar.push([d.lon, d.lat]);
+      }
+    }
+    if (noktalar.length > 0) setUcusHedefi({ noktalar, zaman: Date.now() });
+    // Yalnız gerçek navigasyonda (gun/planId değişince) tetiklensin —
+    // `gecmisRotalar` arka planda tazelenince değil.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gecmisGun, gecmisPlanId]);
 
   const toplamDurak = gorunenRotalar.reduce((t, r) => t + r.duraklar.length, 0);
+
+  /** "Bölgeler" sekmesi yalnız canlı modda ve bölge varsa anlamlı. */
+  const bolgelerVar = !gecmisMod && canli.bolgeler.length > 0;
+  /** Sekme geçersiz kalırsa (ör. bölgeler kayboldu) kendiliğinden "Araçlar"a döner. */
+  const gecerliListe = liste === "bolgeler" && !bolgelerVar ? "araclar" : liste;
 
   return (
     <div ref={containerRef} className="relative isolate min-h-0 min-w-0 flex-1 overflow-hidden">
@@ -449,6 +491,7 @@ export default function RotaHaritasiSayfasi() {
         havuz={gorunenHavuz}
         onDurakSec={setSeciliDurak}
         onBosaTikla={() => setSeciliDurak(null)}
+        ucusHedefi={ucusHedefi}
       />
 
       <div className="pointer-events-none absolute inset-0 z-10 flex flex-col justify-between gap-2 p-2 sm:p-3 md:p-4">
@@ -508,140 +551,194 @@ export default function RotaHaritasiSayfasi() {
               </div>
             ) : null}
 
-            {!gecmisMod && canli.bolgeler.length > 0 ? (
-              <div className="shrink-0 border-b border-border/40 px-2.5 py-1.5">
-                <SegmentedSwitch
-                  value={liste}
-                  onChange={setListe}
-                  ariaLabel="Liste seçimi"
-                  options={[
-                    { value: "araclar", label: "Araçlar" },
-                    { value: "bolgeler", label: "Bölgeler" },
-                  ]}
-                />
-              </div>
-            ) : null}
+            <div className="shrink-0 border-b border-border/40 px-2.5 py-1.5">
+              <SegmentedSwitch
+                value={gecerliListe}
+                onChange={setListe}
+                ariaLabel="Liste seçimi"
+                options={[
+                  { value: "araclar", label: "Araçlar" },
+                  ...(bolgelerVar ? [{ value: "bolgeler" as const, label: "Bölgeler" }] : []),
+                  { value: "kaydedilenler", label: "Kayıtlı" },
+                ]}
+              />
+            </div>
 
             <div className="max-h-[60vh] min-h-0 overflow-y-auto">
-              {liste === "bolgeler" && !gecmisMod ? (
-                <ul className="divide-y divide-border/30">
-                  {canli.bolgeler.map((b) => {
-                    const secili = gecerliFiltre.tur === "bolge" && gecerliFiltre.bolgeKod === b.kod;
-                    const solgun = gecerliFiltre.tur === "bolge" && !secili;
-                    return (
-                      <li key={b.kod}>
-                        <button
-                          type="button"
-                          onClick={() => bolgeyiFiltrele(b.kod)}
-                          aria-pressed={secili}
-                          className={cn(
-                            "flex w-full min-w-0 items-center gap-2 px-2.5 py-2 text-left transition-colors",
-                            secili ? "bg-accent/50" : "hover:bg-accent/30",
-                            solgun && "opacity-40"
-                          )}
-                          title={
-                            secili
-                              ? `${b.ad} — tıkla, tüm bölgelere dön`
-                              : `${b.ad} — yalnız bu bölgeyi göster`
-                          }
-                        >
-                          <span
-                            className="size-2.5 shrink-0 rounded-full ring-2 ring-background/60"
-                            style={{ background: bolgeRengi(b.kod) }}
-                            aria-hidden
-                          />
-                          <span className="min-w-0 flex-1 truncate text-[12.5px] text-foreground">
-                            {b.ad}
-                          </span>
-                          <span className="shrink-0 font-mono text-[11.5px] text-muted-foreground tabular-nums">
-                            {formatNumber(b.duraklar.length)} · {formatKg(Math.round(b.kg))}
-                          </span>
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
-              ) : yuklu.length === 0 ? (
-                <p className="flex items-center gap-2 px-2.5 py-3 text-[12px] text-muted-foreground">
-                  {loading ? (
-                    <>
+              <GsapAutoHeight>
+                {gecerliListe === "bolgeler" ? (
+                  <ul className="divide-y divide-border/30">
+                    {canli.bolgeler.map((b) => {
+                      const secili = gecerliFiltre.tur === "bolge" && gecerliFiltre.bolgeKod === b.kod;
+                      const solgun = gecerliFiltre.tur === "bolge" && !secili;
+                      return (
+                        <li key={b.kod}>
+                          <button
+                            type="button"
+                            onClick={() => bolgeyiFiltrele(b.kod)}
+                            aria-pressed={secili}
+                            className={cn(
+                              "flex w-full min-w-0 items-center gap-2 px-2.5 py-2 text-left transition-colors",
+                              secili ? "bg-accent/50" : "hover:bg-accent/30",
+                              solgun && "opacity-40"
+                            )}
+                            title={
+                              secili
+                                ? `${b.ad} — tıkla, tüm bölgelere dön`
+                                : `${b.ad} — yalnız bu bölgeyi göster`
+                            }
+                          >
+                            <span
+                              className="size-2.5 shrink-0 rounded-full ring-2 ring-background/60"
+                              style={{ background: bolgeRengi(b.kod) }}
+                              aria-hidden
+                            />
+                            <span className="min-w-0 flex-1 truncate text-[12.5px] text-foreground">
+                              {b.ad}
+                            </span>
+                            <span className="shrink-0 font-mono text-[11.5px] text-muted-foreground tabular-nums">
+                              {formatNumber(b.duraklar.length)} · {formatKg(Math.round(b.kg))}
+                            </span>
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                ) : gecerliListe === "kaydedilenler" ? (
+                  kayitli.loading && kayitli.gunler.length === 0 ? (
+                    <p className="flex items-center gap-2 px-2.5 py-3 text-[12px] text-muted-foreground">
                       <LoaderIcon className="size-3.5 shrink-0 animate-spin" strokeWidth={1.75} aria-hidden />
                       Yükleniyor…
-                    </>
-                  ) : gecmisMod ? (
-                    "Bu tarihte kayıtlı plan bulunamadı."
+                    </p>
+                  ) : kayitli.gunler.length === 0 ? (
+                    <p className="px-2.5 py-3 text-[12px] text-muted-foreground">
+                      Henüz kaydedilmiş plan yok.
+                    </p>
                   ) : (
-                    "Henüz araca durak atanmadı — planlama ekranından dağıtın."
-                  )}
-                </p>
-              ) : (
-                <ul className="divide-y divide-border/30">
-                  {yuklu.map((r) => {
-                    const secili = gecerliOdak === r.aracKod;
-                    const solgun = gecerliOdak != null && !secili;
-                    const kg = r.duraklar.reduce((t, d) => t + d.kg, 0);
-                    return (
-                      <li key={r.aracKod}>
-                        <button
-                          type="button"
-                          onClick={() => araciFiltrele(r.aracKod)}
-                          aria-pressed={secili}
-                          className={cn(
-                            "flex w-full min-w-0 items-center gap-2 px-2.5 py-2 text-left transition-colors",
-                            secili ? "bg-accent/50" : "hover:bg-accent/30",
-                            solgun && "opacity-40"
-                          )}
-                          title={
-                            secili
-                              ? `${r.aracAd} — tıkla, tüm araçlara dön`
-                              : `${r.aracAd} — yalnız bu aracı göster`
-                          }
-                        >
-                          <span
-                            className="size-2.5 shrink-0 rounded-full ring-2 ring-background/60"
-                            style={{ background: r.renk }}
-                            aria-hidden
-                          />
-                          <span className="min-w-0 flex-1 truncate text-[12.5px] text-foreground">
-                            {r.aracAd}
-                          </span>
-                          <span className="shrink-0 font-mono text-[11.5px] text-muted-foreground tabular-nums">
-                            {formatNumber(r.duraklar.length)} · {formatKg(Math.round(kg))}
-                          </span>
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
+                    <ul className="divide-y divide-border/30">
+                      {kayitli.gunler.map((gun) => (
+                        <li key={gun.planTarihi}>
+                          <div className="flex items-center justify-between gap-2 bg-accent/20 px-2.5 py-1.5">
+                            <span className="min-w-0 flex-1 truncate text-[11.5px] font-medium text-foreground">
+                              {tarihMetni(gun.planTarihi)}
+                            </span>
+                            <Link
+                              href={`/rotalar/harita?gun=${encodeURIComponent(gun.planTarihi)}`}
+                              className="shrink-0 text-[11px] text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+                              title="O günün tüm araçlarını haritada göster"
+                            >
+                              Tümü
+                            </Link>
+                          </div>
+                          <ul>
+                            {gun.planlar.map((plan) => (
+                              <li key={plan.id}>
+                                <Link
+                                  href={`/rotalar/harita?planId=${encodeURIComponent(plan.id)}`}
+                                  className="flex min-w-0 items-center gap-2 py-2 pr-2.5 pl-4 text-left transition-colors hover:bg-accent/30"
+                                  title={`${plan.aracAd} — haritada göster`}
+                                >
+                                  <TruckIcon
+                                    className="size-3 shrink-0 text-muted-foreground"
+                                    strokeWidth={1.75}
+                                    aria-hidden
+                                  />
+                                  <span className="min-w-0 flex-1 truncate text-[12px] text-foreground">
+                                    {plan.aracAd}
+                                  </span>
+                                  <span className="shrink-0 font-mono text-[11px] text-muted-foreground tabular-nums">
+                                    {formatNumber(plan.durakSayisi)} durak
+                                  </span>
+                                </Link>
+                              </li>
+                            ))}
+                          </ul>
+                        </li>
+                      ))}
+                    </ul>
+                  )
+                ) : yuklu.length === 0 ? (
+                  <p className="flex items-center gap-2 px-2.5 py-3 text-[12px] text-muted-foreground">
+                    {loading ? (
+                      <>
+                        <LoaderIcon className="size-3.5 shrink-0 animate-spin" strokeWidth={1.75} aria-hidden />
+                        Yükleniyor…
+                      </>
+                    ) : gecmisMod ? (
+                      "Bu tarihte kayıtlı plan bulunamadı."
+                    ) : (
+                      "Henüz araca durak atanmadı — planlama ekranından dağıtın."
+                    )}
+                  </p>
+                ) : (
+                  <ul className="divide-y divide-border/30">
+                    {yuklu.map((r) => {
+                      const secili = gecerliOdak === r.aracKod;
+                      const solgun = gecerliOdak != null && !secili;
+                      const kg = r.duraklar.reduce((t, d) => t + d.kg, 0);
+                      return (
+                        <li key={r.aracKod}>
+                          <button
+                            type="button"
+                            onClick={() => araciFiltrele(r.aracKod)}
+                            aria-pressed={secili}
+                            className={cn(
+                              "flex w-full min-w-0 items-center gap-2 px-2.5 py-2 text-left transition-colors",
+                              secili ? "bg-accent/50" : "hover:bg-accent/30",
+                              solgun && "opacity-40"
+                            )}
+                            title={
+                              secili
+                                ? `${r.aracAd} — tıkla, tüm araçlara dön`
+                                : `${r.aracAd} — yalnız bu aracı göster`
+                            }
+                          >
+                            <span
+                              className="size-2.5 shrink-0 rounded-full ring-2 ring-background/60"
+                              style={{ background: r.renk }}
+                              aria-hidden
+                            />
+                            <span className="min-w-0 flex-1 truncate text-[12.5px] text-foreground">
+                              {r.aracAd}
+                            </span>
+                            <span className="shrink-0 font-mono text-[11.5px] text-muted-foreground tabular-nums">
+                              {formatNumber(r.duraklar.length)} · {formatKg(Math.round(kg))}
+                            </span>
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
 
-              {havuz.length > 0 && liste === "araclar" ? (
-                <button
-                  type="button"
-                  onClick={() => setHavuzGoster((o) => !o)}
-                  aria-pressed={havuzGoster}
-                  className={cn(
-                    "flex w-full items-center gap-2 border-t border-border/40 px-2.5 py-2 text-left transition-colors hover:bg-accent/30",
-                    !havuzGoster && "opacity-40"
-                  )}
-                  title={
-                    gecerliOdak != null
-                      ? "Atanmamış durakları göster/gizle — tıklayıp doğrudan bu araca ekleyebilirsiniz"
-                      : "Atanmamış durakları göster/gizle"
-                  }
-                >
-                  <span
-                    className="size-2.5 shrink-0 rounded-full border border-muted-foreground/60"
-                    aria-hidden
-                  />
-                  <span className="min-w-0 flex-1 truncate text-[12.5px] text-muted-foreground">
-                    Atanmamış
-                  </span>
-                  <span className="shrink-0 font-mono text-[11.5px] text-muted-foreground tabular-nums">
-                    {formatNumber(havuz.length)}
-                  </span>
-                </button>
-              ) : null}
+                {havuz.length > 0 && gecerliListe === "araclar" ? (
+                  <button
+                    type="button"
+                    onClick={() => setHavuzGoster((o) => !o)}
+                    aria-pressed={havuzGoster}
+                    className={cn(
+                      "flex w-full items-center gap-2 border-t border-border/40 px-2.5 py-2 text-left transition-colors hover:bg-accent/30",
+                      !havuzGoster && "opacity-40"
+                    )}
+                    title={
+                      gecerliOdak != null
+                        ? "Atanmamış durakları göster/gizle — tıklayıp doğrudan bu araca ekleyebilirsiniz"
+                        : "Atanmamış durakları göster/gizle"
+                    }
+                  >
+                    <span
+                      className="size-2.5 shrink-0 rounded-full border border-muted-foreground/60"
+                      aria-hidden
+                    />
+                    <span className="min-w-0 flex-1 truncate text-[12.5px] text-muted-foreground">
+                      Atanmamış
+                    </span>
+                    <span className="shrink-0 font-mono text-[11.5px] text-muted-foreground tabular-nums">
+                      {formatNumber(havuz.length)}
+                    </span>
+                  </button>
+                ) : null}
+              </GsapAutoHeight>
             </div>
 
             {gecerliFiltre.tur !== "hepsi" ? (
@@ -716,24 +813,32 @@ export default function RotaHaritasiSayfasi() {
                   </button>
                 ) : null}
                 {!gecmisMod ? (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      void canli.taslakKaydet().then(() => {
-                        toastManager.add({ type: "success", title: "Taslak kaydedildi" });
-                      });
-                    }}
-                    disabled={canli.taslakKaydediliyor}
-                    title="Taslağı şimdi kaydet — zaten kendiliğinden de kaydediliyor, sayfa yenilense de kaybolmaz"
-                    className="ml-auto flex shrink-0 items-center gap-1 rounded border border-border/70 px-1.5 py-0.5 text-[11px] text-muted-foreground transition-colors hover:border-foreground/40 hover:text-foreground disabled:opacity-50"
-                  >
-                    {canli.taslakKaydediliyor ? (
-                      <LoaderIcon className="size-3 shrink-0 animate-spin" strokeWidth={2} aria-hidden />
-                    ) : (
-                      <SaveIcon className="size-3 shrink-0" strokeWidth={1.75} aria-hidden />
-                    )}
-                    Kaydet
-                  </button>
+                  <>
+                    {/*
+                      Otomatik kayıt her ~1,5sn'de bir kendiliğinden çalışıyor
+                      (RotaPlaniProvider) — bu rozet HER yazımda (otomatik ya
+                      da bu düğmeyle elle, ikisi aynı yola çıkıyor) beliriyor.
+                      Genel toastManager'ı bilerek kullanmıyoruz: sık tetiklenen
+                      bir onay için normal toast yığını hızla kirlenirdi.
+                    */}
+                    {canli.sonKayitZamani != null ? (
+                      <KayitRozeti key={canli.sonKayitZamani} zaman={canli.sonKayitZamani} />
+                    ) : null}
+                    <button
+                      type="button"
+                      onClick={() => void canli.taslakKaydet()}
+                      disabled={canli.taslakKaydediliyor}
+                      title="Taslağı şimdi kaydet — zaten kendiliğinden de kaydediliyor, sayfa yenilense de kaybolmaz"
+                      className="ml-auto flex shrink-0 items-center gap-1 rounded border border-border/70 px-1.5 py-0.5 text-[11px] text-muted-foreground transition-colors hover:border-foreground/40 hover:text-foreground disabled:opacity-50"
+                    >
+                      {canli.taslakKaydediliyor ? (
+                        <LoaderIcon className="size-3 shrink-0 animate-spin" strokeWidth={2} aria-hidden />
+                      ) : (
+                        <SaveIcon className="size-3 shrink-0" strokeWidth={1.75} aria-hidden />
+                      )}
+                      Kaydet
+                    </button>
+                  </>
                 ) : null}
               </div>
             ) : null}

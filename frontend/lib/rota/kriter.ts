@@ -56,6 +56,12 @@ export interface Kriter {
   aciklama: string;
   /** Haritada vurgulanacaklar. Boşsa satır tıklanabilir değil. */
   suclular: { araclar: string[]; duraklar: string[] };
+  /**
+   * Tek bir yüzdeye indirgenebilen satırlarda (şu an yalnız "Yük riski" —
+   * en dolu aracın kısıt yüzdesi) UI'ın gradyan renklendirmesi için ham
+   * değer. Diğer kriterlerde yok — `deger` zaten bir yüzde değil.
+   */
+  yuzde?: number;
 }
 
 export interface KriterGirdisi {
@@ -280,6 +286,11 @@ function yukRiskiKriteri(g: KriterGirdisi): Kriter {
   }
   if (parcalar.length === 0) parcalar.push("Kapasite aşımı yok.");
 
+  // En dolu aracın yüzdesi — %100'ün altında bile olsa (ör. %85) UI bunu
+  // gradyan renklendirme için okuyor; yalnız aşanlar değil, TÜM yüklü
+  // araçların en yükseği (aşım yoksa da "ne kadar doluyoruz" görünsün).
+  const enYuksekYuzde = dolu.length > 0 ? Math.max(...dolu.map(asimYuzdesi)) : undefined;
+
   return {
     anahtar: "yukRiski",
     ad: "Yük riski",
@@ -292,6 +303,7 @@ function yukRiskiKriteri(g: KriterGirdisi): Kriter {
     durum,
     kaynak: dolu.length === 0 ? "veri-yok" : "olculen",
     aciklama: parcalar.join(" "),
+    yuzde: enYuksekYuzde,
     suclular: {
       araclar: [...new Set([...asanlar.map((y) => y.arac.kod), ...olcusuzler])],
       duraklar: [],
