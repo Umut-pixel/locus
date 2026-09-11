@@ -4,10 +4,10 @@ import { Fragment, useMemo, useState } from "react";
 import {
   AlertTriangleIcon,
   ChevronRightIcon,
+  LoaderIcon,
   MapIcon,
   MapPinIcon,
   PackagePlusIcon,
-  PinIcon,
 } from "lucide-react";
 
 import { MusteriAdIlce } from "@/components/sevkiyat/MusteriAdIlce";
@@ -23,18 +23,15 @@ interface BolgeOzetiProps {
   bolgeler: Bolge[];
   /** musteriKodu → aracAd. Plana girmemiş durak haritada olmaz. */
   durakAraci: Map<string, string>;
-  /** Sabitleme için filo. Boş geçilirse sabitleme kontrolü çıkmaz. */
+  /** Yükleme hedefi seçenekleri. */
   filo: RotaAraci[];
-  /** Bölge kodu → araç kodu. */
-  sabitlemeler: Record<string, string>;
-  onSabitle: (bolgeKod: string, aracKod: string | null) => void;
-  /** Sabitleme yalnız bölge stratejisinde anlamlı; sweep/ffd yok sayar. */
-  sabitlemeAcik: boolean;
   loading: boolean;
-  /** Seçili araç — dolu geldiğinde her satırda "bu bölgeyi yükle" eylemi açılır. */
-  seciliArac: string | null;
-  /** Bölgedeki havuzda kalan durakları seçili araca (remove+add) yükler. */
-  onBolgeYukle: (musteriKodlari: string[]) => void;
+  /**
+   * Bölgedeki havuzda kalan durakları `aracKod`'a (remove+add) yükler; sonra
+   * doluluğu bildirir, rotasını kurar ve haritayı açar — çağıran (sayfa)
+   * bu üçünü tek eylemde birleştiriyor.
+   */
+  onBolgeYukle: (musteriKodlari: string[], aracKod: string) => void | Promise<void>;
 }
 
 interface Satir {
@@ -68,20 +65,18 @@ function rutNumarasi(kod: string): number | null {
  * satır olarak kalıyor. İzmir depo şehri olduğu için liste EN BAŞTA —
  * uzaklığa göre sıralamaya bırakılırsa bazı günler dibe düşüyordu.
  *
- * İŞLEV: panel eskiden salt-okunurdu (yalnız "bak, hangi bölge nerede").
- * Bir araç seçiliyken her satırın açılan detayında "Havuzdaki N durağı X'e
- * yükle" düğmesi çıkıyor — havuzdan tek tek sürüklemek yerine bütün bölgeyi
- * bir tıkla seçili araca taşır (`onBolgeYukle`).
+ * İŞLEV — "Araca yükle": panel eskiden salt-okunurdu ("bak, hangi bölge
+ * nerede") ya da yalnız GELECEĞİ etkiliyordu ("Araca sabitle" — otomatik
+ * dağıtıma dokunur, o an hiçbir şeyi taşımazdı). Artık her satırın açılan
+ * detayında filodaki her araç için bir düğme var; tıklamak o bölgenin
+ * havuzda kalan tüm duraklarını HEMEN o araca taşır, doluluğu bildirir,
+ * rotasını kurar ve haritayı açar.
  */
 export function BolgeOzeti({
   bolgeler,
   durakAraci,
   filo,
-  sabitlemeler,
-  onSabitle,
-  sabitlemeAcik,
   loading,
-  seciliArac,
   onBolgeYukle,
 }: BolgeOzetiProps) {
   /** Aynı anda tek bölge açık — birden fazlası listeyi boğuyor. */
@@ -122,13 +117,11 @@ export function BolgeOzeti({
   const izmirToplam = useMemo(() => {
     let durak = 0;
     let kg = 0;
-    let enUzakKm = 0;
     for (const s of izmirSatirlari) {
       durak += s.bolge.duraklar.length;
       kg += s.bolge.kg;
-      enUzakKm = Math.max(enUzakKm, s.bolge.depoyaKm);
     }
-    return { durak, kg, enUzakKm };
+    return { durak, kg };
   }, [izmirSatirlari]);
 
   /** Toplam bölünmüş bölge — İzmir çocukları dahil, gerçek operasyon uyarısı. */
@@ -153,20 +146,7 @@ export function BolgeOzeti({
     satirlar.length
   );
 
-  const seciliAracAdi = seciliArac
-    ? (filo.find((a) => a.kod === seciliArac)?.ad ?? null)
-    : null;
-
-  const ortakSatirProps = {
-    durakAraci,
-    filo,
-    sabitlemeler,
-    onSabitle,
-    sabitlemeAcik,
-    seciliArac,
-    seciliAracAdi,
-    onBolgeYukle,
-  };
+  const ortakSatirProps = { durakAraci, filo, onBolgeYukle };
 
   return (
     <section
@@ -244,12 +224,7 @@ export function BolgeOzeti({
 interface OrtakSatirProps {
   durakAraci: Map<string, string>;
   filo: RotaAraci[];
-  sabitlemeler: Record<string, string>;
-  onSabitle: (bolgeKod: string, aracKod: string | null) => void;
-  sabitlemeAcik: boolean;
-  seciliArac: string | null;
-  seciliAracAdi: string | null;
-  onBolgeYukle: (musteriKodlari: string[]) => void;
+  onBolgeYukle: (musteriKodlari: string[], aracKod: string) => void | Promise<void>;
 }
 
 /**
@@ -271,7 +246,7 @@ function IzmirDali({
   ...ortak
 }: OrtakSatirProps & {
   satirlar: Satir[];
-  toplam: { durak: number; kg: number; enUzakKm: number };
+  toplam: { durak: number; kg: number };
   acik: boolean;
   onToggle: () => void;
   acikKod: string | null;
@@ -347,11 +322,6 @@ function BolgeSatiri({
   girintili = false,
   durakAraci,
   filo,
-  sabitlemeler,
-  onSabitle,
-  sabitlemeAcik,
-  seciliArac,
-  seciliAracAdi,
   onBolgeYukle,
 }: OrtakSatirProps & {
   satir: Satir;
@@ -365,6 +335,20 @@ function BolgeSatiri({
     () => bolge.duraklar.filter((d) => !durakAraci.has(d.musteriKodu)).map((d) => d.musteriKodu),
     [bolge.duraklar, durakAraci]
   );
+  /** Tıklanan araç — istek sürerken o düğme kilitlenip döner, diğerleri kalır. */
+  const [yukleniyorAracKod, setYukleniyorAracKod] = useState<string | null>(null);
+
+  const yukle = async (aracKod: string) => {
+    if (yukleniyorAracKod != null) return;
+    setYukleniyorAracKod(aracKod);
+    try {
+      await onBolgeYukle(havuzdakiKodlar, aracKod);
+      // Başarılıysa sayfa haritaya yönlendiriliyor — bu bileşen kalksa da
+      // kalmasa da fark etmez, ayrıca sıfırlamaya gerek yok.
+    } finally {
+      setYukleniyorAracKod(null);
+    }
+  };
 
   return (
     <Fragment>
@@ -408,13 +392,6 @@ function BolgeSatiri({
             <span className="min-w-0 flex-1 truncate text-[13px] text-foreground">
               {bolge.ad}
             </span>
-            {sabitlemeler[bolge.kod] ? (
-              <PinIcon
-                className="size-3 shrink-0 text-foreground"
-                strokeWidth={2}
-                aria-label="araca sabitlendi"
-              />
-            ) : null}
             <span className="shrink-0 font-mono text-[11.5px] text-muted-foreground tabular-nums">
               {formatNumber(bolge.duraklar.length)} durak ·{" "}
               {formatKg(Math.round(bolge.kg))} ·{" "}
@@ -452,71 +429,42 @@ function BolgeSatiri({
       {acik ? (
         <li className="bg-muted/20">
           {/*
-            BÖLGEYİ SEÇİLİ ARACA YÜKLE — panelin tek işlevi buydu: bak, hangi
-            bölge nerede. Havuzdan tek tek sürüklemek yerine bütün bölgeyi bir
-            tıkla seçili araca taşır. `DurakHavuzu`daki "önce araç seç" akışıyla
-            aynı dil: araç seçili değilse buton yerine aynı yönerge çıkıyor.
+            ARACA YÜKLE — panelin işlevi. Eskiden bu satır "Araca sabitle"ydi:
+            yalnız GELECEKTEKİ otomatik dağıtımı etkiliyordu, o an hiçbir şeyi
+            taşımıyordu. Artık bir araca tıklamak o bölgenin havuzda kalan
+            duraklarını HEMEN o araca taşır (`onBolgeYukle`, sayfada doluluk
+            bildirimi + rota kurma + haritaya yönlendirmeyle birleşik).
           */}
-          {havuzdakiKodlar.length > 0 ? (
-            <div
-              className={cn(
-                "border-b border-border/40 py-1.5 pr-3.5",
-                girintili ? "pl-[3.25rem]" : "pl-8"
-              )}
-            >
-              {seciliArac ? (
-                <button
-                  type="button"
-                  onClick={() => onBolgeYukle(havuzdakiKodlar)}
-                  className="flex items-center gap-1.5 rounded bg-foreground px-2 py-1 text-[11.5px] font-medium text-background transition-opacity hover:opacity-90"
-                  title={`Bu bölgede havuzda ${formatNumber(havuzdakiKodlar.length)} durak var — hepsini ${seciliAracAdi} aracına yükle`}
-                >
-                  <PackagePlusIcon className="size-3 shrink-0" strokeWidth={2} aria-hidden />
-                  Havuzdaki {formatNumber(havuzdakiKodlar.length)} durağı{" "}
-                  {seciliAracAdi}&apos;a yükle
-                </button>
-              ) : (
-                <p className="text-[11px] text-muted-foreground">
-                  {formatNumber(havuzdakiKodlar.length)} durak havuzda — bir araç kartı
-                  seçin, bu bölgeyi tek tıkla o araca yükleyin.
-                </p>
-              )}
-            </div>
-          ) : null}
-
-          {/*
-            Günlük sabitleme. Kalıcı bölge-araç eşlemesi bilerek yok: aynı
-            bölge bir gün 200, ertesi gün 900 çuval olabiliyor ve sabit eşleme
-            o hatta yük olmayan günlerde en büyük kamyonu boş bekletir.
-          */}
-          {sabitlemeAcik && filo.length > 0 ? (
+          {havuzdakiKodlar.length > 0 && filo.length > 0 ? (
             <div
               className={cn(
                 "flex min-w-0 flex-wrap items-center gap-1 border-b border-border/40 py-1.5 pr-3.5",
                 girintili ? "pl-[3.25rem]" : "pl-8"
               )}
             >
-              <span className="shrink-0 text-[11px] text-muted-foreground">Araca sabitle</span>
+              <span className="shrink-0 text-[11px] text-muted-foreground">
+                Havuzdaki {formatNumber(havuzdakiKodlar.length)} durağı araca yükle
+              </span>
               {filo.map((a) => {
-                const secili = sabitlemeler[bolge.kod] === a.kod;
+                const buYukleniyor = yukleniyorAracKod === a.kod;
                 return (
                   <button
                     key={a.kod}
                     type="button"
-                    aria-pressed={secili}
-                    onClick={() => onSabitle(bolge.kod, secili ? null : a.kod)}
-                    title={
-                      secili
-                        ? `Sabitlemeyi kaldır — ${a.ad}`
-                        : `Bu bölgeyi ${a.ad} aracına sabitle; otomatik dağıtım ona dokunmaz`
-                    }
+                    disabled={yukleniyorAracKod != null}
+                    onClick={() => void yukle(a.kod)}
+                    title={`${havuzdakiKodlar.length} durağı ${a.ad} aracına yükle, rotasını oluştur ve haritada göster`}
                     className={cn(
-                      "shrink-0 rounded border px-1.5 py-0.5 text-[11px] transition-colors",
-                      secili
-                        ? "border-foreground/40 bg-foreground text-background"
-                        : "border-border/70 text-muted-foreground hover:text-foreground"
+                      "flex shrink-0 items-center gap-1 rounded border px-1.5 py-0.5 text-[11px] transition-colors",
+                      "border-border/70 text-muted-foreground hover:border-foreground/40 hover:text-foreground",
+                      yukleniyorAracKod != null && !buYukleniyor && "opacity-40"
                     )}
                   >
+                    {buYukleniyor ? (
+                      <LoaderIcon className="size-3 shrink-0 animate-spin" strokeWidth={2} aria-hidden />
+                    ) : (
+                      <PackagePlusIcon className="size-3 shrink-0" strokeWidth={2} aria-hidden />
+                    )}
                     {a.ad}
                   </button>
                 );

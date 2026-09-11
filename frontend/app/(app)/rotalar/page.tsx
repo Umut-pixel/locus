@@ -2,6 +2,7 @@
 
 import { useCallback, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   AlertTriangleIcon,
   CheckIcon,
@@ -31,6 +32,7 @@ import { PlanDurumSeridi } from "@/components/rota/PlanDurumSeridi";
 import { TercihCekmecesi } from "@/components/rota/TercihCekmecesi";
 import type { HaritaRotasi } from "@/components/rota/RotaHaritasi";
 import { AppSidebarMobileTrigger } from "@/components/sidebar/AppSidebar";
+import { toastManager } from "@/components/ui/toast";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useRaporTazeligi } from "@/hooks/useMusteriRaporlama";
 import {
@@ -79,8 +81,6 @@ export default function RotalarPage() {
     atananSayisi,
     bolgeler,
     durakBolgesi,
-    sabitlemeler,
-    bolgeSabitle,
     aracDuraklari,
     rotalar,
     seciliArac,
@@ -89,6 +89,7 @@ export default function RotalarPage() {
     hepsiniTemizle,
     durakEkle,
     durakCikar,
+    optimizeEt,
     mevcutMetrik,
     etkiSecenekleri,
     rotaBilgileri,
@@ -96,6 +97,8 @@ export default function RotalarPage() {
     kaydediliyor,
     kayitDurumu,
   } = useRotaPlaniBaglami();
+
+  const router = useRouter();
 
   /** musteriKodu → araç adı; bölge özeti hangi bölgeye kim gidiyor diye sorar. */
   const durakAraci = useMemo(() => {
@@ -148,20 +151,64 @@ export default function RotalarPage() {
   );
 
   /**
-   * Bölgeler paneline işlev: "Havuzdaki N durağı X'e yükle" — bütün bölgeyi
-   * tek tıkla seçili araca taşır. `birak`la aynı remove+add deseni; yalnız
+   * Bölgeler panelinin "Araca yükle" eylemi.
+   *
+   * Eskiden bu panel salt-okunurdu ("bak, hangi bölge nerede"); tek işlevi
+   * "Araca sabitle" idi — o da yalnız GELECEKTEKİ otomatik dağıtımı etkiliyor,
+   * o an hiçbir şeyi taşımıyordu. Bu, tıklanan araca HEMEN yüklüyor, doluluğu
+   * gösteriyor, rotasını kuruyor ve haritada açıyor — dört adımı bir tıkla.
+   *
+   * `durakCikar`+`durakEkle` çifti `birak`la (sürükle-bırak) AYNI desen:
    * `durakEkle`'yi tek başına çağırmak, durak zaten başka bir araçtaysa
    * (`cikanAraclar` dışı, elle yüklenmiş) onu İKİ araçta birden bırakırdı.
+   *
+   * `optimizeEt`'e ELDEKİ (henüz state'e işlenmemiş) yeni liste AÇIKÇA
+   * veriliyor — state güncellemesini beklemeden aynı senkron akışta
+   * çağrılırsa `aracDuraklari` hâlâ ESKİ listeyi görür ve optimize sonucu
+   * yeni eklenen durakları sessizce düşürürdü (bkz. `optimizeEt` yorumu).
    */
-  const bolgeyiSeciliAracaYukle = useCallback(
-    (musteriKodlari: string[]) => {
-      if (seciliArac == null) return;
+  const bolgeyiAracaYukle = useCallback(
+    async (musteriKodlari: string[], aracKod: string) => {
+      const arac = araclar.find((a) => a.kod === aracKod);
+      if (!arac) return;
+
+      const mevcutListe = aracDuraklari(aracKod);
+      const mevcutKodlar = new Set(mevcutListe.map((d) => d.musteriKodu));
+      const eklenenler = musteriKodlari
+        .filter((kod) => !mevcutKodlar.has(kod))
+        .map((kod) => duraklar.find((d) => d.musteriKodu === kod))
+        .filter((d): d is RotaDuragi => d != null);
+      const yeniListe = [...mevcutListe, ...eklenenler];
+
       for (const kod of musteriKodlari) {
         durakCikar(kod);
-        durakEkle(kod, seciliArac);
+        durakEkle(kod, aracKod);
       }
+
+      const doluluk = dolulukHesapla(arac, yeniListe);
+      const yuzde =
+        doluluk.baglayiciKisit === "agirlik"
+          ? (doluluk.kgYuzde ?? doluluk.cuvalYuzde)
+          : doluluk.cuvalYuzde;
+
+      toastManager.add({
+        type: doluluk.asim ? "warning" : "success",
+        title: `${arac.ad} — ${formatNumber(eklenenler.length)} durak yüklendi`,
+        description:
+          `Doluluk %${Math.round(yuzde)} · ${formatKg(Math.round(doluluk.kg))}` +
+          (doluluk.asim ? " · kapasite aşımı — kontrol edin" : ""),
+      });
+
+      // Rota oluşturma İYİLEŞTİRME, ön koşul değil — anahtar yoksa/başarısızsa
+      // sessizce geçilir, harita yine de açılır (optimizeEt kendi hatasını yutar).
+      const koordinatli = yeniListe.filter((d) => d.lat != null && d.lon != null);
+      if (koordinatli.length >= 2) {
+        await optimizeEt(aracKod, yeniListe);
+      }
+
+      router.push(`/rotalar/harita?odakArac=${encodeURIComponent(aracKod)}`);
     },
-    [seciliArac, durakCikar, durakEkle]
+    [araclar, aracDuraklari, duraklar, durakCikar, durakEkle, optimizeEt, router]
   );
 
   return (
@@ -384,12 +431,8 @@ export default function RotalarPage() {
             bolgeler={bolgeler}
             durakAraci={durakAraci}
             filo={araclar}
-            sabitlemeler={sabitlemeler}
-            onSabitle={bolgeSabitle}
-            sabitlemeAcik={tercihler.strateji === "bolge"}
             loading={loading}
-            seciliArac={seciliArac}
-            onBolgeYukle={bolgeyiSeciliAracaYukle}
+            onBolgeYukle={bolgeyiAracaYukle}
           />
 
           <GuzergahLinkleri rotalar={rotalar} />

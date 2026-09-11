@@ -92,7 +92,12 @@ interface RotaPlaniDegeri {
   aracTemizle: (aracKod: string) => void;
 
   // Google Routes
-  optimizeEt: (aracKod: string) => Promise<void>;
+  /**
+   * `duraklarOverride` verilirse `plan` state'inin GÜNCELLENMESİNİ BEKLEMEDEN
+   * o listeyi kullanır — az önce eklenmiş duraklarla arka arkaya çağrılan
+   * senaryolar için (bkz. tanımdaki yorum).
+   */
+  optimizeEt: (aracKod: string, duraklarOverride?: RotaDuragi[]) => Promise<void>;
   optimizeEdilen: string | null;
   rotaBilgileri: Record<string, RotaBilgisi>;
   optimizeHatalari: Record<string, string>;
@@ -357,8 +362,17 @@ export function RotaPlaniProvider({ children }: { children: ReactNode }) {
 
   /** Google Routes — trafikli durak sırası. Hata olursa mevcut sıra korunur. */
   const optimizeEt = useCallback(
-    async (aracKod: string) => {
-      const liste = aracDuraklari(aracKod).filter(
+    async (aracKod: string, duraklarOverride?: RotaDuragi[]) => {
+      /*
+        `duraklarOverride` — az önce eklenen duraklarla çağrıldığında
+        (bkz. Bölgeler panelinin "Araca yükle" eylemi). `aracDuraklari(aracKod)`
+        `plan` state'inden okur; `durakEkle` çağrısı state güncellemesini
+        HEMEN uygulamıyor (React yeniden render'ı bekliyor), o yüzden bu
+        fonksiyon aynı senkron akışta hemen çağrılırsa ESKİ listeyi görür ve
+        setPlan'ı o eski listeyle EZER — yeni eklenen duraklar sessizce düşer.
+        Override, çağıranın ELİNDEKİ güncel listeyi doğrudan vermesini sağlıyor.
+      */
+      const liste = (duraklarOverride ?? aracDuraklari(aracKod)).filter(
         (d) => d.lat != null && d.lon != null
       );
       if (liste.length < 2) return;

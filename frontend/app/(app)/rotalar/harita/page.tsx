@@ -84,6 +84,12 @@ export default function RotaHaritasiSayfasi() {
   const gecmisGun = searchParams.get("gun");
   const gecmisPlanId = searchParams.get("planId");
   const gecmisMod = gecmisGun != null || gecmisPlanId != null;
+  /**
+   * Bölgeler panelindeki "Araca yükle" eylemi buraya `?odakArac=` ile
+   * yönlendiriyor — ilk karede o aracı odaklanmış getirir. Yalnız BAŞLANGIÇ
+   * değeri; sonrasında `odak` normal state, kullanıcı serbestçe değiştirebilir.
+   */
+  const odakAracParam = searchParams.get("odakArac");
 
   const canli = useRotaPlaniBaglami();
   const kayitli = useKayitliPlanlar();
@@ -120,7 +126,7 @@ export default function RotaHaritasiSayfasi() {
   const [karneAnahtari, setKarneAnahtari] = useState<KriterAnahtari | null>(null);
 
   /** Tek araca odaklan — null ise hepsi görünür. */
-  const [odak, setOdak] = useState<string | null>(null);
+  const [odak, setOdak] = useState<string | null>(() => odakAracParam);
   const [havuzGoster, setHavuzGoster] = useState(true);
 
   /** Kayıtlı günün/planın hangi tarihe ait olduğu — başlıkta gösterilecek. */
