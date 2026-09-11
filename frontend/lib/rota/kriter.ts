@@ -138,7 +138,7 @@ function sureKriteri(g: KriterGirdisi): Kriter {
       // Ortalama hız uydurup süre üretmiyoruz: gerçek süre trafiğe bağlı ve
       // Google'dan geliyor. Uydurma bir sayı, sayı olmamasından kötü.
       aciklama:
-        "Sürüş süresi yalnız rota optimize edilince ölçülüyor. Araç kartından “Rotayı optimize et”.",
+        "Sürüş süresi optimize edilince ölçülüyor. Yeni oluşturulan rotalar birkaç saniye içinde kendiliğinden optimize ediliyor; gerekirse araç kartından da elle tetiklenebilir.",
       suclular: { araclar: dolu.map((y) => y.arac.kod), duraklar: [] },
     };
   }
@@ -270,6 +270,18 @@ function yukRiskiKriteri(g: KriterGirdisi): Kriter {
   );
 
   const parcalar: string[] = [];
+  if (dolu.length > 0) {
+    // Sayıya inip özetlemek yerine ARAÇ BAŞINA teker teker — satır
+    // tıklanınca "hangi araç ne kadar dolu" sorusu tek bakışta cevaplansın,
+    // yalnız aşanlar değil filoya çıkan HER araç (boş görünenler de dahil,
+    // "bu araca daha yük konabilir mi" sorusu da aynı satırdan okunsun).
+    const dolulukListesi = dolu
+      .slice()
+      .sort((a, b) => asimYuzdesi(b) - asimYuzdesi(a))
+      .map((y) => `${y.arac.ad} %${asimYuzdesi(y)}`)
+      .join(", ");
+    parcalar.push(`Araç başına doluluk: ${dolulukListesi}.`);
+  }
   if (asanlar.length > 0) {
     // Araç ismi + aşım yüzdesi — sayı tek başına "hangi araç, ne kadar"
     // sorusunu cevaplamıyordu, sahada kontrol edecek kişi araca gitmeden
@@ -284,7 +296,7 @@ function yukRiskiKriteri(g: KriterGirdisi): Kriter {
       `${olcusuzler.length} araçta ölçüsü bilinmeyen kalem var; gerçek yük gösterilenden ağır olabilir.`
     );
   }
-  if (parcalar.length === 0) parcalar.push("Kapasite aşımı yok.");
+  if (parcalar.length === 0) parcalar.push("Henüz araca yük atanmadı.");
 
   // En dolu aracın yüzdesi — %100'ün altında bile olsa (ör. %85) UI bunu
   // gradyan renklendirme için okuyor; yalnız aşanlar değil, TÜM yüklü

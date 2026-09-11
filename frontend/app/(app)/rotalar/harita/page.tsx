@@ -170,9 +170,12 @@ export default function RotaHaritasiSayfasi() {
   /** Son ekle/çıkar eyleminin öncesi/sonrası — karnedeki geçici rozet bunu okur. */
   const [dolulukFarki, setDolulukFarki] = useState<DolulukFarki | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  /** Sol üst (Planlamaya dön + araç/bölge listesi) ve sağ alt (plan karnesi) kartları sürüklenebilir. */
+  /**
+   * Sol üst (Planlamaya dön + araç/bölge listesi) kart sürüklenebilir. Sağ
+   * alttaki plan karnesi BİLEREK değil — karar kartı, yeri her seferinde
+   * aynı olmalı, yanlışlıkla sürüklenip kaybolmamalı.
+   */
   const solKart = useSurukleblirKart(containerRef);
-  const sagKart = useSurukleblirKart(containerRef);
 
   /** `Doluluk.baglayiciKisit`e göre bağlayıcı yüzde — modül genelinde tekrarlanan hesap. */
   const hesaplaYuzde = useCallback((arac: RotaAraci, liste: RotaDuragi[]): number => {
@@ -352,6 +355,20 @@ export default function RotaHaritasiSayfasi() {
     }
     return filtre;
   }, [filtre, gecmisMod, yuklu, canli.bolgeler, kriterler]);
+
+  /**
+   * "Self-heal" yalnız GÖRÜNTÜYE yansıyorsa yetmiyor: `gecerliFiltre` her
+   * render'da hesaplanan TÜRETİLMİŞ bir değer, ama ham `filtre` state'i
+   * kendiliğinden değişmiyor. Ör. Isuzu 3D'ye filtrelenmişken araç boşaltılırsa
+   * görüntü "hepsi"ye döner (yukarıdaki memo) ama `filtre` hâlâ
+   * `{tur:"arac",aracKod:"isuzu-3d"}` — araca yeniden yük konduğu AN, kullanıcı
+   * hiçbir şeye tıklamadan filtre SESSİZCE kendiliğinden geri geliyordu (görülen
+   * hata: "filtreleme bozuk", duraklar/araçlar sebepsiz görünüp kayboluyordu).
+   * İyileşme burada GERÇEKTEN yazılıyor ki ham state bayat kalmasın.
+   */
+  useEffect(() => {
+    if (gecerliFiltre !== filtre) setFiltre(gecerliFiltre);
+  }, [gecerliFiltre, filtre]);
 
   const gecerliOdak = gecerliFiltre.tur === "arac" ? gecerliFiltre.aracKod : null;
 
@@ -760,19 +777,12 @@ export default function RotaHaritasiSayfasi() {
           olurdu). Kayıtlı modda yerine sade bir özet çipi var.
         */}
         <div className="flex justify-end">
-          <div ref={sagKart.cardRef} style={sagKart.style} className="flex min-w-0 flex-col items-end">
-            <div
-              {...sagKart.tutamacProps}
-              className="pointer-events-auto flex h-4 w-full items-center justify-center text-muted-foreground/40"
-            >
-              <GripHorizontalIcon className="size-3.5" aria-hidden />
-            </div>
-            <div
-              className={cn(
-                "pointer-events-auto flex w-[min(100%,20rem)] min-w-0 flex-col overflow-hidden rounded-2xl",
-                CAM
-              )}
-            >
+          <div
+            className={cn(
+              "pointer-events-auto flex w-[min(100%,20rem)] min-w-0 flex-col overflow-hidden rounded-2xl",
+              CAM
+            )}
+          >
             {!gecmisMod ? (
               <PlanKarnesi
                 kriterler={kriterler}
@@ -842,7 +852,6 @@ export default function RotaHaritasiSayfasi() {
                 ) : null}
               </div>
             ) : null}
-            </div>
           </div>
         </div>
       </div>

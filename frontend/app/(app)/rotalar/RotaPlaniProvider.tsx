@@ -552,6 +552,37 @@ export function RotaPlaniProvider({ children }: { children: ReactNode }) {
   );
 
   /**
+   * OTOMATİK OPTİMİZE — rota oluşan/duraklar değişen her araç için Google
+   * Routes kendiliğinden çağrılır. Eskiden yalnız iki akışta (haritadan tek
+   * durak ekleme, bölgeyi toplu yükleme) elle tetikleniyordu; "Otomatik
+   * dağıt", sürükle-bırak ve havuzdan tıklama gibi diğer yollarda kullanıcı
+   * araç kartından "Rotayı optimize et"e basana kadar Süre kriteri
+   * "ölçülmedi" kalıyordu. `rotaBilgileri[aracKod] == null` zaten "bu aracın
+   * durak listesi değişti, eski ölçüm artık geçersiz" sinyali (bkz.
+   * `rotaBilgisiniDusur`) — o sinyali okuyup eksik olan HER aracı kısa bir
+   * gecikmeyle optimize ediyoruz. Debounce: art arda birkaç durak
+   * sürüklerken her tekinde ayrı istek atılmasın. Hata veren araç TEKRAR
+   * TEKRAR denenmiyor — `optimizeHatalari` de aynı `rotaBilgisiniDusur` ile
+   * temizleniyor, yani gerçek bir değişiklik olmadan sonsuz yeniden deneme
+   * döngüsüne girilmiyor; kullanıcı isterse düğmeden elle tekrar dener.
+   */
+  useEffect(() => {
+    const hedefler = araclar
+      .map((a) => a.kod)
+      .filter((kod) => {
+        if (rotaBilgileri[kod] != null) return false;
+        if (optimizeHatalari[kod] != null) return false;
+        const koordinatli = aracDuraklari(kod).filter((d) => d.lat != null && d.lon != null);
+        return koordinatli.length >= 2;
+      });
+    if (hedefler.length === 0) return;
+    const t = window.setTimeout(() => {
+      for (const kod of hedefler) void optimizeEt(kod);
+    }, 1200);
+    return () => window.clearTimeout(t);
+  }, [araclar, rotaBilgileri, optimizeHatalari, aracDuraklari, optimizeEt]);
+
+  /**
    * Planı kaydet — ERP'de olmayan "hangi yük hangi araçla gitti" geçmişini
    * biriktiren tek yer. Aynı gün + araç için önceki kayıt sunucuda silinip
    * yeniden yazılır, çift kayıt olmaz.
