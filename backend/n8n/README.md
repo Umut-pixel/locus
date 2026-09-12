@@ -165,44 +165,6 @@ dalganın en sonuna konuldu ki gecikmesi başka zinciri itmesin.
 Bu tablo `frontend/lib/panorama-schedule.ts` içindeki `SLOT_MINUTES` ile
 eşleşmeli; ana sayfadaki “Sonraki: …” damgası oradan üretiliyor.
 
-## Telegram bildirimi (`telegram-notification.json`)
-
-`telegram-notification.json` — Locus'un `/notifications` test sayfasından
-tetiklenen, sıfırdan hazırlanmış bir workflow. Panorama'nın webhook desenini
-birebir taklit eder (Auth=None + Guard node'da paylaşımlı sır), ama
-Panorama'ya hiçbir bağımlılığı yok — n8n API/MCP erişimi bu oturumda yoktu,
-bu yüzden mevcut bir workflow'un üzerine değil, temiz bir dosyaya yazıldı.
-
-Kurulum:
-
-1. n8n'de **Import from File** ile `telegram-notification.json`'ı içe aktar
-   (yeni bir workflow olarak gelir, `active: false`).
-2. `Telegram Gönder` düğümüne tıkla:
-   - **Credential**: BotFather'dan aldığın bot token'ıyla yeni bir Telegram
-     API credential'ı oluştur/seç.
-   - **Chat ID**: mesajın gideceği chat id (botu kendi hesabınla konuşturup
-     `getUpdates` ile ya da `@userinfobot` gibi bir botla bulabilirsin).
-   - n8n bu düğümün sürümünü otomatik yükseltmeni isteyebilir — bu beklenen
-     bir ilk kurulum adımı, hata değil.
-3. `Guard Bildirim Secret` düğümünün okuduğu sırrı belirle: n8n
-   **Settings → Variables**'a `TELEGRAM_NOTIFICATION_SECRET` ekle (ya da
-   self-hosted'da `N8N_TELEGRAM_NOTIFICATION_WEBHOOK_SECRET` ortam
-   değişkeni) — Panorama'daki `PANORAMA_MANUAL_SYNC_SECRET` ile aynı desen.
-4. Workflow'u **aktive et**.
-5. `Webhook Bildirim` düğümüne tıkla, **Production URL**'i kopyala (Test
-   URL'i DEĞİL — `/webhook-test/` yalnız "Listen" açıkken çalışır, aynı
-   Panorama tuzağı).
-6. Kök `.env`'e yapıştır:
-   ```
-   N8N_TELEGRAM_NOTIFICATION_WEBHOOK_URL=<production URL>
-   N8N_TELEGRAM_NOTIFICATION_WEBHOOK_SECRET=<3. adımdaki sır>
-   ```
-7. `/notifications` sayfasındaki "Bildirim Gönder" düğmesiyle test et.
-
-Mesaj gövdesi `{ "mesaj": "..." }` — şu an yalnız sabit bir test metni
-gönderiliyor; ileride başka bir tetikleyici (ör. senkron hatası) aynı
-webhook'a farklı bir `mesaj` ile POST atabilir, workflow değişmeden.
-
 ## Dışa aktarmadan önce kontrol
 
 ```bash

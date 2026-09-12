@@ -37,3 +37,4 @@ export const MUSTERI_FAVORILER_LISTE_VIEW = "musteri_favoriler_liste";
 export const ENTITY_NOTLAR_TABLE = "entity_notlar";
 export const AGENT_KONUSMALAR_TABLE = "agent_konusmalar";
 export const AGENT_KONUSMA_MESAJLARI_TABLE = "agent_konusma_mesajlari";
+export const BILDIRIM_AYARLARI_TABLE = "bildirim_ayarlari";

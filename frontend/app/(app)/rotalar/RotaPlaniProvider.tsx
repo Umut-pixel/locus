@@ -79,6 +79,16 @@ interface RotaPlaniDegeri {
   sabitlemeler: Record<string, string>;
   /** Bölgeyi bir araca sabitle; `null` sabitlemeyi kaldırır. */
   bolgeSabitle: (bolgeKod: string, aracKod: string | null) => void;
+  /**
+   * Bir aracın EFEKTİF şoförü — elle atama varsa o, yoksa `filo.atamalar`ın
+   * (otomatik dağıtım) verdiği. `filo.atamalar`'ı doğrudan okumak yerine HER
+   * ZAMAN bunu kullan; elle atama yalnız burada devreye girer.
+   */
+  aracSoforu: (aracKod: string) => Sofor | null;
+  /** Aracı bir şoföre elle ata; `null` ataması kaldırır (otomatiğe döner). */
+  soforSabitle: (aracKod: string, soforKod: string | null) => void;
+  /** Bir şoförün o an EFEKTİF sürdüğü aracın kodu (varsa) — "meşgul mü" sorusu için. */
+  soforununAracKodu: (soforKod: string) => string | null;
   aracDuraklari: (aracKod: string) => RotaDuragi[];
   aracBul: (aracKod: string) => RotaAraci | null;
   rotalar: HaritaRotasi[];
@@ -195,6 +205,53 @@ export function RotaPlaniProvider({ children }: { children: ReactNode }) {
       return sonraki;
     });
   }, []);
+
+  /**
+   * Şoför sabitlemeleri — bölge sabitlemesiyle aynı gerekçeyle OTURUMLUK:
+   * `filo.atamalar` (otomatik dağıtım) yalnız o GÜNÜN seçilen filosuna
+   * (`cikanAraclar`) şoför veriyor; elle yük konan ama otomatik seçime
+   * girmeyen bir araç hep "Atanmadı" görünüyordu. Bu, o aracın şoförünü
+   * ELLE sabitlemeyi sağlıyor — otomatiğin üstüne biner, onu değiştirmez.
+   */
+  const [soforAtamalari, setSoforAtamalari] = useState<Record<string, string>>({});
+
+  const soforSabitle = useCallback((aracKod: string, soforKod: string | null) => {
+    setSoforAtamalari((o) => {
+      const sonraki = { ...o };
+      if (soforKod == null) delete sonraki[aracKod];
+      else sonraki[aracKod] = soforKod;
+      return sonraki;
+    });
+  }, []);
+
+  /** aracKod → EFEKTİF şoför (elle atama > otomatik). */
+  const efektifAtamalar = useMemo(() => {
+    const m = new Map<string, Sofor>();
+    for (const [aracKod, sofor] of Object.entries(filo.atamalar)) m.set(aracKod, sofor);
+    for (const [aracKod, soforKod] of Object.entries(soforAtamalari)) {
+      const sofor = soforler.find((s) => s.kod === soforKod);
+      // Sabitlenen şoför artık listede yoksa (ör. pasife alındı) sessizce düş —
+      // otomatiğe dönmüş gibi davranır, hata fırlatmaz.
+      if (sofor) m.set(aracKod, sofor);
+      else m.delete(aracKod);
+    }
+    return m;
+  }, [filo.atamalar, soforAtamalari, soforler]);
+
+  const aracSoforu = useCallback(
+    (aracKod: string): Sofor | null => efektifAtamalar.get(aracKod) ?? null,
+    [efektifAtamalar]
+  );
+
+  const soforununAracKodu = useCallback(
+    (soforKod: string): string | null => {
+      for (const [aracKod, sofor] of efektifAtamalar) {
+        if (sofor.kod === soforKod) return aracKod;
+      }
+      return null;
+    },
+    [efektifAtamalar]
+  );
 
   const [plan, setPlan] = useState<Plan>({});
 
@@ -760,6 +817,9 @@ export function RotaPlaniProvider({ children }: { children: ReactNode }) {
       durakBolgesi,
       sabitlemeler,
       bolgeSabitle,
+      aracSoforu,
+      soforSabitle,
+      soforununAracKodu,
       aracDuraklari,
       aracBul,
       rotalar,
@@ -788,6 +848,7 @@ export function RotaPlaniProvider({ children }: { children: ReactNode }) {
       loading, error, duraklar, araclar, soforler, filo, ozet, tazele,
       tercihler, tercihDegis, plan, cikanAraclar, havuz,
       atananlar.size, bolgeler, durakBolgesi, sabitlemeler, bolgeSabitle,
+      aracSoforu, soforSabitle, soforununAracKodu,
       aracDuraklari, aracBul, rotalar, seciliArac, otomatikDagit,
       hepsiniTemizle, durakEkle, durakCikar, aracTemizle, optimizeEt,
       optimizeEdilenler, rotaBilgileri, optimizeHatalari, mevcutSonuc, mevcutMetrik,

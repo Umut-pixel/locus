@@ -10,12 +10,45 @@ function jsonError(message: string, status: number) {
 }
 
 /**
- * `/notifications` test düğmesi buraya POST atar; bu route n8n'in
- * `telegram-notification` webhook'unu server-side tetikler (n8n URL/sır
- * tarayıcıya hiç sızmaz) — `sync/panorama/manual` ile aynı desen, bkz.
- * `backend/n8n/telegram-notification.json` + `backend/n8n/README.md`.
+ * Bildirim sisteminin TEK çıkış noktası — Postgres tarafındaki
+ * `bildirim_anlik_kontrol_calistir()`/`bildirim_gunluk_ozet_calistir()`
+ * (bkz. sql/) pg_net ile buraya POST atar, `CRON_SECRET` ile aynı desende
+ * (bkz. app/api/sync/panorama/route.ts::authorize).
+ *
+ * Ayar kontrolü (aktif=true) BİLEREK burada değil, SQL tarafında yapılıyor —
+ * günlük özet birden çok tipi tek mesajda birleştiriyor, gönderirken tekrar
+ * kontrol etmek ya mesajın tamamını yanlış tipe bakıp bloklar ya da kısmi
+ * blok mantığı gerektirir. SQL zaten yalnız aktif tipleri topladığı için bu
+ * route yalnız iletir — n8n webhook'una gönderir, ayrıca karar vermez.
  */
-export async function POST() {
+function authorize(request: Request): boolean {
+  const secret = process.env.CRON_SECRET;
+  if (!secret) {
+    if (process.env.NODE_ENV === "production") return false;
+    return true;
+  }
+  const header = request.headers.get("authorization");
+  return header === `Bearer ${secret}`;
+}
+
+export async function POST(request: Request) {
+  if (!authorize(request)) {
+    return jsonError("Yetkisiz.", 401);
+  }
+
+  let body: { anahtar?: unknown; mesaj?: unknown };
+  try {
+    body = await request.json();
+  } catch {
+    return jsonError("Geçersiz JSON.", 400);
+  }
+
+  const anahtar = typeof body.anahtar === "string" ? body.anahtar : "bilinmeyen";
+  const mesaj = typeof body.mesaj === "string" ? body.mesaj.trim() : "";
+  if (!mesaj) {
+    return jsonError("mesaj gerekli.", 400);
+  }
+
   const webhookUrl = process.env.N8N_TELEGRAM_NOTIFICATION_WEBHOOK_URL?.trim() ?? "";
   const webhookSecret = process.env.N8N_TELEGRAM_NOTIFICATION_WEBHOOK_SECRET?.trim() ?? "";
 
@@ -41,13 +74,13 @@ export async function POST() {
     const res = await fetch(webhookUrl, {
       method: "POST",
       headers,
-      body: JSON.stringify({ mesaj: "Locus test bildirimi" }),
+      body: JSON.stringify({ mesaj }),
       signal: AbortSignal.timeout(15_000),
     });
 
     if (!res.ok) {
       const preview = (await res.text().catch(() => "")).slice(0, 280);
-      console.error("[api/notifications/test] n8n", res.status, preview);
+      console.error("[api/notifications/send]", anahtar, res.status, preview);
       if (res.status === 404) {
         return jsonError(
           "n8n webhook bulunamadı. Production URL ve workflow’un aktif olduğunu kontrol et.",
@@ -63,10 +96,10 @@ export async function POST() {
       return jsonError(`n8n tetiklenemedi (HTTP ${res.status}).`, 502);
     }
 
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true, anahtar });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Beklenmeyen sunucu hatası.";
-    console.error("[api/notifications/test]", err);
+    console.error("[api/notifications/send]", anahtar, err);
     if (err instanceof Error && (err.name === "TimeoutError" || err.name === "AbortError")) {
       return jsonError("n8n yanıt vermedi.", 504);
     }

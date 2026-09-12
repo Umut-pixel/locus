@@ -5,6 +5,8 @@ import Link from "next/link";
 import {
   AlertTriangleIcon,
   ArrowLeftIcon,
+  CheckIcon,
+  ChevronRightIcon,
   ClockIcon,
   LoaderIcon,
   MapPinIcon,
@@ -17,9 +19,19 @@ import {
 
 import { PaletIzgarasi } from "@/components/rota/PaletIzgarasi";
 import { AppSidebarMobileTrigger } from "@/components/sidebar/AppSidebar";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import { DEPOT } from "@/lib/depot";
 import { formatKg, formatNumber } from "@/lib/format";
-import { dolulukHesapla } from "@/lib/rota/atama";
+import { dolulukHesapla, surebilirMi } from "@/lib/rota/atama";
+import { type Bolge } from "@/lib/rota/bolge";
+import { bolgeRengi } from "@/lib/rota/bolge-renk";
 import {
   BAYAT_GUN,
   gunUzunlugu,
@@ -29,6 +41,7 @@ import {
 } from "@/lib/rota/operasyon";
 import { RISK_COLORS, RISK_SHORT_LABELS } from "@/lib/risk-style";
 import { cn } from "@/lib/utils";
+import type { RotaDuragi } from "@/hooks/useRotaPlani";
 
 import { useRotaPlaniBaglami } from "../RotaPlaniProvider";
 
@@ -47,10 +60,15 @@ export default function YukDetayiSayfasi({
   const { aracKod } = use(params);
   const {
     loading,
+    soforler,
     aracBul,
     aracDuraklari,
     havuz,
-    filo,
+    bolgeler,
+    durakBolgesi,
+    aracSoforu,
+    soforSabitle,
+    soforununAracKodu,
     tercihler,
     durakEkle,
     durakCikar,
@@ -62,10 +80,11 @@ export default function YukDetayiSayfasi({
   } = useRotaPlaniBaglami();
 
   const [vurgulanan, setVurgulanan] = useState<string | null>(null);
+  const [soforDrawerAcik, setSoforDrawerAcik] = useState(false);
 
   const arac = aracBul(aracKod);
   const duraklar = aracDuraklari(aracKod);
-  const sofor = filo.atamalar[aracKod] ?? null;
+  const sofor = aracSoforu(aracKod);
   const rotaBilgi = rotaBilgileri[aracKod] ?? null;
 
   const doluluk = useMemo(
@@ -84,6 +103,61 @@ export default function YukDetayiSayfasi({
         : null,
     [rotaBilgi, arac, duraklar.length]
   );
+
+  /**
+   * Havuzu (bu araca atanabilecek bekleyen siparişler) bölgeye göre kümeler —
+   * `bolgeler`/`durakBolgesi` haritanın "Bölgeler" sekmesiyle AYNI kümeleme
+   * (bkz. RotaPlaniProvider), ekranlar arası tutarlı kalsın diye tekrar
+   * hesaplanmıyor. Koordinatsız durak hiçbir bölgeye giremez (`bolge.ts`) —
+   * onlar "Bölgesiz" grubunda kalır, havuzdan hiç düşmezler.
+   */
+  const havuzGruplari = useMemo(() => {
+    const gruplar = new Map<string, { bolge: Bolge | null; duraklar: RotaDuragi[] }>();
+    for (const d of havuz) {
+      const bolge = durakBolgesi.get(d.musteriKodu) ?? null;
+      const anahtar = bolge?.kod ?? "";
+      const mevcut = gruplar.get(anahtar);
+      if (mevcut) mevcut.duraklar.push(d);
+      else gruplar.set(anahtar, { bolge, duraklar: [d] });
+    }
+    // Bölgeler dizisindeki sırayla (haritadaki Bölgeler listesiyle aynı sıra),
+    // sonra bölgesizler en sona.
+    const sirali: { bolge: Bolge | null; duraklar: RotaDuragi[] }[] = [];
+    for (const b of bolgeler) {
+      const grup = gruplar.get(b.kod);
+      if (grup) sirali.push(grup);
+    }
+    const bolgesiz = gruplar.get("");
+    if (bolgesiz) sirali.push(bolgesiz);
+    return sirali;
+  }, [havuz, bolgeler, durakBolgesi]);
+
+  /**
+   * Şoför seçici — ehliyeti bu aracı KESİNLİKLE süremeyenler (fiziken imkansız)
+   * sona atılır ve devre dışı bırakılır; başka bir araçta görevli olanlar
+   * yalnız UYARILIR, engellenmez — hangi şoförü nereye kaydıracağına sevkiyatçı
+   * karar verir (bkz. `soforSabitle` yorumundaki gerekçe).
+   */
+  const soforSecenekleri = useMemo(() => {
+    if (!arac) return [];
+    return soforler
+      .map((s) => {
+        const uygunMu = surebilirMi(s, arac);
+        const digerAracKod = soforununAracKodu(s.kod);
+        const mesgul = digerAracKod != null && digerAracKod !== aracKod;
+        return {
+          sofor: s,
+          uygunMu,
+          mesgul,
+          digerAracAdi: mesgul ? (aracBul(digerAracKod!)?.ad ?? digerAracKod) : null,
+        };
+      })
+      .sort((a, b) => {
+        if (a.uygunMu !== b.uygunMu) return a.uygunMu ? -1 : 1;
+        if (a.mesgul !== b.mesgul) return a.mesgul ? 1 : -1;
+        return a.sofor.ad.localeCompare(b.sofor.ad, "tr");
+      });
+  }, [arac, soforler, soforununAracKodu, aracKod, aracBul]);
 
   if (!arac) {
     return (
@@ -158,29 +232,117 @@ export default function YukDetayiSayfasi({
           {/* Sol kolon: araç bilgisi + kapasite + günlük */}
           <div className="flex flex-col gap-px bg-border">
             <Kart baslik="Araç bilgisi">
-              <div className="flex items-center gap-2.5">
-                <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent">
-                  <UserIcon className="size-4 text-muted-foreground" strokeWidth={1.75} aria-hidden />
-                </span>
-                <div className="min-w-0">
-                  <p className="text-[11.5px] text-muted-foreground">Şoför</p>
-                  <p className="truncate text-[13px] font-medium text-foreground">
-                    {sofor?.ad ?? "Atanmadı"}
-                  </p>
-                </div>
-                {sofor ? (
-                  <span
-                    className="ml-auto shrink-0 rounded border border-border px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground"
-                    title={
-                      sofor.ehliyetSinifi === "C"
-                        ? "C ehliyeti — tüm araçlar"
-                        : "B ehliyeti — Kangoo ve Transit"
-                    }
-                  >
-                    {sofor.ehliyetSinifi}
+              <Sheet open={soforDrawerAcik} onOpenChange={setSoforDrawerAcik}>
+                <SheetTrigger
+                  render={
+                    <button
+                      type="button"
+                      className="-m-1 flex items-center gap-2.5 rounded-lg p-1 text-left transition-colors hover:bg-accent/50"
+                    />
+                  }
+                >
+                  <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent">
+                    <UserIcon className="size-4 text-muted-foreground" strokeWidth={1.75} aria-hidden />
                   </span>
-                ) : null}
-              </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[11.5px] text-muted-foreground">Şoför</p>
+                    <p className="truncate text-[13px] font-medium text-foreground">
+                      {sofor?.ad ?? "Atanmadı"}
+                    </p>
+                  </div>
+                  {sofor ? (
+                    <span
+                      className="shrink-0 rounded border border-border px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground"
+                      title={
+                        sofor.ehliyetSinifi === "C"
+                          ? "C ehliyeti — tüm araçlar"
+                          : "B ehliyeti — Kangoo ve Transit"
+                      }
+                    >
+                      {sofor.ehliyetSinifi}
+                    </span>
+                  ) : null}
+                  <ChevronRightIcon
+                    className="size-3.5 shrink-0 text-muted-foreground"
+                    strokeWidth={1.75}
+                    aria-hidden
+                  />
+                </SheetTrigger>
+                <SheetContent side="right" className="w-full sm:max-w-sm">
+                  <SheetHeader>
+                    <SheetTitle>Şoför seç</SheetTitle>
+                    <SheetDescription>
+                      {arac.ad} için — ehliyeti uygun olmayan ve başka araçta
+                      görevli şoförler işaretli görünür
+                    </SheetDescription>
+                  </SheetHeader>
+                  <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-4 pb-4">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        soforSabitle(aracKod, null);
+                        setSoforDrawerAcik(false);
+                      }}
+                      className={cn(
+                        "flex items-center gap-2.5 rounded-lg border px-3 py-2.5 text-left transition-colors",
+                        !sofor
+                          ? "border-foreground/30 bg-accent/40"
+                          : "border-border hover:bg-accent/30"
+                      )}
+                    >
+                      <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-accent">
+                        <XIcon className="size-3.5 text-muted-foreground" strokeWidth={1.75} aria-hidden />
+                      </span>
+                      <span className="min-w-0 flex-1 text-[13px] text-foreground">Atanmadı</span>
+                      {!sofor ? (
+                        <CheckIcon className="size-4 shrink-0 text-foreground" strokeWidth={2} aria-hidden />
+                      ) : null}
+                    </button>
+
+                    {soforSecenekleri.map(({ sofor: s, uygunMu, mesgul, digerAracAdi }) => {
+                      const secili = sofor?.kod === s.kod;
+                      return (
+                        <button
+                          key={s.kod}
+                          type="button"
+                          disabled={!uygunMu}
+                          onClick={() => {
+                            soforSabitle(aracKod, s.kod);
+                            setSoforDrawerAcik(false);
+                          }}
+                          className={cn(
+                            "flex items-center gap-2.5 rounded-lg border px-3 py-2.5 text-left transition-colors",
+                            secili
+                              ? "border-foreground/30 bg-accent/40"
+                              : "border-border hover:bg-accent/30",
+                            !uygunMu && "cursor-not-allowed opacity-40 hover:bg-transparent"
+                          )}
+                        >
+                          <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-accent">
+                            <UserIcon className="size-3.5 text-muted-foreground" strokeWidth={1.75} aria-hidden />
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-[13px] text-foreground">{s.ad}</p>
+                            {!uygunMu ? (
+                              <p className="text-[11px] text-muted-foreground">
+                                Bu aracı süremez (ehliyet {s.ehliyetSinifi})
+                              </p>
+                            ) : mesgul ? (
+                              <p className="text-[11px] text-caution">{digerAracAdi} aracında görevli</p>
+                            ) : null}
+                          </div>
+                          <span className="shrink-0 rounded border border-border px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground">
+                            {s.ehliyetSinifi}
+                          </span>
+                          {secili ? (
+                            <CheckIcon className="size-4 shrink-0 text-foreground" strokeWidth={2} aria-hidden />
+                          ) : null}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </SheetContent>
+              </Sheet>
 
               <dl className="grid grid-cols-3 gap-2 border-t border-border/60 pt-2.5">
                 <Alan etiket="Durak" deger={formatNumber(duraklar.length)} />
@@ -302,7 +464,7 @@ export default function YukDetayiSayfasi({
               />
             </div>
 
-            <section className="flex min-w-0 flex-col bg-background">
+            <section className="flex min-h-0 min-w-0 flex-1 flex-col bg-background">
               <header className="flex h-11 shrink-0 items-center justify-between gap-3 border-b border-border/60 px-4">
                 <h2 className="text-[12px] font-medium tracking-[0.06em] text-muted-foreground uppercase">
                   Durak sırası
@@ -350,7 +512,7 @@ export default function YukDetayiSayfasi({
                         {d.unvan}
                       </span>
                       <span className="shrink-0 font-mono text-[11.5px] text-muted-foreground tabular-nums">
-                        {formatKg(Math.round(d.kg))}
+                        {formatNumber(Math.round(d.cuvalEsdeger))} çuval
                       </span>
                       <button
                         type="button"
@@ -383,51 +545,69 @@ export default function YukDetayiSayfasi({
               Havuz boş — bekleyen yükün tamamı araçlara dağıtıldı.
             </p>
           ) : (
-            <div className="grid gap-3 p-4 sm:grid-cols-2 xl:grid-cols-3">
-              {havuz.map((d) => (
-                <div
-                  key={d.musteriKodu}
-                  className="flex min-w-0 flex-col gap-2 rounded-lg border border-border p-3"
-                >
-                  <div className="flex min-w-0 items-baseline gap-2">
-                    <span className="min-w-0 flex-1 truncate text-[12.5px] font-medium text-foreground">
-                      {d.unvan}
-                    </span>
-                    {d.yasGun != null && d.yasGun >= 1 ? (
-                      <span
-                        className={cn(
-                          "shrink-0 font-mono text-[11px] tabular-nums",
-                          d.yasGun >= BAYAT_GUN
-                            ? "text-caution"
-                            : "text-muted-foreground"
-                        )}
-                      >
-                        {formatNumber(d.yasGun)} günlük
-                      </span>
-                    ) : null}
-                  </div>
-                  <dl className="grid grid-cols-3 gap-2">
-                    <Alan etiket="Bölge" deger={d.ilce ?? d.sehir ?? "—"} />
-                    <Alan etiket="Ağırlık" deger={formatKg(Math.round(d.kg))} />
-                    <Alan
-                      etiket="Hacim"
-                      deger={`${formatNumber(Math.round(d.cuvalEsdeger))} çuval`}
+            <div className="flex flex-col gap-5 p-4">
+              {havuzGruplari.map(({ bolge, duraklar: grupDuraklari }) => (
+                <div key={bolge?.kod ?? "bolgesiz"} className="flex flex-col gap-3">
+                  <div className="flex items-center gap-1.5">
+                    <span
+                      className="size-2 shrink-0 rounded-full"
+                      style={{ background: bolge ? bolgeRengi(bolge.kod) : "var(--muted-foreground)" }}
                     />
-                  </dl>
-                  <button
-                    type="button"
-                    onClick={() => durakEkle(d.musteriKodu, aracKod)}
-                    disabled={d.lat == null || d.lon == null}
-                    className="flex items-center justify-center gap-1.5 rounded border border-border py-1.5 text-[12px] text-foreground transition-colors hover:bg-accent disabled:opacity-40"
-                    title={
-                      d.lat == null
-                        ? "Koordinatı yok — plana giremez"
-                        : `${d.unvan} durağını ${arac.ad} aracına ekle`
-                    }
-                  >
-                    <PlusIcon className="size-3.5" strokeWidth={1.75} aria-hidden />
-                    Bu araca ekle
-                  </button>
+                    <h3 className="min-w-0 flex-1 truncate text-[11.5px] font-medium text-foreground">
+                      {bolge?.ad ?? "Bölgesiz — konumu yok"}
+                    </h3>
+                    <span className="shrink-0 font-mono text-[11px] text-muted-foreground tabular-nums">
+                      {formatNumber(grupDuraklari.length)}
+                    </span>
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                    {grupDuraklari.map((d) => (
+                      <div
+                        key={d.musteriKodu}
+                        className="flex min-w-0 flex-col gap-2 rounded-lg border border-border p-3"
+                      >
+                        <div className="flex min-w-0 items-baseline gap-2">
+                          <span className="min-w-0 flex-1 truncate text-[12.5px] font-medium text-foreground">
+                            {d.unvan}
+                          </span>
+                          {d.yasGun != null && d.yasGun >= 1 ? (
+                            <span
+                              className={cn(
+                                "shrink-0 font-mono text-[11px] tabular-nums",
+                                d.yasGun >= BAYAT_GUN
+                                  ? "text-caution"
+                                  : "text-muted-foreground"
+                              )}
+                            >
+                              {formatNumber(d.yasGun)} günlük
+                            </span>
+                          ) : null}
+                        </div>
+                        <dl className="grid grid-cols-3 gap-2">
+                          <Alan etiket="Bölge" deger={d.ilce ?? d.sehir ?? "—"} />
+                          <Alan etiket="Ağırlık" deger={formatKg(Math.round(d.kg))} />
+                          <Alan
+                            etiket="Hacim"
+                            deger={`${formatNumber(Math.round(d.cuvalEsdeger))} çuval`}
+                          />
+                        </dl>
+                        <button
+                          type="button"
+                          onClick={() => durakEkle(d.musteriKodu, aracKod)}
+                          disabled={d.lat == null || d.lon == null}
+                          className="flex items-center justify-center gap-1.5 rounded border border-border py-1.5 text-[12px] text-foreground transition-colors hover:bg-accent disabled:opacity-40"
+                          title={
+                            d.lat == null
+                              ? "Koordinatı yok — plana giremez"
+                              : `${d.unvan} durağını ${arac.ad} aracına ekle`
+                          }
+                        >
+                          <PlusIcon className="size-3.5" strokeWidth={1.75} aria-hidden />
+                          Bu araca ekle
+                        </button>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               ))}
             </div>

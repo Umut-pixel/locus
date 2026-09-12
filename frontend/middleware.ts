@@ -5,7 +5,7 @@ import { SESSION_COOKIE, verifySessionToken } from "@/lib/auth";
 const PUBLIC_PATHS = new Set(["/login", "/api/auth/login"]);
 
 /** Database Webhook / manuel — oturum yok; route CRON_SECRET ile korur. */
-const CRON_PATHS = new Set(["/api/sync/panorama"]);
+const CRON_PATHS = new Set(["/api/sync/panorama", "/api/notifications/send"]);
 
 /**
  * AI agent'ın (LangSmith'te barınan, tarayıcı oturumu olmayan) yazabildiği
