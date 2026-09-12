@@ -96,6 +96,31 @@ export type SecimBlock = {
 export type MarkdownBlock = { type: "markdown"; text: string };
 export type PendingBlock = { type: "pending"; label: string };
 
+/**
+ * Rota haritasında (yalnız `/rotalar/harita`) canlı ekranı yönlendiren eylemler.
+ * `secim.aksiyon` ile aynı ilke: model sabit kümenin dışına çıkamaz. Bölge/araç
+ * hiçbir zaman DB'de değil — `sorgu` ekranda GÖRÜNEN bir isim olmalı, istemci
+ * bunu canlı listeyle bulanık eşler; dahili bir kod modelin bilebileceği bir şey
+ * değil.
+ */
+export type HaritaEylemiTuru =
+  | "bolgeyi_filtrele"
+  | "araci_filtrele"
+  | "sekmeyi_degistir"
+  | "karneyi_vurgula"
+  | "filtreyi_temizle";
+
+export type HaritaEylemiBlock = {
+  type: "harita_eylemi";
+  eylem: HaritaEylemiTuru;
+  /** `bolgeyi_filtrele` / `araci_filtrele` — ekranda görünen ada göre bulanık eşleşir. */
+  sorgu?: string;
+  /** `sekmeyi_degistir`. */
+  sekme?: "araclar" | "bolgeler" | "kaydedilenler";
+  /** `karneyi_vurgula` — `lib/rota/kriter.ts`'teki `KriterAnahtari` ile aynı sabit küme. */
+  anahtar?: string;
+};
+
 export type AgentBlock =
   | MarkdownBlock
   | TableBlock
@@ -104,10 +129,29 @@ export type AgentBlock =
   | RecommendBlock
   | MapBlock
   | SecimBlock
+  | HaritaEylemiBlock
   | PendingBlock;
 
 /** UI'ın gerçekten tetikleyebildiği aksiyonlar. Model başkasını uyduramaz. */
 const SECIM_AKSIYONLARI = new Set(["rapor_cek"]);
+
+const HARITA_EYLEMLERI = new Set<string>([
+  "bolgeyi_filtrele",
+  "araci_filtrele",
+  "sekmeyi_degistir",
+  "karneyi_vurgula",
+  "filtreyi_temizle",
+]);
+const HARITA_SEKMELERI = new Set(["araclar", "bolgeler", "kaydedilenler"]);
+const HARITA_KRITERLERI = new Set([
+  "sure",
+  "maliyet",
+  "esneklik",
+  "yukRiski",
+  "guvenilirlik",
+  "surusGuvenligi",
+  "sahaZorlugu",
+]);
 
 const FENCE = /```locus[\w-]*[ \t]*\r?\n([\s\S]*?)```/g;
 const OPEN_FENCE = /```locus[\w-]*[ \t]*\r?\n([\s\S]*)$/;
@@ -346,6 +390,29 @@ function parseLocusJson(raw: string): AgentBlock | null {
           cta: typeof data.cta === "string" ? data.cta : undefined,
         };
       }
+    }
+    if (kind === "harita_eylemi") {
+      const eylem = String(data.eylem ?? "");
+      if (!HARITA_EYLEMLERI.has(eylem)) return null;
+      const sorgu =
+        typeof data.sorgu === "string" && data.sorgu.trim()
+          ? data.sorgu.trim()
+          : undefined;
+      const sekme =
+        typeof data.sekme === "string" && HARITA_SEKMELERI.has(data.sekme)
+          ? (data.sekme as HaritaEylemiBlock["sekme"])
+          : undefined;
+      const anahtar =
+        typeof data.anahtar === "string" && HARITA_KRITERLERI.has(data.anahtar)
+          ? data.anahtar
+          : undefined;
+      return {
+        type: "harita_eylemi",
+        eylem: eylem as HaritaEylemiTuru,
+        sorgu,
+        sekme,
+        anahtar,
+      };
     }
     if (kind === "map" || kind === "route") {
       const points = Array.isArray(data.points)

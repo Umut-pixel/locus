@@ -138,7 +138,7 @@ export type AgentSessionValue = {
   answerId: string | null;
   pendingQuote: string | null;
   setPendingQuote: (quote: string | null) => void;
-  send: (question: string) => void;
+  send: (question: string, opts?: { context?: string }) => void;
   stop: () => void;
   reset: () => void;
   loadThread: (id: string) => Promise<void>;
@@ -297,7 +297,7 @@ function useAgentRuntimeState(): AgentSessionValue {
   useEffect(() => () => abortRef.current?.abort(), []);
 
   const send = useCallback(
-    (question: string) => {
+    (question: string, opts?: { context?: string }) => {
       const alinti = quoteRef.current?.trim() || undefined;
       const q = question.trim() || (alinti ? QUOTE_FALLBACK : "");
       if (!q) return;
@@ -328,7 +328,8 @@ function useAgentRuntimeState(): AgentSessionValue {
       let yanitMetin = "";
       let yanitModel: string | undefined;
       let hataVar = false;
-      const outbound = alinti ? composeQuotedPrompt(q, alinti) : q;
+      const withQuote = alinti ? composeQuotedPrompt(q, alinti) : q;
+      const outbound = opts?.context ? `${opts.context}\n\n${withQuote}` : withQuote;
       const extra: ChatMessage[] = [];
 
       const onEvent = (event: AgentStreamEvent) => {

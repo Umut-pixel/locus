@@ -9,6 +9,7 @@ import { AgentTable } from "@/components/agent/AgentTable";
 import { FilterTable } from "@/components/agent/FilterTable";
 import { InsightChart } from "@/components/agent/InsightChart";
 import { LoadingState } from "@/components/agent/LoadingState";
+import { MapActionChip } from "@/components/agent/MapActionChip";
 import { RecommendCard, type RecommendAccept } from "@/components/agent/RecommendCard";
 import { SelectCard } from "@/components/agent/SelectCard";
 import { StreamingWords } from "@/components/agent/StreamingWords";
@@ -121,6 +122,8 @@ function BlockView({
       return <AgentRouteMap block={block} />;
     case "secim":
       return <SelectCard block={block} />;
+    case "harita_eylemi":
+      return <MapActionChip block={block} />;
     case "markdown":
       if (streamingTail) {
         return <StreamingWords text={block.text} />;

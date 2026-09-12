@@ -16,11 +16,16 @@ import {
   TruckIcon,
 } from "lucide-react";
 
+import { RotaHaritaAiBubble } from "@/components/agent/RotaHaritaAiBubble";
 import {
   DurakDetayKarti,
   type DurakSecimi,
   type EklemeOnizlemesi,
 } from "@/components/rota/DurakDetayKarti";
+import {
+  RotaHaritaEylemSaglayici,
+  type HaritaEylemi,
+} from "@/components/rota/RotaHaritaEylemBaglami";
 import {
   KayitRozeti,
   OptimizeCalisiyorKart,
@@ -101,6 +106,25 @@ function kayitliyiRotaDuraginaCevir(d: KayitliDurak): RotaDuragi {
     brutTutar: 0,
     yasGun: null,
   };
+}
+
+/**
+ * AI'nın `harita_eylemi` bloğuyla söylediği isim (`sorgu`) ile ekranda görünen
+ * bir kaydı eşleştirir. Model dahili kodları hiçbir zaman bilemez (bkz.
+ * `RotaHaritaEylemBaglami`) — yalnız görünen ADI verir, burası bulanık eşler.
+ * Tam eşleşme öncelikli; yoksa alt-dize eşleşmesi (iki yönlü, "Aydın" da
+ * "Aydın Merkez" de eşleşsin diye).
+ */
+function bulanikBul<T>(liste: T[], sorgu: string, adGetir: (item: T) => string): T | null {
+  const q = sorgu.trim().toLocaleLowerCase("tr-TR");
+  if (!q) return null;
+  let kismi: T | null = null;
+  for (const item of liste) {
+    const ad = adGetir(item).toLocaleLowerCase("tr-TR");
+    if (ad === q) return item;
+    if (!kismi && (ad.includes(q) || q.includes(ad))) kismi = item;
+  }
+  return kismi;
 }
 
 /**
@@ -199,6 +223,29 @@ export default function RotaHaritasiSayfasi() {
    * aynı olmalı, yanlışlıkla sürüklenip kaybolmamalı.
    */
   const solKart = useSurukleblirKart(containerRef);
+
+  /**
+   * AI balonu (sağ üst, `RotaHaritaAiBubble`) açılınca panele büyüyor ve
+   * sabit bir `100dvh` oranıyla yükseklik alıyordu — plan karnesi (sağ alt)
+   * içerik miktarına göre BÜYÜYEBİLEN, bağımsız bir kart olduğu için ikisi
+   * aralarında boşluk bırakmadan çakışabiliyordu. Plan karnesi bloğunun üst
+   * kenarını ölçüp balona veriyoruz ki panel kendi yüksekliğini ona göre sınırlasın.
+   */
+  const sagAltRef = useRef<HTMLDivElement>(null);
+  const [sagAltUstY, setSagAltUstY] = useState<number | null>(null);
+  useEffect(() => {
+    const el = sagAltRef.current;
+    if (!el) return;
+    const guncelle = () => setSagAltUstY(el.getBoundingClientRect().top);
+    guncelle();
+    const ro = new ResizeObserver(guncelle);
+    ro.observe(el);
+    window.addEventListener("resize", guncelle);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", guncelle);
+    };
+  }, []);
 
   /** `Doluluk.baglayiciKisit`e göre bağlayıcı yüzde — modül genelinde tekrarlanan hesap. */
   const hesaplaYuzde = useCallback((arac: RotaAraci, liste: RotaDuragi[]): number => {
@@ -503,6 +550,54 @@ export default function RotaHaritasiSayfasi() {
   };
 
   /**
+   * AI komut balonundan gelen eylemleri uygular. `bolgeyiFiltrele`/
+   * `araciFiltrele`'nin aksine bilerek TOGGLE değil, her zaman SET —
+   * streaming sırasında aynı blok iki kez işlenirse ya da kullanıcı benzer
+   * bir isteği iki turda tekrarlarsa filtrenin kendi kendini sessizce
+   * kapatmaması için. Eşleşme bulunamazsa sessizce yok sayılır.
+   */
+  const haritaEylemiUygula = useCallback(
+    (eylem: HaritaEylemi) => {
+      switch (eylem.eylem) {
+        case "bolgeyi_filtrele": {
+          if (!eylem.sorgu) return;
+          const bolge = bulanikBul(canli.bolgeler, eylem.sorgu, (b) => b.ad);
+          if (!bolge) return;
+          setFiltre({ tur: "bolge", bolgeKod: bolge.kod });
+          const noktalar = bolge.duraklar
+            .filter((d) => d.lat != null && d.lon != null)
+            .map((d): [number, number] => [d.lon!, d.lat!]);
+          if (noktalar.length > 0) setUcusHedefi({ noktalar, zaman: Date.now() });
+          break;
+        }
+        case "araci_filtrele": {
+          if (!eylem.sorgu) return;
+          // Yalnız o an yüklü/görünen araçlar arasında ara — havuzda bekleyen,
+          // hiçbir yere atanmamış bir "araç" olmaz.
+          const rota = bulanikBul(yuklu, eylem.sorgu, (r) => r.aracAd);
+          if (!rota) return;
+          setFiltre({ tur: "arac", aracKod: rota.aracKod });
+          break;
+        }
+        case "sekmeyi_degistir": {
+          if (!eylem.sekme) return;
+          setListe(eylem.sekme);
+          break;
+        }
+        case "karneyi_vurgula": {
+          if (!eylem.anahtar) return;
+          setFiltre({ tur: "karne", anahtar: eylem.anahtar as KriterAnahtari });
+          break;
+        }
+        case "filtreyi_temizle":
+          setFiltre({ tur: "hepsi" });
+          break;
+      }
+    },
+    [canli.bolgeler, yuklu]
+  );
+
+  /**
    * "Haritada göster" düğmesinin listesindeki her satır bunu çağırır —
    * cihaz destekliyorsa (çoğu mobil, bazı masaüstü tarayıcı) OS'in kendi
    * paylaşım sayfasını açar; desteklemiyorsa bağlantı panoya kopyalanır ki
@@ -558,6 +653,7 @@ export default function RotaHaritasiSayfasi() {
   const gecerliListe = liste === "bolgeler" && !bolgelerVar ? "araclar" : liste;
 
   return (
+    <RotaHaritaEylemSaglayici value={haritaEylemiUygula}>
     <div ref={containerRef} className="relative isolate min-h-0 min-w-0 flex-1 overflow-hidden">
       <RotaHaritasi
         rotalar={gorunenRotalar}
@@ -832,7 +928,7 @@ export default function RotaHaritasiSayfasi() {
           göre hesaplanıyor, dondurulmuş bir günün yanında göstermek yanıltıcı
           olurdu). Kayıtlı modda yerine sade bir özet çipi var.
         */}
-        <div className="flex flex-col items-end gap-2">
+        <div ref={sagAltRef} className="flex flex-col items-end gap-2">
           {/*
             Optimize durumu — plan karnesinin HEMEN ÜSTÜNDE, aynı cam+genişlik.
             Optimize artık yalnız düğmeyle değil kendiliğinden de (bkz.
@@ -1022,6 +1118,13 @@ export default function RotaHaritasiSayfasi() {
           ekleniyorAracKod={ekleniyorAracKod}
         />
       ) : null}
+
+      <RotaHaritaAiBubble
+        aracAdlari={yuklu.map((r) => r.aracAd)}
+        bolgeAdlari={canli.bolgeler.map((b) => b.ad)}
+        altSinirY={sagAltUstY}
+      />
     </div>
+    </RotaHaritaEylemSaglayici>
   );
 }

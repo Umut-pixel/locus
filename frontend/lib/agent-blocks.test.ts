@@ -72,3 +72,33 @@ if (!openFence.some((b) => b.type === "pending")) {
   fail("open map fence should be pending while streaming");
 }
 console.log("streaming pending ok");
+
+const haritaEylemi = parseAgentContent(
+  '```locus\n{"kind":"harita_eylemi","eylem":"bolgeyi_filtrele","sorgu":"Aydın"}\n```'
+);
+if (haritaEylemi.length !== 1 || haritaEylemi[0]?.type !== "harita_eylemi") {
+  fail(`expected harita_eylemi block, got ${JSON.stringify(haritaEylemi.map((b) => b.type))}`);
+}
+if (haritaEylemi[0].type === "harita_eylemi" && haritaEylemi[0].sorgu !== "Aydın") {
+  fail("sorgu mismatch");
+}
+console.log("harita_eylemi parse ok");
+
+const bilinmeyenEylem = parseAgentContent(
+  '```locus\n{"kind":"harita_eylemi","eylem":"aracin_gpsini_kapat"}\n```'
+);
+if (bilinmeyenEylem.length !== 0) {
+  fail("unknown eylem should be dropped, not rendered");
+}
+console.log("harita_eylemi unknown action dropped ok");
+
+const gecersizSekme = parseAgentContent(
+  '```locus\n{"kind":"harita_eylemi","eylem":"sekmeyi_degistir","sekme":"uydurma"}\n```'
+);
+if (
+  gecersizSekme[0]?.type !== "harita_eylemi" ||
+  gecersizSekme[0].sekme !== undefined
+) {
+  fail("invalid sekme should fall back to undefined, not crash");
+}
+console.log("harita_eylemi invalid sekme ok");

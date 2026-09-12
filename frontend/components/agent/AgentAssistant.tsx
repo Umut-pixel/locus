@@ -18,6 +18,9 @@ import { cn } from "@/lib/utils";
 interface AgentAssistantProps {
   className?: string;
   importActivity?: ImportActivity | null;
+  /** Gönderilen her mesaja eklenecek, ekranda görünmeyen bağlam notu (ör. o an haritada görünenler). */
+  buildContext?: () => string | undefined;
+  placeholder?: string;
 }
 
 /**
@@ -26,6 +29,8 @@ interface AgentAssistantProps {
 export const AgentAssistant = memo(function AgentAssistant({
   className,
   importActivity = null,
+  buildContext,
+  placeholder = "Veri hakkında sor…",
 }: AgentAssistantProps) {
   const {
     messages,
@@ -39,6 +44,8 @@ export const AgentAssistant = memo(function AgentAssistant({
     send,
     stop,
   } = useAgentSession();
+  const handleSend = (text: string) =>
+    send(text, buildContext ? { context: buildContext() } : undefined);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const importPhase = importActivityToPhase(importActivity);
   const working = busy || Boolean(importPhase && importActivity !== "idle" && importActivity !== "error");
@@ -111,10 +118,10 @@ export const AgentAssistant = memo(function AgentAssistant({
         <PromptBar
           value={draft}
           onChange={setDraft}
-          onSend={send}
+          onSend={handleSend}
           onStop={stop}
           busy={busy}
-          placeholder="Veri hakkında sor…"
+          placeholder={placeholder}
         />
         <p className="mt-2 text-center text-[10px] text-ink-3">
           ORB hata yapabilir, lütfen kontrol edin.

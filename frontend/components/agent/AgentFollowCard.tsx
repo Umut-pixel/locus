@@ -95,7 +95,10 @@ export function AgentFollowCard() {
   } = useAgentSession();
 
   // Sohbet artık kendi route'unda; kart yalnız oranın dışında görünür.
-  const sohbetteyiz = pathname.startsWith("/sohbet/");
+  // Rota haritası da hariç — orada aynı rolü RotaHaritaAiBubble üstleniyor,
+  // ikisi aynı anda görünürse aynı yanıt iki kez gösterilmiş olur.
+  const sohbetteyiz =
+    pathname.startsWith("/sohbet/") || pathname.startsWith("/rotalar/harita");
   const [dismissed, setDismissed] = useState(true);
   const wasBusy = useRef(false);
   const followRun = useRef(false);
