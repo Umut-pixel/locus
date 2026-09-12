@@ -88,6 +88,12 @@ interface DurakDetayKartiProps {
   onRotayaEkle: ((aracKod: string) => void | Promise<void>) | null;
   cikariliyor: boolean;
   ekleniyorAracKod: string | null;
+  /**
+   * Önizlenen araç seçilince/değişince/vazgeçilince — haritada o aracın
+   * soluk önizleme çizgisini çizebilsin diye (bkz. `RotaHaritasi`). Kart
+   * kapanınca (unmount) `null` ile çağrılır.
+   */
+  onOnizlemeAracDegisti?: (aracKod: string | null) => void;
 }
 
 /**
@@ -111,6 +117,7 @@ export function DurakDetayKarti({
   onRotayaEkle,
   cikariliyor,
   ekleniyorAracKod,
+  onOnizlemeAracDegisti,
 }: DurakDetayKartiProps) {
   const { durak, rota, nokta } = secim;
   const cardRef = useRef<HTMLDivElement>(null);
@@ -128,6 +135,21 @@ export function DurakDetayKarti({
   useEffect(() => {
     setSeciliAracKod(aktifArac?.kod ?? null);
   }, [aktifArac?.kod]);
+
+  /**
+   * Ebeveyni önizlenen araçtan haberdar et — harita bunu görüp soluk rota
+   * çizsin (bkz. `RotaHaritasi`/`onizleme` prop'u). Ref üzerinden okunuyor ki
+   * callback her render'da yeni kimlik alsa bile efekt yalnız `seciliAracKod`
+   * değişince tetiklensin. Kart kapanınca (unmount) `null` ile temizler.
+   */
+  const onOnizlemeAracDegistiRef = useRef(onOnizlemeAracDegisti);
+  useEffect(() => {
+    onOnizlemeAracDegistiRef.current = onOnizlemeAracDegisti;
+  });
+  useEffect(() => {
+    onOnizlemeAracDegistiRef.current?.(seciliAracKod);
+    return () => onOnizlemeAracDegistiRef.current?.(null);
+  }, [seciliAracKod]);
 
   const onizleme = useMemo(
     () => (seciliAracKod != null ? (onRotayaEklemeOnizle?.(seciliAracKod) ?? null) : null),

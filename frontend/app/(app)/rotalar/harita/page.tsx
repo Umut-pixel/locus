@@ -34,7 +34,12 @@ import {
   type AktifDoluluk,
   type DolulukFarki,
 } from "@/components/rota/PlanKarnesi";
-import { aracRengi, RotaHaritasi, type HaritaRotasi } from "@/components/rota/RotaHaritasi";
+import {
+  aracRengi,
+  RotaHaritasi,
+  type HaritaOnizleme,
+  type HaritaRotasi,
+} from "@/components/rota/RotaHaritasi";
 import { AppSidebarMobileTrigger } from "@/components/sidebar/AppSidebar";
 import { GsapAutoHeight } from "@/components/ui/gsap-auto-height";
 import { GsapCollapse } from "@/components/ui/gsap-collapse";
@@ -196,6 +201,26 @@ export default function RotaHaritasiSayfasi() {
 
   /** Haritada tıklanan durak — bilgi kartı bunun üzerine kurulur. */
   const [seciliDurak, setSeciliDurak] = useState<DurakSecimi | null>(null);
+  /**
+   * `DurakDetayKarti`'nde önizlenen (henüz onaylanmamış) araç — haritada o
+   * aracın soluk önizleme çizgisini çizebilmek için (bkz. `onizlemeHatti`).
+   */
+  const [onizlemeAracKod, setOnizlemeAracKod] = useState<string | null>(null);
+  /**
+   * Onaylanan önizlemenin DONMUŞ kopyası — `durakRotayaEkle` çağrılır
+   * çağrılmaz durak zaten "mevcut" sayıldığı için `onizlemeHatti` anında
+   * `null`a düşer, ama `RotaHaritasi`'deki gerçek rotanın canlanma animasyonu
+   * (~1,1sn) sürerken soluk çizgi hâlâ görünür kalsın istiyoruz — opak
+   * gerçek renk çizgisi onun ÜSTÜNDEN geçerek çizilsin diye (bkz.
+   * `onaylaOnizlemeDondur`). Süre dolunca kendiliğinden temizlenir.
+   */
+  const [dondurulmusOnizleme, setDondurulmusOnizleme] = useState<HaritaOnizleme | null>(null);
+  const dondurmaZamanlayiciRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    return () => {
+      if (dondurmaZamanlayiciRef.current) clearTimeout(dondurmaZamanlayiciRef.current);
+    };
+  }, []);
   const [cikariliyor, setCikariliyor] = useState(false);
   const [ekleniyorAracKod, setEkleniyorAracKod] = useState<string | null>(null);
   /** Son ekle/çıkar eyleminin öncesi/sonrası — karnedeki geçici rozet bunu okur. */
@@ -318,6 +343,29 @@ export default function RotaHaritasiSayfasi() {
   );
 
   /**
+   * Haritadaki soluk önizleme çizgisi — `onizlemeAracKod` set edildiğinde
+   * (bkz. `DurakDetayKarti` → `onOnizlemeAracDegisti`) o aracın MEVCUT
+   * durakları + önizlenen durak, bu sırayla. Araç henüz haritada çizili
+   * değilse (bugün hiç durağı yoksa) `canli.rotalar`'da renk bulunamaz —
+   * bir sonraki boş renk sırasını kullanır (`redraw`'ın atadığı sırayla aynı
+   * mantık: dizideki konum → `aracRengi`).
+   */
+  const onizlemeHatti = useMemo<HaritaOnizleme | null>(() => {
+    if (gecmisMod || !seciliDurak || seciliDurak.rota != null || !onizlemeAracKod) return null;
+    const arac = canli.aracBul(onizlemeAracKod);
+    if (!arac) return null;
+    const mevcutListe = canli.aracDuraklari(onizlemeAracKod);
+    if (mevcutListe.some((d) => d.musteriKodu === seciliDurak.durak.musteriKodu)) return null;
+    const mevcutRota = canli.rotalar.find((r) => r.aracKod === onizlemeAracKod);
+    const renk = mevcutRota?.renk ?? aracRengi(canli.rotalar.length);
+    return {
+      aracKod: onizlemeAracKod,
+      renk,
+      duraklar: [...mevcutListe, seciliDurak.durak],
+    };
+  }, [gecmisMod, seciliDurak, onizlemeAracKod, canli]);
+
+  /**
    * Havuzdaki bir durağı bir araca ekle — `BolgeOzeti`'nin toplu yükleme
    * akışındaki AYNI stale-closure önlemi: `optimizeEt`'e `aracDuraklari`'nın
    * henüz güncellenmemiş (React state batching) hâli yerine elimizdeki taze
@@ -335,6 +383,13 @@ export default function RotaHaritasiSayfasi() {
       try {
         const eskiListe = canli.aracDuraklari(aracKod);
         const eskiYuzde = hesaplaYuzde(arac, eskiListe);
+
+        // Önizleme şeklini donduruyoruz — bkz. `dondurulmusOnizleme` yorumu.
+        if (onizlemeHatti && onizlemeHatti.aracKod === aracKod) {
+          setDondurulmusOnizleme(onizlemeHatti);
+          if (dondurmaZamanlayiciRef.current) clearTimeout(dondurmaZamanlayiciRef.current);
+          dondurmaZamanlayiciRef.current = setTimeout(() => setDondurulmusOnizleme(null), 1400);
+        }
 
         canli.durakEkle(durak.musteriKodu, aracKod);
         const yeniListe = [...eskiListe, durak];
@@ -359,7 +414,7 @@ export default function RotaHaritasiSayfasi() {
         setSeciliDurak(null);
       }
     },
-    [gecmisMod, seciliDurak, ekleniyorAracKod, canli, hesaplaYuzde]
+    [gecmisMod, seciliDurak, ekleniyorAracKod, canli, hesaplaYuzde, onizlemeHatti]
   );
 
   /** Kayıtlı günün/planın hangi tarihe ait olduğu — başlıkta gösterilecek. */
@@ -661,6 +716,7 @@ export default function RotaHaritasiSayfasi() {
         onDurakSec={setSeciliDurak}
         onBosaTikla={() => setSeciliDurak(null)}
         ucusHedefi={ucusHedefi}
+        onizleme={onizlemeHatti ?? dondurulmusOnizleme}
       />
 
       <div className="pointer-events-none absolute inset-0 z-10 flex flex-col justify-between gap-2 p-2 sm:p-3 md:p-4">
@@ -1116,6 +1172,7 @@ export default function RotaHaritasiSayfasi() {
           onRotayaEkle={gecmisMod ? null : durakRotayaEkle}
           cikariliyor={cikariliyor}
           ekleniyorAracKod={ekleniyorAracKod}
+          onOnizlemeAracDegisti={gecmisMod ? undefined : setOnizlemeAracKod}
         />
       ) : null}
 

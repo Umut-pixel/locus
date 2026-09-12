@@ -26,6 +26,16 @@ const LINE_ARROWS = "rota-plan-line-arrows";
 const ARROW_IMAGE = "rota-plan-arrow";
 
 /**
+ * Ekleme önizlemesi — "araç seç → onayla" arasındaki bekleme anında (bkz.
+ * `DurakDetayKarti`) o aracın rengiyle ama SOLUK bir düz çizgi. Ayrı
+ * kaynak/katman: `LINE_LAYER`'dan ÖNCE eklenir ki (Mapbox'ta sonra eklenen
+ * üstte çizilir) onaylanınca gerçek rota çizgisinin canlanma animasyonu
+ * (`revealRouteLine`) bu soluk çizginin ÜSTÜNDEN geçerek görünsün.
+ */
+const PREVIEW_LINE_SOURCE = "rota-onizleme-line";
+const PREVIEW_LINE_LAYER = "rota-onizleme-line-katman";
+
+/**
  * Çizgi üstünde tekrarlanan yön oku.
  *
  * Font glyph'i yerine kanvasta çiziliyor: `text-field` ile bir üçgen karakteri
@@ -145,6 +155,18 @@ export interface HaritaRotasi {
   duraklar: RotaDuragi[];
 }
 
+/**
+ * Bir durağın belirli bir araca eklenmesi ÖNİZLENİRKEN (bkz. `DurakDetayKarti`
+ * → `onRotayaEklemeOnizle`) gösterilecek soluk rota — `duraklar` aracın MEVCUT
+ * durakları + eklenmesi önizlenen durak, bu SIRAYLA. Onaylanana kadar hiçbir
+ * plan state'i değişmez; bu yalnız görsel bir tahmin.
+ */
+export interface HaritaOnizleme {
+  aracKod: string;
+  renk: string;
+  duraklar: RotaDuragi[];
+}
+
 interface RotaHaritasiProps {
   rotalar: HaritaRotasi[];
   /** Henüz atanmamış duraklar — soluk noktalarla gösterilir. */
@@ -160,6 +182,8 @@ interface RotaHaritasiProps {
    * olmaz.
    */
   ucusHedefi?: { noktalar: LngLat[]; zaman: number } | null;
+  /** Eklenmesi önizlenen durak varsa o aracın soluk önizleme çizgisi. */
+  onizleme?: HaritaOnizleme | null;
 }
 
 function escapeHtml(value: string): string {
@@ -319,6 +343,25 @@ function rotaNoktalari(duraklar: RotaDuragi[]): LngLat[] {
 }
 
 /**
+ * Önizleme çizgisi — her zaman DÜZ (yol oturtma yok). Yalnız "araç seçiliyken
+ * bekleme" anında görünen, henüz onaylanmamış bir tahmin; bunun için gerçek
+ * bir Directions isteği atmak hem gereksiz gecikme hem gereksiz maliyet
+ * olurdu — yalnız onaylanan rota `fetchDrivingRoute` çağırır.
+ */
+function onizlemeOzellikleri(
+  onizleme: HaritaOnizleme | null | undefined,
+  karanlikMi: boolean
+): GeoJSON.FeatureCollection<GeoJSON.LineString> {
+  if (!onizleme) return { type: "FeatureCollection", features: [] };
+  const coords = rotaNoktalari(onizleme.duraklar);
+  if (coords.length < 2) return { type: "FeatureCollection", features: [] };
+  return {
+    type: "FeatureCollection",
+    features: [lineFeature(coords, haritaRengi(onizleme.renk, karanlikMi), 0)],
+  };
+}
+
+/**
  * Plan haritası — araç başına ayrı renkli güzergâh, atanmamış duraklar soluk.
  * Yol oturtma mevcut Mapbox Directions katmanıyla; başarısız olursa düz çizgi.
  *
@@ -335,6 +378,7 @@ export function RotaHaritasi({
   onDurakSec,
   onBosaTikla,
   ucusHedefi,
+  onizleme,
 }: RotaHaritasiProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const stageVeilRef = useRef<HTMLDivElement>(null);
@@ -381,10 +425,12 @@ export function RotaHaritasi({
    */
   const rotalarRef = useRef(rotalar);
   const havuzRef = useRef(havuz);
+  const onizlemeRef = useRef(onizleme);
   useEffect(() => {
     rotalarRef.current = rotalar;
     havuzRef.current = havuz;
-  }, [rotalar, havuz]);
+    onizlemeRef.current = onizleme;
+  }, [rotalar, havuz, onizleme]);
 
   const ensureLineLayers = (map: mapboxgl.Map) => {
     if (!map.getSource(LINE_SOURCE)) {
@@ -393,6 +439,29 @@ export function RotaHaritasi({
         data: { type: "FeatureCollection", features: [] },
       });
     }
+
+    // Önizleme SIRADAN önce eklenir ki gerçek rota katmanının ALTINDA kalsın —
+    // onaylanınca gerçek çizginin canlanma animasyonu bunun üstünden geçer.
+    if (!map.getSource(PREVIEW_LINE_SOURCE)) {
+      map.addSource(PREVIEW_LINE_SOURCE, {
+        type: "geojson",
+        data: { type: "FeatureCollection", features: [] },
+      });
+    }
+    if (!map.getLayer(PREVIEW_LINE_LAYER)) {
+      map.addLayer({
+        id: PREVIEW_LINE_LAYER,
+        type: "line",
+        source: PREVIEW_LINE_SOURCE,
+        layout: { "line-cap": "round", "line-join": "round" },
+        paint: {
+          "line-color": ["get", "renk"],
+          "line-width": ["interpolate", ["linear"], ["zoom"], 6, 3, 12, 6, 16, 9],
+          "line-opacity": 0.38,
+        },
+      });
+    }
+
     // Apple Maps deseni: kalın nötr kontur + üstünde dolgun renkli çekirdek.
     // Zoom'a göre kalınlaşıyor ki şehir içinde de kırsalda da okunur kalsın.
     if (!map.getLayer(LINE_CASING)) {
@@ -650,6 +719,9 @@ export function RotaHaritasi({
       // İlk çizimde kamera fit edilir; sonraki her `redraw` (bkz. aşağıdaki
       // ikinci effect) kamerayı oynatmaz.
       redraw(map, rotalarRef.current, havuzRef.current, true);
+      (map.getSource(PREVIEW_LINE_SOURCE) as mapboxgl.GeoJSONSource | undefined)?.setData(
+        onizlemeOzellikleri(onizlemeRef.current, themeRef.current === "dark")
+      );
     };
 
     map.on("style.load", onStyle);
@@ -684,6 +756,22 @@ export function RotaHaritasi({
     redraw(map, rotalar, havuz, false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [planKey]);
+
+  /**
+   * Önizleme çizgisi — `redraw`'dan BİLEREK ayrı: `onizleme` her araç
+   * seçiminde/vazgeçmede değişir, tam `redraw` (marker'lar + yol oturtma
+   * isteği) baştan çalıştırmak gereksiz. Yalnız önizleme kaynağının verisini
+   * anında (animasyonsuz) günceller — soluklaşma/kaybolma anlık olsun,
+   * "canlanan" yalnız ONAYLANMIŞ gerçek rota (bkz. `redraw` içindeki
+   * `revealRouteLine`).
+   */
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !map.isStyleLoaded()) return;
+    const src = map.getSource(PREVIEW_LINE_SOURCE) as mapboxgl.GeoJSONSource | undefined;
+    if (!src) return;
+    src.setData(onizlemeOzellikleri(onizleme, themeRef.current === "dark"));
+  }, [onizleme]);
 
   useEffect(() => {
     const map = mapRef.current;
