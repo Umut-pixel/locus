@@ -342,23 +342,31 @@ function rotaNoktalari(duraklar: RotaDuragi[]): LngLat[] {
   return stops.length > 0 ? [DEPOT.lngLat, ...stops, DEPOT.lngLat] : [];
 }
 
-/**
- * Önizleme çizgisi — her zaman DÜZ (yol oturtma yok). Yalnız "araç seçiliyken
- * bekleme" anında görünen, henüz onaylanmamış bir tahmin; bunun için gerçek
- * bir Directions isteği atmak hem gereksiz gecikme hem gereksiz maliyet
- * olurdu — yalnız onaylanan rota `fetchDrivingRoute` çağırır.
- */
-function onizlemeOzellikleri(
-  onizleme: HaritaOnizleme | null | undefined,
+function onizlemeOzelligiCoordsdan(
+  coords: LngLat[],
+  renk: string,
   karanlikMi: boolean
 ): GeoJSON.FeatureCollection<GeoJSON.LineString> {
-  if (!onizleme) return { type: "FeatureCollection", features: [] };
-  const coords = rotaNoktalari(onizleme.duraklar);
   if (coords.length < 2) return { type: "FeatureCollection", features: [] };
   return {
     type: "FeatureCollection",
-    features: [lineFeature(coords, haritaRengi(onizleme.renk, karanlikMi), 0)],
+    features: [lineFeature(coords, haritaRengi(renk, karanlikMi), 0)],
   };
+}
+
+/** Onaylı rotayla AYNI kaynaktan (Mapbox Directions) yol oturtulmuş önizleme
+ * çizgisi — isteğe erişilemezse düz çizgiye düşer (`redraw`'daki gibi). */
+async function onizlemeOzellikleri(
+  onizleme: HaritaOnizleme | null | undefined,
+  karanlikMi: boolean,
+  signal: AbortSignal
+): Promise<GeoJSON.FeatureCollection<GeoJSON.LineString> | null> {
+  if (!onizleme) return { type: "FeatureCollection", features: [] };
+  const coords = rotaNoktalari(onizleme.duraklar);
+  if (coords.length < 2) return { type: "FeatureCollection", features: [] };
+  const yol = await fetchDrivingRoute(coords, signal);
+  if (signal.aborted) return null;
+  return onizlemeOzelligiCoordsdan(yol ?? coords, onizleme.renk, karanlikMi);
 }
 
 /**
@@ -387,6 +395,9 @@ export function RotaHaritasi({
   const markersRef = useRef<mapboxgl.Marker[]>([]);
   /** Sürüş rotası isteği — her `redraw` yenisini kurar, öncekini iptal eder. */
   const routeAbortRef = useRef<AbortController | null>(null);
+  /** Önizleme çizgisinin kendi yol-oturtma isteği — `routeAbortRef`'ten ayrı,
+   * araç seçimi değiştikçe (sık) `redraw`'ı (seyrek, ağır) tetiklemesin. */
+  const onizlemeAbortRef = useRef<AbortController | null>(null);
   const { theme } = useTheme();
   // Harita init effect'i tema değerini ref üzerinden okur; ref render sırasında
   // değil effect'te güncellenir (react-hooks/refs).
@@ -719,8 +730,14 @@ export function RotaHaritasi({
       // İlk çizimde kamera fit edilir; sonraki her `redraw` (bkz. aşağıdaki
       // ikinci effect) kamerayı oynatmaz.
       redraw(map, rotalarRef.current, havuzRef.current, true);
-      (map.getSource(PREVIEW_LINE_SOURCE) as mapboxgl.GeoJSONSource | undefined)?.setData(
-        onizlemeOzellikleri(onizlemeRef.current, themeRef.current === "dark")
+      onizlemeAbortRef.current?.abort();
+      const ac = new AbortController();
+      onizlemeAbortRef.current = ac;
+      void onizlemeOzellikleri(onizlemeRef.current, themeRef.current === "dark", ac.signal).then(
+        (fc) => {
+          if (!fc) return;
+          (map.getSource(PREVIEW_LINE_SOURCE) as mapboxgl.GeoJSONSource | undefined)?.setData(fc);
+        }
       );
     };
 
@@ -733,6 +750,7 @@ export function RotaHaritasi({
 
     return () => {
       routeAbortRef.current?.abort();
+      onizlemeAbortRef.current?.abort();
       unobserve();
       for (const m of markersRef.current) m.remove();
       markersRef.current = [];
@@ -760,17 +778,30 @@ export function RotaHaritasi({
   /**
    * Önizleme çizgisi — `redraw`'dan BİLEREK ayrı: `onizleme` her araç
    * seçiminde/vazgeçmede değişir, tam `redraw` (marker'lar + yol oturtma
-   * isteği) baştan çalıştırmak gereksiz. Yalnız önizleme kaynağının verisini
-   * anında (animasyonsuz) günceller — soluklaşma/kaybolma anlık olsun,
+   * isteği) baştan çalıştırmak gereksiz. Onaylı rotayla AYNI yol oturtma
+   * kaynağını (`fetchDrivingRoute`) kullanır — düz çizgi yalnız o istek
+   * başarısız olursa devreye girer. Vazgeçilince/değişince anında temizlenir;
    * "canlanan" yalnız ONAYLANMIŞ gerçek rota (bkz. `redraw` içindeki
-   * `revealRouteLine`).
+   * `revealRouteLine`) — önizlemenin kendisi animasyonsuz belirir/kaybolur.
    */
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !map.isStyleLoaded()) return;
     const src = map.getSource(PREVIEW_LINE_SOURCE) as mapboxgl.GeoJSONSource | undefined;
     if (!src) return;
-    src.setData(onizlemeOzellikleri(onizleme, themeRef.current === "dark"));
+
+    onizlemeAbortRef.current?.abort();
+    // Yeni seçim gelene/vazgeçilene kadar bir önceki (yanlış) şekil asılı
+    // kalmasın — yol oturtulmuş şekil gelince yerine geçer.
+    src.setData({ type: "FeatureCollection", features: [] });
+    if (!onizleme) return;
+
+    const ac = new AbortController();
+    onizlemeAbortRef.current = ac;
+    void onizlemeOzellikleri(onizleme, themeRef.current === "dark", ac.signal).then((fc) => {
+      if (!fc || ac.signal.aborted) return;
+      src.setData(fc);
+    });
   }, [onizleme]);
 
   useEffect(() => {
