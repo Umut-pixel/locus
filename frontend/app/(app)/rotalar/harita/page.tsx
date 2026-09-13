@@ -363,7 +363,13 @@ export default function RotaHaritasiSayfasi() {
       renk,
       duraklar: [...mevcutListe, seciliDurak.durak],
     };
-  }, [gecmisMod, seciliDurak, onizlemeAracKod, canli]);
+    // `canli`nin BÜTÜNÜ yerine gerçekten kullanılan parçalar listelendi:
+    // `canli` ~1,5sn'de bir otomatik kayıt yüzünden yeni referans alıyor
+    // (bkz. RotaPlaniProvider deger useMemo'su) — bütünü bağımlılığa koysak
+    // harita önizleme çizgisini boşta beklerken bile birkaç saniyede bir
+    // gereksiz yeniden canlandırırdı (bkz. `RotaHaritasi`'deki `revealRouteLine`).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gecmisMod, seciliDurak, onizlemeAracKod, canli.aracBul, canli.aracDuraklari, canli.rotalar]);
 
   /**
    * Havuzdaki bir durağı bir araca ekle — `BolgeOzeti`'nin toplu yükleme

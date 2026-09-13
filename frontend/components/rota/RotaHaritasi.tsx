@@ -736,7 +736,12 @@ export function RotaHaritasi({
       void onizlemeOzellikleri(onizlemeRef.current, themeRef.current === "dark", ac.signal).then(
         (fc) => {
           if (!fc) return;
-          (map.getSource(PREVIEW_LINE_SOURCE) as mapboxgl.GeoJSONSource | undefined)?.setData(fc);
+          const src = map.getSource(PREVIEW_LINE_SOURCE) as mapboxgl.GeoJSONSource | undefined;
+          if (!src) return;
+          void revealRouteLine(fc, (data) => src.setData(data), {
+            duration: 1.1,
+            signal: ac.signal,
+          });
         }
       );
     };
@@ -779,10 +784,11 @@ export function RotaHaritasi({
    * Önizleme çizgisi — `redraw`'dan BİLEREK ayrı: `onizleme` her araç
    * seçiminde/vazgeçmede değişir, tam `redraw` (marker'lar + yol oturtma
    * isteği) baştan çalıştırmak gereksiz. Onaylı rotayla AYNI yol oturtma
-   * kaynağını (`fetchDrivingRoute`) kullanır — düz çizgi yalnız o istek
-   * başarısız olursa devreye girer. Vazgeçilince/değişince anında temizlenir;
-   * "canlanan" yalnız ONAYLANMIŞ gerçek rota (bkz. `redraw` içindeki
-   * `revealRouteLine`) — önizlemenin kendisi animasyonsuz belirir/kaybolur.
+   * kaynağını (`fetchDrivingRoute`) VE aynı canlanma animasyonunu
+   * (`revealRouteLine`) kullanır — depodan başlayıp yeni durağa doğru
+   * "çizilerek" ilerler, düz çizgi yalnız istek başarısız olursa devreye
+   * girer. Vazgeçilince/değişince (yeni istek başlamadan önce) ANINDA
+   * temizlenir — yalnız BELİRME animasyonlu, kayboluş değil.
    */
   useEffect(() => {
     const map = mapRef.current;
@@ -800,7 +806,10 @@ export function RotaHaritasi({
     onizlemeAbortRef.current = ac;
     void onizlemeOzellikleri(onizleme, themeRef.current === "dark", ac.signal).then((fc) => {
       if (!fc || ac.signal.aborted) return;
-      src.setData(fc);
+      void revealRouteLine(fc, (data) => src.setData(data), {
+        duration: 1.1,
+        signal: ac.signal,
+      });
     });
   }, [onizleme]);
 
