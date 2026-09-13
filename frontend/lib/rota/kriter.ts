@@ -20,11 +20,12 @@ import {
   type Arac,
   type AracYuku,
   type FiloSecimi,
+  type YakitTuru,
   type YerlesmeyenDurak,
 } from "./atama";
 import type { RotaBilgisi } from "./google-routes";
 import { gunUzunlugu, saatMetni, sonrakiKalkis, sureMetni, varisZamani, YAYILIM_UYARI_KM } from "./operasyon";
-import type { PlanMetrigi } from "./planla";
+import { turKm, type PlanMetrigi } from "./planla";
 
 export type KriterDurumu = "iyi" | "dikkat" | "sorun";
 
@@ -74,6 +75,9 @@ export interface KriterGirdisi {
   rotaBilgileri: Record<string, RotaBilgisi>;
   /** Sipariş verisinin yaşı (saat). null = bilinmiyor. */
   veriYasiSaat: number | null;
+  /** yakıt türü → EPDK'nın en güncel TL/L fiyatı. Eksik tür = o türü kullanan
+   *  araçların maliyeti hesaplanamaz (bkz. maliyetKriteri). */
+  yakitFiyatlari: Partial<Record<YakitTuru, number>>;
 }
 
 // ---------------------------------------------------------------------------
@@ -189,21 +193,99 @@ function sureKriteri(g: KriterGirdisi): Kriter {
 }
 
 /**
- * Cost — filoda yakıt/tüketim alanı YOK (bkz. sql/araclar_sema.sql), TL/km
- * dışarıdan gelmedikçe maliyet hesaplanamaz. Toplam mesafe vekil olarak
- * gösteriliyor ve açıkça "tahmini" işaretleniyor.
+ * Cost — distance_km * tuketimL100km / 100 * yakıtFiyatı. `sureKriteri`nin
+ * desenini izler: üç net durum (veri yok / kısmi / tam), kaynak dürüstlüğü.
+ *
+ * Mesafe: araç son optimize edildiyse `rotaBilgileri[kod].metre` (gerçek,
+ * Google), aksi halde `turKm(y.duraklar)` (haversine tahmini — `toplamKm`'i
+ * üreten AYNI fonksiyon, filo toplamını araç sayısına bölmek yerine BU araca
+ * özel çağrılıyor; araçlar farklı yakıt/tüketim taşıyabildiği için bölmek
+ * yanlış olurdu).
+ *
+ * "olculen" saymak için mesafenin gerçek olması YETMEZ — tuketimTeyitli=false
+ * ise TL rakamı yine tahminidir (max_kg_teyitli ile aynı "kaynak dürüstlüğü"
+ * ilkesi, bkz. dosya başı yorumu).
  */
 function maliyetKriteri(g: KriterGirdisi): Kriter {
-  const km = Math.round(g.metrik.toplamKm);
+  const dolu = yuklu(g.yukler);
+
+  if (dolu.length === 0) {
+    return {
+      anahtar: "maliyet",
+      ad: "Maliyet",
+      deger: "—",
+      durum: "iyi",
+      kaynak: "veri-yok",
+      aciklama: "Henüz araca yük atanmadı.",
+      suclular: { araclar: [], duraklar: [] },
+    };
+  }
+
+  const hesaplanan: { kod: string; tl: number; guvenilir: boolean }[] = [];
+  const eksikAraclar: string[] = [];
+
+  for (const y of dolu) {
+    const bilgi = g.rotaBilgileri[y.arac.kod];
+    const gercekMesafe = bilgi != null;
+    const km = gercekMesafe ? bilgi!.metre / 1000 : turKm(y.duraklar);
+
+    const tuketim = y.arac.tuketimL100km;
+    const yakitTuru = y.arac.yakitTuru;
+    const fiyat = yakitTuru != null ? g.yakitFiyatlari[yakitTuru] : undefined;
+
+    if (tuketim == null || yakitTuru == null || fiyat == null) {
+      eksikAraclar.push(y.arac.kod);
+      continue;
+    }
+
+    const litre = (km * tuketim) / 100;
+    hesaplanan.push({
+      kod: y.arac.kod,
+      tl: litre * fiyat,
+      guvenilir: gercekMesafe && y.arac.tuketimTeyitli === true,
+    });
+  }
+
+  if (hesaplanan.length === 0) {
+    const km = Math.round(g.metrik.toplamKm);
+    return {
+      anahtar: "maliyet",
+      ad: "Maliyet",
+      deger: km > 0 ? `${km.toLocaleString("tr-TR")} km` : "—",
+      durum: "iyi",
+      kaynak: "veri-yok",
+      aciklama:
+        "Filodaki araçlarda yakıt türü/tüketim ya da o yakıt türü için güncel fiyat tanımlı değil; maliyet toplam mesafeyle temsil ediliyor.",
+      suclular: { araclar: eksikAraclar, duraklar: [] },
+    };
+  }
+
+  const toplamTl = hesaplanan.reduce((s, h) => s + h.tl, 0);
+  const tahminiSayisi = hesaplanan.filter((h) => !h.guvenilir).length;
+  const eksikSayisi = eksikAraclar.length;
+
+  const parcalar = [
+    `${Math.round(toplamTl).toLocaleString("tr-TR")} TL yakıt maliyeti (${hesaplanan.length}/${dolu.length} araç).`,
+  ];
+  if (tahminiSayisi > 0) {
+    parcalar.push(
+      `${tahminiSayisi} araçta mesafe kuş uçuşu tahmini ve/veya tüketim değeri teyitli değil.`
+    );
+  }
+  if (eksikSayisi > 0) {
+    parcalar.push(
+      `${eksikSayisi} araçta yakıt türü/tüketim ya da güncel fiyat eksik, maliyete dahil edilmedi.`
+    );
+  }
+
   return {
     anahtar: "maliyet",
     ad: "Maliyet",
-    deger: km > 0 ? `${km.toLocaleString("tr-TR")} km` : "—",
+    deger: `${Math.round(toplamTl).toLocaleString("tr-TR")} TL`,
     durum: "iyi",
-    kaynak: "tahmini",
-    aciklama:
-      "Yakıt/km verisi filoda tanımlı değil; maliyet toplam mesafeyle temsil ediliyor. Mesafe kuş uçuşu, depoya dönüş dahil.",
-    suclular: { araclar: [], duraklar: [] },
+    kaynak: eksikSayisi > 0 || tahminiSayisi > 0 ? "tahmini" : "olculen",
+    aciklama: parcalar.join(" "),
+    suclular: { araclar: eksikAraclar, duraklar: [] },
   };
 }
 

@@ -90,6 +90,7 @@ function girdi(over: Partial<KriterGirdisi> = {}): KriterGirdisi {
     yerlesmeyen: [],
     rotaBilgileri: {},
     veriYasiSaat: 2,
+    yakitFiyatlari: {},
     ...over,
   };
 }
@@ -149,16 +150,93 @@ function uzunGunUyariyor() {
   console.log("kriter: uzun gün + takograf molası uyarıyor ok");
 }
 
-function maliyetDaimaTahmini() {
+function maliyetVeriYokKmGosterir() {
+  // NPR/KANGOO sabitlerinde yakıt/tüketim alanı yok — Melih'ten gerçek veri
+  // gelene kadar km vekil olarak gösteriliyor ve "veri-yok" etiketleniyor.
   const k = bul(
     kriterleriHesapla(girdi({ metrik: { ...BOS_METRIK, aracSayisi: 1, toplamKm: 412 } })),
     "maliyet"
   );
-  // Filoda yakıt/km alanı yok; km vekil olarak gösteriliyor ve etiketleniyor.
-  assert.equal(k.kaynak, "tahmini");
+  assert.equal(k.kaynak, "veri-yok");
   assert.match(k.deger, /412 km/);
-  assert.match(k.aciklama, /yakıt/i);
-  console.log("kriter: maliyet daima tahmini etiketli ok");
+  assert.match(k.aciklama, /yakıt türü/i);
+  console.log("kriter: maliyet veri yokken km ile temsil ediliyor ok");
+}
+
+function maliyetGercekVeriyleHesaplaniyor() {
+  // 100 km gerçek mesafe (Google) × 25 L/100km × 88,9775 TL/L (2026-09-13
+  // canlı EPDK dizel fiyatı) = 25 L × 88,9775 = 2.224,375 TL.
+  const NPR_DIZEL: Arac = { ...NPR, yakitTuru: "diesel", tuketimL100km: 25, tuketimTeyitli: true };
+  const bilgi: Record<string, RotaBilgisi> = {
+    npr10: { saniye: 3 * 3600, metre: 100_000, trafik: "TRAFFIC_AWARE_OPTIMAL" },
+  };
+  const k = bul(
+    kriterleriHesapla(
+      girdi({
+        yukler: [yuk(NPR_DIZEL, [durak("a", 100, 1500), durak("b", 100, 1500)])],
+        rotaBilgileri: bilgi,
+        yakitFiyatlari: { diesel: 88.9775 },
+      })
+    ),
+    "maliyet"
+  );
+  assert.equal(k.kaynak, "olculen");
+  assert.match(k.deger, /2\.224 TL/);
+  console.log("kriter: maliyet gerçek veriyle hesaplanıyor ok");
+}
+
+function maliyetKismiVeriTahminiKaliyor() {
+  // NPR'de tam veri, KANGOO'da yakıt bilgisi yok — toplam yalnız NPR'ı
+  // içeriyor ve kaynak "tahmini"ye düşüyor.
+  const NPR_DIZEL: Arac = { ...NPR, yakitTuru: "diesel", tuketimL100km: 25, tuketimTeyitli: true };
+  const bilgi: Record<string, RotaBilgisi> = {
+    npr10: { saniye: 3 * 3600, metre: 100_000, trafik: "TRAFFIC_AWARE_OPTIMAL" },
+  };
+  const filo: FiloSecimi<Arac> = {
+    secilen: [NPR_DIZEL, KANGOO],
+    atamalar: { npr10: MEHMET },
+    soforSayisi: { B: 0, C: 1 },
+    yeterli: false,
+    gerekce: "",
+  };
+  const k = bul(
+    kriterleriHesapla(
+      girdi({
+        filo,
+        yukler: [
+          yuk(NPR_DIZEL, [durak("a", 100, 1500)]),
+          yuk(KANGOO, [durak("b", 20, 300)]),
+        ],
+        rotaBilgileri: bilgi,
+        yakitFiyatlari: { diesel: 88.9775 },
+        metrik: { ...BOS_METRIK, aracSayisi: 2, yerlesenDurak: 2 },
+      })
+    ),
+    "maliyet"
+  );
+  assert.equal(k.kaynak, "tahmini");
+  assert.deepEqual(k.suclular.araclar, ["kangoo"]);
+  assert.match(k.aciklama, /1 araçta/);
+  console.log("kriter: kısmi yakıt verisi maliyeti tahmini bırakıyor ok");
+}
+
+function maliyetHaversineTahminiyleHesaplaniyor() {
+  // rotaBilgileri boş → turKm(y.duraklar) fallback'i devreye girmeli.
+  const NPR_DIZEL: Arac = { ...NPR, yakitTuru: "diesel", tuketimL100km: 25, tuketimTeyitli: true };
+  const k = bul(
+    kriterleriHesapla(
+      girdi({
+        yukler: [yuk(NPR_DIZEL, [durak("a", 100, 1500)])],
+        rotaBilgileri: {},
+        yakitFiyatlari: { diesel: 88.9775 },
+      })
+    ),
+    "maliyet"
+  );
+  assert.equal(k.kaynak, "tahmini");
+  assert.match(k.deger, /TL/);
+  assert.match(k.aciklama, /kuş uçuşu tahmini/);
+  console.log("kriter: mesafe optimize edilmeden haversine ile tahmin ediliyor ok");
 }
 
 function yerlesmemeNedeniGruplaniyor() {
@@ -285,7 +363,10 @@ bosPlanKarneUretmez();
 sureOlculmedenUydurmuyor();
 sureOlculunceGercekDeger();
 uzunGunUyariyor();
-maliyetDaimaTahmini();
+maliyetVeriYokKmGosterir();
+maliyetGercekVeriyleHesaplaniyor();
+maliyetKismiVeriTahminiKaliyor();
+maliyetHaversineTahminiyleHesaplaniyor();
 yerlesmemeNedeniGruplaniyor();
 bayatVeriGuvenilirligiDusuruyor();
 soforsuzYukluAracDikkat();

@@ -157,6 +157,31 @@ haritası ekranı — …]` bağlam notundan gelir).
 KAYDEDİLMİŞ plan sorularını bu ikisiyle cevapla. "Şu an haritada ne var"
 sorusu bunlardan cevaplanamaz — o bağlam notundaki canlı özet.
 
+## 11. `fuel_prices` — EPDK günlük yakıt fiyatı
+
+Panorama'dan bağımsız kaynak: EPDK'nın resmi "Petrol Piyasası Bayi Satış Fiyatı
+Bülteni" API'sinden n8n workflow'u günde 1x (06:00 TR) çekip yazıyor
+(`backend/n8n/EPDK Yakit Fiyat Otomasyonu.json`). Otomatik tazelenir ama
+**canlı/anlık değil** — günlük bülten.
+
+`price_date` (o günün fiyatı — API'nin hazır olmadığı günlerde bir önceki güne
+düşebilir), `fuel_type` (`gasoline`/`diesel`/`lpg`), `fuel_name` (EPDK'nın
+orijinal adı, ör. "Kurşunsuz Benzin 95 Oktan"), `unit` (`Litre`), `price`
+(TL), `source` (`EPDK`), `fetched_at` (workflow'un çektiği an — `price_date`
+ile karıştırma).
+
+> **`fuel_type = 'lpg'` şu an hiç satır döndürmüyor.** EPDK'nın bu bülteni
+> yalnız benzin+motorin veriyor, LPG/Otogaz için ayrı bir bülten olabilir ama
+> doğrulanmadı. "LPG fiyatı nedir" sorusuna veri yok de, uydurma.
+
+Güncel fiyat: `SELECT fuel_type, price, price_date FROM fuel_prices WHERE
+fuel_type = 'diesel' ORDER BY price_date DESC LIMIT 1` (her tür kendi
+`fuel_type` filtresiyle, tek sorguda DISTINCT ON yerine tür başına).
+
+Rota maliyeti: `araclar.yakit_turu` + `araclar.tuketim_l_100km` bu tablonun en
+güncel fiyatıyla çarpılıp uygulamadaki "Maliyet" kriterini üretiyor (bkz.
+metrikler.md → Yakıt maliyeti, kod tarafı `frontend/lib/rota/kriter.ts`).
+
 ## 10. `agent_konusmalar` / `agent_konusma_mesajlari` — sohbet hafızası
 Kullanıcı–asistan konuşmalarının tam metni. Operasyon verisi değil.
 Önce `konusma_gecmisi` aracını kullan; SQL ile okuyacaksan yalnız

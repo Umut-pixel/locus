@@ -78,6 +78,27 @@ Borç modunda etiketler farklı: `saglikli`→"Temiz", `izlenmeli`→"Borçlu",
 - `yas_riskli_tutar` = 56+ gün bantları toplamı (riskli alacak)
 - `yas_st` = satış temsilcisi (yaşlandırma tarafındaki)
 
+## Yakıt maliyeti
+
+Rota planlama ekranındaki "Maliyet" kriteri (`frontend/lib/rota/kriter.ts`
+→ `maliyetKriteri()`):
+
+```
+fuel_consumption_liters = distance_km * tuketim_l_100km / 100
+fuel_cost = fuel_consumption_liters * fuel_price
+```
+
+`tuketim_l_100km` ve `yakit_turu` — `araclar` tablosunda (bkz. veri_kaynaklari.md
+#11). `fuel_price` — `fuel_prices`'ın o türe ait en güncel satırı. `distance_km`
+tercihen Google'dan ölçülen gerçek mesafe, yoksa kuş uçuşu tahmin.
+
+**Kaynak dürüstlüğü — uygulamayla aynı disiplin, agent de kopyalamalı:**
+bir aracın `tuketim_l_100km`/`yakit_turu` NULL'sa ya da o yakıt türü için
+`fuel_prices`'ta satır yoksa (şu an `lpg` gibi), o aracın maliyeti
+hesaplanamaz — sıfır ya da tahmini bir sayı UYDURMA, "bu araç için yakıt
+verisi/tuketim eksik" de. `tuketim_teyitli = false` ise (Melih henüz teyit
+etmedi) TL rakamı hesaplansa bile TAHMİNİ say, kesin gibi sunma.
+
 ## Diğer metrikler
 
 | Metrik | Kolon | Not |

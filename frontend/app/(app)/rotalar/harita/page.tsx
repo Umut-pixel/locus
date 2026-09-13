@@ -166,6 +166,7 @@ export default function RotaHaritasiSayfasi() {
             yerlesmeyen: canli.mevcutSonuc.yerlesmeyen,
             rotaBilgileri: canli.rotaBilgileri,
             veriYasiSaat: saatOnce,
+            yakitFiyatlari: canli.yakitFiyatlari,
           }),
     [
       gecmisMod,
@@ -173,6 +174,7 @@ export default function RotaHaritasiSayfasi() {
       canli.mevcutSonuc,
       canli.filo,
       canli.rotaBilgileri,
+      canli.yakitFiyatlari,
       saatOnce,
     ]
   );

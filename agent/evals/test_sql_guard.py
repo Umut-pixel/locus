@@ -58,6 +58,8 @@ MUST_ALLOW = [
     # Kaydedilmiş (nihai) rota planları — bkz. semantic/veri_kaynaklari.md #10b.
     ("sevkiyat-ozet", "SELECT arac_ad, durak_sayisi FROM v_sevkiyat_plan_ozet WHERE plan_tarihi = CURRENT_DATE"),
     ("sevkiyat-duraklar", "SELECT unvan, kg FROM v_sevkiyat_plan_duraklari WHERE plan_id = '00000000-0000-0000-0000-000000000000'"),
+    # EPDK günlük yakıt fiyatı — bkz. semantic/veri_kaynaklari.md #11.
+    ("yakit-fiyati", "SELECT fuel_type, price FROM fuel_prices WHERE fuel_type = 'diesel' ORDER BY price_date DESC LIMIT 1"),
 ]
 
 

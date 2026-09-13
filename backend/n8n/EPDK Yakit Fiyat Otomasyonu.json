@@ -1,0 +1,436 @@
+{
+  "name": "EPDK Yakit Fiyat Otomasyonu",
+  "nodes": [
+    {
+      "id": "a1b2c3d4-e5f6-4001-8001-000000000001",
+      "name": "EPDK Sozlesmesi Notu",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -260,
+        -260
+      ],
+      "parameters": {
+        "width": 620,
+        "height": 400,
+        "color": 5,
+        "content": "## EPDK Petrol Bayi Satis Fiyati Bulteni — dogrulanmis davranis (2026-09-13)\n\n- Endpoint: `GET https://apigateway.epdk.gov.tr/petrolBayiSatisFiyatBulten`\n- Auth YOK. Body: `{\"raporTarihi\": \"dd.MM.yyyy\"}` — GET + JSON body.\n  n8n HTTP Request node bunu destekliyor (`sendBody:true`, method GET).\n  Sorgu string / POST denendi, ikisi de calismadi (400 / 404) — yalnizca\n  bu kombinasyon (GET + body, dd.MM.yyyy) 200 dondurdu.\n- Yanittaki `Tarih` alani FARKLI formatta doner: `yyyy-MM-dd`.\n  price_date bu alandan okunuyor, istek tarihinden degil.\n- Bugunun bulteni henuz yoksa: HTTP 200, `numRows:0`, `data:[]` doner\n  (hata degil) — bir gun onceki tarihe fallback burada tetikleniyor.\n- Rate limit gercek: art arda hizli cagrida \"ERR-224 Throttling\" (429)\n  goruldu. Fallback oncesi 5sn Wait + retryOnFail bu yuzden var.\n- Test gunu (2026-09-13) bultende 6 urun dondu: Kursunsuz Benzin 95\n  Oktan + Motorin (filoyla ilgili) ve 4 endustriyel/isinma urunu (fuel\n  oil / kalorifer / gazyagi — normalize node bunlari atliyor, hata\n  uretmiyor). LPG/Otogaz bu endpoint'te hic gorulmedi; muhtemelen ayri\n  bir EPDK LPG bulteni var, dogrulanmadi."
+      }
+    },
+    {
+      "id": "a1b2c3d4-e5f6-4001-8001-000000000002",
+      "name": "Supabase Upsert Notu",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1860,
+        -260
+      ],
+      "parameters": {
+        "width": 560,
+        "height": 400,
+        "color": 6,
+        "content": "## Neden Supabase node degil, HTTP Request?\n\nn8n'in yerlesik Supabase node'unda (`n8n-nodes-base.supabase`) upsert\noperasyonu YOK — yalniz Create / Get / Get Many / Update / Delete var\n(kaynaktan dogrulandi, 2026-09-13). n8n kendi dokumantasyonunda da bu\ndurumda \"Supabase credential'ini HTTP Request node'da Predefined\nCredential Type olarak kullan\" oneriyor — burada da oyle yapildi.\n\nUpsert: `POST {credential.host}/rest/v1/fuel_prices\n?on_conflict=price_date,fuel_type`\nHeader: `Prefer: resolution=merge-duplicates,return=representation`\n\nONEMLI: bu on_conflict hedefinin calismasi icin\n`sql/fuel_prices_sema.sql` icindeki\n`UNIQUE (price_date, fuel_type)` constraint'i uygulanmis olmali.\n\nCredential: node'u ac, \"Supabase API\" credential'ini sec/olustur\n(host + secret/service_role key). Bu JSON'da hicbir secret yok."
+      }
+    },
+    {
+      "id": "a1b2c3d4-e5f6-4001-8001-000000000003",
+      "name": "Schedule - Daily Fuel Update",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -260,
+        300
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 6 * * *"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "a1b2c3d4-e5f6-4001-8001-000000000004",
+      "name": "Prepare Report Date",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -20,
+        300
+      ],
+      "parameters": {
+        "jsCode": "const tz = 'Europe/Istanbul';\n\nfunction formatInTz(date) {\n  const parts = new Intl.DateTimeFormat('en-CA', {\n    timeZone: tz,\n    year: 'numeric',\n    month: '2-digit',\n    day: '2-digit',\n  }).formatToParts(date);\n  const get = (t) => parts.find((p) => p.type === t).value;\n  return { year: get('year'), month: get('month'), day: get('day') };\n}\n\nconst now = new Date();\nconst today = formatInTz(now);\nconst yesterdayInstant = new Date(now.getTime() - 24 * 60 * 60 * 1000);\nconst yesterday = formatInTz(yesterdayInstant);\n\nconst toEpdk = (p) => `${p.day}.${p.month}.${p.year}`;\nconst toIso = (p) => `${p.year}-${p.month}-${p.day}`;\n\nreturn [{\n  json: {\n    today_epdk: toEpdk(today),\n    today_iso: toIso(today),\n    yesterday_epdk: toEpdk(yesterday),\n    yesterday_iso: toIso(yesterday),\n    prepared_at: now.toISOString(),\n  },\n}];"
+      }
+    },
+    {
+      "id": "a1b2c3d4-e5f6-4001-8001-000000000005",
+      "name": "Fetch EPDK Fuel Bulletin (Today)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        220,
+        300
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "https://apigateway.epdk.gov.tr/petrolBayiSatisFiyatBulten",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { raporTarihi: $json.today_epdk } }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "continueOnFail": true
+    },
+    {
+      "id": "a1b2c3d4-e5f6-4001-8001-000000000006",
+      "name": "Validate EPDK Response (Today)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        460,
+        300
+      ],
+      "parameters": {
+        "jsCode": "const res = $input.first().json;\nconst dates = $('Prepare Report Date').first().json;\n\nif (res.error) {\n  throw new Error(`EPDK istegi basarisiz (retry sonrasi): ${typeof res.error === 'string' ? res.error : JSON.stringify(res.error)}`);\n}\n\nconst httpStatus = res.statusCode || 0;\nlet body = res.body;\nif (typeof body === 'string') {\n  try {\n    body = JSON.parse(body);\n  } catch (e) {\n    throw new Error(`EPDK yaniti JSON olarak ayristirilamadi (HTTP ${httpStatus}): ${body.slice(0, 200)}`);\n  }\n}\nbody = body || {};\n\nif (!httpStatus) {\n  throw new Error('EPDK API ulasilamadi (baglanti hatasi / timeout).');\n}\n\nif (body.fault) {\n  throw new Error(`EPDK API gateway hatasi: ${body.fault.faultString || JSON.stringify(body.fault)} (HTTP ${body.fault.faultStatusCode || httpStatus})`);\n}\n\nif (httpStatus >= 400) {\n  throw new Error(`EPDK API beklenmeyen HTTP ${httpStatus} dondurdu: ${JSON.stringify(body).slice(0, 300)}`);\n}\n\nif (body.statusCode !== 200) {\n  throw new Error(`EPDK statusCode basarisiz: ${body.statusCode} - ${body.statusDescription || body.message || ''}`);\n}\n\nif (Array.isArray(body.errors) && body.errors.length > 0) {\n  throw new Error(`EPDK errors alani dolu: ${JSON.stringify(body.errors)}`);\n}\n\nif (!Array.isArray(body.data)) {\n  throw new Error('EPDK yanitinda data alani array degil - response semasi degismis olabilir.');\n}\n\nconst hasData = body.data.length > 0;\n\nreturn [{\n  json: {\n    hasData,\n    numRows: typeof body.numRows === 'number' ? body.numRows : body.data.length,\n    data: body.data,\n    requestedDate: dates.today_epdk,\n    attempt: 'today',\n  },\n}];"
+      }
+    },
+    {
+      "id": "a1b2c3d4-e5f6-4001-8001-000000000007",
+      "name": "IF - Bugun Veri Var mi",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        700,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "a1b2c3d4-e5f6-4002-8002-000000000001",
+              "leftValue": "={{ $json.hasData }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "a1b2c3d4-e5f6-4001-8001-000000000008",
+      "name": "Wait Before Fallback",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        940,
+        500
+      ],
+      "webhookId": "a1b2c3d4-e5f6-4003-8003-000000000001",
+      "parameters": {
+        "amount": 5,
+        "unit": "seconds"
+      }
+    },
+    {
+      "id": "a1b2c3d4-e5f6-4001-8001-000000000009",
+      "name": "Fetch EPDK Fuel Bulletin (Fallback)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1180,
+        500
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "https://apigateway.epdk.gov.tr/petrolBayiSatisFiyatBulten",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { raporTarihi: $('Prepare Report Date').first().json.yesterday_epdk } }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "continueOnFail": true
+    },
+    {
+      "id": "a1b2c3d4-e5f6-4001-8001-000000000010",
+      "name": "Validate EPDK Response (Fallback)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1420,
+        500
+      ],
+      "parameters": {
+        "jsCode": "const res = $input.first().json;\nconst dates = $('Prepare Report Date').first().json;\n\nif (res.error) {\n  throw new Error(`EPDK istegi basarisiz (retry sonrasi, fallback): ${typeof res.error === 'string' ? res.error : JSON.stringify(res.error)}`);\n}\n\nconst httpStatus = res.statusCode || 0;\nlet body = res.body;\nif (typeof body === 'string') {\n  try {\n    body = JSON.parse(body);\n  } catch (e) {\n    throw new Error(`EPDK yaniti JSON olarak ayristirilamadi (HTTP ${httpStatus}, fallback): ${body.slice(0, 200)}`);\n  }\n}\nbody = body || {};\n\nif (!httpStatus) {\n  throw new Error('EPDK API ulasilamadi (baglanti hatasi / timeout, fallback denemesi).');\n}\n\nif (body.fault) {\n  throw new Error(`EPDK API gateway hatasi (fallback): ${body.fault.faultString || JSON.stringify(body.fault)} (HTTP ${body.fault.faultStatusCode || httpStatus})`);\n}\n\nif (httpStatus >= 400) {\n  throw new Error(`EPDK API beklenmeyen HTTP ${httpStatus} dondurdu (fallback): ${JSON.stringify(body).slice(0, 300)}`);\n}\n\nif (body.statusCode !== 200) {\n  throw new Error(`EPDK statusCode basarisiz (fallback): ${body.statusCode} - ${body.statusDescription || body.message || ''}`);\n}\n\nif (Array.isArray(body.errors) && body.errors.length > 0) {\n  throw new Error(`EPDK errors alani dolu (fallback): ${JSON.stringify(body.errors)}`);\n}\n\nif (!Array.isArray(body.data)) {\n  throw new Error('EPDK yanitinda data alani array degil (fallback) - response semasi degismis olabilir.');\n}\n\nconst hasData = body.data.length > 0;\n\nif (!hasData) {\n  const todayStr = $('Prepare Report Date').first().json.today_epdk;\n  const yesterdayStr = dates.yesterday_epdk;\n  throw new Error(\n    `EPDK bulteni ne bugun (${todayStr}) ne dun (${yesterdayStr}) icin yayinlanmis. ` +\n    'Muhtemelen bugunku bulten henuz hazir degil; bir sonraki zamanlanmis calismada tekrar denenecek.'\n  );\n}\n\nreturn [{\n  json: {\n    hasData: true,\n    numRows: typeof body.numRows === 'number' ? body.numRows : body.data.length,\n    data: body.data,\n    requestedDate: dates.yesterday_epdk,\n    attempt: 'fallback_yesterday',\n  },\n}];"
+      }
+    },
+    {
+      "id": "a1b2c3d4-e5f6-4001-8001-000000000011",
+      "name": "Normalize Fuel Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1660,
+        300
+      ],
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\nconst rows = Array.isArray(input.data) ? input.data : [];\n\n// EPDK'nin gercek \"Yakit\" degerleri (2026-09-13 dogrulandi). Yalnizca filoyla\n// ilgili urunler eslesiyor. Otogaz/LPG bu bultende hic gorulmedi; ileride\n// gorulursa diye olasi isimler eklendi ama dogrulanmadan varsayilmadi.\nconst FUEL_MAP = {\n  'Kurşunsuz Benzin 95 Oktan': 'gasoline',\n  'Motorin': 'diesel',\n  'Otogaz (LPG)': 'lpg',\n  'LPG': 'lpg',\n};\n\n// Bilinen ama filo icin ilgisiz urunler (endustriyel/isinma yakiti) - hata\n// degil, sessiz de degil: sayilir ve loglanir, gasoline/diesel/lpg'ye asla\n// yanlis map edilmez.\nconst KNOWN_IRRELEVANT = new Set([\n  \"Yüksek Kükürtlü Fuel Oil (Kükürt oranı %1'i geçenler)\",\n  'Kalorifer Yakıtı (Kükürt Oranı %0.1\\'i geçen ancak %1\\'i geçmeyenler)',\n  'Gazyağı',\n  'Fuel Oil (Kükürt Oranı %0.1\\'i geçen ancak %1\\'i geçmeyenler)',\n]);\n\nconst mapped = [];\nconst unmapped = [];\nlet ignoredCount = 0;\n\nfor (const row of rows) {\n  const fuelName = String(row['Yakıt'] ?? '').trim();\n  const fuelType = FUEL_MAP[fuelName];\n\n  if (!fuelType) {\n    if (KNOWN_IRRELEVANT.has(fuelName)) {\n      ignoredCount += 1;\n    } else {\n      unmapped.push(fuelName);\n    }\n    continue;\n  }\n\n  const rawPrice = row['Fiyat'];\n  const price = typeof rawPrice === 'number' ? rawPrice : parseFloat(String(rawPrice ?? '').replace(',', '.'));\n  const priceDate = String(row['Tarih'] ?? '').trim();\n  const unit = String(row['Ölçü Birimi'] ?? '').trim();\n\n  mapped.push({\n    price_date: priceDate,\n    fuel_type: fuelType,\n    fuel_name: fuelName,\n    unit,\n    price,\n    source: 'EPDK',\n    fetched_at: new Date().toISOString(),\n  });\n}\n\nconst meta = {\n  _requestedDate: input.requestedDate,\n  _attempt: input.attempt,\n  _unmapped: unmapped,\n  _ignoredCount: ignoredCount,\n  _totalSeen: rows.length,\n};\n\nif (mapped.length === 0) {\n  return [{ json: { _placeholder: true, ...meta } }];\n}\n\nreturn mapped.map((row) => ({ json: { ...row, ...meta } }));"
+      }
+    },
+    {
+      "id": "a1b2c3d4-e5f6-4001-8001-000000000012",
+      "name": "Validate Fuel Prices",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1900,
+        300
+      ],
+      "parameters": {
+        "jsCode": "const items = $input.all().map((i) => i.json);\n\nconst VALID_TYPES = new Set(['gasoline', 'diesel', 'lpg']);\nconst seen = new Map();\nconst rejected = [];\n\nfor (const it of items) {\n  if (it._placeholder) continue;\n\n  const priceOk = typeof it.price === 'number' && Number.isFinite(it.price) && it.price > 0;\n  const dateOk = /^\\d{4}-\\d{2}-\\d{2}$/.test(it.price_date || '');\n  const typeOk = VALID_TYPES.has(it.fuel_type);\n\n  if (!priceOk || !dateOk || !typeOk) {\n    rejected.push({\n      fuel_name: it.fuel_name,\n      fuel_type: it.fuel_type,\n      price: it.price,\n      price_date: it.price_date,\n      reason: !typeOk ? 'invalid_fuel_type' : !dateOk ? 'invalid_price_date' : 'invalid_price',\n    });\n    continue;\n  }\n\n  // Ayni fuel_type ayni partide iki kez gelirse ilkini koru (savunma amacli;\n  // EPDK'da tek tarih icin tek satir/urun gorulduyor).\n  if (!seen.has(it.fuel_type)) {\n    seen.set(it.fuel_type, {\n      price_date: it.price_date,\n      fuel_type: it.fuel_type,\n      fuel_name: it.fuel_name,\n      unit: it.unit,\n      price: Math.round(it.price * 100000) / 100000,\n      source: it.source,\n      fetched_at: it.fetched_at,\n    });\n  }\n}\n\nconst rows = [...seen.values()];\nconst first = items[0] || {};\n\nif (rows.length === 0) {\n  throw new Error(\n    `Normalize sonrasi hic gecerli gasoline/diesel/lpg fiyati kalmadi ` +\n    `(gorulen ham satir: ${first._totalSeen ?? 0}, eslenemeyen: ${JSON.stringify(first._unmapped ?? [])}, reddedilen: ${JSON.stringify(rejected)}).`\n  );\n}\n\nreturn [{\n  json: {\n    rows,\n    row_count: rows.length,\n    requested_date: first._requestedDate,\n    attempt: first._attempt,\n    unmapped_fuel_types: first._unmapped ?? [],\n    ignored_irrelevant_count: first._ignoredCount ?? 0,\n    rejected,\n  },\n}];"
+      }
+    },
+    {
+      "id": "a1b2c3d4-e5f6-4001-8001-000000000013",
+      "name": "Upsert Fuel Prices",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2140,
+        300
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $credentials.host }}/rest/v1/fuel_prices?on_conflict=price_date,fuel_type",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates,return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.rows }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "continueOnFail": true
+    },
+    {
+      "id": "a1b2c3d4-e5f6-4001-8001-000000000014",
+      "name": "Log Upsert Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2380,
+        300
+      ],
+      "parameters": {
+        "jsCode": "const res = $input.first().json;\nconst prior = $('Validate Fuel Prices').first().json;\n\nif (res.error) {\n  throw new Error(`Supabase upsert basarisiz (retry sonrasi): ${typeof res.error === 'string' ? res.error : JSON.stringify(res.error)}`);\n}\n\nconst httpStatus = res.statusCode || 0;\nlet body = res.body;\nif (typeof body === 'string') {\n  try {\n    body = JSON.parse(body);\n  } catch (e) {\n    body = null;\n  }\n}\n\nif (httpStatus < 200 || httpStatus >= 300) {\n  throw new Error(`Supabase upsert basarisiz (HTTP ${httpStatus}): ${JSON.stringify(body).slice(0, 500)}`);\n}\n\nconst written = Array.isArray(body) ? body.length : null;\n\nreturn [{\n  json: {\n    ok: true,\n    requested_date: prior.requested_date,\n    attempt: prior.attempt,\n    rows_sent: prior.row_count,\n    rows_written: written,\n    fuel_types: prior.rows.map((r) => r.fuel_type),\n    unmapped_fuel_types: prior.unmapped_fuel_types,\n    ignored_irrelevant_count: prior.ignored_irrelevant_count,\n  },\n}];"
+      }
+    }
+  ],
+  "connections": {
+    "Schedule - Daily Fuel Update": {
+      "main": [
+        [
+          {
+            "node": "Prepare Report Date",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Report Date": {
+      "main": [
+        [
+          {
+            "node": "Fetch EPDK Fuel Bulletin (Today)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch EPDK Fuel Bulletin (Today)": {
+      "main": [
+        [
+          {
+            "node": "Validate EPDK Response (Today)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate EPDK Response (Today)": {
+      "main": [
+        [
+          {
+            "node": "IF - Bugun Veri Var mi",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - Bugun Veri Var mi": {
+      "main": [
+        [
+          {
+            "node": "Normalize Fuel Data",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Wait Before Fallback",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait Before Fallback": {
+      "main": [
+        [
+          {
+            "node": "Fetch EPDK Fuel Bulletin (Fallback)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch EPDK Fuel Bulletin (Fallback)": {
+      "main": [
+        [
+          {
+            "node": "Validate EPDK Response (Fallback)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate EPDK Response (Fallback)": {
+      "main": [
+        [
+          {
+            "node": "Normalize Fuel Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Fuel Data": {
+      "main": [
+        [
+          {
+            "node": "Validate Fuel Prices",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Fuel Prices": {
+      "main": [
+        [
+          {
+            "node": "Upsert Fuel Prices",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upsert Fuel Prices": {
+      "main": [
+        [
+          {
+            "node": "Log Upsert Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Europe/Istanbul"
+  }
+}

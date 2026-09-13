@@ -29,6 +29,9 @@ ALLOWED_RELATIONS: frozenset[str] = frozenset(
         "urun_skt",
         "musteri_metrik_gecmis",
         "rapor_bolge_disi_ozet",
+        # EPDK günlük yakıt fiyatı (n8n, 06:00 TR) — bkz. sql/fuel_prices_sema.sql.
+        # locus_agent_ro grant'i o dosyada zaten var, burası yalnız allowlist.
+        "fuel_prices",
         "agent_konusmalar",
         "agent_konusma_mesajlari",
         # Yalnız KAYDEDİLMİŞ (nihai, "Planı kaydet" sonrası) rota planları —

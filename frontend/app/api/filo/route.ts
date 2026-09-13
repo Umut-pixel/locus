@@ -18,7 +18,7 @@ const SOFORLER = "soforler";
 
 const ARAC_SELECT =
   "kod,ad,cuval_kapasite,palet_kapasite,max_kg,max_kg_teyitli," +
-  "ehliyet_sinifi,takograf,aktif,sira,not_metni";
+  "ehliyet_sinifi,takograf,aktif,sira,not_metni,yakit_turu,tuketim_l_100km,tuketim_teyitli";
 const SOFOR_SELECT = "kod,ad,ehliyet_sinifi,aktif,sira,not_metni";
 
 function metin(v: unknown, enFazla: number): string | null {
@@ -107,6 +107,20 @@ export async function PATCH(request: Request) {
       yazilacak.max_kg_teyitli = true;
     }
     if (typeof gelen.takograf === "boolean") yazilacak.takograf = gelen.takograf;
+
+    if (
+      gelen.yakit_turu === "gasoline" ||
+      gelen.yakit_turu === "diesel" ||
+      gelen.yakit_turu === "lpg"
+    ) {
+      yazilacak.yakit_turu = gelen.yakit_turu;
+    }
+    const tuketim = pozitifSayi(gelen.tuketim_l_100km, 100);
+    if (tuketim != null) {
+      yazilacak.tuketim_l_100km = tuketim;
+      // Elle girilen tüketim teyitli sayılır — max_kg_teyitli deseniyle aynı.
+      yazilacak.tuketim_teyitli = true;
+    }
   }
 
   if (Object.keys(yazilacak).length === 0) {

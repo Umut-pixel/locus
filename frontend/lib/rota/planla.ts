@@ -142,7 +142,7 @@ export interface PlanMetrigi {
  * karşılaştırması FFD'yi haksız yere kötü gösteriyordu. Google sıralaması
  * yapılmadan önceki kaba ölçü, sıralamadan bağımsız olmalı.
  */
-function turKm(duraklar: Durak[]): number {
+export function turKm(duraklar: Durak[]): number {
   const noktalar = duraklar
     .filter(
       (d): d is Durak & { lat: number; lon: number } =>

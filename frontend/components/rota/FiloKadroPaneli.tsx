@@ -5,6 +5,8 @@ import { LoaderIcon, TruckIcon, UserIcon, XIcon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
+type YakitTuruDegeri = "gasoline" | "diesel" | "lpg";
+
 interface AracKaydi {
   kod: string;
   ad: string;
@@ -15,6 +17,9 @@ interface AracKaydi {
   ehliyet_sinifi: string | null;
   takograf: boolean | null;
   aktif: boolean | null;
+  yakit_turu: string | null;
+  tuketim_l_100km: number | string | null;
+  tuketim_teyitli: boolean | null;
 }
 
 interface SoforKaydi {
@@ -214,7 +219,7 @@ export function FiloKadroPaneli({ onKapat, onDegisti }: FiloKadroPaneliProps) {
             <Bolum icon={TruckIcon} baslik="Araçlar">
               {araclar.map((a) => (
                 <AracSatiri
-                  key={`${a.kod}:${a.cuval_kapasite}:${a.max_kg}:${a.ehliyet_sinifi}:${a.aktif}`}
+                  key={`${a.kod}:${a.cuval_kapasite}:${a.max_kg}:${a.ehliyet_sinifi}:${a.aktif}:${a.yakit_turu}:${a.tuketim_l_100km}`}
                   arac={a}
                   kaydediliyor={kaydedilen === a.kod}
                   onKaydet={(alanlar) => void kaydet("arac", a.kod, alanlar)}
@@ -309,6 +314,7 @@ function AracSatiri({
   // cevabı geldiğinde bileşen sıfırlanır, effect'le senkronizasyon gerekmez.
   const [cuval, setCuval] = useState(String(arac.cuval_kapasite ?? ""));
   const [maxKg, setMaxKg] = useState(String(arac.max_kg ?? ""));
+  const [tuketim, setTuketim] = useState(String(arac.tuketim_l_100km ?? ""));
 
   const sayiKaydet = (
     ham: string,
@@ -363,6 +369,31 @@ function AracSatiri({
         kg
       </label>
 
+      <label className="flex shrink-0 items-center gap-1 text-[11.5px] text-muted-foreground">
+        <input
+          type="text"
+          inputMode="decimal"
+          value={tuketim}
+          onChange={(e) => setTuketim(e.target.value)}
+          onBlur={() =>
+            sayiKaydet(tuketim, arac.tuketim_l_100km, "tuketim_l_100km", setTuketim)
+          }
+          className="w-14 border-b border-border bg-transparent py-0.5 text-right font-mono text-[12px] text-foreground tabular-nums focus:border-foreground focus:outline-none"
+          aria-label={`${arac.ad} tüketim`}
+        />
+        L/100km
+      </label>
+      <YakitSecici
+        deger={
+          arac.yakit_turu === "gasoline" ||
+          arac.yakit_turu === "diesel" ||
+          arac.yakit_turu === "lpg"
+            ? arac.yakit_turu
+            : null
+        }
+        onDegis={(v) => onKaydet({ yakit_turu: v })}
+      />
+
       <SinifSecici
         deger={arac.ehliyet_sinifi === "B" ? "B" : "C"}
         onDegis={(v) => onKaydet({ ehliyet_sinifi: v })}
@@ -371,6 +402,44 @@ function AracSatiri({
         aktif={arac.aktif !== false}
         onDegis={(v) => onKaydet({ aktif: v })}
       />
+    </div>
+  );
+}
+
+const YAKIT_ETIKETLERI: Record<YakitTuruDegeri, string> = {
+  gasoline: "Benzin",
+  diesel: "Dizel",
+  lpg: "LPG",
+};
+
+function YakitSecici({
+  deger,
+  onDegis,
+}: {
+  deger: YakitTuruDegeri | null;
+  onDegis: (v: YakitTuruDegeri) => void;
+}) {
+  return (
+    <div
+      className="flex shrink-0 items-center gap-0.5 rounded border border-border/70 p-0.5"
+      title="Maliyet hesabının okuduğu yakıt türü (fuel_prices ile aynı sözlük)"
+    >
+      {(["gasoline", "diesel", "lpg"] as const).map((t) => (
+        <button
+          key={t}
+          type="button"
+          onClick={() => onDegis(t)}
+          aria-pressed={deger === t}
+          className={cn(
+            "rounded-sm px-1.5 py-0.5 text-[11.5px] transition-colors",
+            deger === t
+              ? "bg-foreground text-background"
+              : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          {YAKIT_ETIKETLERI[t]}
+        </button>
+      ))}
     </div>
   );
 }

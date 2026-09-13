@@ -7,6 +7,7 @@ import {
   type EhliyetSinifi,
   type FiloSecimi,
   type Sofor,
+  type YakitTuru,
 } from "@/lib/rota/atama";
 import {
   rotaVerisiCek,
@@ -54,6 +55,8 @@ interface RotaPlaniCache {
   duraklar: RotaDuragi[];
   araclar: RotaAraci[];
   soforler: Sofor[];
+  /** yakıt türü → EPDK'nın en güncel TL/L fiyatı. */
+  yakitFiyatlari: Partial<Record<YakitTuru, number>>;
 }
 
 interface RotaPlaniState extends RotaPlaniCache {
@@ -77,6 +80,7 @@ export function useRotaPlani(gunPenceresi: number | null = null) {
     duraklar: cached?.duraklar ?? [],
     araclar: cached?.araclar ?? [],
     soforler: cached?.soforler ?? [],
+    yakitFiyatlari: cached?.yakitFiyatlari ?? {},
     loading: !cached,
     error: null,
   }));
@@ -116,7 +120,7 @@ export function useRotaPlani(gunPenceresi: number | null = null) {
     };
   }, [tazelemeSayaci, gunPenceresi, anahtar]);
 
-  const { duraklar, araclar, soforler } = state;
+  const { duraklar, araclar, soforler, yakitFiyatlari } = state;
 
   /**
    * O gün hangi araçların çıkabileceği. Filo 4 araç ama kadro 3 şoför ve
@@ -166,6 +170,7 @@ export function useRotaPlani(gunPenceresi: number | null = null) {
     /** Filonun tamamı — "şoför yok" nedenini ayırt etmek için gerekiyor. */
     araclar,
     soforler,
+    yakitFiyatlari,
     filo,
     ozet,
     tazele,

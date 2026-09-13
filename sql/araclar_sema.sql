@@ -59,6 +59,20 @@ do $$ begin
 exception when duplicate_object then null;
 end $$;
 
+-- Yakıt maliyeti hesabı (2026-09-13) — bkz. sql/fuel_prices_sema.sql. Gerçek
+-- tür/tüketim Melih'ten gelene kadar tuketim_teyitli=false ile tahmini kalır.
+alter table public.araclar
+  add column if not exists yakit_turu      text,
+  add column if not exists tuketim_l_100km numeric(5,2),
+  add column if not exists tuketim_teyitli boolean not null default false;
+
+do $$ begin
+  alter table public.araclar
+    add constraint araclar_yakit_turu_check
+    check (yakit_turu in ('gasoline', 'diesel', 'lpg') or yakit_turu is null);
+exception when duplicate_object then null;
+end $$;
+
 comment on table public.araclar is
   'Filo tanımı. ERP''de araç verisi olmadığı için tek kaynak burası — bkz. sql/araclar_sema.sql başlığı.';
 comment on column public.araclar.cuval_kapasite is
@@ -69,6 +83,12 @@ comment on column public.araclar.ehliyet_sinifi is
   'Aracı sürebilecek şoför sınıfı. B → Kangoo/Transit, C → Isuzu. Bkz. public.soforler.';
 comment on column public.araclar.takograf is
   'Takograf cihazı var mı. Varsa 4,5 sa kesintisiz sürüşten sonra 30 dk mola zorunlu.';
+comment on column public.araclar.yakit_turu is
+  'fuel_prices.fuel_type ile BİREBİR aynı sözlük (gasoline/diesel/lpg) — çeviri katmanı yok.';
+comment on column public.araclar.tuketim_l_100km is
+  '100 km başına litre tüketim. NULL ise maliyet hesaplanamaz (bkz. frontend/lib/rota/kriter.ts maliyetKriteri).';
+comment on column public.araclar.tuketim_teyitli is
+  'false ise tuketim_l_100km TAHMİN — max_kg_teyitli ile birebir aynı desen.';
 
 alter table public.araclar enable row level security;
 
@@ -112,6 +132,24 @@ from (values
      'Hacim bağlayıcı: 480 çuval = 6.989 kg, istiap haddinin altında. Takograflı.')
 ) as v(kod, max_kg, ehliyet_sinifi, takograf, not_metni)
 where public.araclar.kod = v.kod;
+
+-- -----------------------------------------------------------------------------
+-- Yakıt türü/tüketimi (2026-09-13) — TİPİK/TAHMİNİ değer, ÖLÇÜLMEDİ. Melih'ten
+-- gerçek L/100km gelince tuketim_teyitli=true ile üzerine yazılacak (yukarıdaki
+-- max_kg teyit bloğunun aynı deseni). `yakit_turu is null` koruması: idempotent
+-- script tekrar çalışınca gerçek veri girilmişse ezmesin.
+-- -----------------------------------------------------------------------------
+update public.araclar set
+    yakit_turu = v.yakit_turu, tuketim_l_100km = v.tuketim_l_100km,
+    tuketim_teyitli = false, guncellendi = now()
+from (values
+    ('kangoo',  'diesel', 7.5),
+    ('transit', 'diesel', 9.5),
+    ('npr10',   'diesel', 15.0),
+    ('isuzu3d', 'diesel', 18.0)
+) as v(kod, yakit_turu, tuketim_l_100km)
+where public.araclar.kod = v.kod
+  and public.araclar.yakit_turu is null;
 
 do $$ begin
   grant select on public.araclar to locus_agent_ro;

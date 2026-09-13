@@ -28,6 +28,7 @@ import {
   type AtamaSonucu,
   type FiloSecimi,
   type Sofor,
+  type YakitTuru,
 } from "@/lib/rota/atama";
 import { bolgele, type Bolge } from "@/lib/rota/bolge";
 import type { RotaBilgisi } from "@/lib/rota/google-routes";
@@ -59,6 +60,8 @@ interface RotaPlaniDegeri {
   soforler: Sofor[];
   filo: FiloSecimi<RotaAraci>;
   ozet: RotaOzeti;
+  /** yakıt türü → EPDK'nın en güncel TL/L fiyatı. maliyetKriteri buradan okur. */
+  yakitFiyatlari: Partial<Record<YakitTuru, number>>;
   tazele: () => void;
 
   // Tercihler
@@ -173,8 +176,17 @@ export function RotaPlaniProvider({ children }: { children: ReactNode }) {
     []
   );
 
-  const { loading, error, duraklar, araclar, soforler, filo, ozet, tazele } =
-    useRotaPlani(tercihler.gunPenceresi);
+  const {
+    loading,
+    error,
+    duraklar,
+    araclar,
+    soforler,
+    filo,
+    ozet,
+    yakitFiyatlari,
+    tazele,
+  } = useRotaPlani(tercihler.gunPenceresi);
 
   /**
    * OTOMATİK DAĞITIMIN kullandığı filo — "kullanılabilir araçlar" değil.
@@ -847,6 +859,7 @@ export function RotaPlaniProvider({ children }: { children: ReactNode }) {
       soforler,
       filo,
       ozet,
+      yakitFiyatlari,
       tazele,
       tercihler,
       tercihDegis,
@@ -888,7 +901,7 @@ export function RotaPlaniProvider({ children }: { children: ReactNode }) {
       sonKayitZamani,
     }),
     [
-      loading, error, duraklar, araclar, soforler, filo, ozet, tazele,
+      loading, error, duraklar, araclar, soforler, filo, ozet, yakitFiyatlari, tazele,
       tercihler, tercihDegis, plan, cikanAraclar, havuz,
       atananlar.size, bolgeler, durakBolgesi, sabitlemeler, bolgeSabitle,
       aracSoforu, soforSabitle, soforununAracKodu,

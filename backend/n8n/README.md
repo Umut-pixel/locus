@@ -165,6 +165,42 @@ dalganın en sonuna konuldu ki gecikmesi başka zinciri itmesin.
 Bu tablo `frontend/lib/panorama-schedule.ts` içindeki `SLOT_MINUTES` ile
 eşleşmeli; ana sayfadaki “Sonraki: …” damgası oradan üretiliyor.
 
+## EPDK Yakıt Fiyatı Otomasyonu (2026-09-13)
+
+`EPDK Yakit Fiyat Otomasyonu.json` — Panorama'dan bağımsız, ayrı bir workflow.
+Günde 1x (06:00 TR) EPDK'nın resmi `petrolBayiSatisFiyatBulten` API'sinden
+benzin/motorin fiyatını çekip `public.fuel_prices`'a upsert eder (şema:
+`sql/fuel_prices_sema.sql`, önce uygulanmalı — `UNIQUE (price_date, fuel_type)`
+olmadan upsert Postgres hatasıyla düşer).
+
+**Gerçek API testiyle doğrulanan, örnek şemadan sapan noktalar:**
+- İstek **GET + JSON body** (`{"raporTarihi":"dd.MM.yyyy"}`) — query param ve
+  POST ikisi de denendi, ikisi de çalışmadı (400 / 404).
+- Tarih formatı istekte `dd.MM.yyyy`, ama yanıttaki `Tarih` alanında
+  `yyyy-MM-dd` — ikisini karıştırmayın, `price_date` yanıttan okunuyor.
+- Auth yok. Rate limit gerçek (`ERR-224` 429, art arda hızlı çağrıda görüldü)
+  — fallback öncesi 5sn Wait + `retryOnFail` bu yüzden var.
+- Bu bültende LPG/Otogaz hiç görülmedi (yalnız benzin/motorin + 4 alakasız
+  endüstriyel ürün). Normalize node LPG için de bir eşleme deniyor ama
+  gerçek isim doğrulanana kadar veri gelmeyecek — bkz. workflow içindeki
+  sticky note. **2026-09-13'te kapatıldı:** apigateway.epdk.gov.tr'de 13
+  olası endpoint adı denendi, hiçbiri kayıtlı değil ("ApiProxy is not
+  found"); tek bulunan LPG kaynağı bildirim.epdk.gov.tr'deki HTML/JSF form
+  sayfası (scraping gerektirir, yasak). Filo zaten tamamen dizel — gerçek
+  ihtiyaç çıkmadan tekrar araştırmaya değmez.
+
+**Neden Supabase node değil HTTP Request:** n8n'in yerleşik Supabase node'unda
+upsert operasyonu yok (kaynak koddan doğrulandı — yalnız Create/Get/Get
+Many/Update/Delete var). Upsert, Supabase credential'ı "Predefined Credential
+Type" olarak seçilmiş bir HTTP Request node'uyla, PostgREST'in kendi upsert
+mekanizmasıyla (`Prefer: resolution=merge-duplicates` + `?on_conflict=...`)
+yapılıyor — Panorama'nın kendi upsert'lerinde kullandığı yöntemin aynısı,
+farkı secret'ın Config node'unda değil n8n credential deposunda tutulması.
+
+Kurulum: workflow'u içe aktar → "Upsert Fuel Prices" node'unu aç → Supabase
+API credential'ını seç/oluştur (host + secret/service_role key) → manuel
+çalıştır → şema doğruysa Schedule'ı aktif et. Hiçbir secret JSON'da yok.
+
 ## Dışa aktarmadan önce kontrol
 
 ```bash

@@ -12,7 +12,7 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import type { Arac, Durak, EhliyetSinifi, Sofor } from "@/lib/rota/atama";
+import type { Arac, Durak, EhliyetSinifi, Sofor, YakitTuru } from "@/lib/rota/atama";
 import { fetchAllRows } from "@/lib/supabase-fetch-all";
 import type { RiskDurumu } from "@/lib/types";
 
@@ -25,7 +25,7 @@ export const ROTA_REPORT_ID = 5451;
 
 const ARAC_KOLONLARI =
   "kod,ad,cuval_kapasite,palet_kapasite,max_kg,max_kg_teyitli," +
-  "ehliyet_sinifi,takograf,sira,not_metni";
+  "ehliyet_sinifi,takograf,sira,not_metni,yakit_turu,tuketim_l_100km,tuketim_teyitli";
 const SOFOR_KOLONLARI = "kod,ad,ehliyet_sinifi,sira";
 
 export interface BekleyenYukRaw {
@@ -57,6 +57,9 @@ export interface AracRaw {
   takograf: boolean | null;
   sira: number | null;
   not_metni: string | null;
+  yakit_turu: string | null;
+  tuketim_l_100km: number | string | null;
+  tuketim_teyitli: boolean | null;
 }
 
 export interface SoforRaw {
@@ -131,6 +134,13 @@ function ehliyeteCevir(value: string | null): EhliyetSinifi {
   return value === "B" ? "B" : "C";
 }
 
+/** Tanımsız/bozuk değer null'a düşer — maliyet hesabı o aracı "veri-yok" sayar. */
+function yakitTurineCevir(value: string | null): YakitTuru | null {
+  return value === "gasoline" || value === "diesel" || value === "lpg"
+    ? value
+    : null;
+}
+
 export function duragaCevir(r: BekleyenYukRaw): RotaDuragi {
   return {
     musteriKodu: r.musteri_kodu,
@@ -160,6 +170,9 @@ export function araceCevir(r: AracRaw): RotaAraci {
     takograf: r.takograf === true,
     paletKapasite: r.palet_kapasite,
     notMetni: r.not_metni,
+    yakitTuru: yakitTurineCevir(r.yakit_turu),
+    tuketimL100km: sayiVeyaNull(r.tuketim_l_100km),
+    tuketimTeyitli: r.tuketim_teyitli === true,
   };
 }
 
@@ -171,10 +184,64 @@ export function soforeCevir(r: SoforRaw): Sofor {
   };
 }
 
+export const FUEL_PRICES_TABLE = "fuel_prices";
+
+/** fuel_prices.fuel_type check constraint'iyle birebir aynı liste. */
+const YAKIT_TURLERI: YakitTuru[] = ["gasoline", "diesel", "lpg"];
+
+interface YakitFiyatiRaw {
+  price: number | string;
+  price_date: string;
+}
+
+/**
+ * Her yakıt türünün en güncel (price_date) fiyatı. PostgREST DISTINCT ON ifade
+ * edemediği için 3 paralel tekil sorgu — fuel_prices_fuel_type_date_idx
+ * (fuel_type, price_date desc) tam bu sorgu için var.
+ *
+ * Şu an lpg hiç satır döndürmüyor (bkz. sql/fuel_prices_sema.sql başlığı) — o
+ * tür sonuçta hiç anahtar olarak görünmez, maliyetKriteri bunu "o türü kullanan
+ * araç için veri-yok" olarak ele alır.
+ *
+ * Bir türün sorgusu hata verirse yalnız o tür eksik kalır (Promise.all yerine
+ * her sorgu kendi try/catch'inde) — fiyat API'sinin bir hıçkırığı, filo
+ * planlama ekranının tamamen açılmamasına yol açmamalı.
+ */
+export async function yakitFiyatlariCek(
+  client: SupabaseClient
+): Promise<Partial<Record<YakitTuru, number>>> {
+  const sonuclar = await Promise.all(
+    YAKIT_TURLERI.map(async (tur) => {
+      try {
+        const { data, error } = await client
+          .from(FUEL_PRICES_TABLE)
+          .select("price,price_date")
+          .eq("fuel_type", tur)
+          .order("price_date", { ascending: false })
+          .limit(1)
+          .maybeSingle<YakitFiyatiRaw>();
+        if (error) throw new Error(error.message);
+        return { tur, fiyat: sayiVeyaNull(data?.price ?? null) };
+      } catch (err) {
+        console.error(`[yakitFiyatlariCek] ${tur}`, err);
+        return { tur, fiyat: null as number | null };
+      }
+    })
+  );
+
+  const fiyatlar: Partial<Record<YakitTuru, number>> = {};
+  for (const { tur, fiyat } of sonuclar) {
+    if (fiyat != null) fiyatlar[tur] = fiyat;
+  }
+  return fiyatlar;
+}
+
 export interface RotaVerisi {
   duraklar: RotaDuragi[];
   araclar: RotaAraci[];
   soforler: Sofor[];
+  /** yakıt türü → EPDK'nın en güncel TL/L fiyatı. */
+  yakitFiyatlari: Partial<Record<YakitTuru, number>>;
 }
 
 type SayfaSonucu<T> = Promise<{
@@ -192,7 +259,7 @@ export async function rotaVerisiCek(
   client: SupabaseClient,
   gunPenceresi: number | null = null
 ): Promise<RotaVerisi> {
-  const [yukRows, aracRows, soforRows] = await Promise.all([
+  const [yukRows, aracRows, soforRows, yakitFiyatlari] = await Promise.all([
     fetchAllRows<BekleyenYukRaw>(
       (from, to) =>
         client
@@ -218,11 +285,13 @@ export async function rotaVerisiCek(
           .order("sira", { ascending: true })
           .range(from, to) as unknown as SayfaSonucu<SoforRaw>
     ),
+    yakitFiyatlariCek(client),
   ]);
 
   return {
     duraklar: yukRows.map(duragaCevir),
     araclar: aracRows.map(araceCevir),
     soforler: soforRows.map(soforeCevir),
+    yakitFiyatlari,
   };
 }

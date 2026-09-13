@@ -35,6 +35,12 @@ Sırayla uygulanır — `siparis_yuk_view.sql` `urun_olcu`'ya, plan şeması `ar
 | `araclar_sema.sql` | Filo tanımı — ERP'de araç verisi olmadığı için tek kaynak |
 | `sevkiyat_plani_sema.sql` | Kaydedilen araç planları — araç/yük geçmişi burada birikir |
 
+## Yakıt fiyatları (EPDK)
+
+| Dosya | İş |
+|---|---|
+| `fuel_prices_sema.sql` | EPDK günlük bülten geçmişi — `backend/n8n/EPDK Yakit Fiyat Otomasyonu.json` bunu upsert ediyor, `UNIQUE (price_date, fuel_type)` şart |
+
 ## Panorama sync
 
 | Dosya | İş |

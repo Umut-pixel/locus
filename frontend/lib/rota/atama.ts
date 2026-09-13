@@ -49,6 +49,9 @@ export interface Durak {
  */
 export type EhliyetSinifi = "B" | "C";
 
+/** fuel_prices.fuel_type ile birebir aynı sözlük — çeviri katmanı yok. */
+export type YakitTuru = "gasoline" | "diesel" | "lpg";
+
 export interface Arac {
   kod: string;
   ad: string;
@@ -60,6 +63,18 @@ export interface Arac {
   ehliyetSinifi: EhliyetSinifi;
   /** Takograflı araçta 4,5 sa sürüşten sonra 30 dk mola zorunlu. */
   takograf: boolean;
+  /**
+   * Yakıt türü — fuel_prices ile eşleşen anahtar. OPSİYONEL: `Durak.sehir?`/
+   * `ilce?` ile aynı gerekçe — maliyetle ilgisiz tüketiciler (bolge.ts,
+   * planla.ts) bu alana bakmaz; zorunlu yapılırsa atama.test.ts, planla.test.ts,
+   * bolge.test.ts, palet.test.ts, kriter.test.ts'teki inline `Arac` literal'ları
+   * kırılır.
+   */
+  yakitTuru?: YakitTuru | null;
+  /** 100 km başına litre tüketim. null/undefined → maliyet hesaplanamaz. */
+  tuketimL100km?: number | null;
+  /** false/undefined ise tuketimL100km TAHMİN (maxKgTeyitli deseniyle aynı). */
+  tuketimTeyitli?: boolean;
 }
 
 export interface Sofor {
