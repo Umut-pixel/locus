@@ -45,6 +45,12 @@ Sırayla uygulanır — `siparis_yuk_view.sql` `urun_olcu`'ya, plan şeması `ar
 | `panorama_sync_webhook.sql` | `panorama_sync_runs` → Vercel transform (`pg_net`) |
 | `panorama_sync_stale_sweep.sql` | Yarım kalan `running` satırlarını `failed` işaretler (`pg_cron`, 15 dk) |
 
+## Bildirimler
+
+| Dosya | İş |
+|---|---|
+| `bildirim_sistemi.sql` | Tip başına ayar + geçmiş tablosu, 8 kontrol fonksiyonu, 2 jenerik pg_cron orkestratörü (anlık 15 dk, özet günlük 08:00 Istanbul) → n8n Telegram webhook'u |
+
 ## UI / potansiyel
 
 | Dosya | İş |
