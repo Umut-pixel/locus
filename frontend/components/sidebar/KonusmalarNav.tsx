@@ -32,16 +32,24 @@ import {
 import { cn } from "@/lib/utils";
 
 const SOHBET_ONEK = "/sohbet/";
+const ROTALAR_ONEK = "/rotalar";
 
 export function KonusmalarNav({ open }: { open: boolean }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { reset } = useAgentSession();
+  const { reset, threadSiraNo, loadThread, requestAssistantOpen } = useAgentSession();
   // Aktif konuşma artık URL'in kendisinde: /sohbet/{slug}-{siraNo}
   const sohbetteyiz = pathname.startsWith(SOHBET_ONEK);
+  // Rota haritasının kendi gömülü asistanı var (`RotaHaritaAiBubble`) — orada
+  // geçmiş bir konuşmaya tıklamak /sohbet'e KAÇMAMALI, aynı paylaşımlı
+  // `useAgentSession` state'i zaten oradan da erişilebilir olduğu için
+  // konuşma haritadan ayrılmadan balonun içinde açılır (bkz. ChatLink altında).
+  const rotaSekmesindeyiz = pathname.startsWith(ROTALAR_ONEK);
   const aktifSiraNo = sohbetteyiz
     ? siraNoFromSlug(pathname.slice(SOHBET_ONEK.length))
-    : null;
+    : rotaSekmesindeyiz
+      ? threadSiraNo
+      : null;
   const onFreshHome = pathname === "/home";
   const { items, loading, remove, togglePin } = useKonusmalar();
   const [expanded, setExpanded] = useState(false);
@@ -78,12 +86,20 @@ export function KonusmalarNav({ open }: { open: boolean }) {
               label={item.baslik}
               active={aktifSiraNo === item.siraNo}
               pinned={item.sabitlendi}
+              onOpenInPlace={
+                rotaSekmesindeyiz
+                  ? () => {
+                      void loadThread(item.id);
+                      requestAssistantOpen();
+                    }
+                  : undefined
+              }
               onPin={() => void togglePin(item.id, !item.sabitlendi)}
               onDelete={() => {
                 const acikOlan = aktifSiraNo === item.siraNo;
                 if (acikOlan) reset();
                 void remove(item.id);
-                if (acikOlan) router.push("/home");
+                if (acikOlan && !rotaSekmesindeyiz) router.push("/home");
               }}
             />
           ))}
@@ -200,6 +216,7 @@ function ChatLink({
   pinned,
   onPin,
   onDelete,
+  onOpenInPlace,
 }: {
   href: string;
   label: string;
@@ -207,6 +224,10 @@ function ChatLink({
   pinned: boolean;
   onPin: () => void;
   onDelete: () => void;
+  /** Verilirse tıklama SAYFADAN AYRILMAZ — konuşma paylaşımlı `useAgentSession`
+   * üzerinden yerinde yüklenir (bkz. `KonusmalarNav`, rota haritasının kendi
+   * gömülü asistanı için). Verilmezse eski davranış: `/sohbet/[slug]`'a git. */
+  onOpenInPlace?: () => void;
 }) {
   const router = useRouter();
   return (
@@ -227,6 +248,10 @@ function ChatLink({
           title={label}
           onClick={(e) => {
             e.preventDefault();
+            if (onOpenInPlace) {
+              onOpenInPlace();
+              return;
+            }
             router.push(href);
           }}
           className={cn(

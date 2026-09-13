@@ -142,6 +142,11 @@ export type AgentSessionValue = {
   stop: () => void;
   reset: () => void;
   loadThread: (id: string) => Promise<void>;
+  /** Değiştiğinde (mount hariç) gömülü asistan yüzeyleri (ör. `RotaHaritaAiBubble`)
+   * kendini açar — geçmişten bir konuşma seçildiğinde sayfadan ayrılmadan
+   * göstermek için (bkz. `KonusmalarNav`). */
+  assistantOpenSignal: number;
+  requestAssistantOpen: () => void;
 };
 
 const AgentRuntimeContext = createContext<AgentSessionValue | null>(null);
@@ -158,6 +163,10 @@ function useAgentRuntimeState(): AgentSessionValue {
   const [pendingQuote, setPendingQuoteState] = useState<string | null>(null);
   const [threadId, setThreadId] = useState<string | null>(null);
   const [threadMeta, setThreadMeta] = useState<ThreadMeta>(BOS_META);
+  const [assistantOpenSignal, setAssistantOpenSignal] = useState(0);
+  const requestAssistantOpen = useCallback(() => {
+    setAssistantOpenSignal((n) => n + 1);
+  }, []);
   const abortRef = useRef<AbortController | null>(null);
   const traceRef = useRef<TraceRow[]>([]);
   const quoteRef = useRef<string | null>(null);
@@ -514,6 +523,8 @@ function useAgentRuntimeState(): AgentSessionValue {
       stop,
       reset,
       loadThread,
+      assistantOpenSignal,
+      requestAssistantOpen,
     }),
     [
       threadId,
@@ -534,6 +545,8 @@ function useAgentRuntimeState(): AgentSessionValue {
       stop,
       reset,
       loadThread,
+      assistantOpenSignal,
+      requestAssistantOpen,
     ]
   );
 }

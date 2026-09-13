@@ -53,7 +53,7 @@ export const RotaHaritaAiBubble = memo(function RotaHaritaAiBubble({
 }: RotaHaritaAiBubbleProps) {
   const [open, setOpen] = useState(false);
   const [okunmadi, setOkunmadi] = useState(false);
-  const { busy } = useAgentSession();
+  const { busy, assistantOpenSignal } = useAgentSession();
   const reduced = useReducedMotion();
   const wasBusyRef = useRef(false);
   /** Son gönderilen TAM bağlam metni — turdan tura birebir aynıysa tekrar
@@ -66,6 +66,17 @@ export const RotaHaritaAiBubble = memo(function RotaHaritaAiBubble({
     if (wasBusyRef.current && !busy && !open) setOkunmadi(true);
     wasBusyRef.current = busy;
   }, [busy, open]);
+
+  // Kenar çubuğunda geçmişten bir konuşma seçilince (bkz. `KonusmalarNav`)
+  // panel haritadan ayrılmadan kendini açar — `loadThread` zaten paylaşımlı
+  // `useAgentSession` state'ini güncelledi, burada yalnız görünürlük değişir.
+  const acilmaSinyaliRef = useRef(assistantOpenSignal);
+  useEffect(() => {
+    if (assistantOpenSignal === acilmaSinyaliRef.current) return;
+    acilmaSinyaliRef.current = assistantOpenSignal;
+    setOpen(true);
+    setOkunmadi(false);
+  }, [assistantOpenSignal]);
 
   const buildContext = () => {
     const tamMetin = rotaAgentBaglamiUret(baglamGirdisi);
