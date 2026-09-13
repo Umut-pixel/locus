@@ -135,6 +135,28 @@ konmuyor. Otomatik tazelenmez — yanıtta yükleme tarihini belirt.
 Günlük pg_cron snapshot'ı (05:15 UTC). Gerçek trend analizi için tek doğru kaynak.
 `snapshot_tarihi`, `musteri_kodu`, `net_ciro`, `toplam_teslimat_sayisi`
 
+## 10b. `v_sevkiyat_plan_ozet` / `v_sevkiyat_plan_duraklari` — KAYDEDİLMİŞ rota planları
+
+Yalnız kullanıcının "Planı kaydet" ile onayladığı, **nihai** planları kapsar —
+rota haritası ekranında o an düzenlenmekte olan CANLI taslağı KAPSAMAZ (o
+taslak `rota_taslaklari` tablosunda, service-role korumalı, `sql_query` ile
+hiç görülemez; canlı taslağın durumu yalnız sohbetin başındaki `[Rota
+haritası ekranı — …]` bağlam notundan gelir).
+
+`v_sevkiyat_plan_ozet` — bir satır = bir aracın bir günkü planı: `id`,
+`plan_tarihi`, `arac_kod`, `arac_ad`, `sofor_kod`, `sofor_ad`, `durum`
+(`taslak`/`onaylandi`/`tamamlandi`/`iptal`), `durak_sayisi`, `toplam_kg`,
+`toplam_cuval`, `kg_doluluk`, `cuval_doluluk` (%), `google_sure_sn`,
+`google_mesafe_m`, `olusturuldu`.
+
+`v_sevkiyat_plan_duraklari` — bir satır = bir plandaki bir durak: `plan_id`
+(→ `v_sevkiyat_plan_ozet.id`), `sira`, `musteri_kodu`, `kg`, `cuval_esdeger`,
+`unvan`, `ilce`, `sehir`, `lat`, `lon`, `risk_durumu`.
+
+"Geçen Salı kaç durak vardı", "bu araç dün kaç km yaptı" gibi GEÇMİŞ/
+KAYDEDİLMİŞ plan sorularını bu ikisiyle cevapla. "Şu an haritada ne var"
+sorusu bunlardan cevaplanamaz — o bağlam notundaki canlı özet.
+
 ## 10. `agent_konusmalar` / `agent_konusma_mesajlari` — sohbet hafızası
 Kullanıcı–asistan konuşmalarının tam metni. Operasyon verisi değil.
 Önce `konusma_gecmisi` aracını kullan; SQL ile okuyacaksan yalnız

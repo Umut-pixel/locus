@@ -31,6 +31,9 @@ MUST_REJECT = [
     ("raw-table-musteriler", "SELECT * FROM musteriler"),
     ("raw-table-yaslandirma", "SELECT * FROM musteri_yaslandirma"),
     ("unknown-table", "SELECT * FROM gizli_tablo"),
+    # rota_taslaklari (canlı, kaydedilmemiş harita taslağı) service-role-only —
+    # allowlist'e KASITLI OLARAK eklenmedi, bkz. sql_guard.py'deki yorum.
+    ("rota-taslaklari-yasak", "SELECT payload FROM rota_taslaklari"),
     ("cte-hidden-delete", "WITH x AS (DELETE FROM musteriler_rapor RETURNING *) SELECT * FROM x"),
     ("join-to-raw", "SELECT r.unvan FROM musteriler_rapor r JOIN musteriler m ON m.musteri_kodu = r.musteri_kodu"),
     ("subquery-raw", "SELECT unvan FROM musteriler_rapor WHERE musteri_kodu IN (SELECT musteri_kodu FROM musteriler)"),
@@ -52,6 +55,9 @@ MUST_ALLOW = [
     ("tahsilat", "SELECT musteri_kod, tutar FROM v_panorama_tahsilat_raporu_guncel WHERE odeme_durum = 'Ödendi'"),
     ("siparis-detay", "SELECT siparis_no, nettutar FROM v_panorama_siparis_detay_raporu_guncel WHERE bekleyen_siparis = 'Bekleyen Sipariş'"),
     ("konusma-liste", "SELECT id, baslik, ozet FROM agent_konusmalar"),
+    # Kaydedilmiş (nihai) rota planları — bkz. semantic/veri_kaynaklari.md #10b.
+    ("sevkiyat-ozet", "SELECT arac_ad, durak_sayisi FROM v_sevkiyat_plan_ozet WHERE plan_tarihi = CURRENT_DATE"),
+    ("sevkiyat-duraklar", "SELECT unvan, kg FROM v_sevkiyat_plan_duraklari WHERE plan_id = '00000000-0000-0000-0000-000000000000'"),
 ]
 
 

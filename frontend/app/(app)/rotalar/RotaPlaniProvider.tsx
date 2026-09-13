@@ -101,6 +101,15 @@ interface RotaPlaniDegeri {
   durakEkle: (musteriKodu: string, aracKod?: string) => void;
   durakCikar: (musteriKodu: string) => void;
   aracTemizle: (aracKod: string) => void;
+  /**
+   * Bir durağı (nerede olursa olsun) hedef araca, istenen 1-tabanlı konuma
+   * taşır — `durakEkle` (yalnız sona ekler) + `durakCikar`'ın (her yerden
+   * çıkarır) AI öneri-uygulama akışı için birleşimi. `pozisyon` verilmezse
+   * listenin sonuna eklenir.
+   */
+  durakTasi: (musteriKodu: string, hedefAracKod: string, pozisyon?: number) => void;
+  /** Yalnız AI önerisi geri alma akışı için — genel amaçlı undo/redo değil. */
+  planiGeriYukle: (oncekiPlan: Plan) => void;
 
   // Google Routes
   /**
@@ -540,6 +549,38 @@ export function RotaPlaniProvider({ children }: { children: ReactNode }) {
     [rotaBilgisiniDusur]
   );
 
+  const durakTasi = useCallback(
+    (musteriKodu: string, hedefAracKod: string, pozisyon?: number) => {
+      setPlan((o) => {
+        const sonraki: Plan = {};
+        for (const [kod, liste] of Object.entries(o)) {
+          if (kod === hedefAracKod) continue;
+          const filtreli = liste.filter((k) => k !== musteriKodu);
+          sonraki[kod] = filtreli;
+          if (filtreli.length !== liste.length) rotaBilgisiniDusur(kod);
+        }
+        const mevcutHedef = (o[hedefAracKod] ?? []).filter((k) => k !== musteriKodu);
+        const index =
+          pozisyon != null
+            ? Math.max(0, Math.min(pozisyon - 1, mevcutHedef.length))
+            : mevcutHedef.length;
+        sonraki[hedefAracKod] = [
+          ...mevcutHedef.slice(0, index),
+          musteriKodu,
+          ...mevcutHedef.slice(index),
+        ];
+        rotaBilgisiniDusur(hedefAracKod);
+        return sonraki;
+      });
+    },
+    [rotaBilgisiniDusur]
+  );
+
+  /** Yalnız AI önerisi geri alma akışı için — genel amaçlı undo/redo değil. */
+  const planiGeriYukle = useCallback((oncekiPlan: Plan) => {
+    setPlan(oncekiPlan);
+  }, []);
+
   /** Google Routes — trafikli durak sırası. Hata olursa mevcut sıra korunur. */
   const optimizeEt = useCallback(
     async (aracKod: string, duraklarOverride?: RotaDuragi[]) => {
@@ -830,6 +871,8 @@ export function RotaPlaniProvider({ children }: { children: ReactNode }) {
       durakEkle,
       durakCikar,
       aracTemizle,
+      durakTasi,
+      planiGeriYukle,
       optimizeEt,
       optimizeEdilenler,
       rotaBilgileri,
@@ -850,7 +893,7 @@ export function RotaPlaniProvider({ children }: { children: ReactNode }) {
       atananlar.size, bolgeler, durakBolgesi, sabitlemeler, bolgeSabitle,
       aracSoforu, soforSabitle, soforununAracKodu,
       aracDuraklari, aracBul, rotalar, seciliArac, otomatikDagit,
-      hepsiniTemizle, durakEkle, durakCikar, aracTemizle, optimizeEt,
+      hepsiniTemizle, durakEkle, durakCikar, aracTemizle, durakTasi, planiGeriYukle, optimizeEt,
       optimizeEdilenler, rotaBilgileri, optimizeHatalari, mevcutSonuc, mevcutMetrik,
       etkiSecenekleri, planiKaydet, kaydediliyor, kayitDurumu,
       taslakKaydet, taslakKaydediliyor, sonKayitZamani,

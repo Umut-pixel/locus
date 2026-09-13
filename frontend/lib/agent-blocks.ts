@@ -121,6 +121,35 @@ export type HaritaEylemiBlock = {
   anahtar?: string;
 };
 
+/**
+ * Rota haritasında (yalnız `/rotalar/harita`) canlı taslağı DEĞİŞTİREN öneri.
+ * `harita_eylemi`den kasıtlı olarak ayrı tutuluyor: o salt-okunur navigasyon,
+ * bu VERİ MUTASYONU — kabul edilmeden hiçbir şeye dokunmaz (bkz.
+ * `RotaOnerisiKarti`), kabul edildiğinde `RotaPlaniProvider`'ın gerçek
+ * mutator'larını (`durakTasi`/`durakCikar`/`optimizeEt`) çağırır ve mevcut
+ * debounce'lu autosave ile `rota_taslaklari`ya (kaynak=harita-canli) yazılır.
+ * Asla `rota_taslagi_kaydet`/`/api/rota/plan`'a (nihai, yıkıcı kayıt) dokunmaz.
+ */
+export type RotaOnerisiEylemi = "durak_tasi" | "durak_havuza_al" | "araci_optimize_et";
+
+export type RotaOnerisiAdimi = {
+  eylem: RotaOnerisiEylemi;
+  /** `durak_tasi` / `durak_havuza_al` — ekranda görünen durak adı (unvan), musteriKodu DEĞİL. */
+  durak?: string;
+  /** `durak_tasi` / `araci_optimize_et` — ekranda görünen HEDEF araç adı, aracKod DEĞİL. */
+  hedefArac?: string;
+  /** `durak_tasi` — 1-tabanlı hedef konum; verilmezse listenin sonuna eklenir. */
+  pozisyon?: number;
+};
+
+export type RotaOnerisiBlock = {
+  type: "rota_onerisi";
+  baslik: string;
+  aciklama?: string;
+  adimlar: RotaOnerisiAdimi[];
+  cta?: string;
+};
+
 export type AgentBlock =
   | MarkdownBlock
   | TableBlock
@@ -130,6 +159,7 @@ export type AgentBlock =
   | MapBlock
   | SecimBlock
   | HaritaEylemiBlock
+  | RotaOnerisiBlock
   | PendingBlock;
 
 /** UI'ın gerçekten tetikleyebildiği aksiyonlar. Model başkasını uyduramaz. */
@@ -151,6 +181,12 @@ const HARITA_KRITERLERI = new Set([
   "guvenilirlik",
   "surusGuvenligi",
   "sahaZorlugu",
+]);
+
+const ROTA_ONERISI_EYLEMLERI = new Set<string>([
+  "durak_tasi",
+  "durak_havuza_al",
+  "araci_optimize_et",
 ]);
 
 const FENCE = /```locus[\w-]*[ \t]*\r?\n([\s\S]*?)```/g;
@@ -224,6 +260,37 @@ function parseHttpsUrl(raw: unknown): string | undefined {
   } catch {
     return undefined;
   }
+}
+
+/**
+ * Tek bir öneri adımını doğrular. Eksik/geçersiz alan → `null` — çağıran
+ * (`parseLocusJson`'daki `rota_onerisi` dalı) bunu HEPSİ-YA-DA-HİÇBİRİ olarak
+ * ele alır: `harita_eylemi`nin alan-bazlı gevşek davranışından kasıtlı sapma,
+ * çünkü bu bir veri mutasyonu — yarım/geçersiz bir adımla "Uygula"ya
+ * basılabilir hale gelmemeli.
+ */
+function parseRotaOnerisiAdimi(raw: unknown): RotaOnerisiAdimi | null {
+  if (!raw || typeof raw !== "object") return null;
+  const o = raw as Record<string, unknown>;
+  const eylem = String(o.eylem ?? "");
+  if (!ROTA_ONERISI_EYLEMLERI.has(eylem)) return null;
+
+  const durak = typeof o.durak === "string" && o.durak.trim() ? o.durak.trim() : undefined;
+  const hedefArac =
+    typeof o.hedefArac === "string" && o.hedefArac.trim() ? o.hedefArac.trim() : undefined;
+
+  let pozisyon: number | undefined;
+  if (o.pozisyon != null) {
+    const n = Number(o.pozisyon);
+    if (!Number.isFinite(n) || !Number.isInteger(n) || n < 1) return null;
+    pozisyon = n;
+  }
+
+  if (eylem === "durak_tasi" && (!durak || !hedefArac)) return null;
+  if (eylem === "durak_havuza_al" && !durak) return null;
+  if (eylem === "araci_optimize_et" && !hedefArac) return null;
+
+  return { eylem: eylem as RotaOnerisiEylemi, durak, hedefArac, pozisyon };
 }
 
 function parseLocusJson(raw: string): AgentBlock | null {
@@ -412,6 +479,28 @@ function parseLocusJson(raw: string): AgentBlock | null {
         sorgu,
         sekme,
         anahtar,
+      };
+    }
+    if (kind === "rota_onerisi") {
+      const baslik = typeof data.baslik === "string" ? data.baslik.trim() : "";
+      if (!baslik) return null;
+      const rawAdimlar = Array.isArray(data.adimlar) ? data.adimlar : [];
+      if (rawAdimlar.length === 0) return null;
+      const adimlar: RotaOnerisiAdimi[] = [];
+      for (const rawAdim of rawAdimlar) {
+        const adim = parseRotaOnerisiAdimi(rawAdim);
+        // Hepsi-ya-da-hiçbiri: tek adım geçersizse TÜM blok düşer (bkz.
+        // `parseRotaOnerisiAdimi` yorumu) — bu bir veri mutasyonu, `harita_eylemi`
+        // gibi sessizce kısmi uygulanamaz.
+        if (!adim) return null;
+        adimlar.push(adim);
+      }
+      return {
+        type: "rota_onerisi",
+        baslik,
+        aciklama: typeof data.aciklama === "string" && data.aciklama.trim() ? data.aciklama.trim() : undefined,
+        adimlar,
+        cta: typeof data.cta === "string" && data.cta.trim() ? data.cta.trim() : undefined,
       };
     }
     if (kind === "map" || kind === "route") {

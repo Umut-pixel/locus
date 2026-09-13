@@ -102,3 +102,44 @@ if (
   fail("invalid sekme should fall back to undefined, not crash");
 }
 console.log("harita_eylemi invalid sekme ok");
+
+const rotaOnerisiGecerli = parseAgentContent(
+  '```locus\n{"kind":"rota_onerisi","baslik":"Ahmet Yılmaz\'ı taşı","adimlar":[{"eylem":"durak_tasi","durak":"Ahmet Yılmaz","hedefArac":"Isuzu 3D","pozisyon":2}]}\n```'
+);
+if (rotaOnerisiGecerli.length !== 1 || rotaOnerisiGecerli[0]?.type !== "rota_onerisi") {
+  fail(`expected rota_onerisi block, got ${JSON.stringify(rotaOnerisiGecerli.map((b) => b.type))}`);
+}
+if (
+  rotaOnerisiGecerli[0].type === "rota_onerisi" &&
+  (rotaOnerisiGecerli[0].adimlar.length !== 1 ||
+    rotaOnerisiGecerli[0].adimlar[0]?.pozisyon !== 2)
+) {
+  fail("rota_onerisi adim mismatch");
+}
+console.log("rota_onerisi parse ok");
+
+const rotaOnerisiBilinmeyenEylem = parseAgentContent(
+  '```locus\n{"kind":"rota_onerisi","baslik":"X","adimlar":[{"eylem":"aracin_gpsini_kapat"}]}\n```'
+);
+if (rotaOnerisiBilinmeyenEylem.length !== 0) {
+  fail("rota_onerisi with unknown eylem should be dropped entirely");
+}
+console.log("rota_onerisi unknown eylem dropped ok");
+
+// Hepsi-ya-da-hiçbiri: ikinci adım geçersizse TÜM blok düşmeli — harita_eylemi'nin
+// alan-bazlı gevşek davranışından kasıtlı sapma (bkz. parseRotaOnerisiAdimi yorumu).
+const rotaOnerisiKismenGecersiz = parseAgentContent(
+  '```locus\n{"kind":"rota_onerisi","baslik":"X","adimlar":[{"eylem":"durak_havuza_al","durak":"Ahmet Yılmaz"},{"eylem":"durak_tasi","durak":"Veli"}]}\n```'
+);
+if (rotaOnerisiKismenGecersiz.length !== 0) {
+  fail("rota_onerisi should drop the WHOLE block if any single step is invalid (missing hedefArac)");
+}
+console.log("rota_onerisi all-or-nothing ok");
+
+const rotaOnerisiGecersizPozisyon = parseAgentContent(
+  '```locus\n{"kind":"rota_onerisi","baslik":"X","adimlar":[{"eylem":"durak_tasi","durak":"A","hedefArac":"B","pozisyon":0}]}\n```'
+);
+if (rotaOnerisiGecersizPozisyon.length !== 0) {
+  fail("rota_onerisi should reject non-positive pozisyon");
+}
+console.log("rota_onerisi invalid pozisyon rejected ok");

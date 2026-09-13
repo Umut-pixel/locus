@@ -7,6 +7,7 @@ Takip cümlesi ('evet çıkar') Haiku'ya gitmez — yalnız son mesajı görür.
 from __future__ import annotations
 
 import logging
+import re
 
 from langchain.agents.middleware import ModelResponse, wrap_model_call
 from langchain_core.messages import AIMessage
@@ -17,6 +18,20 @@ from templates.match import TemplateSpec
 from tools.sql_query import execute_guarded_sql
 
 logger = logging.getLogger("locus.agent.fast_path")
+
+# Rota haritası ekranından gelen her mesajın başına eklenen bağlam notu
+# (bkz. frontend/lib/rota/agentBaglami.ts). Şablon/sınıflandırma eşleşmesi
+# yalnız kullanıcının GERÇEK sorusuna bakmalı — bu not olduğu sürece hiçbir
+# harita-sayfası mesajı `match_template`'e tam eşleşemiyordu, /sohbet'ten
+# aynı soru bedavaya düşerken harita sayfasından hep Haiku'ya gidiyordu.
+_BAGLAM_NOTU_RE = re.compile(r"^\[Rota haritası ekranı[^\]]*\]\s*\n*", re.UNICODE)
+
+
+def _strip_baglam_notu(text: str) -> str:
+    """Bağlam notunu yalnız EŞLEŞTİRME için ayıklar — `request` hiç
+    değişmez, Opus'a düşerse tam metin (not dahil) zaten `handler(request)`
+    üzerinden gider."""
+    return _BAGLAM_NOTU_RE.sub("", text, count=1).strip()
 
 
 def _is_human(msg: object) -> bool:
@@ -60,7 +75,9 @@ def _last_human_if_turn_start(request: object) -> str | None:
     if not _is_human(last):
         return None
     text = _message_text(last).strip()
-    return text or None
+    if not text:
+        return None
+    return _strip_baglam_notu(text) or None
 
 
 def has_prior_turn(request: object) -> bool:

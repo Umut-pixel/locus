@@ -11,6 +11,7 @@ import { InsightChart } from "@/components/agent/InsightChart";
 import { LoadingState } from "@/components/agent/LoadingState";
 import { MapActionChip } from "@/components/agent/MapActionChip";
 import { RecommendCard, type RecommendAccept } from "@/components/agent/RecommendCard";
+import { RotaOnerisiKarti } from "@/components/agent/RotaOnerisiKarti";
 import { SelectCard } from "@/components/agent/SelectCard";
 import { StreamingWords } from "@/components/agent/StreamingWords";
 import {
@@ -124,6 +125,8 @@ function BlockView({
       return <SelectCard block={block} />;
     case "harita_eylemi":
       return <MapActionChip block={block} />;
+    case "rota_onerisi":
+      return <RotaOnerisiKarti block={block} />;
     case "markdown":
       if (streamingTail) {
         return <StreamingWords text={block.text} />;

@@ -27,6 +27,12 @@ import {
   type HaritaEylemi,
 } from "@/components/rota/RotaHaritaEylemBaglami";
 import {
+  RotaOnerisiSaglayici,
+  type RotaOnerisiAdimCozum,
+  type RotaOnerisiBaglamDegeri,
+  type RotaOnerisiUygulamaSonucu,
+} from "@/components/rota/RotaOnerisiBaglami";
+import {
   KayitRozeti,
   OptimizeCalisiyorKart,
   OptimizeTamamKart,
@@ -51,8 +57,11 @@ import { ROTA_REPORT_ID, type RotaAraci, type RotaDuragi } from "@/hooks/useRota
 import { useSurukleblirKart } from "@/hooks/useSurukleblirKart";
 import { googleMapsDirUrl } from "@/lib/depot";
 import { formatNumber } from "@/lib/format";
+import type { RotaOnerisiBlock } from "@/lib/agent-blocks";
 import { dolulukHesapla } from "@/lib/rota/atama";
+import type { RotaAgentBaglamGirdisi } from "@/lib/rota/agentBaglami";
 import { bolgeRengi } from "@/lib/rota/bolge-renk";
+import { bulanikBul } from "@/lib/rota/bulanikEslesme";
 import { kriterleriHesapla, type KriterAnahtari } from "@/lib/rota/kriter";
 import { cn } from "@/lib/utils";
 
@@ -111,25 +120,6 @@ function kayitliyiRotaDuraginaCevir(d: KayitliDurak): RotaDuragi {
     brutTutar: 0,
     yasGun: null,
   };
-}
-
-/**
- * AI'nın `harita_eylemi` bloğuyla söylediği isim (`sorgu`) ile ekranda görünen
- * bir kaydı eşleştirir. Model dahili kodları hiçbir zaman bilemez (bkz.
- * `RotaHaritaEylemBaglami`) — yalnız görünen ADI verir, burası bulanık eşler.
- * Tam eşleşme öncelikli; yoksa alt-dize eşleşmesi (iki yönlü, "Aydın" da
- * "Aydın Merkez" de eşleşsin diye).
- */
-function bulanikBul<T>(liste: T[], sorgu: string, adGetir: (item: T) => string): T | null {
-  const q = sorgu.trim().toLocaleLowerCase("tr-TR");
-  if (!q) return null;
-  let kismi: T | null = null;
-  for (const item of liste) {
-    const ad = adGetir(item).toLocaleLowerCase("tr-TR");
-    if (ad === q) return item;
-    if (!kismi && (ad.includes(q) || q.includes(ad))) kismi = item;
-  }
-  return kismi;
 }
 
 /**
@@ -533,6 +523,18 @@ export default function RotaHaritasiSayfasi() {
     };
   }, [odakliArac, canli, hesaplaYuzde]);
 
+  /** Odaklanılan aracın sıralı durak listesi — AI bağlamı için (bkz. `agentBaglami.ts`). */
+  const odakliAracBaglam = useMemo<RotaAgentBaglamGirdisi["odakliArac"]>(() => {
+    if (!odakliArac) return null;
+    return {
+      ad: odakliArac.ad,
+      duraklar: canli.aracDuraklari(odakliArac.kod).map((d) => ({
+        unvan: d.unvan,
+        ilce: d.ilce,
+      })),
+    };
+  }, [odakliArac, canli]);
+
   /**
    * Filtre değişince görünen küme değişir (`gorunenRotalar`/`gorunenHavuz`)
    * — açık durak kartı artık haritada hiç çizilmeyen bir marker'a ait
@@ -550,6 +552,22 @@ export default function RotaHaritasiSayfasi() {
     gecerliFiltre.tur === "karne"
       ? (kriterler.find((k) => k.anahtar === gecerliFiltre.anahtar) ?? null)
       : null;
+
+  /** Geçerli seçimin insan-okur açıklaması — AI bağlamı için (bkz. `agentBaglami.ts`). */
+  const secimAciklamasi = useMemo<string | null>(() => {
+    if (gecerliFiltre.tur === "arac") {
+      const rota = yuklu.find((r) => r.aracKod === gecerliFiltre.aracKod);
+      return rota ? `${rota.aracAd} aracı` : null;
+    }
+    if (gecerliFiltre.tur === "bolge") {
+      const bolge = canli.bolgeler.find((b) => b.kod === gecerliFiltre.bolgeKod);
+      return bolge ? `${bolge.ad} bölgesi` : null;
+    }
+    if (gecerliFiltre.tur === "karne") {
+      return secilenKriter ? `${secilenKriter.ad} kriteri` : null;
+    }
+    return null;
+  }, [gecerliFiltre, yuklu, canli.bolgeler, secilenKriter]);
 
   /**
    * Eskiden tek araca odaklanınca havuz tamamen gizleniyordu ("dikkat
@@ -659,6 +677,101 @@ export default function RotaHaritasiSayfasi() {
   );
 
   /**
+   * AI önerisindeki isimleri ekrandaki gerçek kayıtlara çözer — HİÇBİR ŞEYE
+   * dokunmaz, yalnız `RotaOnerisiKarti`nin önizlemesi için. Kayıtlı (geçmiş)
+   * moddayken hiçbir adım çözülmez: o mod salt-okunur, canlı taslakla
+   * bağlantısı yok (bkz. `agentBaglami.ts`'in aynı kuralı).
+   */
+  const rotaOnerisiCozumle = useCallback(
+    (block: RotaOnerisiBlock): RotaOnerisiAdimCozum[] => {
+      if (gecmisMod) {
+        return block.adimlar.map((adim) => ({
+          ok: false,
+          eylem: adim.eylem,
+          hata: "Kayıtlı bir plan görüntüleniyor — değişiklik yalnız canlı taslakta yapılabilir.",
+        }));
+      }
+      return block.adimlar.map((adim): RotaOnerisiAdimCozum => {
+        if (adim.eylem === "durak_tasi") {
+          const durak = bulanikBul(canli.duraklar, adim.durak ?? "", (d) => d.unvan);
+          if (!durak) {
+            return { ok: false, eylem: adim.eylem, hata: `"${adim.durak}" adında bir durak bulunamadı.` };
+          }
+          const hedefArac = bulanikBul(canli.araclar, adim.hedefArac ?? "", (a) => a.ad);
+          if (!hedefArac) {
+            return { ok: false, eylem: adim.eylem, hata: `"${adim.hedefArac}" adında bir araç bulunamadı.` };
+          }
+          const oncekiListe = canli.aracDuraklari(hedefArac.kod);
+          const zatenVar = oncekiListe.some((d) => d.musteriKodu === durak.musteriKodu);
+          const sonrakiListe = zatenVar ? oncekiListe : [...oncekiListe, durak];
+          return {
+            ok: true,
+            eylem: "durak_tasi",
+            musteriKodu: durak.musteriKodu,
+            durakEtiket: durak.unvan,
+            hedefAracKod: hedefArac.kod,
+            hedefAracEtiket: hedefArac.ad,
+            pozisyon: adim.pozisyon,
+            dolulukOncesi: hesaplaYuzde(hedefArac, oncekiListe),
+            dolulukSonrasi: hesaplaYuzde(hedefArac, sonrakiListe),
+          };
+        }
+        if (adim.eylem === "durak_havuza_al") {
+          const durak = bulanikBul(canli.duraklar, adim.durak ?? "", (d) => d.unvan);
+          if (!durak) {
+            return { ok: false, eylem: adim.eylem, hata: `"${adim.durak}" adında bir durak bulunamadı.` };
+          }
+          return { ok: true, eylem: "durak_havuza_al", musteriKodu: durak.musteriKodu, durakEtiket: durak.unvan };
+        }
+        // araci_optimize_et
+        const hedefArac = bulanikBul(canli.araclar, adim.hedefArac ?? "", (a) => a.ad);
+        if (!hedefArac) {
+          return { ok: false, eylem: adim.eylem, hata: `"${adim.hedefArac}" adında bir araç bulunamadı.` };
+        }
+        return { ok: true, eylem: "araci_optimize_et", hedefAracKod: hedefArac.kod, hedefAracEtiket: hedefArac.ad };
+      });
+    },
+    [gecmisMod, canli, hesaplaYuzde]
+  );
+
+  /**
+   * Çözülmüş öneriyi canlı taslağa uygular. `canli.durakTasi`/`durakCikar`/
+   * `optimizeEt` dışında HİÇBİR ŞEY çağırmaz — özellikle `canli.planiKaydet()`
+   * (nihai, yıkıcı `/api/rota/plan` kaydı) asla burada tetiklenmez. Uygulanan
+   * değişiklik mevcut 1,5sn debounce'lu autosave üzerinden kendiliğinden
+   * `rota_taslaklari`ya (kaynak=harita-canli) yazılır — yeni persistence
+   * kodu yok.
+   */
+  const rotaOnerisiUygula = useCallback(
+    (cozumler: RotaOnerisiAdimCozum[]): RotaOnerisiUygulamaSonucu => {
+      if (gecmisMod) {
+        return { ok: false, mesaj: "Kayıtlı bir plan görüntülenirken öneri uygulanamaz." };
+      }
+      if (cozumler.length === 0 || cozumler.some((c) => !c.ok)) {
+        return { ok: false, mesaj: "Bazı adımlar çözülemedi, hiçbir şey uygulanmadı." };
+      }
+      const oncekiPlan = canli.plan;
+      for (const c of cozumler) {
+        if (!c.ok) continue;
+        if (c.eylem === "durak_tasi") canli.durakTasi(c.musteriKodu, c.hedefAracKod, c.pozisyon);
+        else if (c.eylem === "durak_havuza_al") canli.durakCikar(c.musteriKodu);
+        else void canli.optimizeEt(c.hedefAracKod);
+      }
+      return {
+        ok: true,
+        mesaj: "Uygulandı.",
+        geriAl: () => canli.planiGeriYukle(oncekiPlan),
+      };
+    },
+    [gecmisMod, canli]
+  );
+
+  const rotaOnerisiBaglamDegeri = useMemo<RotaOnerisiBaglamDegeri>(
+    () => ({ cozumle: rotaOnerisiCozumle, uygula: rotaOnerisiUygula }),
+    [rotaOnerisiCozumle, rotaOnerisiUygula]
+  );
+
+  /**
    * "Haritada göster" düğmesinin listesindeki her satır bunu çağırır —
    * cihaz destekliyorsa (çoğu mobil, bazı masaüstü tarayıcı) OS'in kendi
    * paylaşım sayfasını açar; desteklemiyorsa bağlantı panoya kopyalanır ki
@@ -715,6 +828,7 @@ export default function RotaHaritasiSayfasi() {
 
   return (
     <RotaHaritaEylemSaglayici value={haritaEylemiUygula}>
+    <RotaOnerisiSaglayici value={rotaOnerisiBaglamDegeri}>
     <div ref={containerRef} className="relative isolate min-h-0 min-w-0 flex-1 overflow-hidden">
       <RotaHaritasi
         rotalar={gorunenRotalar}
@@ -1193,11 +1307,25 @@ export default function RotaHaritasiSayfasi() {
       ) : null}
 
       <RotaHaritaAiBubble
-        aracAdlari={yuklu.map((r) => r.aracAd)}
-        bolgeAdlari={canli.bolgeler.map((b) => b.ad)}
+        baglamGirdisi={{
+          gecmisMod,
+          gecmisTarihMetni: gecmisTarih ? tarihMetni(gecmisTarih) : null,
+          aracAdlari: yuklu.map((r) => r.aracAd),
+          bolgeAdlari: canli.bolgeler.map((b) => b.ad),
+          secimAciklamasi,
+          seciliDurakAdi: seciliDurak?.durak.unvan ?? null,
+          odakliArac: odakliAracBaglam,
+          metrik: canli.mevcutMetrik,
+          kriterler,
+          havuzSayisi: havuz.length,
+          atananSayisi: canli.atananSayisi,
+          sonKayitZamani: canli.sonKayitZamani,
+          taslakKaydediliyor: canli.taslakKaydediliyor,
+        }}
         altSinirY={sagAltUstY}
       />
     </div>
+    </RotaOnerisiSaglayici>
     </RotaHaritaEylemSaglayici>
   );
 }

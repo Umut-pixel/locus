@@ -7,7 +7,13 @@ import { SparklesIcon, XIcon } from "lucide-react";
 import { AgentAssistant } from "@/components/agent/AgentAssistant";
 import FluidOrb from "@/components/ui/fluid-orb";
 import { useAgentSession } from "@/hooks/useAgentSession";
+import { rotaAgentBaglamiUret, type RotaAgentBaglamGirdisi } from "@/lib/rota/agentBaglami";
 import { cn } from "@/lib/utils";
+
+/** Bağlam turdan tura değişmediğinde tam metin yerine bu kısa işaretçi gider —
+ * modelin "not yoksa ekrandan ayrılmış" varsayımını bozmadan token tasarrufu.
+ * `agent/instructions.md` bunu "önceki turdaki notu aynen kullan" diye okur. */
+const BAGLAM_DEGISMEDI_NOTU = "[Rota haritası ekranı — durum önceki mesajla aynı]";
 
 /** `harita/page.tsx`'teki `CAM` ile aynı border/blur/shadow dili — ama zemin
  * kasıtlı farklı: sohbet paneli haritanın rengini taşımasın diye saturasyon
@@ -21,10 +27,8 @@ const CAM =
 const ORB_COLOR = "#005670";
 
 interface RotaHaritaAiBubbleProps {
-  /** O an ekranda yüklü araçların adları — modele "ekranda görünenler" bağlamı için. */
-  aracAdlari: string[];
-  /** O an tanımlı bölgelerin adları — aynı amaçla. */
-  bolgeAdlari: string[];
+  /** Sayfanın o anki durumu — modele "ekranda ne var, ne değişti" bağlamı için. */
+  baglamGirdisi: RotaAgentBaglamGirdisi;
   /** Sağ altta yüzen plan karnesi/optimize kartının üst kenarı (viewport Y,
    * px) — verilirse panel bu sınırı GAP kadar boşluk bırakarak aşmaz. */
   altSinirY?: number | null;
@@ -44,8 +48,7 @@ const PANEL_MAX_H_PX = 512; // 32rem — mevcut tavanla aynı
  * paylaşımlı sohbet oturumunun (`useAgentSession`) bir başka görünümü.
  */
 export const RotaHaritaAiBubble = memo(function RotaHaritaAiBubble({
-  aracAdlari,
-  bolgeAdlari,
+  baglamGirdisi,
   altSinirY,
 }: RotaHaritaAiBubbleProps) {
   const [open, setOpen] = useState(false);
@@ -53,6 +56,9 @@ export const RotaHaritaAiBubble = memo(function RotaHaritaAiBubble({
   const { busy } = useAgentSession();
   const reduced = useReducedMotion();
   const wasBusyRef = useRef(false);
+  /** Son gönderilen TAM bağlam metni — turdan tura birebir aynıysa tekrar
+   * göndermeyip kısa bir işaretçiyle yetinmek için (token tasarrufu). */
+  const sonBaglamRef = useRef<string | null>(null);
 
   // Panel kapalıyken bir yanıt tamamlanırsa küçük bir rozetle haber ver —
   // AgentFollowCard bu sayfada bastırıldığı için o sinyali artık balon veriyor.
@@ -62,11 +68,10 @@ export const RotaHaritaAiBubble = memo(function RotaHaritaAiBubble({
   }, [busy, open]);
 
   const buildContext = () => {
-    const parcalar: string[] = [];
-    if (aracAdlari.length > 0) parcalar.push(`araçlar: ${aracAdlari.join(", ")}`);
-    if (bolgeAdlari.length > 0) parcalar.push(`bölgeler: ${bolgeAdlari.join(", ")}`);
-    if (parcalar.length === 0) return undefined;
-    return `[Rota haritası ekranı — o an görünenler: ${parcalar.join(" · ")}]`;
+    const tamMetin = rotaAgentBaglamiUret(baglamGirdisi);
+    if (tamMetin === sonBaglamRef.current) return BAGLAM_DEGISMEDI_NOTU;
+    sonBaglamRef.current = tamMetin;
+    return tamMetin;
   };
 
   // Dış kutu (baloncuk ⇄ panel) spring'i ~0.4s'de yerleşiyor; içerik onunla

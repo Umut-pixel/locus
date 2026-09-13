@@ -31,8 +31,23 @@ ALLOWED_RELATIONS: frozenset[str] = frozenset(
         "rapor_bolge_disi_ozet",
         "agent_konusmalar",
         "agent_konusma_mesajlari",
+        # Yalnız KAYDEDİLMİŞ (nihai, "Planı kaydet" sonrası) rota planları —
+        # bkz. semantic/veri_kaynaklari.md #10b. locus_agent_ro zaten bu
+        # ikisine SELECT grant'ine sahip (sql/sevkiyat_plani_sema.sql).
+        "sevkiyat_planlari",
+        "sevkiyat_plan_duraklari",
+        "v_sevkiyat_plan_ozet",
+        "v_sevkiyat_plan_duraklari",
     }
 )
+
+# `rota_taslaklari` (rota haritası ekranındaki CANLI, henüz kaydedilmemiş
+# taslak) KASITLI OLARAK burada YOK ve buraya eklenmemeli: o tablo
+# service-role-only RLS ile korunuyor (sql/rota_taslaklari.sql) — locus_agent_ro
+# rolünün zaten Postgres grant'i yok, allowlist'e eklemek hiçbir şeyi
+# değiştirmez, yalnız yanıltıcı bir "erişilebilir" izlenimi verir. Canlı
+# taslağın farkındalığı SQL'den değil, sohbetin başındaki `[Rota haritası
+# ekranı — …]` bağlam notundan gelir (bkz. instructions.md).
 
 DEFAULT_ROW_LIMIT = 1000
 
