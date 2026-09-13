@@ -50,7 +50,7 @@ import { useRaporTazeligi } from "@/hooks/useMusteriRaporlama";
 import { ROTA_REPORT_ID, type RotaAraci, type RotaDuragi } from "@/hooks/useRotaPlani";
 import { useSurukleblirKart } from "@/hooks/useSurukleblirKart";
 import { googleMapsDirUrl } from "@/lib/depot";
-import { formatKg, formatNumber } from "@/lib/format";
+import { formatNumber } from "@/lib/format";
 import { dolulukHesapla } from "@/lib/rota/atama";
 import { bolgeRengi } from "@/lib/rota/bolge-renk";
 import { kriterleriHesapla, type KriterAnahtari } from "@/lib/rota/kriter";
@@ -828,7 +828,8 @@ export default function RotaHaritasiSayfasi() {
                               {b.ad}
                             </span>
                             <span className="shrink-0 font-mono text-[11.5px] text-muted-foreground tabular-nums">
-                              {formatNumber(b.duraklar.length)} · {formatKg(Math.round(b.kg))}
+                              {formatNumber(b.duraklar.length)} ·{" "}
+                              {formatNumber(Math.round(b.cuvalEsdeger))} çuval
                             </span>
                           </button>
                         </li>
@@ -906,7 +907,14 @@ export default function RotaHaritasiSayfasi() {
                     {yuklu.map((r) => {
                       const secili = gecerliOdak === r.aracKod;
                       const solgun = gecerliOdak != null && !secili;
-                      const kg = r.duraklar.reduce((t, d) => t + d.kg, 0);
+                      const arac = canli.aracBul(r.aracKod);
+                      const doluluk = arac ? dolulukHesapla(arac, r.duraklar) : null;
+                      const yuzde =
+                        doluluk == null
+                          ? null
+                          : doluluk.baglayiciKisit === "agirlik"
+                            ? (doluluk.kgYuzde ?? doluluk.cuvalYuzde)
+                            : doluluk.cuvalYuzde;
                       return (
                         <li key={r.aracKod}>
                           <button
@@ -933,7 +941,9 @@ export default function RotaHaritasiSayfasi() {
                               {r.aracAd}
                             </span>
                             <span className="shrink-0 font-mono text-[11.5px] text-muted-foreground tabular-nums">
-                              {formatNumber(r.duraklar.length)} · {formatKg(Math.round(kg))}
+                              {formatNumber(r.duraklar.length)} ·{" "}
+                              {formatNumber(Math.round(doluluk?.cuvalEsdeger ?? 0))} çuval
+                              {yuzde != null ? ` · %${Math.round(yuzde)}` : ""}
                             </span>
                           </button>
                         </li>
