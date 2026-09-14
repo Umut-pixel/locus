@@ -943,9 +943,15 @@ export default function RotaHaritasiSayfasi() {
             </Link>
           </div>
 
+          {/*
+            SABİT genişlik, `max-w` değil: kart içeriğe göre büzülüyordu ve
+            sekme değişince genişliği zıplıyordu (Kayıtlı listesi Araçlar'dan
+            dar). Sağ sütundaki kartlarla aynı ölçü — iki taraf aynı hizada
+            dursun.
+          */}
           <div
             className={cn(
-              "pointer-events-auto flex min-w-0 max-w-[20rem] flex-col overflow-hidden rounded-2xl",
+              "pointer-events-auto flex w-[min(100%,20rem)] min-w-0 flex-col overflow-hidden rounded-2xl",
               CAM
             )}
           >
