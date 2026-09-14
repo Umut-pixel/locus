@@ -3,8 +3,8 @@
   "nodes": [
     {
       "parameters": {
-        "content": "## Google Places Prospecting\n\nConfig: supabaseUrl + skipDays. **Secret yok.**\nNearby/Text/Deep*: Header Auth credential (Google Places).\n\n**Supabase = HTTP Request + Predefined Credential Type `supabaseApi`**\n(yerlesik Supabase node'unda upsert yok - bkz. backend/n8n/README.md)\nIce aktardiktan sonra su 7 node'da Supabase API credential'ini sec:\nFetch Ilce Merkezleri / Fetch Musteriler / Fetch Existing Place Ids /\nInsert New / Update Fresh Fields / Mark Son Tarama / Mark Yogun Bolge.\nCredential host'u `{{ $credentials.host }}` olarak URL'de kullaniliyor.\n\n**Pacing (600 Nearby/dk limiti):**\n- Split batchSize=1\n- HTTP batchInterval=250ms (~4 req/sn, limitin altinda)\n- Retry On Fail KAPALI (429'u hemen tekrar deneme)\n\nDeepen: kirpilan hucre radius/2 x4 (max depth 2).\nMark: 429 ilcelere son_tarama yazmaz; kirpilanlari yogun_bolge=true yapar.\n\nSplitInBatches v3: [0]=done, [1]=loop.\n",
-        "height": 460,
+        "content": "## Google Places Prospecting\n\nConfig: supabaseUrl + skipDays. **Secret yok.**\nNearby/Text/Deep*: Header Auth credential (Google Places).\n\n**Supabase = HTTP Request + Predefined Credential Type `supabaseApi`**\n(yerlesik Supabase node'unda upsert yok - bkz. backend/n8n/README.md)\nIce aktardiktan sonra su 7 node'da Supabase API credential'ini sec:\nFetch Ilce Merkezleri / Fetch Musteriler / Fetch Existing Place Ids /\nInsert New / Update Fresh Fields / Mark Son Tarama / Mark Yogun Bolge.\nCredential host'u `{{ $credentials.host }}` olarak URL'de kullaniliyor.\n\n**Pacing (600 Nearby/dk limiti):**\n- Split batchSize=1\n- HTTP batchInterval=250ms (~4 req/sn, limitin altinda)\n- Retry On Fail KAPALI (429'u hemen tekrar deneme)\n\nDeepen: kirpilan hucre radius/2 x4 (max depth 2).\nMark: 429 ilcelere son_tarama yazmaz; kirpilanlari yogun_bolge=true yapar.\n\nSplitInBatches v3: [0]=done, [1]=loop.\n\n**Il bazli tarama (harita \"Potansiyel musteri ara\")**\nWebhook Potansiyel Tarama (POST /webhook/potansiyel-tarama, Auth=None)\n-> Guard Tarama Secret (X-N8N-Sync-Secret) -> Config.\nConfig.il dolu ise Build Nearby Cells yalniz o ili kurar; bos ise\ncron davranisi birebir ayni. Config.runId dolu ise Summary sonrasi\nComplete Tarama satiri PATCH'ler (potansiyel_taramalari).\nmaxCells (varsayilan 600) ilce granulaitesinde sigorta.\n",
+        "height": 640,
         "width": 420,
         "color": 4
       },
@@ -61,8 +61,26 @@
             {
               "id": "c_skip",
               "name": "skipDays",
-              "value": "25",
+              "value": "={{ $json.skipDays || '25' }}",
               "type": "string"
+            },
+            {
+              "id": "c_il",
+              "name": "il",
+              "value": "={{ $json.il || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "c_run",
+              "name": "runId",
+              "value": "={{ $json.runId || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "c_max",
+              "name": "maxCells",
+              "value": "={{ $json.maxCells || 600 }}",
+              "type": "number"
             }
           ]
         },
@@ -79,7 +97,7 @@
     },
     {
       "parameters": {
-        "jsCode": "\nconst staticData = $getWorkflowStaticData('global');\nstaticData.placesById = {};\nstaticData.nearbyLogs = [];\nconst cfg = $input.first().json;\nreturn [{ json: { ...cfg } }];\n"
+        "jsCode": "\nconst staticData = $getWorkflowStaticData('global');\nstaticData.placesById = {};\nstaticData.nearbyLogs = [];\n// placesApiErrors da BURADA sifirlanmali: Mark Scanned Prep bu listeden\n// 429 kara listesi kuruyor. Kumulatif kalirsa bir kez 429 alan ilceye\n// bir daha asla son_tarama yazilmaz, sonsuza dek yeniden taranir.\nstaticData.placesApiErrors = [];\nconst cfg = $input.first().json;\nreturn [{ json: { ...cfg } }];\n"
       },
       "id": "8dd6e7fe-17ce-440e-b6ee-2221c510d6ba",
       "name": "Reset Static Accumulator",
@@ -92,7 +110,7 @@
     },
     {
       "parameters": {
-        "url": "={{ $credentials.host }}/rest/v1/ilce_merkezleri?select=*&limit=500",
+        "url": "={{ $credentials.host }}/rest/v1/ilce_merkezleri?select=*&limit=2000",
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "supabaseApi",
         "sendHeaders": true,
@@ -123,7 +141,7 @@
     },
     {
       "parameters": {
-        "jsCode": "\n// n8n HTTP Request JSON dizi donerse cogunlukla her satiri ayri item yapar.\n// Bazen de tek item icinde dizi / fullResponse.body gelir.\nfunction asRows(inputItems) {\n  if (!inputItems.length) return [];\n\n  // Cok item: her biri bir ilce satiri\n  if (inputItems.length > 1) {\n    return inputItems.map((i) => i.json).filter((r) => r && r.il && r.ilce);\n  }\n\n  let body = inputItems[0].json;\n  if (Array.isArray(body)) return body;\n  if (body && Array.isArray(body.body)) return body.body;\n  if (body && typeof body.body === 'string') {\n    try {\n      const parsed = JSON.parse(body.body);\n      if (Array.isArray(parsed)) return parsed;\n    } catch (_) {}\n  }\n  if (typeof body === 'string') {\n    try {\n      const parsed = JSON.parse(body);\n      if (Array.isArray(parsed)) return parsed;\n      body = parsed;\n    } catch (_) {}\n  }\n  // Tek item, tek satir (limit=1 gibi)\n  if (body && body.il && body.ilce) return [body];\n  // PostgREST hata objesi\n  if (body && (body.message || body.code || body.error)) {\n    const msg = String(body.message || body.error || '');\n    if (/invalid api key|jwt|jws|no api key/i.test(msg)) {\n      throw new Error(\n        'Supabase kimlik dogrulamasi basarisiz: ' + msg +\n        ' | Supabase API credential secili degil. Su 7 HTTP node icin ' +\n        'Authentication = Predefined Credential Type -> Supabase API sec: ' +\n        'Fetch Ilce Merkezleri, Fetch Musteriler, Fetch Existing Place Ids, ' +\n        'Insert New, Update Fresh Fields, Mark Son Tarama, Mark Yogun Bolge.'\n      );\n    }\n    throw new Error('ilce_merkezleri fetch hata: ' + JSON.stringify(body).slice(0, 400));\n  }\n  throw new Error(\n    'ilce_merkezleri dizi degil; keys=' +\n      Object.keys(body || {}).slice(0, 20).join(',') +\n      ' typeof=' + typeof body\n  );\n}\n\nconst rows = asRows($input.all());\nif (rows.length < 100) {\n  throw new Error('Beklenen ~134 ilce, gelen=' + rows.length);\n}\nreturn rows.map((r) => ({ json: r }));\n"
+        "jsCode": "\n// n8n HTTP Request JSON dizi donerse cogunlukla her satiri ayri item yapar.\n// Bazen de tek item icinde dizi / fullResponse.body gelir.\nfunction asRows(inputItems) {\n  if (!inputItems.length) return [];\n\n  // Cok item: her biri bir ilce satiri\n  if (inputItems.length > 1) {\n    return inputItems.map((i) => i.json).filter((r) => r && r.il && r.ilce);\n  }\n\n  let body = inputItems[0].json;\n  if (Array.isArray(body)) return body;\n  if (body && Array.isArray(body.body)) return body.body;\n  if (body && typeof body.body === 'string') {\n    try {\n      const parsed = JSON.parse(body.body);\n      if (Array.isArray(parsed)) return parsed;\n    } catch (_) {}\n  }\n  if (typeof body === 'string') {\n    try {\n      const parsed = JSON.parse(body);\n      if (Array.isArray(parsed)) return parsed;\n      body = parsed;\n    } catch (_) {}\n  }\n  // Tek item, tek satir (limit=1 gibi)\n  if (body && body.il && body.ilce) return [body];\n  // PostgREST hata objesi\n  if (body && (body.message || body.code || body.error)) {\n    const msg = String(body.message || body.error || '');\n    if (/invalid api key|jwt|jws|no api key/i.test(msg)) {\n      throw new Error(\n        'Supabase kimlik dogrulamasi basarisiz: ' + msg +\n        ' | Supabase API credential secili degil. Su 7 HTTP node icin ' +\n        'Authentication = Predefined Credential Type -> Supabase API sec: ' +\n        'Fetch Ilce Merkezleri, Fetch Musteriler, Fetch Existing Place Ids, ' +\n        'Insert New, Update Fresh Fields, Mark Son Tarama, Mark Yogun Bolge.'\n      );\n    }\n    throw new Error('ilce_merkezleri fetch hata: ' + JSON.stringify(body).slice(0, 400));\n  }\n  throw new Error(\n    'ilce_merkezleri dizi degil; keys=' +\n      Object.keys(body || {}).slice(0, 20).join(',') +\n      ' typeof=' + typeof body\n  );\n}\n\nconst rows = asRows($input.all());\n// Taban, sessiz veri kaybinin tek tripwire'i: PostgREST limit/max-rows\n// tavanina takilirsa ulkenin yarisi taramaya gorunmez olur.\nif (rows.length < 900) {\n  throw new Error('Beklenen ~973 ilce, gelen=' + rows.length + ' (Fetch Ilce Merkezleri limit/Supabase max-rows kontrol et)');\n}\nreturn rows.map((r) => ({ json: r }));\n"
       },
       "id": "6b0c0f62-119f-41cf-a180-640bbab17102",
       "name": "Expand Ilce Rows",
@@ -136,7 +154,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const cfg = $('Config').first().json;\nconst rows = $input.all().map(i => i.json).filter(r => r.lat != null && r.lon != null);\nconst OFFSET = 0.018;\nconst skipDays = Number(cfg.skipDays);\nconst SKIP_MS = (Number.isFinite(skipDays) ? skipDays : 25) * 24 * 60 * 60 * 1000;\nconst now = Date.now();\nconst YOGUN_KEY = 'yo\\u011fun_bolge';\nfunction isFresh(sonTarama) {\n  if (!sonTarama) return false;\n  const t = new Date(sonTarama).getTime();\n  if (!Number.isFinite(t)) return false;\n  return (now - t) < SKIP_MS;\n}\nconst staticData = $getWorkflowStaticData('global');\nstaticData.scannedDistricts = [];\nstaticData.clippedDistricts = [];\nconst seen = new Set();\nconst cells = [];\nlet skipped = 0;\nfor (const r of rows) {\n  const lat = Number(r.lat);\n  const lon = Number(r.lon);\n  const yogun = !!(r[YOGUN_KEY] ?? r.yogun_bolge ?? r.yogunBolge);\n  const son = r.son_tarama ?? r.sonTarama ?? null;\n  if (isFresh(son)) { skipped += 1; continue; }\n  const key = `${r.il}|${r.ilce}`;\n  if (!seen.has(key)) {\n    seen.add(key);\n    staticData.scannedDistricts.push({ il: r.il, ilce: r.ilce });\n  }\n  if (yogun) {\n    const offsets = [[-OFFSET,-OFFSET],[-OFFSET,OFFSET],[OFFSET,-OFFSET],[OFFSET,OFFSET]];\n    offsets.forEach((o, idx) => {\n      cells.push({\n        supabaseUrl: cfg.supabaseUrl,\n        il: r.il, ilce: r.ilce, yogun: true, cellKind: 'nearby_sub', cellIndex: idx,\n        latitude: lat + o[0], longitude: lon + o[1], radius: 3000, depth: 0,\n      });\n    });\n  } else {\n    cells.push({\n      supabaseUrl: cfg.supabaseUrl,\n      il: r.il, ilce: r.ilce, yogun: false, cellKind: 'nearby', cellIndex: 0,\n      latitude: lat, longitude: lon, radius: 5000, depth: 0,\n    });\n  }\n}\nstaticData.skipAll = cells.length === 0;\nstaticData.skippedDistrictCount = skipped;\nstaticData.queuedDistrictCount = seen.size;\nstaticData.initialCellCount = cells.length;\nstaticData.yogunDistrictCount = [...seen].filter(k => {\n  // counted via cells with yogun flag\n  return false;\n}).length;\nstaticData.yogunCellCount = cells.filter(c => c.yogun).length;\nstaticData.sparseCellCount = cells.filter(c => !c.yogun).length;\n\nif (!cells.length) {\n  return [{ json: { skipAll: true, supabaseUrl: cfg.supabaseUrl,\n    skippedDistrictCount: skipped, queuedDistrictCount: 0, message: 'Tum ilceler skip' } }];\n}\nreturn cells.map(c => ({ json: c }));\n"
+        "jsCode": "const cfg = $('Config').first().json;\nconst rows = $input.all().map(i => i.json).filter(r => r.lat != null && r.lon != null);\nconst OFFSET = 0.018;\nconst skipDays = Number(cfg.skipDays);\nconst SKIP_MS = (Number.isFinite(skipDays) ? skipDays : 25) * 24 * 60 * 60 * 1000;\nconst now = Date.now();\nconst YOGUN_KEY = 'yoğun_bolge';\n\n// Tek il taramasi (webhook). Cron/manual'da cfg.il bos -> filtre yok, davranis aynen eskisi.\n// Ham !== yerine katlanmis karsilastirma: GeoJSON hazirligi / kanonik liste / DB\n// arasinda bir kodlama kaymasi sessiz sifir-eslesmeye donusmesin.\nconst norm = (s) => String(s ?? '').toLocaleLowerCase('tr-TR').replace(/ı/g, 'i').toUpperCase().trim();\nconst ilFilter = norm(cfg.il);\n\n// Gunde 2 tarama KOSU sayisini sinirlar, CAGRI sayisini degil. Yeni iller\n// yogun_bolge=false ile basladigi icin ilk tarama ilce basina 21x hucreye kadar\n// buyuyebiliyor. Sigorta ILCE granulaitesinde: hucre ortasindan kesmek\n// scannedDistricts ile tutarsizlasir ve kesilen ilceye yine son_tarama yazilir.\nconst maxCells = Number(cfg.maxCells) > 0 ? Number(cfg.maxCells) : 600;\n\nfunction isFresh(sonTarama) {\n  if (!sonTarama) return false;\n  const t = new Date(sonTarama).getTime();\n  if (!Number.isFinite(t)) return false;\n  return (now - t) < SKIP_MS;\n}\nconst staticData = $getWorkflowStaticData('global');\nstaticData.scannedDistricts = [];\nstaticData.clippedDistricts = [];\nconst seen = new Set();\nconst cells = [];\nlet skipped = 0;\nlet ilDisi = 0;\nlet atlanan = 0;\nfor (const r of rows) {\n  if (ilFilter && norm(r.il) !== ilFilter) { ilDisi += 1; continue; }\n  const lat = Number(r.lat);\n  const lon = Number(r.lon);\n  const yogun = !!(r[YOGUN_KEY] ?? r.yogun_bolge ?? r.yogunBolge);\n  const son = r.son_tarama ?? r.sonTarama ?? null;\n  if (isFresh(son)) { skipped += 1; continue; }\n  const key = `${r.il}|${r.ilce}`;\n  const yeniIlce = !seen.has(key);\n  const ilceHucre = yogun ? 4 : 1;\n  if (cells.length + ilceHucre > maxCells) { if (yeniIlce) atlanan += 1; continue; }\n  if (yeniIlce) {\n    seen.add(key);\n    staticData.scannedDistricts.push({ il: r.il, ilce: r.ilce });\n  }\n  if (yogun) {\n    const offsets = [[-OFFSET,-OFFSET],[-OFFSET,OFFSET],[OFFSET,-OFFSET],[OFFSET,OFFSET]];\n    offsets.forEach((o, idx) => {\n      cells.push({\n        supabaseUrl: cfg.supabaseUrl,\n        il: r.il, ilce: r.ilce, yogun: true, cellKind: 'nearby_sub', cellIndex: idx,\n        latitude: lat + o[0], longitude: lon + o[1], radius: 3000, depth: 0,\n      });\n    });\n  } else {\n    cells.push({\n      supabaseUrl: cfg.supabaseUrl,\n      il: r.il, ilce: r.ilce, yogun: false, cellKind: 'nearby', cellIndex: 0,\n      latitude: lat, longitude: lon, radius: 5000, depth: 0,\n    });\n  }\n}\nstaticData.skipAll = cells.length === 0;\nstaticData.skippedDistrictCount = skipped;\nstaticData.queuedDistrictCount = seen.size;\nstaticData.initialCellCount = cells.length;\nstaticData.yogunCellCount = cells.filter(c => c.yogun).length;\nstaticData.sparseCellCount = cells.filter(c => !c.yogun).length;\nstaticData.ilFiltresi = ilFilter ? String(cfg.il) : null;\nstaticData.ilDisiIlceSayisi = ilDisi;\nstaticData.atlananIlceSayisi = atlanan;\n\nif (!cells.length) {\n  return [{ json: { skipAll: true, supabaseUrl: cfg.supabaseUrl,\n    skippedDistrictCount: skipped, queuedDistrictCount: 0,\n    ilFiltresi: staticData.ilFiltresi, atlananIlceSayisi: atlanan,\n    message: ilFilter ? `${cfg.il}: taranacak ilce yok` : 'Tum ilceler skip' } }];\n}\nreturn cells.map(c => ({ json: c }));\n"
       },
       "id": "d644e2b4-9717-4716-87bf-0bd8e019f541",
       "name": "Build Nearby Cells",
@@ -382,7 +400,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const staticData = $getWorkflowStaticData('global');\nconst clipped = (staticData.nearbyLogs || []).filter(l => l.clipped);\nconst placeTotal = Object.keys(staticData.placesById || {}).length;\nconst apiErrors = staticData.placesApiErrors || [];\nconst nearbyOk = (staticData.nearbyLogs || []).filter(l => l.statusCode === 200).length;\nconst nearby429 = apiErrors.filter(e => e.statusCode === 429).length;\nlet markStatus = null;\nfor (const it of $input.all()) markStatus = it.json.statusCode || markStatus;\nconst initial = staticData.initialCellCount || 0;\nconst d1 = staticData.deepenPass1Count || 0;\nconst d2 = staticData.deepenPass2Count || 0;\nreturn [{ json: {\n  skipAll: !!staticData.skipAll,\n  skippedDistrictCount: staticData.skippedDistrictCount || 0,\n  queuedDistrictCount: staticData.queuedDistrictCount || 0,\n  // Grid muhasebesi — HTTP oncesi uretilen hucre sayilari\n  initialCellCount: initial,\n  sparseCellCount: staticData.sparseCellCount || 0,\n  yogunCellCount: staticData.yogunCellCount || 0,\n  deepenPass1Cells: d1,\n  deepenPass2Cells: d2,\n  plannedNearbyCellsTotal: initial + d1 + d2,\n  nearbyLogCount: (staticData.nearbyLogs || []).length,\n  nearbyHttp200: nearbyOk,\n  nearbyHttp429: nearby429,\n  placeTotal,\n  newPlaceCount: (staticData.yeniPlaces || []).length,\n  existingPlaceCount: (staticData.mevcutPlaces || []).length,\n  placesApiErrorCount: apiErrors.length,\n  placesApiErrorSample: apiErrors.slice(0, 3),\n  clippedCellCount: clipped.length,\n  clippedDistrictCount: (staticData.clippedDistricts || []).length,\n  clippedDistricts: staticData.clippedDistricts || [],\n  remainingClippedAtMaxDepth: clipped.filter(l => (Number(l.depth)||0) >= 2 && l.clipped).length,\n  markedScanned: (staticData.scannedDistricts || []).length,\n  markHttpStatus: markStatus,\n  pacing: { batchSize: 1, batchIntervalMs: 250, retryOnFail: false },\n  message: `cells init=${initial} deep=${d1}+${d2} places=${placeTotal} 429=${nearby429}`,\n}}];\n"
+        "jsCode": "const staticData = $getWorkflowStaticData('global');\nconst clipped = (staticData.nearbyLogs || []).filter(l => l.clipped);\nconst placeTotal = Object.keys(staticData.placesById || {}).length;\nconst apiErrors = staticData.placesApiErrors || [];\nconst nearbyOk = (staticData.nearbyLogs || []).filter(l => l.statusCode === 200).length;\nconst nearby429 = apiErrors.filter(e => e.statusCode === 429).length;\nlet markStatus = null;\nfor (const it of $input.all()) markStatus = it.json.statusCode || markStatus;\nconst initial = staticData.initialCellCount || 0;\nconst d1 = staticData.deepenPass1Count || 0;\nconst d2 = staticData.deepenPass2Count || 0;\nreturn [{ json: {\n  skipAll: !!staticData.skipAll,\n  skippedDistrictCount: staticData.skippedDistrictCount || 0,\n  queuedDistrictCount: staticData.queuedDistrictCount || 0,\n  // Grid muhasebesi — HTTP oncesi uretilen hucre sayilari\n  initialCellCount: initial,\n  sparseCellCount: staticData.sparseCellCount || 0,\n  yogunCellCount: staticData.yogunCellCount || 0,\n  deepenPass1Cells: d1,\n  deepenPass2Cells: d2,\n  plannedNearbyCellsTotal: initial + d1 + d2,\n  nearbyLogCount: (staticData.nearbyLogs || []).length,\n  nearbyHttp200: nearbyOk,\n  nearbyHttp429: nearby429,\n  placeTotal,\n  newPlaceCount: (staticData.yeniPlaces || []).length,\n  existingPlaceCount: (staticData.mevcutPlaces || []).length,\n  placesApiErrorCount: apiErrors.length,\n  placesApiErrorSample: apiErrors.slice(0, 3),\n  clippedCellCount: clipped.length,\n  clippedDistrictCount: (staticData.clippedDistricts || []).length,\n  clippedDistricts: staticData.clippedDistricts || [],\n  remainingClippedAtMaxDepth: clipped.filter(l => (Number(l.depth)||0) >= 2 && l.clipped).length,\n  markedScanned: (staticData.scannedDistricts || []).length,\n  ilFiltresi: staticData.ilFiltresi || null,\n  atlananIlceSayisi: staticData.atlananIlceSayisi || 0,\n  markHttpStatus: markStatus,\n  pacing: { batchSize: 1, batchIntervalMs: 250, retryOnFail: false },\n  message: `${staticData.ilFiltresi || 'tum-iller'} cells init=${initial} deep=${d1}+${d2} places=${placeTotal} 429=${nearby429}`,\n}}];\n"
       },
       "id": "269bfb38-a8c0-438c-8886-9e401566446e",
       "name": "Summary",
@@ -1222,6 +1240,117 @@
         5072,
         208
       ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "potansiyel-tarama",
+        "options": {}
+      },
+      "id": "f1a2b3c4-d5e6-4f70-8a91-0b1c2d3e4f50",
+      "name": "Webhook Potansiyel Tarama",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -3216,
+        560
+      ],
+      "webhookId": "f1a2b3c4-d5e6-4f70-8a91-0b1c2d3e4f51"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Panorama Otomasyon'daki 'Guard Manuel Secret' ile ayni desen:\n// Webhook Authentication=None, sir BURADA dogrulaniyor.\nconst item = $input.first();\nconst headers = (item.json && item.json.headers) || {};\nfunction pick(name) {\n  const hedef = String(name).toLowerCase();\n  for (const k of Object.keys(headers)) {\n    if (String(k).toLowerCase() === hedef) return String(headers[k] ?? '').trim();\n  }\n  return '';\n}\nconst given = pick('x-n8n-sync-secret') || pick('authorization').replace(/^Bearer\\s+/i, '').trim();\nconst expected = String(\n  ($vars && $vars.POTANSIYEL_TARAMA_SECRET) ||\n  ($env && $env.N8N_POTANSIYEL_TARAMA_WEBHOOK_SECRET) || ''\n).trim();\nif (expected) {\n  if (given !== expected) throw new Error('Potansiyel tarama yetkisiz');\n} else if (!given) {\n  throw new Error('X-N8N-Sync-Secret header gerekli');\n}\n\n// GET yedek yolu govde tasiyamaz -> query'den de oku.\nconst body = (item.json && item.json.body) || {};\nconst query = (item.json && item.json.query) || {};\nconst il = String(body.il ?? query.il ?? '').trim();\nconst plaka = Number(body.plaka ?? query.plaka) || 0;\nconst runId = String(body.runId ?? query.runId ?? '').trim();\nconst skipDays = String(body.skipDays ?? query.skipDays ?? '').trim();\nconst maxCells = Number(body.maxCells ?? query.maxCells) || 0;\nif (!il) throw new Error('il gerekli (govde veya query)');\n\nreturn [{ json: {\n  ok: true,\n  manual: true,\n  il,\n  plaka,\n  runId,\n  skipDays: skipDays || '25',\n  maxCells: maxCells || 600,\n} }];\n"
+      },
+      "id": "f1a2b3c4-d5e6-4f70-8a91-0b1c2d3e4f52",
+      "name": "Guard Tarama Secret",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2992,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "has-run-id",
+              "leftValue": "={{ $('Config').first().json.runId }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "f1a2b3c4-d5e6-4f70-8a91-0b1c2d3e4f53",
+      "name": "Has Run Id?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        5744,
+        288
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $credentials.host }}/rest/v1/potansiyel_taramalari?id=eq.{{ $('Config').first().json.runId }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=minimal"
+            },
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ durum: 'completed', tamamlandi_at: new Date().toISOString(), ozet: $json, yeni_potansiyel_sayisi: $json.newPlaceCount ?? 0, taranan_ilce_sayisi: $json.markedScanned ?? 0 }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "f1a2b3c4-d5e6-4f70-8a91-0b1c2d3e4f54",
+      "name": "Complete Tarama",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        5968,
+        192
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
     }
   ],
   "pinData": {},
@@ -1850,6 +1979,51 @@
             "index": 0
           }
         ]
+      ]
+    },
+    "Webhook Potansiyel Tarama": {
+      "main": [
+        [
+          {
+            "node": "Guard Tarama Secret",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Guard Tarama Secret": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Summary": {
+      "main": [
+        [
+          {
+            "node": "Has Run Id?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Run Id?": {
+      "main": [
+        [
+          {
+            "node": "Complete Tarama",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
       ]
     }
   },

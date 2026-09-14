@@ -11,7 +11,10 @@ import {
   type PanelAnchor,
 } from "@/components/map/CustomerDetailPanel";
 import { FilterPanel } from "@/components/sidebar/FilterPanel";
+import { IlSecimBari } from "@/components/map/IlSecimBari";
 import { MapLayersControl } from "@/components/map/MapLayersControl";
+import { PotansiyelAraLauncher } from "@/components/map/PotansiyelAraLauncher";
+import { TaramaOnayKarti } from "@/components/map/TaramaOnayKarti";
 import { RiskLegend } from "@/components/map/RiskLegend";
 import { PotansiyelDetailCard } from "@/components/map/PotansiyelDetailCard";
 import { Card, CardContent } from "@/components/ui/card";
@@ -26,13 +29,16 @@ import { usePanoramaSyncStatus } from "@/hooks/usePanoramaSyncStatus";
 import { usePotansiyelFavoriler } from "@/hooks/usePotansiyelFavoriler";
 import { usePotansiyelGizlenenler } from "@/hooks/usePotansiyelGizlenenler";
 import { usePotansiyelHarita } from "@/hooks/usePotansiyelHarita";
+import { usePotansiyelTarama } from "@/hooks/usePotansiyelTarama";
 import type { GizlenenItem } from "@/components/sidebar/GizlenenList";
 import type { SonraBakItem } from "@/components/sidebar/PotansiyelFavoriList";
 import { musterilerToGeoJSON } from "@/lib/geojson";
 import { boundsForSehir } from "@/lib/import/cities";
 import type { UploadResult } from "@/lib/import/types";
+import { ilBounds, ilSinirlariniYukle } from "@/lib/map-il-layers";
 import { filterRowsLocally } from "@/lib/map-filter";
 import { potansiyellerToGeoJSON } from "@/lib/potansiyel-geojson";
+import type { IlOnBilgi, TaramaOnizleme } from "@/lib/potansiyel-tarama";
 import {
   riskLabelsForMode,
   riskShortLabelsForMode,
@@ -131,7 +137,11 @@ export default function Home() {
   const {
     data: potansiyelRows,
     loading: potansiyelLoading,
+    // `refresh` bilerek aliniyor: modul seviyesinde cache var, tarama bitince
+    // duz re-render bayat veri gosterirdi (usePanoramaSyncStatus ile ayni idiom).
+    refresh: refreshPotansiyel,
   } = usePotansiyelHarita({ enabled: showPotansiyel });
+
 
   const {
     items: potansiyelFavoriler,
@@ -232,6 +242,137 @@ export default function Home() {
     null
   );
   const [panelAnchor, setPanelAnchor] = useState<PanelAnchor | null>(null);
+
+  // --- "Potansiyel musteri ara" modu -------------------------------------
+  // kapali -> yukleniyor (il sinirlari) -> seciliyor -> onay -> gonderiliyor
+  const [ilModu, setIlModu] = useState<
+    "kapali" | "yukleniyor" | "seciliyor" | "onay" | "gonderiliyor"
+  >("kapali");
+  const [secilenPlaka, setSecilenPlaka] = useState<number | null>(null);
+  const [ilOnBilgi, setIlOnBilgi] = useState<IlOnBilgi | null>(null);
+  const [onayHata, setOnayHata] = useState<string | null>(null);
+  const [ilBoundsFocus, setIlBoundsFocus] = useState<{
+    bounds: [[number, number], [number, number]];
+    nonce: number;
+  } | null>(null);
+  const tarama = usePotansiyelTarama();
+
+  const ilModuKapat = useCallback(() => {
+    setIlModu("kapali");
+    setSecilenPlaka(null);
+    setIlOnBilgi(null);
+    setOnayHata(null);
+    setIlBoundsFocus(null);
+  }, []);
+
+  const handleIlModuToggle = useCallback(() => {
+    if (ilModu !== "kapali") {
+      ilModuKapat();
+      return;
+    }
+    // Mod harita ustunu devraliyor: acik kartlar kapansin.
+    setSelectedMusteri(null);
+    setPanelAnchor(null);
+    setSelectedPotansiyel(null);
+    setPotansiyelAnchor(null);
+    setIlModu("yukleniyor");
+    tarama.kotayiTazele();
+    void ilSinirlariniYukle()
+      .then(() => setIlModu((m) => (m === "yukleniyor" ? "seciliyor" : m)))
+      .catch(() => {
+        setOnayHata("Il sinirlari yuklenemedi.");
+        setIlModu((m) => (m === "yukleniyor" ? "seciliyor" : m));
+      });
+  }, [ilModu, ilModuKapat, tarama]);
+
+  const handleIlSec = useCallback((plaka: number) => {
+    setSecilenPlaka(plaka);
+    setIlOnBilgi(null);
+    setOnayHata(null);
+    setIlModu("onay");
+
+    void ilSinirlariniYukle().then((fc) => {
+      const kutu = ilBounds(fc, plaka);
+      if (kutu) {
+        setIlBoundsFocus({
+          bounds: kutu as [[number, number], [number, number]],
+          nonce: Date.now(),
+        });
+      }
+    });
+
+    void fetch(`/api/potansiyel/tarama?plaka=${plaka}`)
+      .then((r) => r.json() as Promise<TaramaOnizleme & { error?: string }>)
+      .then((g) => {
+        if (g.error) {
+          setOnayHata(g.error);
+          return;
+        }
+        if (g.il) setIlOnBilgi(g.il);
+      })
+      .catch(() => setOnayHata("Il bilgisi okunamadi."));
+  }, []);
+
+  const handleTaramaBaslat = useCallback(async () => {
+    if (secilenPlaka == null || ilOnBilgi == null) return;
+    setIlModu("gonderiliyor");
+    setOnayHata(null);
+    try {
+      const res = await fetch("/api/potansiyel/tarama", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plaka: secilenPlaka }),
+      });
+      const govde = (await res.json().catch(() => null)) as
+        | { ok?: boolean; runId?: string; il?: string; error?: string }
+        | null;
+
+      if (!res.ok || !govde?.runId) {
+        // 409/429 satir ici gosterilmeli: kullanici neden reddedildigini
+        // kartta gorsun, toast'a dusen bir hata baglami kaybettirirdi.
+        setOnayHata(govde?.error ?? "Tarama baslatilamadi.");
+        setIlModu("onay");
+        return;
+      }
+
+      tarama.izle({
+        runId: govde.runId,
+        il: govde.il ?? ilOnBilgi.ad,
+        plaka: secilenPlaka,
+        basladiAt: Date.now(),
+        planlananIlce: ilOnBilgi.taranacakIlceSayisi,
+      });
+      ilModuKapat();
+    } catch {
+      setOnayHata("Tarama baslatilamadi (ag hatasi).");
+      setIlModu("onay");
+    }
+  }, [secilenPlaka, ilOnBilgi, tarama, ilModuKapat]);
+
+  // Escape ile moddan cik.
+  useEffect(() => {
+    if (ilModu === "kapali") return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") ilModuKapat();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [ilModu, ilModuKapat]);
+
+  // Tarama bitince: katmanı aç + modül cache'ini geçersiz kıl.
+  // setTimeout(…, 0): React Compiler effect içinde senkron setState'i
+  // cascading render riski diye reddediyor (useRaporCekme.tsx:229-238 ile
+  // aynı çözüm). Bir tik gecikmenin görünür etkisi yok.
+  const taramaAsamasi = tarama.run?.asama ?? null;
+  useEffect(() => {
+    if (taramaAsamasi !== "bitti") return;
+    const id = window.setTimeout(() => {
+      setShowPotansiyel(true);
+      refreshPotansiyel();
+    }, 0);
+    return () => window.clearTimeout(id);
+  }, [taramaAsamasi, refreshPotansiyel]);
+
   const [highlightedRutKod, setHighlightedRutKod] = useState<string | null>(null);
   const [importOpen, setImportOpen] = useState(false);
   // Değer artık UI'da okunmuyor (AI paneli kaldırıldı) — setter'lar yükleme
@@ -877,6 +1018,10 @@ export default function Home() {
           potansiyelVisible={showPotansiyel}
           selectedPotansiyelId={selectedPotansiyel?.id ?? null}
           showTipRing={showTipRing}
+          ilSecimAktif={ilModu !== "kapali"}
+          ilSecili={secilenPlaka}
+          ilBoundsFocus={ilBoundsFocus}
+          onIlSec={handleIlSec}
           onSelectMusteri={handleSelectMusteri}
           onSelectPotansiyel={handleSelectPotansiyel}
         />
@@ -927,16 +1072,24 @@ export default function Home() {
           </div>
 
           <div className="mb-[max(2.25rem,env(safe-area-inset-bottom))] flex shrink-0 items-end justify-between gap-2 sm:mb-8">
-            <MapLayersControl
-              riskMode={riskMode}
-              onRiskModeChange={handleRiskModeChange}
-              tipFilter={tipFilter}
-              onTipFilterChange={handleTipFilterChange}
-              potansiyelActive={showPotansiyel}
-              onPotansiyelChange={handleShowPotansiyelChange}
-              potansiyelCount={showPotansiyel ? potansiyelRows.length : null}
-              potansiyelLoading={showPotansiyel && potansiyelLoading}
-            />
+            <div className="flex items-end gap-2">
+              <MapLayersControl
+                riskMode={riskMode}
+                onRiskModeChange={handleRiskModeChange}
+                tipFilter={tipFilter}
+                onTipFilterChange={handleTipFilterChange}
+                potansiyelActive={showPotansiyel}
+                onPotansiyelChange={handleShowPotansiyelChange}
+                potansiyelCount={showPotansiyel ? potansiyelRows.length : null}
+                potansiyelLoading={showPotansiyel && potansiyelLoading}
+              />
+              <PotansiyelAraLauncher
+                aktif={ilModu !== "kapali"}
+                kalanKota={tarama.kota?.kalan ?? null}
+                taramaCalisiyor={tarama.calisiyor}
+                onToggle={handleIlModuToggle}
+              />
+            </div>
             {showLegend && (
               <RiskLegend
                 showUpdatedRing={hasUpdatedMarkers}
@@ -947,6 +1100,31 @@ export default function Home() {
             )}
           </div>
         </div>
+
+        {ilModu !== "kapali" && (
+          <div
+            className="pointer-events-none absolute inset-0 z-20 flex flex-col items-center justify-between"
+            style={MAP_OVERLAY_SAFE_PAD}
+          >
+            <IlSecimBari
+              className="mt-2"
+              yukleniyor={ilModu === "yukleniyor"}
+              kota={tarama.kota}
+              onKapat={ilModuKapat}
+            />
+            {(ilModu === "onay" || ilModu === "gonderiliyor") && (
+              <TaramaOnayKarti
+                className="mb-[max(2.25rem,env(safe-area-inset-bottom))] sm:mb-10"
+                onBilgi={ilOnBilgi}
+                kota={tarama.kota}
+                gonderiliyor={ilModu === "gonderiliyor"}
+                hata={onayHata}
+                onBaslat={() => void handleTaramaBaslat()}
+                onVazgec={ilModuKapat}
+              />
+            )}
+          </div>
+        )}
 
         <div className="pointer-events-none absolute inset-0">
           <AnimatePresence>

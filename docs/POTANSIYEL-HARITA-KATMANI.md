@@ -124,7 +124,20 @@ ilce_merkezleri
   → view potansiyel_musteriler_harita
 ```
 
-Frontend **n8n'e bağlanmaz**; sadece Supabase view okur.
+~~Frontend **n8n'e bağlanmaz**; sadece Supabase view okur.~~
+
+**2026-09-14 — bu artık doğru değil.** Haritadaki "Potansiyel ara" düğmesi
+il seçtiriyor ve `POST /api/potansiyel/tarama` üzerinden workflow'u tetikliyor
+(`Webhook Potansiyel Tarama`). Yön hâlâ tek taraflı: **n8n uygulamaya HTTP
+atmıyor**; tamamlanma `potansiyel_taramalari` satırının `durum='completed'`
+PATCH'i ile bildiriliyor ve tarayıcı o satırı anon key ile poll ediyor.
+Yani okuma yolu (view) değişmedi, yalnız bir tetikleme yolu eklendi.
+
+- Tetikleme sözleşmesi + kurulum: `backend/n8n/README.md` → "Harita → il bazlı tarama"
+- Koşu tablosu + süpürücü: `sql/potansiyel_tarama_sema.sql`, `sql/potansiyel_tarama_stale_sweep.sql`
+- Kota (günde 2, Europe/Istanbul gece yarısı) ve in-flight kilidi **uygulama
+  katmanında**; n8n tarafında hiçbir sınır yok — webhook'u elle çağıran
+  biri bu korumaların dışında kalır.
 
 Pacing notu: Nearby dakikalık kota 600/dk; workflow batchSize=1 + ~250ms interval.
 Çökme / 429 yarım bırakırsa veri kısmi kalır, unique upsert güvenli — dashboard yine view'dan okur.

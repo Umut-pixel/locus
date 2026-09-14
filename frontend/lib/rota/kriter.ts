@@ -42,6 +42,7 @@ export type KriterAnahtari =
   | "maliyet"
   | "esneklik"
   | "yukRiski"
+  | "yukDegeri"
   | "guvenilirlik"
   | "surusGuvenligi"
   | "sahaZorlugu";
@@ -63,6 +64,15 @@ export interface Kriter {
    * değer. Diğer kriterlerde yok — `deger` zaten bir yüzde değil.
    */
   yuzde?: number;
+  /**
+   * `deger` TEK bir sayının biçimlendirilmiş hali olan satırlarda (maliyet,
+   * esneklik, saha zorluğu, yük değeri) UI'ın ticker animasyonu + artış/azalış
+   * renk vurgusu için ham sayı ve onu `deger` ile aynı biçime sokan format
+   * fonksiyonu. Birleşik/metinsel `deger`ler (süre, güvenilirlik, yük riski…)
+   * bunu taşımaz — tek sayıya indirgenemeyen bir cümleyi saymak yanlış olurdu.
+   */
+  sayisalDeger?: number;
+  sayisalFormat?: (deger: number) => string;
 }
 
 export interface KriterGirdisi {
@@ -286,6 +296,8 @@ function maliyetKriteri(g: KriterGirdisi): Kriter {
     kaynak: eksikSayisi > 0 || tahminiSayisi > 0 ? "tahmini" : "olculen",
     aciklama: parcalar.join(" "),
     suclular: { araclar: eksikAraclar, duraklar: [] },
+    sayisalDeger: toplamTl,
+    sayisalFormat: (n: number) => `${Math.round(n).toLocaleString("tr-TR")} TL`,
   };
 }
 
@@ -330,6 +342,13 @@ function esneklikKriteri(g: KriterGirdisi): Kriter {
             ? " Havuzda yük kaldı ve alacak araç yok."
             : ""),
     suclular: { araclar: bosAraclar, duraklar: [] },
+    ...(dolu.length > 0
+      ? {
+          sayisalDeger: yedekCuval,
+          sayisalFormat: (n: number) =>
+            `${Math.round(n).toLocaleString("tr-TR")} çuval yedek`,
+        }
+      : {}),
   };
 }
 
@@ -577,6 +596,47 @@ function sahaZorluguKriteri(g: KriterGirdisi): Kriter {
     kaynak: g.metrik.aracSayisi === 0 ? "veri-yok" : "olculen",
     aciklama: parcalar.join(" "),
     suclular: { araclar: [], duraklar: [] },
+    sayisalDeger: maxYayilimKm,
+    sayisalFormat: (n: number) => `${Math.round(n)} km yayılım`,
+  };
+}
+
+/**
+ * Yük değeri — araçlara yüklenen siparişlerin toplam TL tutarı. Panorama
+ * sipariş satırlarından gelen `brutTutar`ın toplamı, tahmin İÇERMEZ (bkz.
+ * `RotaDuragi.brutTutar` — `v_musteri_bekleyen_yuk` view'ından okunuyor,
+ * burada yeniden hesaplanmıyor).
+ */
+function yukDegeriKriteri(g: KriterGirdisi): Kriter {
+  const dolu = yuklu(g.yukler);
+
+  if (dolu.length === 0) {
+    return {
+      anahtar: "yukDegeri",
+      ad: "Yük değeri",
+      deger: "—",
+      durum: "iyi",
+      kaynak: "veri-yok",
+      aciklama: "Henüz araca yük atanmadı.",
+      suclular: { araclar: [], duraklar: [] },
+    };
+  }
+
+  const toplam = dolu.reduce(
+    (s, y) => s + y.duraklar.reduce((t, d) => t + (d.brutTutar ?? 0), 0),
+    0
+  );
+
+  return {
+    anahtar: "yukDegeri",
+    ad: "Yük değeri",
+    deger: `${Math.round(toplam).toLocaleString("tr-TR")} TL`,
+    durum: "iyi",
+    kaynak: "olculen",
+    aciklama: `Araçlara yüklenen ${dolu.length} turun toplam sipariş tutarı — Panorama sipariş satırlarından, tahmin içermez.`,
+    suclular: { araclar: [], duraklar: [] },
+    sayisalDeger: toplam,
+    sayisalFormat: (n: number) => `${Math.round(n).toLocaleString("tr-TR")} TL`,
   };
 }
 
@@ -591,6 +651,7 @@ export function kriterleriHesapla(girdi: KriterGirdisi): Kriter[] {
     guvenilirlikKriteri(girdi),
     surusGuvenligiKriteri(girdi),
     yukRiskiKriteri(girdi),
+    yukDegeriKriteri(girdi),
     sahaZorluguKriteri(girdi),
     sureKriteri(girdi),
     esneklikKriteri(girdi),

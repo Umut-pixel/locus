@@ -21,6 +21,7 @@ import {
   type KriterDurumu,
 } from "@/lib/rota/kriter";
 import { GsapCollapse } from "@/components/ui/gsap-collapse";
+import { TickerNumber } from "@/components/ui/ticker-number";
 import { formatKg, formatNumber } from "@/lib/format";
 import { dolulukTonu } from "@/lib/rota/doluluk-renk";
 import { cn } from "@/lib/utils";
@@ -473,7 +474,15 @@ function KriterSatiri({
               : YUZDE_DURUM_SINIFI[kriter.durum]
           )}
         >
-          {kriter.deger}
+          {kriter.sayisalDeger != null && kriter.sayisalFormat ? (
+            <TickerNumber
+              value={kriter.sayisalDeger}
+              format={kriter.sayisalFormat}
+              vurguDegisim
+            />
+          ) : (
+            kriter.deger
+          )}
         </span>
       </span>
     </>

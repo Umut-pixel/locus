@@ -1,13 +1,28 @@
 # -*- coding: utf-8 -*-
 """
-CSV -> Nominatim geocode -> ilce_merkezleri upsert (tek seferlik seed).
+CSV -> Nominatim geocode -> ilce_merkezleri upsert.
+
+VARSAYILAN DAVRANIS: DB'de ZATEN VAR OLAN (il, ilce) satirlari ATLANIR.
+Sebebi kritik — bu script her satira `yogun_bolge` yaziyor ve YOGUN seti
+yalniz 21 Ege ilcesini taniyor. Mevcut satirlari tekrar yazmak, n8n
+workflow'unun kirpilma geri beslemesiyle OGRENDIGI yogunluklari (canlida
+Izmir'de 21 ilce yogun, sette 8 tane var) sessizce false'a cekerdi; o ilceler
+4 hucre + 3 Text Search yerine tek hucreye duserdi. `--tumu` ile zorlanabilir.
 
 Kullanim:
-    python backend/geocode_ilce_merkezleri.py
-    python backend/geocode_ilce_merkezleri.py --csv path/to/ilce_merkezleri_referans.csv
+    python backend/geocode_ilce_merkezleri.py            # yalniz eksikler
+    python backend/geocode_ilce_merkezleri.py --tumu     # hepsini yeniden yaz
+    python backend/geocode_ilce_merkezleri.py --limit 20 # ilk N eksik (deneme)
+    python backend/geocode_ilce_merkezleri.py --csv path/to/referans.csv
 
 Ortam:
     SUPABASE_URL, SUPABASE_SERVICE_KEY  (.env veya shell)
+
+Not: Nominatim iskalari lat/lon = NULL, dogrulandi = false ile yazilir.
+Poligon merkezine (backend/ilce_poligon_merkezleri.json) OTOMATIK dusulmez —
+ilce poligonunun geometrik merkezi kirsalda yerlesimden 15-20 km uzakta
+olabiliyor ve 5 km yaricapli tarama sessizce bos doner, sonra da o ilceye
+son_tarama yazilip 25 gun kilitlenirdi. O dosya ELLE backfill icin.
 """
 from __future__ import annotations
 
@@ -16,6 +31,7 @@ import json
 import os
 import sys
 import time
+import unicodedata
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -59,7 +75,10 @@ YOGUN = {
     ("Uşak", "Merkez"),
 }
 
-MIN_DOGRULANDI = 120
+# Islenen satirin en az bu oraninda dogrulandi=true bekleniyor; altinda
+# sessizce devam etmek yerine duruyoruz (toplu bir Nominatim bozulmasini yakalar).
+MIN_DOGRULANDI_ORAN = 0.85
+CACHE_YOLU = BACKEND / "geocode_cache.json"
 
 
 def load_dotenv(path: Path) -> None:
@@ -84,29 +103,36 @@ def fold_tr(s: str) -> str:
     return s.casefold()
 
 
+def soy_diakritik(s: str) -> str:
+    """Turkce harfleri ASCII karsiligina indirger: Sanliurfa == Şanlıurfa."""
+    s = fold_tr(s)
+    s = s.replace("ı", "i").replace("ğ", "g").replace("ü", "u")
+    s = s.replace("ş", "s").replace("ö", "o").replace("ç", "c")
+    s = unicodedata.normalize("NFKD", s)
+    return "".join(c for c in s if not unicodedata.combining(c))
+
+
 def il_in_display(il: str, display: str) -> bool:
+    """Nominatim'in dondurdugu display_name gercekten bu ilde mi.
+
+    Eski surum yalniz 8 Ege ili icin elle yazilmis bir ascii_map tasiyordu;
+    diger 73 ilde Nominatim ASCII katlanmis ad donerse (Sanliurfa, Kirsehir,
+    Agri) eslesme kaciyordu. Artik iki tarafi da diakritiksize indiriyoruz.
+    """
     if not display:
         return False
-    d = fold_tr(display)
-    # Accept both dotted/dotless and ASCII forms Nominatim may return
-    variants = {fold_tr(il)}
-    ascii_map = {
-        "İzmir": ["izmir", "ızmir"],
-        "Muğla": ["mugla", "muğla"],
-        "Aydın": ["aydin", "aydın"],
-        "Balıkesir": ["balikesir", "balıkesir"],
-        "Çanakkale": ["canakkale", "çanakkale"],
-        "Uşak": ["usak", "uşak"],
-        "Manisa": ["manisa"],
-        "Denizli": ["denizli"],
-    }
-    for v in ascii_map.get(il, []):
-        variants.add(v)
-    return any(v in d for v in variants if v)
+    return soy_diakritik(il) in soy_diakritik(display)
 
 
 def nominatim(ilce: str, il: str) -> dict | None:
-    q = f"{ilce}, {il}, Türkiye"
+    # "Merkez, Bilecik, Türkiye" Nominatim icin belirsiz (51 ilde Merkez adli
+    # ilce var). Il merkezini sormak dogru sonucu veriyor. CSV artik merkez
+    # ilcesini il adiyla yaziyor; geriye yalniz Canakkale/Merkez ve
+    # Usak/Merkez eski satirlari kaliyor.
+    if fold_tr(ilce) == "merkez":
+        q = f"{il}, Türkiye"
+    else:
+        q = f"{ilce}, {il}, Türkiye"
     params = urllib.parse.urlencode(
         {"q": q, "format": "json", "limit": "1", "countrycodes": "tr"}
     )
@@ -131,25 +157,84 @@ def supabase_headers(key: str) -> dict:
     }
 
 
-def upsert_rows(url: str, key: str, rows: list[dict]) -> None:
+def upsert_rows(url: str, key: str, rows: list[dict], deneme: int = 4) -> None:
+    """Batch upsert — gecici ag/gateway hatalarinda yeniden dener.
+
+    2026-09-14: 81 il seed'i 340/831'de tek bir `504 Gateway Timeout` yuzunden
+    oldu (script SystemExit ediyordu). ~6 dakikalik Nominatim emegi ve
+    calisan bir tur, saniyelik bir Supabase hicksirigina feda ediliyordu.
+    Upsert idempotent (on_conflict=il,ilce), yani yeniden denemek guvenli.
+    """
     endpoint = f"{url.rstrip('/')}/rest/v1/{TABLO}?on_conflict=il,ilce"
     body = json.dumps(rows, ensure_ascii=False).encode("utf-8")
+
+    for tur in range(1, deneme + 1):
+        req = urllib.request.Request(
+            endpoint, data=body, headers=supabase_headers(key), method="POST"
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=90) as resp:
+                resp.read()
+            return
+        except urllib.error.HTTPError as e:
+            err = e.read().decode("utf-8", errors="replace")
+            # 4xx istemci hatasi: tekrar denemek ayni sonucu verir, hemen dur.
+            if e.code < 500 and e.code != 429:
+                raise SystemExit(f"Supabase upsert HTTP {e.code}: {err}") from e
+            son = f"HTTP {e.code}: {err}"
+        except (urllib.error.URLError, TimeoutError, OSError) as e:
+            son = f"{type(e).__name__}: {e}"
+
+        if tur == deneme:
+            raise SystemExit(f"Supabase upsert {deneme} denemede basarisiz — {son}")
+        bekle = 2 ** tur
+        print(f"  (upsert {tur}/{deneme} basarisiz: {son[:120]} — {bekle}s sonra tekrar)")
+        time.sleep(bekle)
+
+
+def mevcut_ilceler(url: str, key: str) -> set[tuple[str, str]]:
+    """DB'de zaten olan (il, ilce) ciftleri — bunlar yeniden yazilmaz."""
+    endpoint = f"{url.rstrip('/')}/rest/v1/{TABLO}?select=il,ilce&limit=2000"
     req = urllib.request.Request(
-        endpoint, data=body, headers=supabase_headers(key), method="POST"
+        endpoint,
+        headers={"apikey": key, "Authorization": f"Bearer {key}",
+                 "Accept": "application/json"},
+        method="GET",
     )
+    with urllib.request.urlopen(req, timeout=60) as resp:
+        rows = json.loads(resp.read().decode("utf-8"))
+    return {(r["il"], r["ilce"]) for r in rows}
+
+
+def cache_oku() -> dict:
+    if not CACHE_YOLU.is_file():
+        return {}
     try:
-        with urllib.request.urlopen(req, timeout=60) as resp:
-            resp.read()
-    except urllib.error.HTTPError as e:
-        err = e.read().decode("utf-8", errors="replace")
-        raise SystemExit(f"Supabase upsert HTTP {e.code}: {err}") from e
+        veri = json.loads(CACHE_YOLU.read_text(encoding="utf-8"))
+        return veri if isinstance(veri, dict) else {}
+    except Exception:  # noqa: BLE001 — bozuk cache calismayi durdurmasin
+        return {}
+
+
+def cache_yaz(cache: dict) -> None:
+    try:
+        CACHE_YOLU.write_text(
+            json.dumps(cache, ensure_ascii=False, indent=1), encoding="utf-8"
+        )
+    except Exception as ex:  # noqa: BLE001
+        print(f"  (cache yazilamadi: {ex})")
 
 
 def main() -> int:
     load_dotenv(REPO_KOK / ".env")
+    argv = sys.argv[1:]
     csv_path = CSV_DEFAULT
-    if len(sys.argv) >= 3 and sys.argv[1] == "--csv":
-        csv_path = Path(sys.argv[2])
+    tumu = "--tumu" in argv
+    limit = 0
+    if "--csv" in argv:
+        csv_path = Path(argv[argv.index("--csv") + 1])
+    if "--limit" in argv:
+        limit = int(argv[argv.index("--limit") + 1])
 
     url = os.environ.get("SUPABASE_URL") or os.environ.get("NEXT_PUBLIC_SUPABASE_URL")
     key = os.environ.get("SUPABASE_SERVICE_KEY")
@@ -168,19 +253,44 @@ def main() -> int:
             if il and ilce:
                 rows_in.append((il, ilce))
 
-    print(f"CSV: {len(rows_in)} satır — Nominatim başlıyor (≈{len(rows_in) * BEKLEME_S:.0f}s)")
+    toplam_csv = len(rows_in)
+    if tumu:
+        print(f"CSV: {toplam_csv} satır — --tumu: mevcutlar da yeniden yazılacak")
+        print("  ⚠ yoğun_bolge sıfırlanır (bkz. dosya başı notu)")
+    else:
+        var = mevcut_ilceler(url, key)
+        rows_in = [r for r in rows_in if r not in var]
+        print(f"CSV: {toplam_csv} satır | DB'de var: {len(var)} | işlenecek: {len(rows_in)}")
+    if limit:
+        rows_in = rows_in[:limit]
+        print(f"  --limit {limit} → {len(rows_in)} satır")
+    if not rows_in:
+        print("İşlenecek satır yok — DB güncel.")
+        return 0
+
+    cache = cache_oku()
+    cache_isabet = 0
+    print(f"Nominatim başlıyor (≈{len(rows_in) * BEKLEME_S / 60:.1f} dk, cache: {len(cache)} kayıt)")
 
     out: list[dict] = []
     eksik: list[str] = []
     dogru = 0
 
     for i, (il, ilce) in enumerate(rows_in, 1):
-        time.sleep(BEKLEME_S)
         display = None
         lat = lon = None
         ok = False
+        cache_anahtar = f"{il}|{ilce}"
         try:
-            hit = nominatim(ilce, il)
+            hit = cache.get(cache_anahtar)
+            if hit is not None:
+                cache_isabet += 1
+            else:
+                time.sleep(BEKLEME_S)
+                hit = nominatim(ilce, il)
+                cache[cache_anahtar] = hit
+                if i % 20 == 0:
+                    cache_yaz(cache)
             if hit:
                 display = hit.get("display_name")
                 lat_s, lon_s = hit.get("lat"), hit.get("lon")
@@ -225,24 +335,31 @@ def main() -> int:
     if out:
         upsert_rows(url, key, out)
 
+    cache_yaz(cache)
+
     # yoğun sayısı doğrula
     yogun_n = sum(1 for il, ilce in rows_in if (il, ilce) in YOGUN)
     print()
-    print(f"Toplam: {len(rows_in)} | dogrulandi=true: {dogru} | yoğun işaretlenen (CSV eşleşen): {yogun_n}")
+    print(
+        f"Toplam: {len(rows_in)} | dogrulandi=true: {dogru} "
+        f"| cache isabet: {cache_isabet} | yoğun işaretlenen (CSV eşleşen): {yogun_n}"
+    )
     if eksik:
         print(f"\nEksik / dogrulandi=false ({len(eksik)}):")
         for line in eksik:
             print(f"  - {line}")
 
-    if dogru < MIN_DOGRULANDI:
+    esik = int(len(rows_in) * MIN_DOGRULANDI_ORAN)
+    if dogru < esik:
         print(
-            f"\nDUR: dogrulandi={dogru} < {MIN_DOGRULANDI}. "
+            f"\nDUR: dogrulandi={dogru} < {esik} "
+            f"(işlenen {len(rows_in)} satırın %{MIN_DOGRULANDI_ORAN * 100:.0f}'i). "
             "Elle gözden geçir; sessizce devam etme.",
             file=sys.stderr,
         )
         return 2
 
-    print(f"\nGeçti: dogrulandi={dogru} >= {MIN_DOGRULANDI}")
+    print(f"\nGeçti: dogrulandi={dogru} >= {esik}")
     return 0
 
 

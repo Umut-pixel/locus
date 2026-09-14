@@ -55,6 +55,18 @@ import {
   setPotansiyelSelectedId,
   setPotansiyelVisibility,
 } from "@/lib/map-potansiyel-layers";
+import {
+  IL_FILL_LAYER,
+  IL_SOURCE_ID,
+  TURKIYE_BOUNDS,
+  addIlLayers,
+  clearIlFeatureStates,
+  ilSinirlariCache,
+  ilSinirlariniYukle,
+  setIlData,
+  setIlFeatureState,
+  setIlVisibility,
+} from "@/lib/map-il-layers";
 import type { PotansiyelFeatureCollection } from "@/lib/potansiyel-geojson";
 import type { MusteriHarita, PotansiyelHarita } from "@/lib/types";
 import {
@@ -115,6 +127,20 @@ interface PetshopMapProps {
   potansiyelVisible?: boolean;
   selectedPotansiyelId?: string | null;
   /**
+   * "Potansiyel müşteri ara" modu — il poligonları görünür ve tıklanabilir.
+   * Açıkken müşteri/potansiyel pin ve küme tıklamaları bilerek yutulur:
+   * yoğun bir kümenin üzerindeki tıklama ili değil pini seçerdi.
+   */
+  ilSecimAktif?: boolean;
+  /** Seçili il plakası — `secili` feature-state'i bunu izler. */
+  ilSecili?: number | null;
+  /** Kamera kutusu değişimi (il seçimi / Türkiye görünümü). */
+  ilBoundsFocus?: {
+    bounds: [[number, number], [number, number]];
+    nonce: number;
+  } | null;
+  onIlSec?: (plaka: number) => void;
+  /**
    * Petshop + veteriner ikisi de açıkken renkli tip halkası.
    * Tek kanal filtresinde halka gizlenir.
    */
@@ -139,8 +165,12 @@ export const PetshopMap = memo(function PetshopMap({
   potansiyelData = EMPTY_POTANSIYEL_COLLECTION,
   potansiyelVisible = false,
   selectedPotansiyelId = null,
+  ilSecimAktif = false,
+  ilSecili = null,
+  ilBoundsFocus = null,
   onSelectMusteri,
   onSelectPotansiyel,
+  onIlSec,
 }: PetshopMapProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const stageVeilRef = useRef<HTMLDivElement | null>(null);
@@ -150,6 +180,17 @@ export const PetshopMap = memo(function PetshopMap({
   const dataRef = useRef(data);
   const potansiyelDataRef = useRef(potansiyelData);
   const potansiyelVisibleRef = useRef(potansiyelVisible);
+  const ilSecimAktifRef = useRef(ilSecimAktif);
+  const ilSeciliRef = useRef<number | null>(ilSecili);
+  const hoveredIlRef = useRef<number | undefined>(undefined);
+  /** İl seçim moduna girmeden önceki kamera — moddan çıkınca geri alınır. */
+  const ilOncesiKameraRef = useRef<{
+    center: [number, number];
+    zoom: number;
+    bearing: number;
+    pitch: number;
+  } | null>(null);
+  const onIlSecRef = useRef(onIlSec);
   const hoveredIdRef = useRef<string | number | undefined>(undefined);
   const onSelectRef = useRef(onSelectMusteri);
   const onSelectPotansiyelRef = useRef(onSelectPotansiyel);
@@ -175,6 +216,93 @@ export const PetshopMap = memo(function PetshopMap({
   useEffect(() => {
     potansiyelVisibleRef.current = potansiyelVisible;
   }, [potansiyelVisible]);
+
+  useEffect(() => {
+    onIlSecRef.current = onIlSec;
+  }, [onIlSec]);
+
+  // Mod anahtarı: katman görünürlüğü, kamera kaydet/geri al, feature-state
+  // temizliği. Kamera burada yönetiliyor çünkü map ref burada; sayfa moda
+  // girip vazgeçtiğinde kullanıcı baktığı yeri kaybetmemeli.
+  useEffect(() => {
+    const onceki = ilSecimAktifRef.current;
+    ilSecimAktifRef.current = ilSecimAktif;
+    const map = mapRef.current;
+    if (!map || !loadedRef.current) return;
+
+    setIlVisibility(map, ilSecimAktif);
+
+    if (ilSecimAktif && !onceki) {
+      const merkez = map.getCenter();
+      ilOncesiKameraRef.current = {
+        center: [merkez.lng, merkez.lat],
+        zoom: map.getZoom(),
+        bearing: map.getBearing(),
+        pitch: map.getPitch(),
+      };
+      map.fitBounds(TURKIYE_BOUNDS, {
+        padding: { top: 96, bottom: 140, left: 48, right: 48 },
+        duration: 700,
+        essential: true,
+      });
+      return;
+    }
+
+    if (!ilSecimAktif) {
+      hoveredIlRef.current = undefined;
+      clearIlFeatureStates(map);
+      map.getCanvas().style.cursor = "";
+      const kamera = ilOncesiKameraRef.current;
+      if (onceki && kamera) {
+        map.easeTo({ ...kamera, duration: 600, essential: true });
+      }
+      ilOncesiKameraRef.current = null;
+    }
+  }, [ilSecimAktif]);
+
+  // İl sınırları tembel yüklenir: mod ilk açıldığında, sayfa açılışında değil.
+  // `ilSinirlariniYukle` modül düzeyinde cache'lendiği için ikinci çağrı
+  // bedava — sayfa da `ilBounds` için aynı fonksiyonu çağırıyor.
+  useEffect(() => {
+    if (!ilSecimAktif) return;
+    let iptal = false;
+    const kontrol = new AbortController();
+    ilSinirlariniYukle(kontrol.signal)
+      .then((fc) => {
+        if (iptal) return;
+        const map = mapRef.current;
+        if (map && loadedRef.current) setIlData(map, fc);
+      })
+      .catch((err) => {
+        if (!iptal) console.error("[PetshopMap] il sınırları", err);
+      });
+    return () => {
+      iptal = true;
+      kontrol.abort();
+    };
+  }, [ilSecimAktif]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    const onceki = ilSeciliRef.current;
+    ilSeciliRef.current = ilSecili;
+    if (!map || !loadedRef.current) return;
+    if (onceki != null && onceki !== ilSecili) {
+      setIlFeatureState(map, onceki, { secili: false });
+    }
+    setIlFeatureState(map, ilSecili, { secili: true });
+  }, [ilSecili]);
+
+  // İl poligonunun kutusuna otur — centroid değil (Muğla dağlara düşerdi).
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !loadedRef.current || !ilBoundsFocus) return;
+    map.fitBounds(ilBoundsFocus.bounds, {
+      padding: { top: 96, bottom: 140, left: 72, right: 72 },
+      duration: 700,
+      essential: true,
+    });
+  }, [ilBoundsFocus]);
 
 
   useEffect(() => {
@@ -326,6 +454,17 @@ export const PetshopMap = memo(function PetshopMap({
     const mountOverlays = () => {
       const initialCfg = STABLE_CLUSTER_CONFIG;
       clusterConfigRef.current = initialCfg;
+
+      // İl sınırları EN ÖNCE: sonraki katmanlar üstüne binsin. Veri modül
+      // cache'inden senkron geliyor, yani tema değişiminde ağa tekrar
+      // gidilmiyor; henüz yüklenmediyse boş kaynakla kurulup `ilSinirlari`
+      // effect'i doldurur.
+      addIlLayers(map, { visible: ilSecimAktifRef.current });
+      const ilCache = ilSinirlariCache();
+      if (ilCache) setIlData(map, ilCache);
+      if (ilSeciliRef.current != null) {
+        setIlFeatureState(map, ilSeciliRef.current, { secili: true });
+      }
 
       if (!map.getSource(SOURCE_ID)) {
         map.addSource(SOURCE_ID, {
@@ -536,8 +675,46 @@ export const PetshopMap = memo(function PetshopMap({
       }
     };
 
+    // --- İl seçim modu ------------------------------------------------
+    const clearIlHover = () => {
+      if (hoveredIlRef.current !== undefined) {
+        map.setFeatureState(
+          { source: IL_SOURCE_ID, id: hoveredIlRef.current },
+          { hover: false }
+        );
+        hoveredIlRef.current = undefined;
+      }
+    };
+
+    map.on("mousemove", IL_FILL_LAYER, (e) => {
+      if (!ilSecimAktifRef.current || coarsePointer) return;
+      map.getCanvas().style.cursor = "pointer";
+      const yeni = e.features?.[0]?.id as number | undefined;
+      if (hoveredIlRef.current === yeni) return;
+      clearIlHover();
+      hoveredIlRef.current = yeni;
+      if (yeni !== undefined) {
+        map.setFeatureState({ source: IL_SOURCE_ID, id: yeni }, { hover: true });
+      }
+    });
+
+    map.on("mouseleave", IL_FILL_LAYER, () => {
+      if (!ilSecimAktifRef.current) return;
+      map.getCanvas().style.cursor = "";
+      clearIlHover();
+    });
+
+    map.on("click", IL_FILL_LAYER, (e) => {
+      if (!ilSecimAktifRef.current) return;
+      const feat = e.features?.[0];
+      const plaka = Number(feat?.properties?.plaka);
+      if (!Number.isFinite(plaka) || plaka <= 0) return;
+      e.originalEvent.stopPropagation();
+      onIlSecRef.current?.(plaka);
+    });
+
     map.on("mousemove", POINT_HIT_LAYER, (e) => {
-      if (coarsePointer) return;
+      if (coarsePointer || ilSecimAktifRef.current) return;
       map.getCanvas().style.cursor = "pointer";
       const newId = e.features?.[0]?.id as string | number | undefined;
       if (hoveredIdRef.current === newId) return;
@@ -557,6 +734,7 @@ export const PetshopMap = memo(function PetshopMap({
     });
 
     map.on("click", POINT_HIT_LAYER, (e) => {
+      if (ilSecimAktifRef.current) return;
       const feature = e.features?.[0];
       if (!feature || feature.geometry.type !== "Point") return;
       e.originalEvent.stopPropagation();
@@ -579,7 +757,7 @@ export const PetshopMap = memo(function PetshopMap({
     });
 
     map.on("click", POTANSIYEL_POINT_HIT_LAYER, (e) => {
-      if (!potansiyelVisibleRef.current) return;
+      if (!potansiyelVisibleRef.current || ilSecimAktifRef.current) return;
       const feature = e.features?.[0];
       if (!feature || feature.geometry.type !== "Point") return;
       e.originalEvent.stopPropagation();
@@ -608,7 +786,7 @@ export const PetshopMap = memo(function PetshopMap({
     });
 
     map.on("click", POTANSIYEL_CLUSTER_LAYER, (e) => {
-      if (!potansiyelVisibleRef.current) return;
+      if (!potansiyelVisibleRef.current || ilSecimAktifRef.current) return;
       const feature = e.features?.[0];
       if (!feature || feature.geometry.type !== "Point") return;
       e.originalEvent.stopPropagation();
@@ -633,6 +811,7 @@ export const PetshopMap = memo(function PetshopMap({
     });
 
     map.on("click", CLUSTER_LAYER, (e) => {
+      if (ilSecimAktifRef.current) return;
       const feature = e.features?.[0];
       if (!feature || feature.geometry.type !== "Point") return;
       const clusterId = feature.properties?.cluster_id;
@@ -657,6 +836,10 @@ export const PetshopMap = memo(function PetshopMap({
         POTANSIYEL_POINT_HIT_LAYER,
         POTANSIYEL_POINT_LAYER,
         POTANSIYEL_CLUSTER_LAYER,
+        // İl poligonu da "isabet" sayılmalı: katman handler'ındaki
+        // stopPropagation bu map seviyesindeki click'i durdurmuyor, liste
+        // dışında kalırsa her il tıklaması açık müşteri kartını kapatır.
+        IL_FILL_LAYER,
       ].filter((id) => Boolean(map.getLayer(id)));
       if (layers.length === 0) {
         onSelectRef.current(null);

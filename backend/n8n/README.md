@@ -397,6 +397,108 @@ PostgREST hata kontrolü bu şekilde doğrulandı — import etmeden.
 **Workflow'daki düğüm adlarını değiştirirsen bu dosyayı da güncelle** —
 testler koda düğüm adıyla erişiyor.
 
+## Harita → il bazlı tarama (2026-09-14)
+
+Haritadaki **"Potansiyel ara"** düğmesi Türkiye illerini soluk gri poligon
+olarak çiziyor; bir il seçilince `google-places-prospecting` workflow'u
+**yalnız o il için** çalışıyor. Günde 2 tarama hakkı var.
+
+```
+harita → POST /api/potansiyel/tarama { plaka }
+       → route: guard merdiveni → potansiyel_taramalari satırı aç
+       → POST /webhook/potansiyel-tarama { runId, il, plaka, skipDays, maxCells }
+       → Webhook Potansiyel Tarama → Guard Tarama Secret → Config → (mevcut zincir)
+       → Summary → Has Run Id? → Complete Tarama (PATCH durum=completed, ozet)
+       → tarayıcı satırı anon key ile 15 sn'de bir poll eder → toast
+```
+
+**Kurulum:** workflow'u içe aktar → `Complete Tarama` düğümünde Supabase API
+credential'ını seç (artık **8** düğüm credential istiyor) → Webhook düğümünü
+kaydet, workflow'u **kapatıp tekrar aç** (production webhook yeniden kaydolur)
+→ Production URL'i ve sırrı `.env`/Vercel'e yaz:
+
+```
+N8N_POTANSIYEL_TARAMA_WEBHOOK_URL=https://<n8n>/webhook/potansiyel-tarama
+N8N_POTANSIYEL_TARAMA_WEBHOOK_SECRET=<uzun rastgele>
+```
+
+Sır `Guard Tarama Secret` düğümünde `X-N8N-Sync-Secret` (veya Bearer) ile
+kontrol ediliyor — webhook `Authentication = None`, ev deseniyle aynı.
+n8n tarafında istersen `$vars.POTANSIYEL_TARAMA_SECRET` da okunuyor.
+
+### Config düğümü artık gövdeden besleniyor
+
+| alan | cron/manuel | webhook |
+|---|---|---|
+| `il` | `''` → filtre yok | seçilen il, `Build Nearby Cells` filtreler |
+| `runId` | `''` → `Has Run Id?` false, PATCH yok | satır id'si |
+| `skipDays` | `'25'` | route `TARAMA_SKIP_DAYS` gönderir |
+| `maxCells` | `600` | `600` |
+
+Hepsi `{{ $json.X \|\| varsayılan }}` — cron yolunda `$json` boş olduğu için
+**davranış bit‑bit eskisiyle aynı**. Set düğümünde *Include Other Fields*
+kapalı; atanmayan alan sessizce düşer, yeni bir alan eklerken bunu unutma.
+
+### `maxCells` sigortası — neden var
+
+Günde 2 tarama **koşu** sayısını sınırlar, **çağrı** sayısını değil. Yeni
+iller `yoğun_bolge=false` ile başlıyor, yani ilk taramada her ilçe tek
+5 km'lik hücre; şehir merkezinde o hücre 20 sonuç dönüp kırpılıyor ve 2 pass
+derinleşme ile ilçe başına 21 hücreye kadar çıkabiliyor. İstanbul'un 39
+ilçesi ilk taramada ~800 Nearby çağrısı demek.
+
+`Build Nearby Cells` bu yüzden **ilçe granülaritesinde** kesiyor: öngörülen
+hücre sayısı `maxCells`'i aşacaksa yeni ilçe eklenmiyor ve o ilçe
+`scannedDistricts`'e de girmiyor — böylece taranmamış ilçeye `son_tarama`
+yazılıp 25 gün kilitlenmesi engelleniyor. Atlanan sayı `Summary.atlananIlceSayisi`
+ile arayüze taşınıyor.
+
+### Eşzamanlılık
+
+`$getWorkflowStaticData('global')` n8n'de **workflow başına**, execution
+başına değil. İki eşzamanlı tarama birbirinin `placesById` /
+`scannedDistricts` / `clippedDistricts`'ini ezer ve yanlış ilçelere
+`son_tarama` yazar. Korumalar:
+
+- API in-flight kilidi: `durum='running'` satır varsa 409. **Zaman kesiti
+  yok** — ölüye karar veren tek merci `sweep_stale_potansiyel_taramalari`
+  (40 dk eşik, 10 dk'da bir cron). Panorama'daki "kilit süpürücüden kısa"
+  deseni burada bilerek TERSİNE çevrildi.
+- Haftalık cron (`0 6 * * 3`) run satırı yazmıyor, yani kilit onu göremiyor;
+  route Çarşamba 06:00-08:00 TR penceresinde manuel taramayı reddediyor.
+  Kalıcı çözüm cron yoluna da satır açmak — henüz yapılmadı.
+
+### Aynı değişiklikte giden üç mevcut hata
+
+| Düğüm | Neydi | Neden önemliydi |
+|---|---|---|
+| `Fetch Ilce Merkezleri` | `limit=500` | 81 il seed'inden sonra ~973 ilçe var; URL sessizce ilk 500'ü döndürürdü, ülkenin yarısı taramaya görünmez olurdu |
+| `Expand Ilce Rows` | taban `< 100` | 134'lük eşik seed sonrası anlamsız; artık `< 900` ve tek tripwire o |
+| `Reset Static Accumulator` | `placesApiErrors` hiç sıfırlanmıyordu | `Mark Scanned Prep` bu kümülatif listeden 429 kara listesi kuruyor → bir kez 429 alan ilçeye **bir daha asla** `son_tarama` yazılmıyordu, sonsuza dek yeniden taranıyordu |
+
+Üçüncüsü tazelik önizlemesinin dayandığı veriyi çürütüyordu; il bazlı manuel
+tarama cron'dan daha sık 429 aldığı için düzeltilmeden çıkılamazdı.
+
+### Sıfır maliyetli uçtan uca test
+
+Webhook gövdesine `skipDays: 99999` koy: tüm ilçeler "taze" sayılır →
+`Build Nearby Cells` → `skipAll` → `Has Cells?` doğrudan `Summary`'ye →
+`Has Run Id?` → `Complete Tarama`. Webhook'tan toast'a kadar bütün yeni yol
+**tek bir Google çağrısı yapılmadan ve `son_tarama` yazılmadan** doğrulanır.
+(`Mark Scanned Prep`'in `placeTotal=0` throw'u atlanan dalda kalır.)
+
+Cron regresyonu: `Manual Trigger`'dan çalıştır — `il` boş → filtre yok,
+`runId` boş → PATCH yok, `potansiyel_taramalari` el değmemiş olmalı.
+
+### Bilinen sınırlama — "Merkez" adlı ilçeler
+
+`Build Text Queries` sorguyu `${varyasyon} ${ilce}` diye kuruyor. Seed
+merkez ilçesini il adıyla yazıyor ("Bilecik"), yani sorgu "pet shop Bilecik"
+oluyor. Ama eski iki satır (`Çanakkale/Merkez`, `Uşak/Merkez`) düz "Merkez"
+taşıyor ve ikisi de `yoğun_bolge=true` — onlarda sorgu "pet shop Merkez"
+oluyor, işe yaramaz. Yeniden adlandırmak `son_tarama`/`yoğun_bolge`
+geçmişini yetim bırakacağı için dokunulmadı.
+
 ## Dışa aktarmadan önce kontrol
 
 ```bash

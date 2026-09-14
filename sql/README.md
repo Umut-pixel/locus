@@ -87,3 +87,5 @@ dayanağı — polling durursa o zaman dilimi kalıcı olarak kayıptır.
 | `potansiyel_favoriler.sql` | Potansiyel “sonra bak” listesi |
 | `potansiyel_gizlenenler.sql` | Gizlenen potansiyeller |
 | `potansiyel_gurultu_gizle.sql` | Petshop/vet dışı gürültü (soft-hide) |
+| `potansiyel_tarama_sema.sql` | Haritadan il seçilerek başlatılan Google Places taramalarının koşu tablosu (`potansiyel_taramalari`) — günlük kota anahtarı `istanbul_gunu`, in-flight kilidi `durum='running'` |
+| `potansiyel_tarama_stale_sweep.sql` | Yarım kalan `running` taramaları `failed` işaretler (`pg_cron`, 10 dk / 40 dk eşik). Panorama süpürücüsünün TERSİ: kilit süpürücüden **uzun**, çünkü n8n static data workflow başına — eşzamanlı iki tarama birbirini bozar |

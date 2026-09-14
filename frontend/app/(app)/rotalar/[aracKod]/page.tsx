@@ -19,6 +19,7 @@ import {
 
 import { PaletIzgarasi } from "@/components/rota/PaletIzgarasi";
 import { AppSidebarMobileTrigger } from "@/components/sidebar/AppSidebar";
+import { TickerNumber } from "@/components/ui/ticker-number";
 import {
   Sheet,
   SheetContent,
@@ -28,7 +29,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { DEPOT } from "@/lib/depot";
-import { formatKg, formatNumber } from "@/lib/format";
+import { formatCurrency, formatKg, formatNumber } from "@/lib/format";
 import { dolulukHesapla, surebilirMi } from "@/lib/rota/atama";
 import { type Bolge } from "@/lib/rota/bolge";
 import { bolgeRengi } from "@/lib/rota/bolge-renk";
@@ -90,6 +91,18 @@ export default function YukDetayiSayfasi({
   const doluluk = useMemo(
     () => (arac ? dolulukHesapla(arac, duraklar) : null),
     [arac, duraklar]
+  );
+
+  /**
+   * Araçtaki yükün toplam TL değeri — durakların `brutTutar`ı toplanır.
+   * Bu alan Panorama sipariş satırlarındaki gerçek tutardan geliyor
+   * (`v_musteri_bekleyen_yuk` → `musteri_bekleyen_yuk` RPC); tahmini
+   * bir fiyat kullanılmıyor. Durak eklenip çıkarıldıkça `duraklar` zaten
+   * context'ten reaktif geldiği için toplam otomatik güncellenir.
+   */
+  const toplamDeger = useMemo(
+    () => duraklar.reduce((toplam, d) => toplam + d.brutTutar, 0),
+    [duraklar]
   );
 
   const gun = useMemo(
@@ -402,6 +415,12 @@ export default function YukDetayiSayfasi({
                       <span>Ölçüsü bilinmeyen ürün var — gerçek yük daha ağır olabilir.</span>
                     </p>
                   ) : null}
+                  <div className="flex items-center justify-between border-t border-border/60 pt-2.5">
+                    <span className="text-[12px] text-muted-foreground">Yük değeri</span>
+                    <span className="font-mono text-[13px] font-medium text-foreground tabular-nums">
+                      <TickerNumber value={toplamDeger} format={formatCurrency} vurguDegisim />
+                    </span>
+                  </div>
                 </>
               ) : null}
             </Kart>

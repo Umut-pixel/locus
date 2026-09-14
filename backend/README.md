@@ -26,6 +26,8 @@ Kimlik bilgileri repo kökündeki `.env` dosyasından okunur.
 | `smoke_konak_nearby.py` | Google Places Nearby smoke testi (Konak) |
 | `../sql/sema.sql` | Tablo/index/view DDL'i (kanonik şema) |
 | `geocode_cache.json` | Nominatim yanıt önbelleği. Silinmezse tekrar çalıştırma ağa çıkmaz |
+| `ilce_merkezleri_referans.csv` | 973 ilçe (81 il) — geoBoundaries ADM2 türevi, seed kaynağı |
+| `ilce_poligon_merkezleri.json` | İlçe poligon iç noktaları — **elle** backfill için, otomatik fallback değil |
 | `cikti/musteriler_temiz.csv` | **Ana çıktı** |
 | `cikti/geocode_basarisiz.csv` | Koordinatı çözülemeyen müşteriler |
 | `cikti/bolge_disi_musteriler.csv` | Bölge filtresine takılanlar (referans) |
@@ -33,6 +35,106 @@ Kimlik bilgileri repo kökündeki `.env` dosyasından okunur.
 | `cikti/etl_log.txt` | Tam çalışma logu |
 | `n8n/google-places-prospecting.json` | Potansiyel müşteri tarama (n8n, güncel) |
 | `n8n/panorama-otomasyon.json` | Panorama ERP → landing tabloları |
+
+## Coğrafi referans verisi (2026-09-14)
+
+Haritadaki "Potansiyel ara" modu 81 ilin tamamını seçilebilir yaptı; bunun
+iki veri gereksinimi var ve ikisi de **geoBoundaries**'ten türetildi.
+
+**Kaynak:** geoBoundaries `gbOpen` TUR, sürüm pin'i `9469f09`.
+`ADM1` (81 il) → CC BY-SA 2.0, `ADM2` (973 ilçe) → ODbL 1.0; ikisi de
+OpenStreetMap türevi. **Atıf zorunlu** — `turkiye-iller.geojson` içindeki
+`attribution` alanı bu yüzden var, silmeyin.
+
+### 1. `frontend/public/veri/turkiye-iller.geojson` — il poligonları
+
+```bash
+curl -sSL "https://github.com/wmgeolab/geoBoundaries/raw/9469f09/releaseData/gbOpen/TUR/ADM1/geoBoundaries-TUR-ADM1_simplified.geojson" -o adm1.geojson
+npx mapshaper adm1.geojson -simplify 15% keep-shapes -filter-fields shapeISO -o format=geojson precision=0.0001 adm1_min.geojson
+# sonra: shapeISO ("TR-35") -> plaka, ad <- frontend/lib/iller.ts kanonik listesi
+```
+
+Sonuç: 81 feature, ~180 KB ham / ~58 KB gzip, `properties = { plaka, ad }`,
+`feature.id = plaka` (Mapbox `promoteId: "plaka"` bunu kullanıyor).
+
+**Neden %15:** %6 dosyayı 84 KB'a indiriyor ama İzmir'i 99, Muğla'yı 94
+noktaya düşürüyor — Çeşme/Karaburun/Datça/Bodrum yarımadaları blob'a
+dönüşüyor, yani kullanıcının en çok baktığı bölge bozuluyor. %15'te İzmir 247,
+Muğla 276 nokta ve kıyı okunur kalıyor. Bütçe 250 KB.
+
+**İl adları asla eşleştirme anahtarı değil.** Harita → API → n8n arasındaki
+tel formatı sayısal plaka; Türkçe İ/I katlaması yalnız `frontend/lib/iller.ts`
+içinde çözülüyor. `frontend/lib/iller.test.ts` GeoJSON'daki her adın kanonik
+listeyle birebir eşleştiğini ve kapsamdaki 8 ilin `ilce_merkezleri.il` ile
+bayt-bayt aynı yazıldığını doğruluyor.
+
+### 2. `ilce_merkezleri_referans.csv` — 134 → 973 ilçe
+
+İlçe listesi ADM2'den, hangi ilde olduğu ADM1 ile **mekânsal join** ile
+bulundu (`mapshaper -points inner -join`), isim eşleştirmesiyle değil —
+973/973 atandı, İzmir 30 / İstanbul 39 / Uşak 6 çıktı ve bunlar DB'deki
+sayılarla birebir tuttu.
+
+Normalize edilenler:
+- ADM2 merkez ilçesini tutarsız adlandırıyor: `"Çanakkale merkez"`,
+  `"Bilecik (merkez)"`. Ek atılıyor, geriye il adı kalıyor — hem Nominatim
+  sorgusu (`"Bilecik, Bilecik, Türkiye"`) hem de n8n Text Search sorgusu
+  (`"pet shop Bilecik"`) için doğru olan bu. Düz `"Merkez"` ikisini de bozar.
+- `Çanakkale/Imbros` → `Gökçeada` (ADM2 eski Yunanca adı taşıyor).
+- Eski iki satır (`Çanakkale/Merkez`, `Uşak/Merkez`) **DB yazımıyla bırakıldı**:
+  `son_tarama` / `yoğun_bolge` geçmişleri var, yeniden adlandırmak yetim satır
+  + çift kayıt üretirdi.
+
+DB'deki 134 satırın tamamı yeni CSV'de eşleşti (yetim yok).
+
+**Çalıştırma sonucu (2026-09-14):** `ilce_merkezleri` 134 → **973 satır,
+81 il, 972 `dogrulandi=true`, 0 koordinatsız.** Tek istisna `Tekirdağ/Ergene`:
+Nominatim ısrarla Kırklareli'ndeki Ergene'yi döndürdü, satır ADM2 poligon iç
+noktasıyla elle dolduruldu ve `dogrulandi=false` **bilerek** korundu —
+o değer bir Nominatim teyidi değil.
+
+Seed sonrası dört ilçe adı elle düzeltildi; ADM2'nin merkez ilçe
+adlandırmasında normalizasyonun kaçırdığı kalıplar: `"Afyonkarahisar
+(Merkez İlçe)"`, `"Giresun District"`, `"Rize merkezi"` ve düz `"Merkez"`
+(Karabük). Dördü de il adına çevrildi — hem Nominatim hem Text Search sorgusu
+için doğru olan bu. Bir daha türetilirse normalizasyon `(merkez ilçe)`,
+`district`, `merkezi` eklerini de kapsamalı.
+
+`ilce_poligon_merkezleri.json` — ADM2 iç noktaları. **Otomatik fallback
+DEĞİL, elle backfill aracı.** İlçe poligonunun geometrik merkezi kırsalda
+yerleşimden 15-20 km uzakta olabiliyor; 5 km yarıçaplı tarama sessizce boş
+döner, sonra o ilçeye `son_tarama` yazılıp 25 gün kilitlenirdi. Nominatim
+ıskaları bu yüzden `lat/lon = NULL, dogrulandi = false` yazılıyor ve arayüz
+"N ilçenin koordinatı yok, taranmayacak" diyor.
+
+### `geocode_ilce_merkezleri.py` — davranış değişikliği
+
+**Varsayılan artık DB'de zaten olan satırları ATLIYOR.** Sebebi kritik:
+script her satıra `yoğun_bolge` yazıyor ve hardcoded `YOGUN` seti yalnız
+21 Ege ilçesini tanıyor. Mevcut satırları yeniden yazmak, n8n'in kırpılma
+geri beslemesiyle **öğrendiği** yoğunlukları (canlıda İzmir'de 21 ilçe yoğun,
+sette 8 tane var) sessizce `false`'a çekerdi; o ilçeler 4 hücre + 3 Text
+Search yerine tek hücreye düşerdi.
+
+```bash
+python backend/geocode_ilce_merkezleri.py             # yalnız eksikler (idempotent)
+python backend/geocode_ilce_merkezleri.py --limit 20  # deneme
+python backend/geocode_ilce_merkezleri.py --tumu      # zorla (yoğun_bolge sıfırlanır!)
+```
+
+Ayrıca: `il_in_display` artık 8 ilin elle yazılmış ASCII haritası yerine genel
+diakritik soyma kullanıyor (Nominatim `Sanliurfa`/`Kirsehir`/`Agri` dönerse
+eskiden eşleşme kaçıyordu), `Merkez` adlı ilçe için sorgu il merkezine
+çevriliyor, `geocode_cache.json` okunuyor (yeniden çalıştırma ağa çıkmaz) ve
+başarı eşiği sabit 120 yerine işlenen satırın %85'i.
+
+**`upsert_rows` artık geçici hatalarda yeniden deniyor** (4 deneme, üstel
+bekleme; 5xx ve 429 tekrar denenir, 4xx hemen durur). İlk 81 il seed'i
+340/831'de tek bir Supabase `504 Gateway Timeout` yüzünden öldü — script
+`SystemExit` ediyordu ve ~6 dakikalık Nominatim emeği saniyelik bir gateway
+hıçkırığına feda oluyordu. Upsert `on_conflict=il,ilce` ile idempotent olduğu
+için yeniden denemek güvenli. Koşu yarıda kalırsa zaten yazılmış satırlar
+atlandığı ve cache dolu olduğu için devam etmek dakikalar sürüyor.
 
 ## Kaynak dosyalarda brief'ten farklı çıkanlar
 

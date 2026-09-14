@@ -33,6 +33,12 @@ export interface Durak {
   /** Ölçüsü bilinmeyen satır sayısı — >0 ise yük olduğundan az görünüyor. */
   olcusuzSatir: number;
   /**
+   * Sipariş satırlarının gerçek TL tutarı (Panorama'dan) — tahmin değil.
+   * OPSİYONEL: `sehir?`/`ilce?` ile aynı gerekçe, atama motoru bu alana
+   * bakmaz; `RotaDuragi` zaten taşıyor, buraya bedavaya akıyor.
+   */
+  brutTutar?: number;
+  /**
    * İdari kimlik — bölge kümelemesinin atom birimi (bkz. bolge.ts).
    * Opsiyonel: `sweepKumele`/`ffdAta` bunlara bakmaz, yalnız `bolgeAta`
    * kullanır. `RotaDuragi` zaten taşıyor, buraya bedavaya akıyor.

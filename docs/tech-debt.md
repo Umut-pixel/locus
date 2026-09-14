@@ -56,6 +56,29 @@ bugün yalnız süpürücünün jenerik metnini taşıyor.
 `Complete Sync Run*`), `frontend/hooks/usePanoramaSyncStatus.ts` (`hata`yı
 okuyor), `sql/panorama_sync_stale_sweep.sql`.
 
+**2026-09-14 — BDS (5451) zincirinde somut örnek + hızlı düzeltme:**
+`panorama_sync_runs`'ta report_id=5451 son 3 günde 4 kez `failed` (hepsi
+süpürücünün jenerik "00:30:00 içinde tamamlanmadı" mesajıyla — gerçek n8n
+hatası yukarıdaki nedenle hiç yazılmadı). Kullanıcının n8n arayüzünde canlı
+gördüğü gerçek hata: `Prep Complete Sync BDS` düğümünde
+`{"message":"Gateway Timeout"}` — yani `Insert Rows Batch BDS`'in ~79
+ardışık batch isteğinden (19.6K satır ÷ 250/batch) biri Supabase tarafında
+504 almış. `neverError:true` var ama `retryOnFail` YOKTU — tek bir geçici
+timeout tüm zinciri düşürüyordu (5450/BD2'de bu görülmedi çünkü onun batch
+sayısı çok daha az, ~39).
+
+*Hızlı düzeltme (yapıldı):* `Create Sync Run BDS`, `Insert Rows Batch BDS`,
+`Complete Sync Run BDS` düğümlerine `retryOnFail:true, maxTries:3,
+waitBetweenTries:3000` eklendi — yalnız bu 3 düğüm, yalnız BDS zinciri.
+Diğer zincirlerde (Main/YL/SD/STK/TH/BD2) aynı desen (HTTP node + neverError,
+retry yok) hâlâ var ve aynı riski taşıyor — bu commit onları KAPSAMIYOR,
+yalnız somut olarak arızalanan BDS'i düzeltti. Genişletilecekse hepsine aynı
+3 alanı eklemek yeterli, mimari değişmiyor.
+
+*Hâlâ eksik:* retry tükenirse zincir yine sessizce "running" kalıp
+süpürücüye düşecek — bu commit `errorWorkflow`/error-branch sorununu ÇÖZMÜYOR,
+yalnız en sık görülen tetikleyiciyi (geçici 504) azaltıyor.
+
 ## Arvento bakım: tam-pencere yenileme + doğrulanmamış alan formatları (2026-09-14)
 
 **Belirti (henüz görünmüyor):** `arac_bakim` tablosu bugün boş. Arvento'ya hiç
@@ -146,3 +169,87 @@ push + herkesin klonunu yenilemesi). Rotasyon yapıldıktan sonra geçmişteki
 anahtar zararsız hale geldiği için bu opsiyoneldir.
 
 **İlgili:** `backend/n8n/README.md` ("Anahtar rotasyonu — HENÜZ YAPILMADI")
+
+## Haftalık prospecting cron'u 40 gündür çalışmıyor (2026-09-14)
+
+`ilce_merkezleri.son_tarama` içindeki **en yeni** damga `2026-08-05`. Yani
+`google-places-prospecting` workflow'unun haftalık cron'u (`0 6 * * 3`,
+Çarşamba 06:00) o tarihten beri bir kez bile başarıyla tamamlanmamış —
+`Mark Son Tarama` düğümü hiç çalışmamış. 134 ilçenin **hiçbiri** 25 günlük
+tazelik penceresi içinde değil.
+
+**Nasıl fark edildi:** il bazlı manuel tarama özelliği için tazelik önizlemesi
+yazılırken, "kaç ilçe taze" sorgusu her il için 0 döndü.
+
+**Neden sessiz kaldı:** bu workflow `panorama_sync_runs` benzeri bir koşu
+tablosu yazmıyordu, yani başarısızlık hiçbir yerde görünmüyor. Arayüzde de
+"potansiyeller en son ne zaman tarandı" göstergesi yok — veri bayatlıyor ama
+kimse fark etmiyor.
+
+**Kısmen düzeldi:** manuel taramalar artık `potansiyel_taramalari` tablosuna
+satır yazıyor (`sql/potansiyel_tarama_sema.sql`), yani en azından elle
+başlatılan koşular izlenebilir. **Cron yolu hâlâ satır yazmıyor.**
+
+**Yapılacak:**
+1. n8n'de bu workflow'un execution geçmişine bak — cron tetikleniyor mu,
+   tetikleniyor da bir düğümde mi patlıyor? (`Expand Ilce Rows`'un
+   `rows.length < 900` tripwire'ı artık 973 ilçe beklediği için, seed'den
+   önceki bir koşu bu eşikte de patlamış olabilir — sıra önemliydi.)
+2. Cron yoluna da `Create Cron Tarama` + `Set Run Id` düğümleri ekle
+   (aşağıdaki madde), böylece başarısızlık görünür olsun.
+3. Google Places API anahtarının kotası/faturası hâlâ geçerli mi doğrula —
+   sessiz başarısızlığın en olası nedeni bu.
+
+**İlgili:** `backend/n8n/README.md` → "Harita → il bazlı tarama"
+
+---
+
+## Prospecting cron'u ile manuel tarama eşzamanlı çalışabilir (2026-09-14)
+
+`$getWorkflowStaticData('global')` n8n'de **workflow başına**, execution
+başına değil. Aynı anda iki `google-places-prospecting` koşusu olursa
+`placesById`, `scannedDistricts` ve `clippedDistricts` birbirini ezer;
+sonuç yanlış ilçelere `son_tarama` yazılması olur ve o ilçeler 25 gün
+boyunca sonuçsuz kilitlenir.
+
+Uygulama katmanındaki in-flight kilidi (`durum='running'` satırı varsa 409)
+yalnız **manuel** taramaları görüyor; haftalık cron koşusu `potansiyel_taramalari`'na
+satır yazmadığı için kilide görünmez.
+
+**Şimdilik konan yama:** `/api/potansiyel/tarama` Çarşamba 06:00-08:00
+Europe/Istanbul penceresinde manuel taramayı reddediyor. Bu bir tahmin —
+cron'un gerçekte ne kadar sürdüğü ölçülmedi ve n8n instance'ının saat dilimi
+Europe/Istanbul varsayıldı.
+
+**Doğru çözüm:** cron yoluna `Config → Has Run Id? → [false] Create Cron
+Tarama (POST, Prefer: return=representation) → Set Run Id → Reset Static
+Accumulator` ekleyip kilidi evrenselleştirmek. Tarama davranışı değişmez ama
+cron yolu artık "bit‑bit aynı" olmaz, o yüzden özellik canlıda kanıtlandıktan
+sonra ayrı inmeli. Bu aynı zamanda yukarıdaki "cron sessizce ölüyor"
+maddesini de çözer.
+
+---
+
+## "Merkez" adlı iki ilçede Text Search sorgusu anlamsız (2026-09-14)
+
+`Build Text Queries` sorguyu `${varyasyon} ${ilce}` diye kuruyor
+("evcil hayvan maması", "kuş yemi", "pet shop" + ilçe adı). 973 ilçelik seed
+merkez ilçesini **il adıyla** yazıyor ("Bilecik"), yani sorgu "pet shop
+Bilecik" oluyor — doğru. Ama seed'den önce var olan iki satır düz "Merkez"
+taşıyor:
+
+- `Çanakkale/Merkez` (`yoğun_bolge = true`)
+- `Uşak/Merkez` (`yoğun_bolge = true`)
+
+İkisi de yoğun, yani Text Search **onlarda çalışıyor** ve sorgu "pet shop
+Merkez" oluyor. Google'ın bu sorguyla ne döndürdüğü ölçülmedi; muhtemelen
+locationBias sayesinde tamamen çöp değil ama ilçe adı hiçbir sinyal taşımıyor.
+
+**Neden düzeltilmedi:** yeniden adlandırmak `UNIQUE (il, ilce)` yüzünden yeni
+satır açar; eski satırın `son_tarama` ve öğrenilmiş `yoğun_bolge` değeri
+yetim kalır ve o iki ilçe bir tur boyunca yeniden taranır.
+
+**Doğru çözüm:** tek seferlik bir `update ilce_merkezleri set ilce = il
+where ilce = 'Merkez'` (satırı taşır, geçmişi korur) + CSV'deki karşılıklarını
+güncelle. İki satır için ayrı bir migration yazmaya değer mi, ölçülmeden
+karar verilmemeli.
