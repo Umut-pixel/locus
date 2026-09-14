@@ -7,7 +7,7 @@ import { Typography } from "@heroui/react";
 
 import { useTheme } from "@/components/theme/ThemeProvider";
 import {
-  CANLI_NOTR_RENK,
+  canliAracRengi,
   canliKaymalariUygula,
   type CanliImlec,
   canliPopupHtml,
@@ -945,13 +945,7 @@ export const PetshopMap = memo(function PetshopMap({
     for (const k of konumlar) {
       canliMarkerlarRef.current.push(
         new mapboxgl.Marker({
-          element: createCanliAracEl(
-            k.aracAdi ?? k.plaka,
-            CANLI_NOTR_RENK,
-            k.yonDerece,
-            k.hareket,
-            k.bayat
-          ),
+          element: createCanliAracEl(k, canliAracRengi(k)),
           anchor: "center",
         })
           .setLngLat([k.lon, k.lat])

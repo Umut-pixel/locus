@@ -22,6 +22,31 @@ import { yasMetni, yasSaniye, type CanliAracKonumu } from "@/lib/rota/canli-konu
 export const CANLI_NOTR_RENK = "#94a3b8";
 
 /**
+ * Sevkiyat aracı rengi — rota eşlemesi HENÜZ yokken kullanılan geçici ton.
+ *
+ * `ARAC_RENKLERI`nin ilk rengiyle (Google mavisi) aynı, bilerek: kullanıcı
+ * zaten Apple/Google haritalarındaki "kendi aracın" mavisini tanıyor. Bir araca
+ * `arac_kod` işaretlendiği anda rota rengi bunun yerini alır, yani bu renk
+ * ancak eşleme tamamlanana kadar görünür.
+ */
+export const CANLI_SEVKIYAT_RENK = "#4285F4";
+
+/**
+ * İmleç rengi: rota rengi > sevkiyat > nötr.
+ *
+ * Rota rengi yalnız rota haritasında ve YALNIZ eşlenmiş araçlarda var; müşteri
+ * haritasında rota kavramı olmadığı için hiç gelmiyor. Şahıs araçları nötr
+ * gride kalıyor — haritada "bizim araçlar" bir bakışta seçilsin.
+ */
+export function canliAracRengi(
+  k: CanliAracKonumu,
+  rotaRengi?: string | null
+): string {
+  if (rotaRengi) return rotaRengi;
+  return k.sevkiyat ? CANLI_SEVKIYAT_RENK : CANLI_NOTR_RENK;
+}
+
+/**
  * Üst üste binen araçları yelpaze gibi açar.
  *
  * Neden gerekli: filonun çoğu gün boyunca depoda park hâlinde duruyor.
@@ -165,6 +190,32 @@ function koniUcu(aci: number, r: number): [number, number] {
 }
 
 /**
+ * Kamyon / otomobil silueti — lucide `truck` ve `car-front` ikonlarının path
+ * verisi. Repo zaten lucide kullanıyor; ikonu elle yeniden çizmek yerine aynı
+ * kaynaktan alınıyor ki arayüzün geri kalanıyla aynı çizgi dilinde olsun.
+ *
+ * lucide 24'lük viewBox'ta tasarlanmış; 0.62 ölçek + (16.6, 16.6) öteleme onu
+ * 48'lik puck'ın ortasına, çapı ~15 px olacak şekilde yerleştiriyor.
+ * `stroke-width` ölçeği telafi edecek kadar kalın (2.6 × 0.62 ≈ 1.6 px).
+ */
+function siluet(kamyon: boolean): string {
+  const yollar = kamyon
+    ? `<path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2" />
+       <path d="M15 18H9" />
+       <path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14" />
+       <circle cx="17" cy="18" r="2" />
+       <circle cx="7" cy="18" r="2" />`
+    : `<path d="m21 8-2 2-1.5-3.7A2 2 0 0 0 15.646 5H8.4a2 2 0 0 0-1.903 1.257L5 10 3 8" />
+       <rect width="18" height="8" x="3" y="10" rx="2" />
+       <path d="M7 14h.01" />
+       <path d="M17 14h.01" />
+       <path d="M5 18v2" />
+       <path d="M19 18v2" />`;
+  return `<g transform="translate(16.6 16.6) scale(0.62)" fill="none" stroke="#ffffff"
+             stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">${yollar}</g>`;
+}
+
+/**
  * Canlı araç imleci — Arvento'dan gelen GERÇEK koordinat.
  *
  * Görsel dil bilerek Apple/Google Haritalar'ın seyir imlecine benziyor, çünkü
@@ -185,16 +236,18 @@ function koniUcu(aci: number, r: number): [number, number] {
  * yeri" demek.
  */
 export function createCanliAracEl(
-  etiket: string,
-  renk: string,
-  yon: number | null,
-  hareket: boolean,
-  bayat: boolean
+  k: CanliAracKonumu,
+  renk: string
 ): HTMLDivElement {
+  const { yonDerece: yon, hareket, bayat, sevkiyat } = k;
+  const kamyonMu = (k.aracSinifi ?? "").toUpperCase().includes("KAMYON");
+  const etiket = k.aracAdi ?? k.plaka;
+
   const el = document.createElement("div");
   el.setAttribute("role", "img");
   const durum = bayat ? "son bilinen konum" : hareket ? "hareket halinde" : "duruyor";
-  el.setAttribute("aria-label", `${etiket} — ${durum}`);
+  const tur = sevkiyat ? (kamyonMu ? "kamyon, sevkiyat" : "otomobil, sevkiyat") : "şahıs aracı";
+  el.setAttribute("aria-label", `${etiket} — ${tur} — ${durum}`);
   el.style.cssText =
     // z-index: depo pini büyük ve `anchor:bottom`; araç imleci onun altında kalmasın.
     "width:48px;height:48px;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:3;" +
@@ -222,9 +275,20 @@ export function createCanliAracEl(
             transform="rotate(${aci.toFixed(1)} 24 24)" />`;
   }
 
-  // Puck'ın içi: hareket + yön varsa chevron, yoksa sade nokta.
-  const ic =
-    hareket && yonBelli
+  /*
+   * Puck'ın içi:
+   *   - SEVKİYAT aracı → kamyon/otomobil silueti (lucide truck / car-front).
+   *     Yön zaten koniyle okunuyor, o yüzden chevron'dan vazgeçiliyor; araç
+   *     türünü bir bakışta görmek daha değerli.
+   *   - şahıs aracı → eskisi gibi chevron (hareket) / nokta (park).
+   *
+   * Sınıf SEVKİYAT KARARINDA kullanılmıyor, yalnız ikon seçiminde: 35ASM899
+   * bir sevkiyat aracı ama OTOMOBIL sınıfında (bkz.
+   * sql/arvento_sevkiyat_bayragi.sql).
+   */
+  const ic = sevkiyat
+    ? siluet(kamyonMu)
+    : hareket && yonBelli
       ? `<polygon points="24 17 29.2 30.6 24 27.6 18.8 30.6"
                   fill="#ffffff" transform="rotate(${aci.toFixed(1)} 24 24)" />`
       : `<circle cx="24" cy="24" r="4.6" fill="#ffffff" />`;

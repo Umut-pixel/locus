@@ -120,8 +120,26 @@ türetilir, uygulama kodunda tekrar hesaplanmaz. Plaka da view'dan gelir —
 Arvento'nun `lastEvents` ucu yalnız cihaz node'u döndürüyor.
 
 **Üç durum ayrı gösterilir:** taze konum (gerçek yer + hız + adres), bayat
-ölçüm (soluk imleç, "son bilinen konum"), eşlenmemiş araç (nötr gri imleç;
-araç detayında "cihaz eşlenmemiş" uyarısı).
+ölçüm (soluk imleç, "son bilinen konum"), eşlenmemiş araç (araç detayında
+"cihaz eşlenmemiş" uyarısı).
+
+**Sevkiyat vs şahıs aracı.** Arvento 8 araç bildiriyor; 3'ü dağıtım filosu,
+5'i çalışanların şahıs aracı. Ayrım `arvento_araclar.sevkiyat` bayrağından
+gelir — araç sınıfından DEĞİL: `35ASM899` bir sevkiyat aracı ama OTOMOBIL
+sınıfında, yani "KAMYON = sevkiyat" kuralı onu kaçırırdı. Bayrak `arac_kod`'dan
+da ayrı: o "hangi rota aracı" sorusunu cevaplar ve hâlâ teyit bekliyor
+(bkz. `sql/arvento_sevkiyat_bayragi.sql`).
+
+| | İkon | Renk |
+|---|---|---|
+| Sevkiyat, KAMYON | lucide `truck` silueti | `#4285F4` |
+| Sevkiyat, OTOMOBIL | lucide `car-front` silueti | `#4285F4` |
+| Şahıs aracı | chevron (hareket) / nokta (park) | nötr gri |
+| `arac_kod` eşlenmiş | (aynı siluet) | rota rengi |
+
+Sevkiyat araçlarında chevron yerine siluet var çünkü gidiş yönü zaten koniyle
+okunuyor; araç türünü görmek daha değerli. Listede de sevkiyat araçları ayrı
+grupta ve üstte.
 
 ⚠️ **`arvento_araclar.arac_kod` eşlemesi ELLE yapılır.** Bir araca cihaz
 eşlenmemişse haritada plakasıyla ve nötr renkle görünür, rota rengini almaz.

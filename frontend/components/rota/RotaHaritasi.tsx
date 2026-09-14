@@ -7,7 +7,7 @@ import "mapbox-gl/dist/mapbox-gl.css";
 import type { DurakRotaBaglami, DurakSecimi } from "@/components/rota/DurakDetayKarti";
 import type { RotaDuragi } from "@/hooks/useRotaPlani";
 import {
-  CANLI_NOTR_RENK,
+  canliAracRengi,
   canliKaymalariUygula,
   canliPopupHtml,
   createCanliAracEl,
@@ -628,11 +628,8 @@ export function RotaHaritasi({
         markersRef.current.push(
           new mapboxgl.Marker({
             element: createCanliAracEl(
-              canli.aracAdi ?? canli.plaka,
-              haritaRengi(rota.renk, karanlikMi),
-              canli.yonDerece,
-              canli.hareket,
-              false
+              canli,
+              canliAracRengi(canli, haritaRengi(rota.renk, karanlikMi))
             ),
             anchor: "center",
           })
@@ -715,13 +712,7 @@ export function RotaHaritasi({
       if (cizilenCanli.has(k.node)) continue;
       markersRef.current.push(
         new mapboxgl.Marker({
-          element: createCanliAracEl(
-            k.aracAdi ?? k.plaka,
-            CANLI_NOTR_RENK,
-            k.yonDerece,
-            k.hareket,
-            k.bayat
-          ),
+          element: createCanliAracEl(k, canliAracRengi(k)),
           anchor: "center",
         })
           .setLngLat([k.lon, k.lat])
