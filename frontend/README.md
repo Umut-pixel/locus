@@ -93,7 +93,8 @@ Supabase → `v_arac_konum_son` view'ı.
 | İmleç + balon + yelpaze (İKİ haritanın ortağı) | `lib/rota/canli-arac-imleci.ts` |
 | Rota haritası | `components/rota/RotaHaritasi.tsx` (`canliAraclar` prop'u) |
 | Müşteri haritası | `components/map/PetshopMap.tsx` (`canliAraclar` prop'u) |
-| "Canlı" sekmesi (liste + araca uç) | `components/rota/CanliAracListesi.tsx` |
+| Araç listesi satırı | `components/rota/CanliAracListesi.tsx` |
+| "Canlı araçlar" kartı (iki haritada da) | `components/rota/CanliAracKarti.tsx` |
 | Araç detay paneli | `app/(app)/rotalar/[aracKod]/page.tsx` |
 
 **Üst üste binme:** filo gün boyu depoda park hâlinde, hepsi aynı koordinatı
@@ -102,10 +103,17 @@ ortak merkez etrafında yelpazeye açıyor ve `zoomend`'de yeniden hesaplıyor.
 Coğrafi ızgarayla kümelemek işe yaramaz: Türkiye görünümünde 11 m zaten tek
 piksel (ölçüldü — en yakın ikili 0 px'ten 32 px'e çıktı).
 
-**Bulunabilirlik:** rota haritasının sol panelindeki **Canlı** sekmesi araçları
-plaka + durum + yaş ile listeler, tıklanınca harita o araca uçar. Kamera rota
-planına göre kurulduğu için filonun bir kısmı kadraj dışında kalabiliyor;
-liste bu yüzden var.
+**Bulunabilirlik:** her iki haritada da **Canlı araçlar** kartı var — kabuğu
+`PlanKarnesi` ile aynı (başlık düğmesi + durum çipi + `GsapCollapse`). Araçları
+plaka, durum, hız, yaş ve adresle listeler; hareket edenler üstte. Satıra
+tıklayınca harita o araca uçar — rota haritasında `ucusHedefi`, müşteri
+haritasında mevcut `regionFocus` makinesi (aracın çevresinde ~400 m'lik kutu)
+yeniden kullanılıyor.
+
+Kart gerekli çünkü kamera rota planına göre kuruluyor ve filonun bir kısmı hep
+kadraj dışında kalıyor; imleci büyütmek bunu çözmüyor. Rota haritasında karnenin
+ÜSTÜNDE duruyor ("araçlarım nerede" sorusu plan değerlendirmesinden önce gelir),
+müşteri haritasında sağ üstte ve varsayılan KAPALI (harita orası için asıl içerik).
 
 **Frontend yalnız view'ı okur.** `hareket` (hız > 0) ve `bayat` (10 dk) view'da
 türetilir, uygulama kodunda tekrar hesaplanmaz. Plaka da view'dan gelir —

@@ -53,7 +53,7 @@ import { SegmentedSwitch } from "@/components/ui/segmented-switch";
 import { toastManager } from "@/components/ui/toast";
 import { useKayitliPlanlar, type KayitliDurak } from "@/hooks/useKayitliPlanlar";
 import { useRaporTazeligi } from "@/hooks/useMusteriRaporlama";
-import { CanliAracListesi } from "@/components/rota/CanliAracListesi";
+import { CanliAracKarti } from "@/components/rota/CanliAracKarti";
 import { useCanliAracKonumlari } from "@/hooks/useCanliAracKonumlari";
 import { ROTA_REPORT_ID, type RotaAraci, type RotaDuragi } from "@/hooks/useRotaPlani";
 import { useSurukleblirKart } from "@/hooks/useSurukleblirKart";
@@ -218,7 +218,7 @@ export default function RotaHaritasiSayfasi() {
   ]);
   const [havuzGoster, setHavuzGoster] = useState(true);
   /** Sol üst karttaki liste sekmesi — araç/bölge filtresi + kayıtlı plan geçmişi aynı kartı paylaşıyor. */
-  const [liste, setListe] = useState<"araclar" | "bolgeler" | "kaydedilenler" | "canli">("araclar");
+  const [liste, setListe] = useState<"araclar" | "bolgeler" | "kaydedilenler">("araclar");
   /** Bölgeler ya da Kaydedilenler'den bir yere tıklanınca haritanın kayacağı hedef. */
   const [ucusHedefi, setUcusHedefi] = useState<{ noktalar: [number, number][]; zaman: number } | null>(
     null
@@ -973,10 +973,6 @@ export default function RotaHaritasiSayfasi() {
                 options={[
                   { value: "araclar", label: "Araçlar" },
                   ...(bolgelerVar ? [{ value: "bolgeler" as const, label: "Bölgeler" }] : []),
-                  {
-                    value: "canli",
-                    label: canliAraclar.length > 0 ? `Canlı ${canliAraclar.length}` : "Canlı",
-                  },
                   { value: "kaydedilenler", label: "Kayıtlı" },
                 ]}
               />
@@ -1023,17 +1019,6 @@ export default function RotaHaritasiSayfasi() {
                       );
                     })}
                   </ul>
-                ) : gecerliListe === "canli" ? (
-                  <CanliAracListesi
-                    konumlar={canliAraclar}
-                    yukleniyor={canliYukleniyor}
-                    odakliNode={odakliCanliNode}
-                    onOdaklan={(k) => {
-                      setOdakliCanliNode(k.node);
-                      // Tek nokta gönderiliyor — `ucusHedefi` onu ortalayıp yakınlaştırır.
-                      setUcusHedefi({ noktalar: [[k.lon, k.lat]], zaman: Date.now() });
-                    }}
-                  />
                 ) : gecerliListe === "kaydedilenler" ? (
                   kayitli.loading && kayitli.gunler.length === 0 ? (
                     <p className="flex items-center gap-2 px-2.5 py-3 text-[12px] text-muted-foreground">
@@ -1220,6 +1205,31 @@ export default function RotaHaritasiSayfasi() {
                   onBitti={() => setOptimizeTamamZamani(null)}
                 />
               )}
+            </div>
+          ) : null}
+
+          {/*
+            Canlı araçlar kendi camında, karnenin ÜSTÜNDE: "araçlarım nerede"
+            sorusu plan değerlendirmesinden önce geliyor ve karne uzun olduğu
+            için altta kalsaydı kaydırma gerektirirdi.
+          */}
+          {canliAraclar.length > 0 ? (
+            <div
+              className={cn(
+                "pointer-events-auto flex w-[min(100%,20rem)] min-w-0 flex-col overflow-hidden rounded-2xl",
+                CAM
+              )}
+            >
+              <CanliAracKarti
+                konumlar={canliAraclar}
+                yukleniyor={canliYukleniyor}
+                odakliNode={odakliCanliNode}
+                onOdaklan={(k) => {
+                  setOdakliCanliNode(k.node);
+                  // Tek nokta — `ucusHedefi` onu ortalayıp yakınlaştırır.
+                  setUcusHedefi({ noktalar: [[k.lon, k.lat]], zaman: Date.now() });
+                }}
+              />
             </div>
           ) : null}
 
