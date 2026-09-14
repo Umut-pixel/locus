@@ -132,14 +132,17 @@ da ayrı: o "hangi rota aracı" sorusunu cevaplar ve hâlâ teyit bekliyor
 
 | | İkon | Renk |
 |---|---|---|
-| Sevkiyat, KAMYON | lucide `truck` silueti | `#4285F4` |
-| Sevkiyat, OTOMOBIL | lucide `car-front` silueti | `#4285F4` |
-| Şahıs aracı | chevron (hareket) / nokta (park) | nötr gri |
+| KAMYON | lucide `truck` silueti | `#4285F4` |
+| OTOMOBIL | lucide `car-front` silueti | `#4285F4` |
 | `arac_kod` eşlenmiş | (aynı siluet) | rota rengi |
 
-Sevkiyat araçlarında chevron yerine siluet var çünkü gidiş yönü zaten koniyle
-okunuyor; araç türünü görmek daha değerli. Listede de sevkiyat araçları ayrı
-grupta ve üstte.
+Chevron yerine siluet var çünkü gidiş yönü zaten koniyle okunuyor; araç türünü
+görmek daha değerli.
+
+**Haritada sevkiyat/şahıs ayrımı YOK, listede var.** Nötr gri imleç haritada
+"veri yok / bozuk" gibi okunuyordu (2026-09-14 kararı), bu yüzden bütün araçlar
+aynı mavi puck'ı kullanıyor. Ayrım `CanliAracKarti` içindeki iki başlıklı
+grupta (Sevkiyat / Şahıs araçları) ve balondaki sürücü bilgisinde duruyor.
 
 ⚠️ **`arvento_araclar.arac_kod` eşlemesi ELLE yapılır.** Bir araca cihaz
 eşlenmemişse haritada plakasıyla ve nötr renkle görünür, rota rengini almaz.

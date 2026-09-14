@@ -1041,6 +1041,41 @@ export default function Home() {
           className="pointer-events-none absolute inset-0 z-10 flex flex-col gap-2 bg-transparent p-2 sm:gap-3 sm:p-3 md:p-4"
           style={MAP_OVERLAY_SAFE_PAD}
         >
+          {/*
+            Canlı araçlar kartı AKIŞIN DIŞINDA, sağ üst köşeye sabit.
+            Önce aşağıdaki flex satırının içindeydi ve "Son sync" rozetini
+            yerinden ediyordu (rozet aramanın yanında durmalı). Mutlak
+            konumlandırınca satır eski hâline dönüyor.
+
+            right-12: Mapbox'ın zoom/pusula kontrolleri sağ kenarda duruyor,
+            kart onların altına girmesin.
+          */}
+          {canliAraclar.length > 0 ? (
+            <div className="pointer-events-auto absolute top-0 right-12 z-10 w-[min(calc(100%-4rem),19rem)] overflow-hidden rounded-2xl border border-border/45 bg-popover/66 text-popover-foreground shadow-[0_14px_40px_-16px_rgba(0,0,0,0.55)] backdrop-blur-[24px] backdrop-saturate-150">
+              <CanliAracKarti
+                konumlar={canliAraclar}
+                yukleniyor={canliYukleniyor}
+                odakliNode={odakliCanliNode}
+                varsayilanAcik={false}
+                onOdaklan={(k) => {
+                  setOdakliCanliNode(k.node);
+                  /*
+                   * Mevcut `regionFocus` makinesi yeniden kullanılıyor:
+                   * aracın çevresinde ~400 m'lik küçük bir kutu verilince
+                   * harita oraya fitBounds yapıp yakınlaşıyor.
+                   */
+                  const d = 0.004;
+                  setRegionFocus({
+                    bounds: [
+                      [k.lon - d, k.lat - d],
+                      [k.lon + d, k.lat + d],
+                    ],
+                    nonce: Date.now(),
+                  });
+                }}
+              />
+            </div>
+          ) : null}
           <div className="flex min-h-0 flex-1 flex-wrap items-start gap-2 overflow-x-visible overflow-y-auto">
             <div className="pointer-events-auto min-h-0 min-w-0 w-full lg:max-w-[22.5rem]">
               <FilterPanel
@@ -1061,39 +1096,6 @@ export default function Home() {
                 )}
               </AnimatePresence>
             </div>
-            {/*
-              Canlı araçlar sağa yaslı: sol sütun filtre/içe aktarma için
-              ayrılmış, lejant da sağ altta. Araç kartı sağ üstte kalınca
-              haritanın ortası açık kalıyor.
-            */}
-            {canliAraclar.length > 0 ? (
-              <div className="pointer-events-auto order-last ml-auto w-full min-w-0 overflow-hidden rounded-2xl border border-border/45 bg-popover/66 text-popover-foreground shadow-[0_14px_40px_-16px_rgba(0,0,0,0.55)] backdrop-blur-[24px] backdrop-saturate-150 lg:order-none lg:w-[19rem]">
-                <CanliAracKarti
-                  konumlar={canliAraclar}
-                  yukleniyor={canliYukleniyor}
-                  odakliNode={odakliCanliNode}
-                  varsayilanAcik={false}
-                  onOdaklan={(k) => {
-                    setOdakliCanliNode(k.node);
-                    /*
-                     * Mevcut `regionFocus` makinesi yeniden kullanılıyor:
-                     * aracın çevresinde ~400 m'lik küçük bir kutu verilince
-                     * harita oraya fitBounds yapıp yakınlaşıyor. Araç için
-                     * ayrı bir odak yolu açmaya gerek yok.
-                     */
-                    const d = 0.004;
-                    setRegionFocus({
-                      bounds: [
-                        [k.lon - d, k.lat - d],
-                        [k.lon + d, k.lat + d],
-                      ],
-                      nonce: Date.now(),
-                    });
-                  }}
-                />
-              </div>
-            ) : null}
-
             {refreshing && (
               <span className="pointer-events-none mt-1.5 rounded-full border bg-popover/90 px-2 py-0.5 font-mono text-[10px] tracking-wide text-muted-foreground uppercase shadow-md">
                 Yenileniyor…

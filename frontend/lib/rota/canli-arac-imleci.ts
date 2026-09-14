@@ -14,36 +14,30 @@ import type mapboxgl from "mapbox-gl";
 import { yasMetni, yasSaniye, type CanliAracKonumu } from "@/lib/rota/canli-konum";
 
 /**
- * Rota planına eşlenmemiş araçların rengi. Bilerek nötr gri: bir rotaya ait
- * olmadıkları için plan paletinden renk almamalılar, yoksa haritada "bu araç
- * şu rotayı sürüyor" yanılsaması doğar. Müşteri haritasında zaten rota
- * kavramı yok — orada bütün araçlar bu rengi kullanır.
- */
-export const CANLI_NOTR_RENK = "#94a3b8";
-
-/**
- * Sevkiyat aracı rengi — rota eşlemesi HENÜZ yokken kullanılan geçici ton.
+ * Canlı araç rengi — rota eşlemesi HENÜZ yokken kullanılan ton.
  *
  * `ARAC_RENKLERI`nin ilk rengiyle (Google mavisi) aynı, bilerek: kullanıcı
- * zaten Apple/Google haritalarındaki "kendi aracın" mavisini tanıyor. Bir araca
- * `arac_kod` işaretlendiği anda rota rengi bunun yerini alır, yani bu renk
- * ancak eşleme tamamlanana kadar görünür.
+ * zaten Apple/Google haritalarındaki "araç" mavisini tanıyor. Bir araca
+ * `arac_kod` işaretlendiği anda rota rengi bunun yerini alır.
+ *
+ * Şahıs araçları da bu rengi kullanıyor (2026-09-14 kararı): nötr gri imleç
+ * haritada "veri yok / bozuk" gibi okunuyordu. Sevkiyat / şahıs ayrımı artık
+ * yalnız LİSTEDE — kartta iki ayrı başlıklı grup — ve balondaki sürücü
+ * bilgisinde yaşıyor.
  */
-export const CANLI_SEVKIYAT_RENK = "#4285F4";
+export const CANLI_ARAC_RENK = "#4285F4";
 
 /**
- * İmleç rengi: rota rengi > sevkiyat > nötr.
+ * İmleç rengi: rota rengi > varsayılan araç mavisi.
  *
  * Rota rengi yalnız rota haritasında ve YALNIZ eşlenmiş araçlarda var; müşteri
- * haritasında rota kavramı olmadığı için hiç gelmiyor. Şahıs araçları nötr
- * gride kalıyor — haritada "bizim araçlar" bir bakışta seçilsin.
+ * haritasında rota kavramı olmadığı için hiç gelmiyor.
  */
 export function canliAracRengi(
-  k: CanliAracKonumu,
+  _k: CanliAracKonumu,
   rotaRengi?: string | null
 ): string {
-  if (rotaRengi) return rotaRengi;
-  return k.sevkiyat ? CANLI_SEVKIYAT_RENK : CANLI_NOTR_RENK;
+  return rotaRengi || CANLI_ARAC_RENK;
 }
 
 /**
@@ -276,22 +270,15 @@ export function createCanliAracEl(
   }
 
   /*
-   * Puck'ın içi:
-   *   - SEVKİYAT aracı → kamyon/otomobil silueti (lucide truck / car-front).
-   *     Yön zaten koniyle okunuyor, o yüzden chevron'dan vazgeçiliyor; araç
-   *     türünü bir bakışta görmek daha değerli.
-   *   - şahıs aracı → eskisi gibi chevron (hareket) / nokta (park).
+   * Puck'ın içi: HER araçta kamyon/otomobil silueti (lucide truck /
+   * car-front). Yön zaten koniyle okunuyor, o yüzden chevron'a gerek yok;
+   * araç türünü bir bakışta görmek daha değerli.
    *
-   * Sınıf SEVKİYAT KARARINDA kullanılmıyor, yalnız ikon seçiminde: 35ASM899
-   * bir sevkiyat aracı ama OTOMOBIL sınıfında (bkz.
+   * Sınıf yalnız ikon seçiminde kullanılıyor, sevkiyat kararında DEĞİL:
+   * 35ASM899 bir sevkiyat aracı ama OTOMOBIL sınıfında (bkz.
    * sql/arvento_sevkiyat_bayragi.sql).
    */
-  const ic = sevkiyat
-    ? siluet(kamyonMu)
-    : hareket && yonBelli
-      ? `<polygon points="24 17 29.2 30.6 24 27.6 18.8 30.6"
-                  fill="#ffffff" transform="rotate(${aci.toFixed(1)} 24 24)" />`
-      : `<circle cx="24" cy="24" r="4.6" fill="#ffffff" />`;
+  const ic = siluet(kamyonMu);
 
   el.innerHTML = `
     <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
