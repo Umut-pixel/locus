@@ -46,21 +46,21 @@ export function CanliAracKarti({
   const [acik, setAcik] = useState(varsayilanAcik);
 
   const yolda = konumlar.filter((k) => k.hareket && !k.bayat).length;
-  const bayat = konumlar.filter((k) => k.bayat).length;
 
   /*
-   * Çip önceliği: bayat > yolda > park. Bayat en önemlisi çünkü "araç orada"
-   * sanılmasına yol açan tek durum o — sayı değil, güven sorunu.
+   * Çip yalnız hareket durumunu söylüyor. Bayat sayısı BİLEREK burada değil:
+   * başlıkta sürekli bir uyarı gibi duruyordu, oysa park hâlindeki bir aracın
+   * ölçümünün 10 dakikayı geçmesi olağan. Bayatlık satır satır zaten görünür —
+   * listede "Son bilinen konum" metni ve `text-caution` noktası, haritada soluk
+   * imleç ve kesik halka.
    */
   const cip = yukleniyor
     ? { metin: "yükleniyor…", sinif: "text-muted-foreground" }
     : konumlar.length === 0
       ? { metin: "veri yok", sinif: "text-caution" }
-      : bayat > 0
-        ? { metin: `${bayat} bayat`, sinif: "text-caution" }
-        : yolda > 0
-          ? { metin: `${yolda} yolda`, sinif: "text-foreground" }
-          : { metin: "hepsi park", sinif: "text-muted-foreground" };
+      : yolda > 0
+        ? { metin: `${yolda} yolda`, sinif: "text-foreground" }
+        : { metin: "hepsi park", sinif: "text-muted-foreground" };
 
   return (
     <div className={cn("flex min-w-0 flex-col", className)}>
@@ -100,7 +100,7 @@ export function CanliAracKarti({
           Uzun filoda kart ekranı yemesin — liste kendi içinde kayıyor.
           8 araçta devreye girmiyor, ileride filo büyürse diye.
         */}
-        <div className="max-h-[42vh] overflow-y-auto">
+        <div className="max-h-[34vh] overflow-y-auto">
           <CanliAracListesi
             konumlar={konumlar}
             yukleniyor={yukleniyor}

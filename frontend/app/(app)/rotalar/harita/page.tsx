@@ -910,10 +910,16 @@ export default function RotaHaritasiSayfasi() {
 
       <div className="pointer-events-none absolute inset-0 z-10 flex flex-col justify-between gap-2 p-2 sm:p-3 md:p-4">
         {/* Sol üst: geri + araç listesi — ikisi ayrı kart, DurakDetayKarti'yle aynı "her panel kendi camı" dili */}
+        {/*
+          shrink-0: overlay tek bir dikey sütun (`justify-between`) ve sağ alt
+          blok Canlı araçlar kartıyla büyüyünce flex bu paneli sıkıştırıp
+          Araçlar/Bölgeler/Kayıtlı sekmesini kesiyordu. Sol panel artık
+          küçültülmüyor; yer darsa aşağıdaki blok kendi içinde kayıyor.
+        */}
         <div
           ref={solKart.cardRef}
           style={solKart.style}
-          className="flex min-h-0 flex-col items-start gap-2"
+          className="flex min-h-0 shrink-0 flex-col items-start gap-2"
         >
           <div
             {...solKart.tutamacProps}
@@ -1183,7 +1189,15 @@ export default function RotaHaritasiSayfasi() {
           göre hesaplanıyor, dondurulmuş bir günün yanında göstermek yanıltıcı
           olurdu). Kayıtlı modda yerine sade bir özet çipi var.
         */}
-        <div ref={sagAltRef} className="flex flex-col items-end gap-2">
+        {/*
+          min-h-0 + overflow-y-auto: sol panel artık shrink-0, dolayısıyla yer
+          darlığını BU blok soğurmalı — karne + canlı araçlar birlikte ekrana
+          sığmazsa sütun kendi içinde kayar, üstteki panel kesilmez.
+        */}
+        <div
+          ref={sagAltRef}
+          className="flex min-h-0 flex-col items-end gap-2 overflow-y-auto"
+        >
           {/*
             Optimize durumu — plan karnesinin HEMEN ÜSTÜNDE, aynı cam+genişlik.
             Optimize artık yalnız düğmeyle değil kendiliğinden de (bkz.

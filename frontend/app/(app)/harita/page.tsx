@@ -1042,38 +1042,47 @@ export default function Home() {
           style={MAP_OVERLAY_SAFE_PAD}
         >
           {/*
-            Canlı araçlar kartı AKIŞIN DIŞINDA, sağ üst köşeye sabit.
+            Canlı araçlar kartı AKIŞIN DIŞINDA, sağ üstte.
             Önce aşağıdaki flex satırının içindeydi ve "Son sync" rozetini
-            yerinden ediyordu (rozet aramanın yanında durmalı). Mutlak
-            konumlandırınca satır eski hâline dönüyor.
+            yerinden ediyordu (rozet aramanın yanında durmalı).
 
-            right-12: Mapbox'ın zoom/pusula kontrolleri sağ kenarda duruyor,
-            kart onların altına girmesin.
+            Sarmalayıcı overlay'in PADDING'İNİ TEKRARLIYOR: `absolute top-0`
+            padding'i atlayıp kartı arama çubuğundan yukarı kaçırıyordu, bu
+            yüzden aynı `p-*` ve aynı safe-area değeri burada da veriliyor —
+            kartın üst kenarı arama çubuğuyla aynı hizaya oturuyor.
+
+            mr-10: Mapbox'ın zoom/pusula kontrolleri sağ kenarda, kart onların
+            üstüne binmesin.
           */}
           {canliAraclar.length > 0 ? (
-            <div className="pointer-events-auto absolute top-0 right-12 z-10 w-[min(calc(100%-4rem),19rem)] overflow-hidden rounded-2xl border border-border/45 bg-popover/66 text-popover-foreground shadow-[0_14px_40px_-16px_rgba(0,0,0,0.55)] backdrop-blur-[24px] backdrop-saturate-150">
-              <CanliAracKarti
-                konumlar={canliAraclar}
-                yukleniyor={canliYukleniyor}
-                odakliNode={odakliCanliNode}
-                varsayilanAcik={false}
-                onOdaklan={(k) => {
-                  setOdakliCanliNode(k.node);
-                  /*
-                   * Mevcut `regionFocus` makinesi yeniden kullanılıyor:
-                   * aracın çevresinde ~400 m'lik küçük bir kutu verilince
-                   * harita oraya fitBounds yapıp yakınlaşıyor.
-                   */
-                  const d = 0.004;
-                  setRegionFocus({
-                    bounds: [
-                      [k.lon - d, k.lat - d],
-                      [k.lon + d, k.lat + d],
-                    ],
-                    nonce: Date.now(),
-                  });
-                }}
-              />
+            <div
+              className="pointer-events-none absolute inset-0 z-20 flex items-start justify-end p-2 sm:p-3 md:p-4"
+              style={MAP_OVERLAY_SAFE_PAD}
+            >
+              <div className="pointer-events-auto mr-10 w-[min(100%-3rem,19rem)] overflow-hidden rounded-2xl border border-border/45 bg-popover/66 text-popover-foreground shadow-[0_14px_40px_-16px_rgba(0,0,0,0.55)] backdrop-blur-[24px] backdrop-saturate-150">
+                <CanliAracKarti
+                  konumlar={canliAraclar}
+                  yukleniyor={canliYukleniyor}
+                  odakliNode={odakliCanliNode}
+                  varsayilanAcik={false}
+                  onOdaklan={(k) => {
+                    setOdakliCanliNode(k.node);
+                    /*
+                     * Mevcut `regionFocus` makinesi yeniden kullanılıyor:
+                     * aracın çevresinde ~400 m'lik küçük bir kutu verilince
+                     * harita oraya fitBounds yapıp yakınlaşıyor.
+                     */
+                    const d = 0.004;
+                    setRegionFocus({
+                      bounds: [
+                        [k.lon - d, k.lat - d],
+                        [k.lon + d, k.lat + d],
+                      ],
+                      nonce: Date.now(),
+                    });
+                  }}
+                />
+              </div>
             </div>
           ) : null}
           <div className="flex min-h-0 flex-1 flex-wrap items-start gap-2 overflow-x-visible overflow-y-auto">
