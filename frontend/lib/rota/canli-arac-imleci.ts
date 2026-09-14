@@ -147,14 +147,42 @@ export function canliKaymalariUygula(
 }
 
 /**
+ * Aynı belgede birden çok imleç var ve her birinin kendi gradyanı gerekiyor;
+ * SVG id'leri belge genelinde benzersiz olmalı yoksa hepsi ilk gradyanı
+ * (yani ilk aracın rengini) kullanır.
+ */
+let gradyanSayaci = 0;
+
+/** Yön konisinin yarı açısı (derece) — Google/Apple'daki huzme genişliği. */
+const KONI_YARI_ACI = 28;
+/** Koninin merkezden uzanma yarıçapı (48'lik viewBox içinde). */
+const KONI_YARICAPI = 23;
+
+/** Kuzeyden `aci` derece sapmış, merkezden `r` uzaklıktaki nokta. */
+function koniUcu(aci: number, r: number): [number, number] {
+  const rad = (aci * Math.PI) / 180;
+  return [24 + r * Math.sin(rad), 24 - r * Math.cos(rad)];
+}
+
+/**
  * Canlı araç imleci — Arvento'dan gelen GERÇEK koordinat.
  *
- * `RotaHaritasi`'ndeki `createYonEl`'den farkı: o, depoda duran ve ilk durağa
- * bakan bir TAHMİN oku; bu, cihazın bildirdiği konum.
+ * Görsel dil bilerek Apple/Google Haritalar'ın seyir imlecine benziyor, çünkü
+ * herkesin zaten tanıdığı biçim bu:
+ *   - yuvarlak "puck" (renkli dolgu + kalın beyaz halka),
+ *   - hareket hâlindeyken gidiş yönüne bakan yarı saydam KONİ (huzme),
+ *   - puck'ın içinde beyaz chevron.
  *
- * Hareket halindeyse pusula oku (`yon` derece, kuzey = 0), duruyorsa dolu
- * nokta. Bayat ölçüm (10 dk+, eşik view'da) soluk ve kesik halkalı: "bu aracın
- * YERİ değil, EN SON BİLİNEN yeri" demek.
+ * Chevron, lucide'ın `navigation-2` poligonu (`12 2 19 21 12 17 5 21`) —
+ * repo zaten lucide kullanıyor ve bu şekil tam olarak o haritalardaki ok.
+ * `RotaHaritasi`'ndeki `createYonEl` de aynı şekli kullanıyor, böylece
+ * "tahmini yön oku" ile "gerçek konum" görsel olarak akraba kalıyor.
+ *
+ * Duruyorsa koni ve chevron YOK — sade nokta. Yön bilinmiyorsa da koni yok:
+ * olmayan bir yönü çizmektense göstermemek doğru.
+ *
+ * Bayat ölçüm soluk ve kesik halkalı: "bu aracın YERİ değil, EN SON BİLİNEN
+ * yeri" demek.
  */
 export function createCanliAracEl(
   etiket: string,
@@ -169,22 +197,44 @@ export function createCanliAracEl(
   el.setAttribute("aria-label", `${etiket} — ${durum}`);
   el.style.cssText =
     // z-index: depo pini büyük ve `anchor:bottom`; araç imleci onun altında kalmasın.
-    "width:36px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:3;" +
-    `filter:drop-shadow(0 2px 7px rgba(0,0,0,0.5));opacity:${bayat ? "0.55" : "1"}`;
+    "width:48px;height:48px;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:3;" +
+    `filter:drop-shadow(0 2px 6px rgba(0,0,0,0.45));opacity:${bayat ? "0.55" : "1"}`;
 
-  // Hareket yönü bilinmiyorsa ok döndürülemez — nokta göster, uydurma.
-  const okGosterilsin = hareket && yon != null;
-  const ic = okGosterilsin
-    ? `<polygon points="18 8.5 23.5 23 18 19.6 12.5 23 18 8.5"
-                fill="#fff" stroke="none"
-                transform="rotate(${(yon as number).toFixed(1)} 18 18)" />`
-    : `<circle cx="18" cy="18" r="4.4" fill="#fff" />`;
+  const yonBelli = yon != null;
+  const aci = yon ?? 0;
+
+  // Yön konisi — yalnız gerçekten hareket ederken ve yön biliniyorken.
+  let koni = "";
+  if (hareket && yonBelli) {
+    const gid = `arac-koni-${(gradyanSayaci += 1)}`;
+    const [sx, sy] = koniUcu(-KONI_YARI_ACI, KONI_YARICAPI);
+    const [ex, ey] = koniUcu(KONI_YARI_ACI, KONI_YARICAPI);
+    koni = `
+      <defs>
+        <radialGradient id="${gid}" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stop-color="${renk}" stop-opacity="0.9" />
+          <stop offset="45%" stop-color="${renk}" stop-opacity="0.6" />
+          <stop offset="100%" stop-color="${renk}" stop-opacity="0.02" />
+        </radialGradient>
+      </defs>
+      <path d="M24 24 L${sx.toFixed(2)} ${sy.toFixed(2)} A${KONI_YARICAPI} ${KONI_YARICAPI} 0 0 1 ${ex.toFixed(2)} ${ey.toFixed(2)} Z"
+            fill="url(#${gid})" stroke="${renk}" stroke-width="0.6" stroke-opacity="0.35"
+            transform="rotate(${aci.toFixed(1)} 24 24)" />`;
+  }
+
+  // Puck'ın içi: hareket + yön varsa chevron, yoksa sade nokta.
+  const ic =
+    hareket && yonBelli
+      ? `<polygon points="24 17 29.2 30.6 24 27.6 18.8 30.6"
+                  fill="#ffffff" transform="rotate(${aci.toFixed(1)} 24 24)" />`
+      : `<circle cx="24" cy="24" r="4.6" fill="#ffffff" />`;
 
   el.innerHTML = `
-    <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
-      <circle cx="18" cy="18" r="15" fill="none" stroke="${renk}" stroke-width="1.6"
-              opacity="0.45" ${bayat ? 'stroke-dasharray="3 3"' : ""} />
-      <circle cx="18" cy="18" r="11.5" fill="${renk}" stroke="#ffffff" stroke-width="2.4" />
+    <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+      ${koni}
+      <circle cx="24" cy="24" r="15.5" fill="none" stroke="${renk}" stroke-width="1.4"
+              opacity="0.4" ${bayat ? 'stroke-dasharray="3 3"' : ""} />
+      <circle cx="24" cy="24" r="12" fill="${renk}" stroke="#ffffff" stroke-width="3" />
       ${ic}
     </svg>
   `;
