@@ -20,6 +20,7 @@ import { PotansiyelDetailCard } from "@/components/map/PotansiyelDetailCard";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { ImportStage } from "@/components/import/DataImportFlow";
+import { useCanliAracKonumlari } from "@/hooks/useCanliAracKonumlari";
 import { useIsMobileLayout } from "@/hooks/useMediaQuery";
 import { useMusteriFavoriler } from "@/hooks/useMusteriFavoriler";
 import { useMusteriGizlenenler } from "@/hooks/useMusteriGizlenenler";
@@ -98,6 +99,11 @@ const MAP_OVERLAY_SAFE_PAD = {
 
 export default function Home() {
   const { data: rows, loading, refreshing, error, refresh } = useMusteriHarita();
+  /**
+   * Arvento canlı araç konumları — müşteri haritasında da görünsün.
+   * Müşteri verisinden bağımsız: müşteri katmanı yüklenmese bile araçlar çizilir.
+   */
+  const { konumlar: canliAraclar } = useCanliAracKonumlari();
   const { label: syncLabel, status: syncStatus } = usePanoramaSyncStatus({
     onTransformApplied: refresh,
   });
@@ -1024,6 +1030,7 @@ export default function Home() {
           onIlSec={handleIlSec}
           onSelectMusteri={handleSelectMusteri}
           onSelectPotansiyel={handleSelectPotansiyel}
+          canliAraclar={canliAraclar}
         />
 
         <div

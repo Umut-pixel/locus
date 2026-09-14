@@ -53,6 +53,7 @@ import { SegmentedSwitch } from "@/components/ui/segmented-switch";
 import { toastManager } from "@/components/ui/toast";
 import { useKayitliPlanlar, type KayitliDurak } from "@/hooks/useKayitliPlanlar";
 import { useRaporTazeligi } from "@/hooks/useMusteriRaporlama";
+import { CanliAracListesi } from "@/components/rota/CanliAracListesi";
 import { useCanliAracKonumlari } from "@/hooks/useCanliAracKonumlari";
 import { ROTA_REPORT_ID, type RotaAraci, type RotaDuragi } from "@/hooks/useRotaPlani";
 import { useSurukleblirKart } from "@/hooks/useSurukleblirKart";
@@ -162,7 +163,10 @@ export default function RotaHaritasiSayfasi() {
    * araçlar haritada görünür; "bugün plan yapılmadı ama araçlar yolda"
    * hâli gerçek ve görünür olmalı.
    */
-  const { konumlar: canliAraclar } = useCanliAracKonumlari();
+  const { konumlar: canliAraclar, yukleniyor: canliYukleniyor } =
+    useCanliAracKonumlari();
+  /** "Canlı" listesinden odaklanılan araç — listede işaretli kalsın. */
+  const [odakliCanliNode, setOdakliCanliNode] = useState<string | null>(null);
   const kayitli = useKayitliPlanlar();
 
   /** Sipariş verisinin yaşı — güvenilirlik kriterine giriyor (yalnız canlı modda). */
@@ -214,7 +218,7 @@ export default function RotaHaritasiSayfasi() {
   ]);
   const [havuzGoster, setHavuzGoster] = useState(true);
   /** Sol üst karttaki liste sekmesi — araç/bölge filtresi + kayıtlı plan geçmişi aynı kartı paylaşıyor. */
-  const [liste, setListe] = useState<"araclar" | "bolgeler" | "kaydedilenler">("araclar");
+  const [liste, setListe] = useState<"araclar" | "bolgeler" | "kaydedilenler" | "canli">("araclar");
   /** Bölgeler ya da Kaydedilenler'den bir yere tıklanınca haritanın kayacağı hedef. */
   const [ucusHedefi, setUcusHedefi] = useState<{ noktalar: [number, number][]; zaman: number } | null>(
     null
@@ -969,6 +973,10 @@ export default function RotaHaritasiSayfasi() {
                 options={[
                   { value: "araclar", label: "Araçlar" },
                   ...(bolgelerVar ? [{ value: "bolgeler" as const, label: "Bölgeler" }] : []),
+                  {
+                    value: "canli",
+                    label: canliAraclar.length > 0 ? `Canlı ${canliAraclar.length}` : "Canlı",
+                  },
                   { value: "kaydedilenler", label: "Kayıtlı" },
                 ]}
               />
@@ -1015,6 +1023,17 @@ export default function RotaHaritasiSayfasi() {
                       );
                     })}
                   </ul>
+                ) : gecerliListe === "canli" ? (
+                  <CanliAracListesi
+                    konumlar={canliAraclar}
+                    yukleniyor={canliYukleniyor}
+                    odakliNode={odakliCanliNode}
+                    onOdaklan={(k) => {
+                      setOdakliCanliNode(k.node);
+                      // Tek nokta gönderiliyor — `ucusHedefi` onu ortalayıp yakınlaştırır.
+                      setUcusHedefi({ noktalar: [[k.lon, k.lat]], zaman: Date.now() });
+                    }}
+                  />
                 ) : gecerliListe === "kaydedilenler" ? (
                   kayitli.loading && kayitli.gunler.length === 0 ? (
                     <p className="flex items-center gap-2 px-2.5 py-3 text-[12px] text-muted-foreground">

@@ -81,7 +81,8 @@ n8n webhook’unu tetikler (60 dk rate limit). n8n URL tarayıcıya sızmaz.
 
 ## Canlı araç konumu (Arvento)
 
-Araçların anlık konumu `/rotalar/harita` ve araç detay sayfasında görünür.
+Araçların anlık konumu **üç yerde** görünür: `/harita` (müşteri haritası),
+`/rotalar/harita` (rota haritası) ve araç detay sayfası.
 Veri yolu: Arvento GPS → n8n (`backend/n8n/Arvento Arac Takibi.json`) →
 Supabase → `v_arac_konum_son` view'ı.
 
@@ -89,8 +90,22 @@ Supabase → `v_arac_konum_son` view'ı.
 |---|---|
 | Okuma + dönüşüm | `lib/rota/canli-konum.ts` |
 | Realtime + yedek yoklama | `hooks/useCanliAracKonumlari.ts` |
-| Harita imleci | `components/rota/RotaHaritasi.tsx` (`canliAraclar` prop'u) |
+| İmleç + balon + yelpaze (İKİ haritanın ortağı) | `lib/rota/canli-arac-imleci.ts` |
+| Rota haritası | `components/rota/RotaHaritasi.tsx` (`canliAraclar` prop'u) |
+| Müşteri haritası | `components/map/PetshopMap.tsx` (`canliAraclar` prop'u) |
+| "Canlı" sekmesi (liste + araca uç) | `components/rota/CanliAracListesi.tsx` |
 | Araç detay paneli | `app/(app)/rotalar/[aracKod]/page.tsx` |
+
+**Üst üste binme:** filo gün boyu depoda park hâlinde, hepsi aynı koordinatı
+bildiriyor. `canliKaymalariUygula` imleçleri EKRAN PİKSELİNE göre kümeleyip
+ortak merkez etrafında yelpazeye açıyor ve `zoomend`'de yeniden hesaplıyor.
+Coğrafi ızgarayla kümelemek işe yaramaz: Türkiye görünümünde 11 m zaten tek
+piksel (ölçüldü — en yakın ikili 0 px'ten 32 px'e çıktı).
+
+**Bulunabilirlik:** rota haritasının sol panelindeki **Canlı** sekmesi araçları
+plaka + durum + yaş ile listeler, tıklanınca harita o araca uçar. Kamera rota
+planına göre kurulduğu için filonun bir kısmı kadraj dışında kalabiliyor;
+liste bu yüzden var.
 
 **Frontend yalnız view'ı okur.** `hareket` (hız > 0) ve `bayat` (10 dk) view'da
 türetilir, uygulama kodunda tekrar hesaplanmaz. Plaka da view'dan gelir —
