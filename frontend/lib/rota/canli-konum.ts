@@ -23,7 +23,7 @@ import { sayi, sayiVeyaNull } from "@/lib/rota/veri";
 import { ARAC_KONUM_VIEW } from "@/lib/supabase";
 
 const KOLONLAR =
-  "node,plaka,surucu,arac_sinifi,arac_kod,arac_adi,olcum_zamani," +
+  "node,plaka,surucu,arac_sinifi,arac_kod,sevkiyat,arac_adi,olcum_zamani," +
   "lat,lon,hiz_kmh,yon_derece,odometre_km,adres,hareket,bayat,yas_saniye";
 
 export interface CanliAracKonumuRaw {
@@ -32,6 +32,7 @@ export interface CanliAracKonumuRaw {
   surucu: string | null;
   arac_sinifi: string | null;
   arac_kod: string | null;
+  sevkiyat: boolean | null;
   arac_adi: string | null;
   olcum_zamani: string;
   lat: number | string;
@@ -55,6 +56,12 @@ export interface CanliAracKonumu {
   aracSinifi: string | null;
   /** `araclar(kod)` eşlemesi — ELLE doldurulur, çoğu araçta null. */
   aracKod: string | null;
+  /**
+   * Dağıtım filosunun parçası mı. `aracKod`'dan AYRI ve bugün doldurulmuş
+   * durumda: o "hangi rota aracı" sorusunu cevaplar ve hâlâ teyit bekliyor.
+   * bkz. sql/arvento_sevkiyat_bayragi.sql
+   */
+  sevkiyat: boolean;
   /** Eşlenmişse rota aracının adı (ör. "Isuzu 3D"). */
   aracAdi: string | null;
   /** Cihazın konumu ürettiği an (ISO). n8n TR yerel saatinden çevirdi. */
@@ -79,6 +86,7 @@ export function konumaCevir(r: CanliAracKonumuRaw): CanliAracKonumu {
     surucu: r.surucu,
     aracSinifi: r.arac_sinifi,
     aracKod: r.arac_kod,
+    sevkiyat: r.sevkiyat === true,
     aracAdi: r.arac_adi,
     olcumZamani: r.olcum_zamani,
     lat: sayi(r.lat),

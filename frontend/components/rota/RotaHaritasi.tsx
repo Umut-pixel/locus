@@ -7,10 +7,13 @@ import "mapbox-gl/dist/mapbox-gl.css";
 import type { DurakRotaBaglami, DurakSecimi } from "@/components/rota/DurakDetayKarti";
 import type { RotaDuragi } from "@/hooks/useRotaPlani";
 import {
-  yasMetni,
-  yasSaniye,
-  type CanliAracKonumu,
-} from "@/lib/rota/canli-konum";
+  canliAracRengi,
+  canliKaymalariUygula,
+  canliPopupHtml,
+  createCanliAracEl,
+  type CanliImlec,
+} from "@/lib/rota/canli-arac-imleci";
+import { type CanliAracKonumu } from "@/lib/rota/canli-konum";
 import { DEPOT } from "@/lib/depot";
 import { fetchDrivingRoute } from "@/lib/mapbox-directions";
 import {
@@ -308,82 +311,6 @@ function createYonEl(aracAd: string, renk: string, aci: number): HTMLDivElement 
   return el;
 }
 
-/**
- * Canlı araç imleci — Arvento'dan gelen GERÇEK koordinat.
- *
- * `createYonEl`'den farkı bu: o, depoda duran ve ilk durağa bakan bir
- * TAHMİN oku; bu, cihazın bildirdiği konum. İkisi aynı anda görünebilir ve
- * görünmeli — plan "şu yöne çıkacak" derken araç bambaşka yerdeyse, aradaki
- * fark ekranda okunur olmalı.
- *
- * Hareket halindeyse pusula oku (`yon` derece, kuzey = 0), duruyorsa dolu
- * nokta. Bayat ölçüm (10 dk+, eşik view'da) soluk ve kesik halkalı: "bu
- * aracın YERİ değil, EN SON BİLİNEN yeri" demek.
- */
-function createCanliAracEl(
-  etiket: string,
-  renk: string,
-  yon: number | null,
-  hareket: boolean,
-  bayat: boolean
-): HTMLDivElement {
-  const el = document.createElement("div");
-  el.setAttribute("role", "img");
-  const durum = bayat ? "son bilinen konum" : hareket ? "hareket halinde" : "duruyor";
-  el.setAttribute("aria-label", `${etiket} — ${durum}`);
-  el.style.cssText =
-    "width:36px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer;" +
-    `filter:drop-shadow(0 2px 7px rgba(0,0,0,0.5));opacity:${bayat ? "0.55" : "1"}`;
-
-  // Hareket yönü bilinmiyorsa ok döndürülemez — nokta göster, uydurma.
-  const okGosterilsin = hareket && yon != null;
-  const ic = okGosterilsin
-    ? `<polygon points="18 8.5 23.5 23 18 19.6 12.5 23 18 8.5"
-                fill="#fff" stroke="none"
-                transform="rotate(${(yon as number).toFixed(1)} 18 18)" />`
-    : `<circle cx="18" cy="18" r="4.4" fill="#fff" />`;
-
-  el.innerHTML = `
-    <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
-      <circle cx="18" cy="18" r="15" fill="none" stroke="${renk}" stroke-width="1.6"
-              opacity="0.45" ${bayat ? 'stroke-dasharray="3 3"' : ""} />
-      <circle cx="18" cy="18" r="11.5" fill="${renk}" stroke="#ffffff" stroke-width="2.4" />
-      ${ic}
-    </svg>
-  `;
-  return el;
-}
-
-/** Canlı araç balonu — plaka, sürücü, hız, adres, ölçüm yaşı. */
-function canliPopupHtml(k: CanliAracKonumu): string {
-  const yas = yasMetni(yasSaniye(k));
-  const satirlar: string[] = [];
-  if (k.aracAdi) satirlar.push(`Rota aracı: ${k.aracAdi}`);
-  if (k.surucu) satirlar.push(k.surucu);
-  satirlar.push(
-    k.hareket && k.hizKmh != null
-      ? `${Math.round(k.hizKmh)} km/s`
-      : "Duruyor"
-  );
-  if (k.adres) satirlar.push(k.adres);
-
-  const govde = satirlar
-    .map(
-      (t) =>
-        `<div style="font-size:11px;opacity:0.75;margin-top:3px">${escapeHtml(t)}</div>`
-    )
-    .join("");
-
-  // Bayat ölçüm açıkça söyleniyor — kullanıcı "araç şu an orada" sanmasın.
-  const tazelik = k.bayat
-    ? `<div style="font-size:10.5px;margin-top:6px;opacity:0.95">⚠ Son bilinen konum · ${escapeHtml(yas)} önce</div>`
-    : `<div style="font-size:10.5px;margin-top:6px;opacity:0.6">${escapeHtml(yas)} önce</div>`;
-
-  return `<div style="line-height:1.4;min-width:150px;padding:8px 10px;font-family:var(--font-geist-sans),system-ui,sans-serif">
-    <div style="font-size:12px;font-weight:600">${escapeHtml(k.plaka)}</div>${govde}${tazelik}
-  </div>`;
-}
-
 function lineFeature(
   coords: LngLat[],
   renk: string,
@@ -395,13 +322,6 @@ function lineFeature(
     geometry: { type: "LineString", coordinates: coords },
   };
 }
-
-/**
- * Rota planına eşlenmemiş canlı araçların rengi. Bilerek nötr gri: bir
- * rotaya ait olmadıkları için plan paletinden renk almamalılar, yoksa
- * haritada "bu araç şu rotayı sürüyor" yanılsaması doğar.
- */
-const CANLI_NOTR_RENK = "#94a3b8";
 
 /** Aynı yolu paylaşan araçları ekranda ayırmak için piksel cinsinden şerit aralığı. */
 const SERIT_ARALIGI_PX = 3.5;
@@ -487,6 +407,8 @@ export function RotaHaritasi({
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const styleUrlRef = useRef<string | null>(null);
   const markersRef = useRef<mapboxgl.Marker[]>([]);
+  /** Canlı araç imleçleri — zoom değişiminde yelpaze kayması yeniden hesaplanır. */
+  const canliImleclerRef = useRef<CanliImlec[]>([]);
   /** Sürüş rotası isteği — her `redraw` yenisini kurar, öncekini iptal eder. */
   const routeAbortRef = useRef<AbortController | null>(null);
   /** Önizleme çizgisinin kendi yol-oturtma isteği — `routeAbortRef`'ten ayrı,
@@ -695,6 +617,8 @@ export function RotaHaritasi({
       if (k.aracKod) canliAracKoduyla.set(k.aracKod, k);
     }
 
+    canliImleclerRef.current = [];
+
     for (const rota of rotalarGuncel) {
       const canli = canliAracKoduyla.get(rota.aracKod);
 
@@ -704,11 +628,8 @@ export function RotaHaritasi({
         markersRef.current.push(
           new mapboxgl.Marker({
             element: createCanliAracEl(
-              canli.aracAdi ?? canli.plaka,
-              haritaRengi(rota.renk, karanlikMi),
-              canli.yonDerece,
-              canli.hareket,
-              false
+              canli,
+              canliAracRengi(canli, haritaRengi(rota.renk, karanlikMi))
             ),
             anchor: "center",
           })
@@ -722,6 +643,13 @@ export function RotaHaritasi({
             )
             .addTo(map)
         );
+        canliImleclerRef.current.push({
+          node: canli.node,
+          plaka: canli.plaka,
+          lat: canli.lat,
+          lon: canli.lon,
+          marker: markersRef.current[markersRef.current.length - 1],
+        });
       }
 
       /*
@@ -784,13 +712,7 @@ export function RotaHaritasi({
       if (cizilenCanli.has(k.node)) continue;
       markersRef.current.push(
         new mapboxgl.Marker({
-          element: createCanliAracEl(
-            k.aracAdi ?? k.plaka,
-            CANLI_NOTR_RENK,
-            k.yonDerece,
-            k.hareket,
-            k.bayat
-          ),
+          element: createCanliAracEl(k, canliAracRengi(k)),
           anchor: "center",
         })
           .setLngLat([k.lon, k.lat])
@@ -803,7 +725,18 @@ export function RotaHaritasi({
           )
           .addTo(map)
       );
+      canliImleclerRef.current.push({
+        node: k.node,
+        plaka: k.plaka,
+        lat: k.lat,
+        lon: k.lon,
+        marker: markersRef.current[markersRef.current.length - 1],
+      });
     }
+
+    // Üst üste binenleri yelpazeye aç — ekran piksellerine göre, bu yüzden
+    // marker'lar eklendikten SONRA. Zoom değişiminde tekrarı aşağıda.
+    canliKaymalariUygula(map, canliImleclerRef.current);
 
     for (const d of havuzGuncel) {
       if (d.lat == null || d.lon == null) continue;
@@ -953,12 +886,26 @@ export function RotaHaritasi({
     // bu yalnız gerçekten boş haritaya tıklanınca tetiklenir.
     map.on("click", () => onBosaTiklaRef.current?.());
 
+    /*
+     * Yelpaze kayması ekran pikseline göre hesaplanıyor (bkz.
+     * canli-arac-imleci.ts), yani zoom değişince geçersizleşir. Marker'ları
+     * yeniden kurmuyoruz — yalnız offset'lerini güncelliyoruz, bu çok ucuz.
+     */
+    const yelpazeyiTazele = () => {
+      if (canliImleclerRef.current.length > 0) {
+        canliKaymalariUygula(map, canliImleclerRef.current);
+      }
+    };
+    map.on("zoomend", yelpazeyiTazele);
+
     return () => {
       routeAbortRef.current?.abort();
       onizlemeAbortRef.current?.abort();
       unobserve();
+      map.off("zoomend", yelpazeyiTazele);
       for (const m of markersRef.current) m.remove();
       markersRef.current = [];
+      canliImleclerRef.current = [];
       map.remove();
       mapRef.current = null;
     };

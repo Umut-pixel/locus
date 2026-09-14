@@ -20,6 +20,8 @@ import { PotansiyelDetailCard } from "@/components/map/PotansiyelDetailCard";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { ImportStage } from "@/components/import/DataImportFlow";
+import { CanliAracKarti } from "@/components/rota/CanliAracKarti";
+import { useCanliAracKonumlari } from "@/hooks/useCanliAracKonumlari";
 import { useIsMobileLayout } from "@/hooks/useMediaQuery";
 import { useMusteriFavoriler } from "@/hooks/useMusteriFavoriler";
 import { useMusteriGizlenenler } from "@/hooks/useMusteriGizlenenler";
@@ -98,6 +100,14 @@ const MAP_OVERLAY_SAFE_PAD = {
 
 export default function Home() {
   const { data: rows, loading, refreshing, error, refresh } = useMusteriHarita();
+  /**
+   * Arvento canlı araç konumları — müşteri haritasında da görünsün.
+   * Müşteri verisinden bağımsız: müşteri katmanı yüklenmese bile araçlar çizilir.
+   */
+  const { konumlar: canliAraclar, yukleniyor: canliYukleniyor } =
+    useCanliAracKonumlari();
+  /** Karttan odaklanılan araç — listede işaretli kalsın. */
+  const [odakliCanliNode, setOdakliCanliNode] = useState<string | null>(null);
   const { label: syncLabel, status: syncStatus } = usePanoramaSyncStatus({
     onTransformApplied: refresh,
   });
@@ -1024,6 +1034,7 @@ export default function Home() {
           onIlSec={handleIlSec}
           onSelectMusteri={handleSelectMusteri}
           onSelectPotansiyel={handleSelectPotansiyel}
+          canliAraclar={canliAraclar}
         />
 
         <div
@@ -1050,6 +1061,39 @@ export default function Home() {
                 )}
               </AnimatePresence>
             </div>
+            {/*
+              Canlı araçlar sağa yaslı: sol sütun filtre/içe aktarma için
+              ayrılmış, lejant da sağ altta. Araç kartı sağ üstte kalınca
+              haritanın ortası açık kalıyor.
+            */}
+            {canliAraclar.length > 0 ? (
+              <div className="pointer-events-auto order-last ml-auto w-full min-w-0 overflow-hidden rounded-2xl border border-border/45 bg-popover/66 text-popover-foreground shadow-[0_14px_40px_-16px_rgba(0,0,0,0.55)] backdrop-blur-[24px] backdrop-saturate-150 lg:order-none lg:w-[19rem]">
+                <CanliAracKarti
+                  konumlar={canliAraclar}
+                  yukleniyor={canliYukleniyor}
+                  odakliNode={odakliCanliNode}
+                  varsayilanAcik={false}
+                  onOdaklan={(k) => {
+                    setOdakliCanliNode(k.node);
+                    /*
+                     * Mevcut `regionFocus` makinesi yeniden kullanılıyor:
+                     * aracın çevresinde ~400 m'lik küçük bir kutu verilince
+                     * harita oraya fitBounds yapıp yakınlaşıyor. Araç için
+                     * ayrı bir odak yolu açmaya gerek yok.
+                     */
+                    const d = 0.004;
+                    setRegionFocus({
+                      bounds: [
+                        [k.lon - d, k.lat - d],
+                        [k.lon + d, k.lat + d],
+                      ],
+                      nonce: Date.now(),
+                    });
+                  }}
+                />
+              </div>
+            ) : null}
+
             {refreshing && (
               <span className="pointer-events-none mt-1.5 rounded-full border bg-popover/90 px-2 py-0.5 font-mono text-[10px] tracking-wide text-muted-foreground uppercase shadow-md">
                 Yenileniyor…

@@ -53,6 +53,7 @@ import { SegmentedSwitch } from "@/components/ui/segmented-switch";
 import { toastManager } from "@/components/ui/toast";
 import { useKayitliPlanlar, type KayitliDurak } from "@/hooks/useKayitliPlanlar";
 import { useRaporTazeligi } from "@/hooks/useMusteriRaporlama";
+import { CanliAracKarti } from "@/components/rota/CanliAracKarti";
 import { useCanliAracKonumlari } from "@/hooks/useCanliAracKonumlari";
 import { ROTA_REPORT_ID, type RotaAraci, type RotaDuragi } from "@/hooks/useRotaPlani";
 import { useSurukleblirKart } from "@/hooks/useSurukleblirKart";
@@ -162,7 +163,10 @@ export default function RotaHaritasiSayfasi() {
    * araçlar haritada görünür; "bugün plan yapılmadı ama araçlar yolda"
    * hâli gerçek ve görünür olmalı.
    */
-  const { konumlar: canliAraclar } = useCanliAracKonumlari();
+  const { konumlar: canliAraclar, yukleniyor: canliYukleniyor } =
+    useCanliAracKonumlari();
+  /** "Canlı" listesinden odaklanılan araç — listede işaretli kalsın. */
+  const [odakliCanliNode, setOdakliCanliNode] = useState<string | null>(null);
   const kayitli = useKayitliPlanlar();
 
   /** Sipariş verisinin yaşı — güvenilirlik kriterine giriyor (yalnız canlı modda). */
@@ -1201,6 +1205,31 @@ export default function RotaHaritasiSayfasi() {
                   onBitti={() => setOptimizeTamamZamani(null)}
                 />
               )}
+            </div>
+          ) : null}
+
+          {/*
+            Canlı araçlar kendi camında, karnenin ÜSTÜNDE: "araçlarım nerede"
+            sorusu plan değerlendirmesinden önce geliyor ve karne uzun olduğu
+            için altta kalsaydı kaydırma gerektirirdi.
+          */}
+          {canliAraclar.length > 0 ? (
+            <div
+              className={cn(
+                "pointer-events-auto flex w-[min(100%,20rem)] min-w-0 flex-col overflow-hidden rounded-2xl",
+                CAM
+              )}
+            >
+              <CanliAracKarti
+                konumlar={canliAraclar}
+                yukleniyor={canliYukleniyor}
+                odakliNode={odakliCanliNode}
+                onOdaklan={(k) => {
+                  setOdakliCanliNode(k.node);
+                  // Tek nokta — `ucusHedefi` onu ortalayıp yakınlaştırır.
+                  setUcusHedefi({ noktalar: [[k.lon, k.lat]], zaman: Date.now() });
+                }}
+              />
             </div>
           ) : null}
 

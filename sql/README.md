@@ -45,6 +45,7 @@ bağlı. n8n tarafı: `backend/n8n/Arvento Arac Takibi.json`.
 | `arvento_arac_sema.sql` | Arvento GPS cihaz kaydı + `arac_kod` ile rota aracı eşlemesi (ELLE doldurulur) |
 | `arvento_konum_sema.sql` | `arac_konum_son` (Realtime) + `arac_konum_gecmis` (90 gün, pg_cron) + `v_arac_konum_son` view'ı |
 | `arvento_bakim_sema.sql` | Filo bakım kayıtları — Arvento'da bugün hiç kayıt yok, boru hattı boş çalışıyor |
+| `arvento_sevkiyat_bayragi.sql` | `sevkiyat` bayrağı + view deltası — dağıtım aracı mı, şahıs aracı mı |
 | `arvento_sync_runs_sema.sql` | Çekim günlüğü — konum kolu yalnız hata yazar, filo/bakım kolu her çalıştırmayı |
 
 **Neden geçmişi biz tutuyoruz:** Arvento'nun geçmiş iz uçlarının üçü de

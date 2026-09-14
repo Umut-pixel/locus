@@ -1,11 +1,19 @@
 "use client";
 
-import { memo, useEffect, useRef } from "react";
+import { memo, useEffect, useMemo, useRef } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { Typography } from "@heroui/react";
 
 import { useTheme } from "@/components/theme/ThemeProvider";
+import {
+  canliAracRengi,
+  canliKaymalariUygula,
+  type CanliImlec,
+  canliPopupHtml,
+  createCanliAracEl,
+} from "@/lib/rota/canli-arac-imleci";
+import { type CanliAracKonumu } from "@/lib/rota/canli-konum";
 import { DEPOT } from "@/lib/depot";
 import {
   DEFAULT_MAP_VIEW,
@@ -153,6 +161,12 @@ interface PetshopMapProps {
     potansiyel: PotansiyelHarita | null,
     screenPoint?: { x: number; y: number }
   ) => void;
+  /**
+   * Arvento canlı araç konumları. Müşteri haritasında rota kavramı yok, bu
+   * yüzden hepsi nötr renkte çizilir. Verilmezse katman hiç kurulmaz —
+   * haritanın eski davranışı birebir korunur.
+   */
+  canliAraclar?: CanliAracKonumu[];
 }
 
 export const PetshopMap = memo(function PetshopMap({
@@ -171,6 +185,7 @@ export const PetshopMap = memo(function PetshopMap({
   onSelectMusteri,
   onSelectPotansiyel,
   onIlSec,
+  canliAraclar,
 }: PetshopMapProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const stageVeilRef = useRef<HTMLDivElement | null>(null);
@@ -201,9 +216,33 @@ export const PetshopMap = memo(function PetshopMap({
   const selectedKodRef = useRef<string | null>(null);
   const selectedPotansiyelIdRef = useRef<string | null>(null);
   const depotMarkerRef = useRef<mapboxgl.Marker | null>(null);
+  /** Canlı araç imleçleri — her güncellemede tamamen yeniden kuruluyor. */
+  const canliMarkerlarRef = useRef<mapboxgl.Marker[]>([]);
+  /** Aynı imleçler + koordinatları — zoom değişiminde yelpaze yeniden hesaplanır. */
+  const canliImleclerRef = useRef<CanliImlec[]>([]);
   const mountOverlaysRef = useRef<(() => void) | null>(null);
   const styleUrlRef = useRef(mapboxStyleForTheme("dark"));
   const { theme } = useTheme();
+
+  /**
+   * Canlı araç imleçlerini yalnız GERÇEKTEN değişince yeniden kur. Adres metni
+   * gibi alanlar anahtara girmiyor — aynı konumun balon yazısı değişti diye 8
+   * marker'ı söküp takmayalım.
+   */
+  const canliKey = useMemo(
+    () =>
+      JSON.stringify(
+        (canliAraclar ?? []).map((k) => [
+          k.node,
+          k.lat,
+          k.lon,
+          k.yonDerece,
+          k.hareket,
+          k.bayat,
+        ])
+      ),
+    [canliAraclar]
+  );
 
   useEffect(() => {
     dataRef.current = data;
@@ -858,6 +897,9 @@ export const PetshopMap = memo(function PetshopMap({
       loadedRef.current = false;
       depotMarkerRef.current?.remove();
       depotMarkerRef.current = null;
+      for (const m of canliMarkerlarRef.current) m.remove();
+      canliMarkerlarRef.current = [];
+      canliImleclerRef.current = [];
       map.remove();
       mapRef.current = null;
     };
@@ -876,6 +918,75 @@ export const PetshopMap = memo(function PetshopMap({
     }
     applyMapStyle(map, theme);
   }, [theme]);
+
+  /**
+   * Canlı araç imleçleri.
+   *
+   * Marker'lar DOM katmanı — Mapbox stilinin parçası değiller, bu yüzden tema
+   * değişiminde (stil yeniden yüklenir) hayatta kalıyorlar ve yeniden
+   * kurulmaları gerekmiyor. `loadedRef` beklemeye de gerek yok: marker
+   * eklemek yüklü stil istemiyor.
+   *
+   * Her güncellemede hepsi silinip yeniden kuruluyor — 8 araç için bu ucuz ve
+   * ayrı ayrı diff tutmaktan çok daha az hata yüzeyi bırakıyor.
+   */
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    for (const m of canliMarkerlarRef.current) m.remove();
+    canliMarkerlarRef.current = [];
+
+    canliImleclerRef.current = [];
+
+    const konumlar = canliAraclar ?? [];
+    if (konumlar.length === 0) return;
+
+    for (const k of konumlar) {
+      canliMarkerlarRef.current.push(
+        new mapboxgl.Marker({
+          element: createCanliAracEl(k, canliAracRengi(k)),
+          anchor: "center",
+        })
+          .setLngLat([k.lon, k.lat])
+          .setPopup(
+            new mapboxgl.Popup({
+              offset: 20,
+              closeButton: false,
+              className: "petshop-popup",
+            }).setHTML(canliPopupHtml(k))
+          )
+          .addTo(map)
+      );
+      canliImleclerRef.current.push({
+        node: k.node,
+        plaka: k.plaka,
+        lat: k.lat,
+        lon: k.lon,
+        marker: canliMarkerlarRef.current[canliMarkerlarRef.current.length - 1],
+      });
+    }
+
+    // Üst üste binenleri yelpazeye aç — ekran piksellerine göre, bu yüzden
+    // marker'lar eklendikten SONRA. Zoom değişince yeniden hesaplanır.
+    canliKaymalariUygula(map, canliImleclerRef.current);
+
+    const yelpazeyiTazele = () => {
+      if (canliImleclerRef.current.length > 0) {
+        canliKaymalariUygula(map, canliImleclerRef.current);
+      }
+    };
+    map.on("zoomend", yelpazeyiTazele);
+
+    return () => {
+      map.off("zoomend", yelpazeyiTazele);
+    };
+    // `canliKey` bilerek tek bağımlılık: `canliAraclar` her çekimde yeni dizi
+    // referansı üretiyor, onu deps'e koymak 8 marker'ı 90 saniyede bir
+    // gereksizce söküp taktırırdı. Anahtar yalnız çizimi etkileyen alanları
+    // taşıyor — bkz. `canliKey` tanımı.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canliKey]);
 
   useEffect(() => {
     const map = mapRef.current;
