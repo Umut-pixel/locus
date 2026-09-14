@@ -53,6 +53,7 @@ import { SegmentedSwitch } from "@/components/ui/segmented-switch";
 import { toastManager } from "@/components/ui/toast";
 import { useKayitliPlanlar, type KayitliDurak } from "@/hooks/useKayitliPlanlar";
 import { useRaporTazeligi } from "@/hooks/useMusteriRaporlama";
+import { useCanliAracKonumlari } from "@/hooks/useCanliAracKonumlari";
 import { ROTA_REPORT_ID, type RotaAraci, type RotaDuragi } from "@/hooks/useRotaPlani";
 import { useSurukleblirKart } from "@/hooks/useSurukleblirKart";
 import { googleMapsDirUrl } from "@/lib/depot";
@@ -156,6 +157,12 @@ export default function RotaHaritasiSayfasi() {
   const odakAracParam = searchParams.get("odakArac");
 
   const canli = useRotaPlaniBaglami();
+  /**
+   * Arvento canlı araç konumları — plandan BAĞIMSIZ. Plan boş olsa bile
+   * araçlar haritada görünür; "bugün plan yapılmadı ama araçlar yolda"
+   * hâli gerçek ve görünür olmalı.
+   */
+  const { konumlar: canliAraclar } = useCanliAracKonumlari();
   const kayitli = useKayitliPlanlar();
 
   /** Sipariş verisinin yaşı — güvenilirlik kriterine giriyor (yalnız canlı modda). */
@@ -894,6 +901,7 @@ export default function RotaHaritasiSayfasi() {
         onBosaTikla={() => setSeciliDurak(null)}
         ucusHedefi={ucusHedefi}
         onizleme={onizlemeHatti ?? dondurulmusOnizleme}
+        canliAraclar={canliAraclar}
       />
 
       <div className="pointer-events-none absolute inset-0 z-10 flex flex-col justify-between gap-2 p-2 sm:p-3 md:p-4">

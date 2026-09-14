@@ -79,6 +79,32 @@ Manuel transform: `Authorization: Bearer $CRON_SECRET` ile
 Ana sayfa **Şimdi çek** (yalnız “Güncel” iken): oturumlu `POST /api/sync/panorama/manual`  
 n8n webhook’unu tetikler (60 dk rate limit). n8n URL tarayıcıya sızmaz.
 
+## Canlı araç konumu (Arvento)
+
+Araçların anlık konumu `/rotalar/harita` ve araç detay sayfasında görünür.
+Veri yolu: Arvento GPS → n8n (`backend/n8n/Arvento Arac Takibi.json`) →
+Supabase → `v_arac_konum_son` view'ı.
+
+| Katman | Dosya |
+|---|---|
+| Okuma + dönüşüm | `lib/rota/canli-konum.ts` |
+| Realtime + yedek yoklama | `hooks/useCanliAracKonumlari.ts` |
+| Harita imleci | `components/rota/RotaHaritasi.tsx` (`canliAraclar` prop'u) |
+| Araç detay paneli | `app/(app)/rotalar/[aracKod]/page.tsx` |
+
+**Frontend yalnız view'ı okur.** `hareket` (hız > 0) ve `bayat` (10 dk) view'da
+türetilir, uygulama kodunda tekrar hesaplanmaz. Plaka da view'dan gelir —
+Arvento'nun `lastEvents` ucu yalnız cihaz node'u döndürüyor.
+
+**Üç durum ayrı gösterilir:** taze konum (gerçek yer + hız + adres), bayat
+ölçüm (soluk imleç, "son bilinen konum"), eşlenmemiş araç (nötr gri imleç;
+araç detayında "cihaz eşlenmemiş" uyarısı).
+
+⚠️ **`arvento_araclar.arac_kod` eşlemesi ELLE yapılır.** Bir araca cihaz
+eşlenmemişse haritada plakasıyla ve nötr renkle görünür, rota rengini almaz.
+Eşleme yapılana kadar o rota aracı için depodaki tahmini yön oku durmaya
+devam eder — bkz. `sql/arvento_arac_sema.sql` başlığındaki açık soru.
+
 ## Veri modeli
 
 - Okuma: `musteriler_harita` (anon); sync durumu: `panorama_sync_runs`  

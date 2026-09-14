@@ -28,6 +28,8 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { useCanliAracKonumlari } from "@/hooks/useCanliAracKonumlari";
+import { yasMetni, yasSaniye } from "@/lib/rota/canli-konum";
 import { DEPOT } from "@/lib/depot";
 import { formatCurrency, formatKg, formatNumber } from "@/lib/format";
 import { dolulukHesapla, surebilirMi } from "@/lib/rota/atama";
@@ -82,6 +84,16 @@ export default function YukDetayiSayfasi({
 
   const [vurgulanan, setVurgulanan] = useState<string | null>(null);
   const [soforDrawerAcik, setSoforDrawerAcik] = useState(false);
+
+  /**
+   * Arvento canlı konumu. `arac_kod` eşlemesi ELLE yapıldığı için çoğu
+   * araçta henüz yok — o durumda panel "eşlenmemiş" der, veri uydurmaz.
+   */
+  const { konumlar: canliKonumlar } = useCanliAracKonumlari();
+  const canliKonum = useMemo(
+    () => canliKonumlar.find((k) => k.aracKod === aracKod) ?? null,
+    [canliKonumlar, aracKod]
+  );
 
   const arac = aracBul(aracKod);
   const duraklar = aracDuraklari(aracKod);
@@ -457,15 +469,55 @@ export default function YukDetayiSayfasi({
               ) : null}
 
               {/*
-                Arvento araç takibi buraya bağlanacak. API anahtarı yok, veri
-                uydurulmuyor — bölüm açıkça "bağlanmadı" diyor.
+                Arvento canlı konumu. Üç hâl var ve üçü de AÇIKÇA ayrı:
+                  - eşleme yok      → hangi Arvento aracı olduğunu bilmiyoruz
+                  - bayat ölçüm     → "son bilinen konum", şu anki değil
+                  - taze ölçüm      → gerçek konum + hız + adres
+                Hiçbirinde veri uydurulmuyor.
               */}
-              <div className="mt-1 flex items-start gap-1.5 border-t border-border/60 pt-2.5 text-[11.5px] text-muted-foreground">
-                <SatelliteDishIcon className="mt-px size-3 shrink-0" strokeWidth={1.75} aria-hidden />
-                <span>
-                  Canlı araç konumu bağlanmadı — Arvento API anahtarı gelince
-                  aracın anlık ve geçmiş konumu bu listeye karışacak.
-                </span>
+              <div className="mt-1 border-t border-border/60 pt-2.5">
+                {canliKonum ? (
+                  <div className="flex items-start gap-1.5 text-[11.5px]">
+                    <SatelliteDishIcon
+                      className={cn(
+                        "mt-px size-3 shrink-0",
+                        canliKonum.bayat ? "text-caution" : "text-muted-foreground"
+                      )}
+                      strokeWidth={1.75}
+                      aria-hidden
+                    />
+                    <div className="min-w-0 space-y-0.5">
+                      <p className={canliKonum.bayat ? "text-caution" : "text-foreground"}>
+                        {canliKonum.bayat ? "Son bilinen konum" : canliKonum.hareket ? "Hareket halinde" : "Duruyor"}
+                        {canliKonum.hareket && canliKonum.hizKmh != null
+                          ? ` · ${Math.round(canliKonum.hizKmh)} km/s`
+                          : ""}
+                        <span className="text-muted-foreground">
+                          {" · "}
+                          {yasMetni(yasSaniye(canliKonum))} önce
+                        </span>
+                      </p>
+                      {canliKonum.adres ? (
+                        <p className="text-muted-foreground">{canliKonum.adres}</p>
+                      ) : null}
+                      <p className="text-muted-foreground">
+                        {canliKonum.plaka}
+                        {canliKonum.odometreKm != null
+                          ? ` · ${formatNumber(Math.round(canliKonum.odometreKm))} km`
+                          : ""}
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-start gap-1.5 text-[11.5px] text-muted-foreground">
+                    <SatelliteDishIcon className="mt-px size-3 shrink-0" strokeWidth={1.75} aria-hidden />
+                    <span>
+                      Bu araca Arvento cihazı eşlenmemiş — konum akıyor ama hangi
+                      cihazın bu araç olduğu <code>arvento_araclar.arac_kod</code>{" "}
+                      alanında elle işaretlenmeli.
+                    </span>
+                  </div>
+                )}
               </div>
             </Kart>
           </div>

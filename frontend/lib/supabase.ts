@@ -113,4 +113,23 @@ export const SOFORLER_TABLE = "soforler";
  * bkz. sql/sevkiyat_plani_sema.sql
  */
 export const SEVKIYAT_PLAN_OZET_VIEW = "v_sevkiyat_plan_ozet";
+/**
+ * Canlı araç konumu — Arvento GPS. n8n mesai içinde dakikada bir yazıyor.
+ *
+ * Frontend TABLOYU DEĞİL bu view'ı okur: plaka/sürücü `arvento_araclar`'dan
+ * join ediliyor (lastEvents ucu plaka döndürmüyor, yalnız cihaz node'u),
+ * `hareket` ve `bayat` view'da türetiliyor — uygulama kodunda tekrar
+ * hesaplanmaz.
+ *
+ * Filo senkronu hiç çalışmadıysa `arvento_araclar` boş olur ve view 0 satır
+ * döner; konum tablosunda satır olsa bile. Bu beklenen davranış.
+ * bkz. sql/arvento_konum_sema.sql
+ */
+export const ARAC_KONUM_VIEW = "v_arac_konum_son";
+/**
+ * Realtime aboneliğinin dinlediği TABLO. Supabase Realtime view yayınlayamaz,
+ * yalnız tablo — bu yüzden değişiklik sinyali buradan gelir, veri
+ * `ARAC_KONUM_VIEW`'dan yeniden çekilir.
+ */
+export const ARAC_KONUM_TABLE = "arac_konum_son";
 export const SEVKIYAT_PLAN_DURAKLARI_VIEW = "v_sevkiyat_plan_duraklari";
