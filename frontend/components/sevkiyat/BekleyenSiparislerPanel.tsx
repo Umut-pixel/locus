@@ -1,12 +1,14 @@
 "use client";
 
-import { useMemo } from "react";
-import { CheckCircle2Icon, ClipboardListIcon } from "lucide-react";
+import { useMemo, useState } from "react";
+import { CheckCircle2Icon, ClipboardListIcon, SearchXIcon } from "lucide-react";
 
 import { ScrollBottomFade } from "@/components/ui/ScrollBottomFade";
 import { MusteriAdIlce } from "@/components/sevkiyat/MusteriAdIlce";
+import { PanelAramaSatiri } from "@/components/sevkiyat/PanelAramaSatiri";
 import type { BekleyenSiparisSatiri } from "@/hooks/useSevkiyatRaporu";
 import { useScrollBottomFade } from "@/hooks/useScrollBottomFade";
+import { aramaFiltrele } from "@/lib/arama";
 import { formatCurrency, formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -43,13 +45,35 @@ export function BekleyenSiparislerPanel({
   className,
   headerExtra,
 }: BekleyenSiparislerPanelProps) {
-  const bos = satirlar.length === 0;
-  const { wrapperRef, scrollRef } = useScrollBottomFade<HTMLElement, HTMLDivElement>(
-    satirlar.length
+  const [arama, setArama] = useState("");
+
+  // Belge kodu ve temsilci de aranabilir alan: panelde ikisi de gorunuyor
+  // ("#12345 - 3 kalem - Ahmet"), gorunen bir seyin aranamamasi sasirtir.
+  const gorunenSatirlar = useMemo(
+    () =>
+      aramaFiltrele(satirlar, arama, (s) => [
+        s.musteriAd,
+        s.musteriKod,
+        s.ilce,
+        s.belgeKod,
+        s.temsilci,
+      ]),
+    [satirlar, arama]
   );
+
+  const veriYok = satirlar.length === 0;
+  const bos = gorunenSatirlar.length === 0;
+  const { wrapperRef, scrollRef } = useScrollBottomFade<HTMLElement, HTMLDivElement>(
+    gorunenSatirlar.length
+  );
+
+  // Arama aktifken tutar GORUNEN satirlari toplar. Filtrelenmis bir listenin
+  // yaninda filtrelenmemis bir toplam durmasi, "bu uc siparis 2,4 milyon mu?"
+  // diye okunuyordu; rozet de "filtrelenmis" diye degisiyor ki karismasin.
+  const aramaAktif = arama.trim().length > 0;
   const toplamTutar = useMemo(
-    () => satirlar.reduce((acc, s) => acc + s.toplamTutar, 0),
-    [satirlar]
+    () => gorunenSatirlar.reduce((acc, s) => acc + s.toplamTutar, 0),
+    [gorunenSatirlar]
   );
 
   return (
@@ -69,7 +93,7 @@ export function BekleyenSiparislerPanel({
           />
           <span className="truncate">Bekleyen siparişler</span>
         </h2>
-        {!bos ? (
+        {!veriYok ? (
           <span className="shrink-0 font-mono text-[12.5px] font-medium text-caution tabular-nums">
             {formatNumber(satirlar.length)}
           </span>
@@ -77,21 +101,41 @@ export function BekleyenSiparislerPanel({
         {headerExtra ? <div className="ml-auto shrink-0">{headerExtra}</div> : null}
       </header>
 
-      {!bos ? (
+      {!veriYok ? (
+        <PanelAramaSatiri
+          deger={arama}
+          onDegisim={setArama}
+          gorunen={gorunenSatirlar.length}
+          toplam={satirlar.length}
+          placeholder="Müşteri, ilçe, belge no, temsilci…"
+          etiket="Bekleyen siparişlerde ara"
+        />
+      ) : null}
+
+      {!veriYok && !bos ? (
         <div
           className="flex h-9 shrink-0 items-center justify-between gap-3 border-b border-border/60 px-3.5"
-          aria-label={`Bekleyen siparişlerin brüt tutarı ${formatCurrency(toplamTutar)}`}
+          aria-label={`${aramaAktif ? "Filtrelenen" : "Bekleyen"} siparişlerin brüt tutarı ${formatCurrency(toplamTutar)}`}
         >
           <span className="flex min-w-0 items-baseline gap-1.5">
             <span className="shrink-0 text-[12px] tracking-[0.06em] text-muted-foreground uppercase">
               Brüt tutar
             </span>
-            <span
-              className="shrink-0 cursor-help rounded border border-border/70 px-1 py-px text-[10.5px] leading-none text-muted-foreground"
-              title="Bekleyen siparişler anlık bakiyedir — dönem seçicisinden etkilenmez. Sayfadaki diğer paneller seçili dönemi gösterir."
-            >
-              tüm dönemler
-            </span>
+            {aramaAktif ? (
+              <span
+                className="shrink-0 cursor-help rounded border border-caution/50 px-1 py-px text-[10.5px] leading-none text-caution"
+                title="Arama etkin — tutar yalnız listelenen siparişleri topluyor."
+              >
+                filtrelenmiş
+              </span>
+            ) : (
+              <span
+                className="shrink-0 cursor-help rounded border border-border/70 px-1 py-px text-[10.5px] leading-none text-muted-foreground"
+                title="Bekleyen siparişler anlık bakiyedir — dönem seçicisinden etkilenmez. Sayfadaki diğer paneller seçili dönemi gösterir."
+              >
+                tüm dönemler
+              </span>
+            )}
           </span>
           <span className="shrink-0 font-mono text-[13px] font-medium text-caution tabular-nums">
             {formatCurrency(toplamTutar)}
@@ -108,18 +152,33 @@ export function BekleyenSiparislerPanel({
       >
         {bos ? (
           <div className="flex h-full flex-col items-center justify-center gap-2 px-6 py-10 text-center">
-            <CheckCircle2Icon
-              className="size-6 text-muted-foreground"
-              strokeWidth={1.5}
-              aria-hidden
-            />
-            <p className="text-[13px] text-muted-foreground">
-              Bekleyen satış siparişi yok.
-            </p>
+            {veriYok ? (
+              <>
+                <CheckCircle2Icon
+                  className="size-6 text-muted-foreground"
+                  strokeWidth={1.5}
+                  aria-hidden
+                />
+                <p className="text-[13px] text-muted-foreground">
+                  Bekleyen satış siparişi yok.
+                </p>
+              </>
+            ) : (
+              <>
+                <SearchXIcon
+                  className="size-6 text-muted-foreground"
+                  strokeWidth={1.5}
+                  aria-hidden
+                />
+                <p className="text-[13px] text-muted-foreground">
+                  “{arama.trim()}” ile eşleşen sipariş yok.
+                </p>
+              </>
+            )}
           </div>
         ) : (
           <ul className="divide-y divide-border/50">
-            {satirlar.map((s) => (
+            {gorunenSatirlar.map((s) => (
               <li key={s.belgeKod} className="flex min-w-0 items-center gap-3 px-3.5 py-2">
                 <span
                   className={cn(

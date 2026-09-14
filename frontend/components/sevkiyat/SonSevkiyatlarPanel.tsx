@@ -1,12 +1,14 @@
 "use client";
 
-import { useMemo } from "react";
-import { PackageCheckIcon, TruckIcon } from "lucide-react";
+import { useMemo, useState } from "react";
+import { PackageCheckIcon, SearchXIcon, TruckIcon } from "lucide-react";
 
 import { ScrollBottomFade } from "@/components/ui/ScrollBottomFade";
 import { MusteriAdIlce } from "@/components/sevkiyat/MusteriAdIlce";
+import { PanelAramaSatiri } from "@/components/sevkiyat/PanelAramaSatiri";
 import type { SevkiyatSatiri } from "@/hooks/useSevkiyatRaporu";
 import { useScrollBottomFade } from "@/hooks/useScrollBottomFade";
+import { aramaFiltrele } from "@/lib/arama";
 import { formatCurrency, formatDate, formatKg, formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -27,8 +29,28 @@ const GOSTERILEN = 40;
  * ise gerçek yükleme kaydı — plaka, ağırlık ve ödeme tipi de orada.
  */
 export function SonSevkiyatlarPanel({ satirlar, loading }: SonSevkiyatlarPanelProps) {
-  const gorunen = useMemo(() => satirlar.slice(0, GOSTERILEN), [satirlar]);
+  const [arama, setArama] = useState("");
+
+  // KRITIK: filtre GOSTERILEN kirpmasindan ONCE calisir. Once kirpip sonra
+  // filtreleseydik arama yalnizca en yeni 40 sevkiyati gorur, "gecen ay
+  // Sisli'ye ne gitti" sorusu sessizce bos donerdi.
+  const eslesen = useMemo(
+    () =>
+      aramaFiltrele(satirlar, arama, (s) => [
+        s.musteriUnvani,
+        s.musteriKodu,
+        s.ilce,
+        s.belgeKod,
+        s.odemeTipi,
+        s.plaka,
+      ]),
+    [satirlar, arama]
+  );
+  const gorunen = useMemo(() => eslesen.slice(0, GOSTERILEN), [eslesen]);
+
+  const veriYok = satirlar.length === 0;
   const bos = gorunen.length === 0;
+  const aramaAktif = arama.trim().length > 0;
 
   const { wrapperRef, scrollRef } = useScrollBottomFade<HTMLElement, HTMLDivElement>(
     gorunen.length
@@ -47,15 +69,30 @@ export function SonSevkiyatlarPanel({ satirlar, loading }: SonSevkiyatlarPanelPr
           />
           Son sevk edilenler
         </h2>
-        {!bos ? (
+        {!veriYok ? (
           <span
             className="font-mono text-[12.5px] font-medium text-emerald-400 tabular-nums"
-            title={`En son sevkiyat: ${formatDate(enSonTarih)}. Toplam ${formatNumber(satirlar.length)} sevkiyat kaydı var, ilk ${GOSTERILEN} tanesi listeleniyor.`}
+            title={
+              aramaAktif
+                ? `“${arama.trim()}” ile ${formatNumber(eslesen.length)} sevkiyat eşleşti, ilk ${GOSTERILEN} tanesi listeleniyor. Toplam kayıt: ${formatNumber(satirlar.length)}.`
+                : `En son sevkiyat: ${formatDate(enSonTarih)}. Toplam ${formatNumber(satirlar.length)} sevkiyat kaydı var, ilk ${GOSTERILEN} tanesi listeleniyor.`
+            }
           >
             {formatNumber(satirlar.length)}
           </span>
         ) : null}
       </header>
+
+      {!veriYok ? (
+        <PanelAramaSatiri
+          deger={arama}
+          onDegisim={setArama}
+          gorunen={eslesen.length}
+          toplam={satirlar.length}
+          placeholder="Müşteri, ilçe, belge no, plaka…"
+          etiket="Son sevk edilenlerde ara"
+        />
+      ) : null}
 
       <div
         ref={scrollRef}
@@ -66,14 +103,29 @@ export function SonSevkiyatlarPanel({ satirlar, loading }: SonSevkiyatlarPanelPr
       >
         {bos ? (
           <div className="flex h-full flex-col items-center justify-center gap-2 px-6 py-10 text-center">
-            <TruckIcon
-              className="size-6 text-muted-foreground"
-              strokeWidth={1.5}
-              aria-hidden
-            />
-            <p className="text-[13px] text-muted-foreground">
-              Sevkiyat kaydı yok.
-            </p>
+            {veriYok ? (
+              <>
+                <TruckIcon
+                  className="size-6 text-muted-foreground"
+                  strokeWidth={1.5}
+                  aria-hidden
+                />
+                <p className="text-[13px] text-muted-foreground">
+                  Sevkiyat kaydı yok.
+                </p>
+              </>
+            ) : (
+              <>
+                <SearchXIcon
+                  className="size-6 text-muted-foreground"
+                  strokeWidth={1.5}
+                  aria-hidden
+                />
+                <p className="text-[13px] text-muted-foreground">
+                  “{arama.trim()}” ile eşleşen sevkiyat yok.
+                </p>
+              </>
+            )}
           </div>
         ) : (
           <ul className="divide-y divide-border/50">
