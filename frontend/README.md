@@ -146,8 +146,12 @@ grupta (Sevkiyat / Şahıs araçları) ve balondaki sürücü bilgisinde duruyor
 
 ⚠️ **`arvento_araclar.arac_kod` eşlemesi ELLE yapılır.** Bir araca cihaz
 eşlenmemişse haritada plakasıyla ve nötr renkle görünür, rota rengini almaz.
-Eşleme yapılana kadar o rota aracı için depodaki tahmini yön oku durmaya
-devam eder — bkz. `sql/arvento_arac_sema.sql` başlığındaki açık soru.
+Eşleme yapılana kadar araç haritada plakasıyla görünür, rota rengini almaz —
+bkz. `sql/arvento_arac_sema.sql` başlığındaki açık soru.
+
+Depodaki "tahmini çıkış yönü" okları 2026-09-15'te KALDIRILDI: gerçek konum
+akmaya başlayınca üç aracın oku depo pininin üstünde üst üste yığılıyordu ve
+canlı imleçlerle karışıyordu.
 
 ## Veri modeli
 

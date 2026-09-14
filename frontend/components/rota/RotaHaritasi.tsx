@@ -273,44 +273,6 @@ function createHavuzEl(label: string): HTMLButtonElement {
   return el;
 }
 
-/** İki nokta arasındaki pusula açısı (derece, kuzey = 0). */
-function yonAcisi(a: LngLat, b: LngLat): number {
-  const rad = Math.PI / 180;
-  const dLon = (b[0] - a[0]) * rad;
-  const lat1 = a[1] * rad;
-  const lat2 = b[1] * rad;
-  const y = Math.sin(dLon) * Math.cos(lat2);
-  const x =
-    Math.cos(lat1) * Math.sin(lat2) -
-    Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLon);
-  return ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
-}
-
-/**
- * Aracın depodan çıkış yönü — Navigation2 oku, ilk durağa doğru döndürülmüş.
- *
- * CANLI KONUM DEĞİL: Arvento bağlı olmadığı için aracın nerede olduğunu
- * bilmiyoruz. Bu imleç yalnız "bu araç depodan şu yöne çıkıyor" der; anlık
- * konum bağlandığında aynı imleç gerçek koordinata taşınır.
- */
-function createYonEl(aracAd: string, renk: string, aci: number): HTMLDivElement {
-  const el = document.createElement("div");
-  el.setAttribute("role", "img");
-  el.setAttribute("aria-label", `${aracAd} — depodan çıkış yönü`);
-  el.title = `${aracAd} — depodan çıkış yönü`;
-  el.style.cssText =
-    "width:30px;height:30px;display:flex;align-items:center;justify-content:center;pointer-events:none;filter:drop-shadow(0 2px 6px rgba(0,0,0,0.45))";
-  el.innerHTML = `
-    <svg width="30" height="30" viewBox="0 0 24 24" fill="none"
-         style="transform:rotate(${aci.toFixed(1)}deg);transform-origin:50% 50%">
-      <polygon points="12 2 19 21 12 17 5 21 12 2"
-               fill="${renk}" stroke="#ffffff" stroke-width="1.6"
-               stroke-linejoin="round" stroke-linecap="round" />
-    </svg>
-  `;
-  return el;
-}
-
 function lineFeature(
   coords: LngLat[],
   renk: string,
@@ -652,28 +614,6 @@ export function RotaHaritasi({
         });
       }
 
-      /*
-       * Depoda, ilk durağa bakan yön oku — araç başına bir tane.
-       *
-       * Canlı konum yoksa ya da BAYATSA bu ok duruyor: plan "şu yöne çıkacak"
-       * diyor, aracın nerede olduğunu bilmiyoruz. Bayat durumda araç ayrıca
-       * son bilinen yerinde soluk imleçle de görünür (aşağıda) — ikisi
-       * birlikte "plan bu, en son şurada görüldü" der.
-       */
-      const ilk = rota.duraklar.find((d) => d.lat != null && d.lon != null);
-      if (ilk?.lat != null && ilk.lon != null && !(canli && !canli.bayat)) {
-        const aci = yonAcisi(DEPOT.lngLat, [ilk.lon, ilk.lat]);
-        markersRef.current.push(
-          new mapboxgl.Marker({
-            element: createYonEl(rota.aracAd, haritaRengi(rota.renk, karanlikMi), aci),
-            anchor: "center",
-            offset: [0, -34],
-          })
-            .setLngLat(DEPOT.lngLat)
-            .addTo(map)
-        );
-      }
-
       rota.duraklar.forEach((d, i) => {
         if (d.lat == null || d.lon == null) return;
         const el = createStopEl(i + 1, d.unvan, haritaRengi(rota.renk, karanlikMi));
@@ -911,7 +851,6 @@ export function RotaHaritasi({
     };
     // Kasıtlı olarak yalnız mount/unmount — bkz. üstteki not. rotalar/havuz
     // değişimi ayrı, aşağıdaki effect'in işi.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Rotalar/havuz değişince: haritayı YENİDEN KURMADAN yalnız marker'ları ve

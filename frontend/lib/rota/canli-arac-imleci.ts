@@ -216,15 +216,11 @@ function siluet(kamyon: boolean): string {
  * herkesin zaten tanıdığı biçim bu:
  *   - yuvarlak "puck" (renkli dolgu + kalın beyaz halka),
  *   - hareket hâlindeyken gidiş yönüne bakan yarı saydam KONİ (huzme),
- *   - puck'ın içinde beyaz chevron.
+ *   - puck'ın içinde kamyon/otomobil silueti (lucide `truck` / `car-front`).
  *
- * Chevron, lucide'ın `navigation-2` poligonu (`12 2 19 21 12 17 5 21`) —
- * repo zaten lucide kullanıyor ve bu şekil tam olarak o haritalardaki ok.
- * `RotaHaritasi`'ndeki `createYonEl` de aynı şekli kullanıyor, böylece
- * "tahmini yön oku" ile "gerçek konum" görsel olarak akraba kalıyor.
- *
- * Duruyorsa koni ve chevron YOK — sade nokta. Yön bilinmiyorsa da koni yok:
- * olmayan bir yönü çizmektense göstermemek doğru.
+ * Siluet her araçta var; yön koniyle okunduğu için ayrıca ok çizilmiyor.
+ * Duruyorsa ya da yön bilinmiyorsa koni YOK — olmayan bir yönü çizmektense
+ * göstermemek doğru.
  *
  * Bayat ölçüm soluk ve kesik halkalı: "bu aracın YERİ değil, EN SON BİLİNEN
  * yeri" demek.
