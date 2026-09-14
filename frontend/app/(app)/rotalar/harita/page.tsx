@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
@@ -219,6 +226,22 @@ export default function RotaHaritasiSayfasi() {
   const [havuzGoster, setHavuzGoster] = useState(true);
   /** Sol üst karttaki liste sekmesi — araç/bölge filtresi + kayıtlı plan geçmişi aynı kartı paylaşıyor. */
   const [liste, setListe] = useState<"araclar" | "bolgeler" | "kaydedilenler">("araclar");
+  /*
+   * Sol panelin genişlik hafızası.
+   *
+   * Kart doğal genişliğinde duruyor (içeriği kadar), ama sekme değişince
+   * genişliği zıplıyordu: Kayıtlı listesi Araçlar'dan dar. Sabit bir genişlik
+   * vermek de kötü oldu — satırlar `justify-between`, kart genişleyince etiket
+   * ile sayılar iki uca yapışıp ortada boşluk bırakıyor.
+   *
+   * Çözüm: kart GÖRDÜĞÜ EN GENİŞ hâlini `min-width` olarak hatırlıyor. Dar
+   * sekmeye geçince küçülmüyor, geniş sekmede kendi doğal genişliğini alıyor.
+   * Böylece ne zıplama ne de gereksiz boşluk kalıyor — sihirli bir piksel
+   * değeri de gerekmiyor.
+   */
+  const solListeRef = useRef<HTMLDivElement>(null);
+  const enGenisRef = useRef(0);
+  const [solMinGenislik, setSolMinGenislik] = useState(0);
   /** Bölgeler ya da Kaydedilenler'den bir yere tıklanınca haritanın kayacağı hedef. */
   const [ucusHedefi, setUcusHedefi] = useState<{ noktalar: [number, number][]; zaman: number } | null>(
     null
@@ -447,6 +470,32 @@ export default function RotaHaritasiSayfasi() {
     },
     [gecmisMod, seciliDurak, ekleniyorAracKod, canli, hesaplaYuzde, onizlemeHatti]
   );
+
+  /*
+   * Kartın genişliğini her render'dan sonra ölç, gördüğü en geniş hâli
+   * `min-width` olarak sakla.
+   *
+   * Bağımlılık listesi YOK ve bu bilinçli: genişliği değiştirebilecek her şeyi
+   * (sekme, satır sayısı, araç adı, yazı tipinin geç yüklenmesi, tema) deps'te
+   * saymak kırılgan olurdu — biri unutulunca kart yanlış genişlikte kalır.
+   *
+   * `ResizeObserver` denendi ve VAZGEÇİLDİ: sayfa görünmezken hiç
+   * ateşlemiyor, yani "bir kez ateşler" varsayımı garanti değil.
+   *
+   * Sonsuz döngü yok: `min-width` uygulandıktan sonra ölçüm aynı değeri verir,
+   * eşik (+0.5 px) geçilmez, setState çağrılmaz. Kart yalnız DAHA GENİŞ bir
+   * içerik geldiğinde bir kez büyür.
+   */
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useLayoutEffect(() => {
+    const el = solListeRef.current;
+    if (!el) return;
+    const genislik = el.getBoundingClientRect().width;
+    if (genislik > enGenisRef.current + 0.5) {
+      enGenisRef.current = genislik;
+      setSolMinGenislik(genislik);
+    }
+  });
 
   /** Kayıtlı günün/planın hangi tarihe ait olduğu — başlıkta gösterilecek. */
   const gecmisTarih = useMemo(() => {
@@ -944,14 +993,16 @@ export default function RotaHaritasiSayfasi() {
           </div>
 
           {/*
-            SABİT genişlik, `max-w` değil: kart içeriğe göre büzülüyordu ve
-            sekme değişince genişliği zıplıyordu (Kayıtlı listesi Araçlar'dan
-            dar). Sağ sütundaki kartlarla aynı ölçü — iki taraf aynı hizada
-            dursun.
+            Genişlik İÇERİKTEN geliyor, `min-width` ise gördüğü en geniş hâli
+            hatırlıyor — bkz. `solMinGenislik`. Sabit genişlik denendi ve kötü
+            oldu: satırlar `justify-between` olduğu için kart genişledikçe
+            etiket ile sayılar iki uca yapışıyor.
           */}
           <div
+            ref={solListeRef}
+            style={{ minWidth: solMinGenislik > 0 ? solMinGenislik : undefined }}
             className={cn(
-              "pointer-events-auto flex w-[min(100%,20rem)] min-w-0 flex-col overflow-hidden rounded-2xl",
+              "pointer-events-auto flex max-w-[20rem] min-w-0 flex-col overflow-hidden rounded-2xl",
               CAM
             )}
           >
