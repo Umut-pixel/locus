@@ -55,3 +55,94 @@ bugün yalnız süpürücünün jenerik metnini taşıyor.
 **İlgili:** `backend/n8n/Panorama Otomasyon (8).json` (`Prep Complete Sync*`,
 `Complete Sync Run*`), `frontend/hooks/usePanoramaSyncStatus.ts` (`hata`yı
 okuyor), `sql/panorama_sync_stale_sweep.sql`.
+
+## Arvento bakım: tam-pencere yenileme + doğrulanmamış alan formatları (2026-09-14)
+
+**Belirti (henüz görünmüyor):** `arac_bakim` tablosu bugün boş. Arvento'ya hiç
+bakım kaydı girilmemiş — `POST /v1/FleetReport/Maintenance` her sorguda
+`HTTP 200 + List: []` dönüyor. Boru hattı kuruldu ama hiç gerçek satır işlemedi.
+
+**İki ayrı borç:**
+
+**1) Silinen kayıt bizde kalır.** `Arvento Arac Takibi.json` her gün geçmiş
+24 + gelecek 12 ayı 3'er aylık 12 pencerede çekip `kayit_no` (RecordNo)
+üzerinden upsert ediyor. Arvento'da **silinen** bir bakım kaydı bizim tabloda
+kalır — hiçbir şey onu temizlemiyor. `SevkiyatRaporuKup` agregasyonuyla aynı
+sınıf sorun (bkz. CLAUDE.md).
+*Doğru çözümü:* çekilen pencere aralığına düşen ve bu çalıştırmada görülmeyen
+`kayit_no`'ları işaretlemek (soft-delete) veya pencere bazlı `delete + insert`.
+
+**2) Parse varsayımları doğrulanmadı.** Kayıt olmadığı için şunların hiçbiri
+gerçek veriyle test edilemedi:
+- `RecordNo` global unique mi, yoksa araç bazında mı tekrar ediyor? (bugün PK)
+- `Km` / `PlannedKm` / `Amount` string dönüyor; ondalık ayırıcı virgül mü nokta
+  mı, `Amount` içinde `TL`/`₺` eki var mı? Bugün sezgisel: son ayırıcıdan sonra
+  1-2 hane varsa ondalık (`"12.450,75"` → 12450.75), 3 hane varsa binlik
+  (`"123.456"` → 123456).
+- `StartDate` / `EndDate` / `PlannedDate` yanıtta hangi formatta? (üç format
+  birden deneniyor)
+- `Type` alanının alabildiği değerler?
+- Planlanmış (henüz yapılmamış) bakımlar dönüyor mu?
+
+*Zararı sınırlayan tasarım:* her satırın tamamı `arac_bakim.ham_kayit jsonb`
+kolonunda saklanıyor. Parse yanlış çıkarsa tablo **veri kaybı olmadan**
+`ham_kayit` üzerinden yeniden üretilebilir.
+
+**Yapılacak:** Arvento'ya birkaç gerçek bakım kaydı girildiğinde
+`Bakim Normalize` düğümünün çıktısı `ham_kayit` ile karşılaştırılıp
+`sayiCevir` / `tarihCevir` düzeltilmeli, `sql/arvento_bakim_sema.sql`
+başlığındaki "DOĞRULANMADI" uyarıları kaldırılmalı.
+
+**İlgili:** `backend/n8n/Arvento Arac Takibi.json`, `sql/arvento_bakim_sema.sql`
+
+## Arvento konum izi telafi edilemez (2026-09-14)
+
+**Belirti (risk):** `arac_konum_gecmis` dolmazsa o zaman dilimi **kalıcı olarak
+kayıptır**. Arvento'nun geçmiş iz uçlarının üçü de hesabımızda kapalı
+(`/v1/vehicle/events`, `/v1/report/general`, `/v1/report/vehicleOperating` —
+hepsi "Bu servisi kullanmaya yetkiniz yoktur"), yani geriye dönüp soramayız.
+
+**Etkisi:** "Planlanan vs gerçekleşen rota" karşılaştırmasının tek veri kaynağı
+bu tablo. n8n workflow'u durursa, oturum kilitlenirse veya Supabase yazımı
+sessizce başarısız olursa o günün izi hiç oluşmaz.
+
+**Bugünkü koruma:** 6 düğümde `onError: continueErrorOutput` → `arvento_sync_runs`
+`failed` satırı. Ama **kimse o satırı okumuyor.**
+
+**Doğru çözümü:** `sql/bildirim_sistemi.sql` şu an yalnız `panorama_sync_runs`'taki
+`failed` satırlarını Telegram'a düşürüyor; `arvento_sync_runs`'ı da okuması
+gerekiyor. Ayrıca "son N dakikadır hiç konum yazılmadı" (`arac_konum_son.cekildi_at`
+bayatladı) kontrolü eklenmeli — sessiz durma en tehlikeli senaryo.
+
+**İlgili:** `sql/arvento_sync_runs_sema.sql`, `sql/bildirim_sistemi.sql`,
+`backend/n8n/Arvento Arac Takibi.json`
+
+## Sızmış anahtarlar hâlâ geçerli — rotasyon bekliyor (2026-09-14)
+
+**Durum:** `backend/n8n/Panorama Otomasyon (9).json` bugün credential desenine
+taşındı, dosyada artık düz metin sır yok. **Ama bu, sızmış anahtarları
+geçersiz kılmaz.**
+
+**Ne sızdı:** Project Locus `service_role` JWT'si ve Panorama ERP parolası
+(`patigo` kullanıcısı). İkisi de git geçmişinde duruyor — `098b118` ve öncesi,
+ayrıca 2026-08-19'da herkese açık depoya push edilmişti.
+
+**Neden ciddi:** `service_role` **tüm RLS politikalarını atlar.** Anahtarı
+eline geçiren biri `musteriler`, `panorama_*` landing tabloları, `araclar`,
+yeni `arac_konum_*` tabloları dahil veritabanının tamamını okuyup yazabilir.
+Dosyayı temizlemek yalnız *yeni* sızıntıyı önler.
+
+**Yapılacak (sırayla):**
+1. Supabase → Settings → API → `service_role` anahtarını yeniden üret.
+2. n8n'deki `supabaseApi` credential'ını yeni anahtarla güncelle.
+3. Tek zincirle (örn. Yaşlandırma 5530) manuel çekim testi yap.
+4. Panorama ERP parolasını değiştir, n8n `PANORAMA_PASS` ortam değişkenini
+   güncelle, yine tek zincirle test et.
+5. Vercel/frontend tarafında aynı `service_role` anahtarı kullanılıyorsa
+   (`SUPABASE_SERVICE_ROLE_KEY` env) orayı da güncellemeyi unutma.
+
+**Git geçmişini temizlemek ayrı ve daha zor bir iş** (`filter-repo` + force
+push + herkesin klonunu yenilemesi). Rotasyon yapıldıktan sonra geçmişteki
+anahtar zararsız hale geldiği için bu opsiyoneldir.
+
+**İlgili:** `backend/n8n/README.md` ("Anahtar rotasyonu — HENÜZ YAPILMADI")

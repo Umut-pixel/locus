@@ -1,0 +1,1180 @@
+{
+  "name": "Arvento Arac Takibi",
+  "nodes": [
+    {
+      "id": "arvento00-0000-4000-8000-000000000001",
+      "name": "Not - API Gercekleri",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -600,
+        40
+      ],
+      "parameters": {
+        "content": "## Arvento API — 2026-09-14 canlı testte doğrulananlar\n\n**Hesabımızda KAPALI uçlar** (hepsi \"Bu servisi kullanmaya yetkiniz yoktur\"):\n`/v1/vehicle/events` · `/v1/report/general` · `/v1/report/vehicleOperating`\n`/v1/vehicle/lastEventsIgnition` · `/v1/vehicle/lastEventsV2` · `/v1/vehicle/groups`\n\n→ Geçmiş iz **bizim polling'imizden** başka kaynağı yok. Polling durursa o zaman\ndilimi kalıcı olarak kayıptır.\n→ `lastEvents` plaka/sürücü/kontak **döndürmüyor**, yalnız `Node`. Plaka\n`arvento_araclar` üzerinden join edilir.\n\n**Tek-oturum kısıtı:** her login öncekini öldürür (eski sid → 401, boş body).\nBu yüzden konum ve filo/bakım AYNI workflow'da, aynı oturum cache'ini paylaşır.\n\n**`Date` alanı = Türkiye yerel saati (UTC+3), UTC DEĞİL.**\nHTTP `date` header'ı 06:59:47 GMT iken API `20260914095947` döndü.\n\n**HTTP kodu her zaman 200**, hata `HasError`/`Status`'ta. Tek istisna: geçersiz\nsid → gerçek 401. Status: 0=OK, 1000=null reference, 1012=InvalidDateInterval.\n\n**`{\"Nodes\": []}`** hesaptaki tüm araçları döndürür. `{}` → Status 1000.",
+        "height": 560,
+        "width": 720,
+        "color": 7
+      }
+    },
+    {
+      "id": "arvento00-0000-4000-8000-000000000002",
+      "name": "Not - Kurulum",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -600,
+        640
+      ],
+      "parameters": {
+        "content": "## Kurulum — import'tan sonra sırayla\n\n**1) Ortam değişkenleri** (n8n Settings → Environment Variables):\n`ARVENTO_USER` · `ARVENTO_PASS`\nBu değerler bu JSON'a **yazılmaz**. Code node'ları `$env` üzerinden okur.\n\n**2) Supabase credential:** her PostgREST düğümünde `supabaseApi` tipi\ncredential elle seçilir (URL + service_role key orada durur).\n\n**3) Import prosedürü** (backend/n8n/README.md):\nmevcut workflow üzerine import → credential'ları seç → **workflow'u kapat ve\ntekrar aç** → önce `Schedule Filo Bakim`'i manuel çalıştır (araç listesi dolsun)\n→ sonra `Schedule Konum`'u manuel çalıştır → şema doğruysa Active yap.\nTest URL (`/webhook-test/`) kullanma.\n\n**4) Eşleme:** `arvento_araclar.arac_kod` NULL başlar. Hangi Arvento aracının\nhangi rota aracı (kangoo/transit/npr10/isuzu3d) olduğu Melih'ten teyit alınıp\nelle doldurulur. Eşlenmeyen araç haritada görünmez.\n\n**Cron:** mesai `*/1 7-19 * * 1-6` · dışı `*/15 0-6,20-23 * * *`\nfilo/bakım `7 5 * * *` (EPDK 06:00 ve Panorama 07:00 dalgalarından önce).",
+        "height": 520,
+        "width": 720,
+        "color": 3
+      }
+    },
+    {
+      "id": "arvento00-0000-4000-8000-000000000003",
+      "name": "Schedule Konum",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        180,
+        300
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "*/1 7-19 * * 1-6"
+            },
+            {
+              "field": "cronExpression",
+              "expression": "*/15 0-6,20-23 * * *"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "arvento00-0000-4000-8000-000000000004",
+      "name": "Is Turu Konum",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        400,
+        300
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "arvento00-0000-4000-8000-000000000005",
+              "name": "is_turu",
+              "value": "konum",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "arvento00-0000-4000-8000-000000000006",
+      "name": "Schedule Filo Bakim",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        180,
+        880
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "7 5 * * *"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "arvento00-0000-4000-8000-000000000007",
+      "name": "Is Turu Filo Bakim",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        400,
+        880
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "arvento00-0000-4000-8000-000000000008",
+              "name": "is_turu",
+              "value": "filo_bakim",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "arvento00-0000-4000-8000-000000000009",
+      "name": "Oturum Al",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        640,
+        580
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// =========================================================================\n// Arvento oturum yonetimi - TEK OTURUM KISITI yuzunden cache ZORUNLU.\n// =========================================================================\n// 2026-09-14 canli test: her POST /v1/login yeni sessionId uretiyor ve\n// ONCEKINI ANINDA OLDURUYOR (eski sid -> HTTP 401, bos body). Bu workflow\n// mesai icinde dakikada bir calisiyor; her calistirmada login atsaydi\n// sistem kendi oturumunu surekli kesecekti. Panorama'nin Login node'u\n// cache'lemiyor ama o gunde 21 kez calisiyor - bizde ~800.\n//\n// Ayni sebeple konum ve filo/bakim isleri AYRI workflow degil: ikisi de bu\n// dugumu ve ayni static data cache'ini paylasmak zorunda.\n//\n// TTL neden 30 dk: sessionId'nin gercek omru Arvento'ya soruldu, cevap\n// gelmedi (sunucu tarafi ayari, API yanitinda yok). 30 dk muhafazakar bir\n// tahmin. Erken duserse asagidaki 401 dali zaten yakalar; gec duserse\n// yalnizca gereksiz bir login olur. Arvento cevap verince tek sabit degisir.\n//\n// Static data yalniz AKTIF workflow'da kalicidir; import/guncelleme sonrasi\n// sifirlanir - o durumu da 401 dali toplar.\n// =========================================================================\n\nconst TTL_MS = 30 * 60 * 1000;\n\nconst sd = $getWorkflowStaticData('global');\nconst items = $input.all();\nconst isTuru = (items[0] && items[0].json && items[0].json.is_turu) || 'konum';\n\nconst cacheGecerli =\n  typeof sd.arventoSid === 'string' &&\n  sd.arventoSid.length > 0 &&\n  typeof sd.arventoSidExpiry === 'number' &&\n  Date.now() < sd.arventoSidExpiry;\n\nif (cacheGecerli) {\n  return [{ json: { sid: sd.arventoSid, is_turu: isTuru, oturum_kaynagi: 'cache' } }];\n}\n\nconst userName = $env.ARVENTO_USER;\nconst password = $env.ARVENTO_PASS;\nif (!userName || !password) {\n  throw new Error(\n    'ARVENTO_USER / ARVENTO_PASS ortam degiskenleri tanimli degil. ' +\n    'n8n Settings > Environment Variables altindan girilmeli. ' +\n    'Bu degerler workflow JSON dosyasina YAZILMAZ.'\n  );\n}\n\nlet res;\ntry {\n  res = await this.helpers.httpRequest({\n    method: 'POST',\n    url: 'https://ws.arvento.com/api/v1/login',\n    headers: { 'Content-Type': 'application/json' },\n    body: { UserName: userName, Password: password },\n    json: true,\n    timeout: 30000,\n  });\n} catch (e) {\n  throw new Error('Arvento login istegi basarisiz: ' + (e && e.message ? e.message : e));\n}\n\nif (res && res.HasError === true) {\n  const msg = (res.Error && res.Error.Message) || res.Message || '(mesaj yok)';\n  throw new Error('Arvento login reddetti - Status=' + res.Status + ', Message=' + msg);\n}\n\nconst sid = res && res.Record ? res.Record.sessionId : null;\nif (!sid) {\n  throw new Error('Arvento login yanitinda Record.sessionId yok: ' + JSON.stringify(res).slice(0, 300));\n}\n\nsd.arventoSid = sid;\nsd.arventoSidExpiry = Date.now() + TTL_MS;\nsd.arventoSidAlindi = new Date().toISOString();\n\nreturn [{ json: { sid: sid, is_turu: isTuru, oturum_kaynagi: 'yeni-login' } }];\n"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "arvento00-0000-4000-8000-000000000011",
+      "name": "Konum Kolu mu",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        880,
+        580
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "arvento00-0000-4000-8000-000000000010",
+              "leftValue": "={{ $json.is_turu }}",
+              "rightValue": "konum",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "arvento00-0000-4000-8000-000000000012",
+      "name": "Son Konum Cek",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1120,
+        300
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://ws.arvento.com/api/v1/vehicle/lastEvents",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "=sid {{ $json.sid }}"
+            },
+            {
+              "name": "ln",
+              "value": "tr-TR"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { Nodes: [] } }}"
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "id": "arvento00-0000-4000-8000-000000000014",
+      "name": "Oturum Dustu mu",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1340,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "arvento00-0000-4000-8000-000000000013",
+              "leftValue": "={{ $json.statusCode }}",
+              "rightValue": 401,
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "arvento00-0000-4000-8000-000000000015",
+      "name": "Oturumu Tazele",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1560,
+        140
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// =========================================================================\n// Oturum tazeleme - yalniz lastEvents HTTP 401 dondugunde calisir.\n// =========================================================================\n// 401 su durumlarda gelir:\n//   - TTL tahminimiz gercek omurden uzun kaldi,\n//   - baska bir yerden (Postman, baska n8n ornegi, Arvento web arayuzu)\n//     ayni hesapla login atildi ve bizim sid'imiz oldu (tek-oturum kisiti),\n//   - workflow import/guncelleme sonrasi static data sifirlandi.\n// Cache burada ONCE silinir ki basarisiz bir tazelemede bayat sid geri\n// donmesin.\n// =========================================================================\n\nconst sd = $getWorkflowStaticData('global');\ndelete sd.arventoSid;\ndelete sd.arventoSidExpiry;\n\nconst items = $input.all();\nconst isTuru = (items[0] && items[0].json && items[0].json.is_turu) || 'konum';\n\nconst userName = $env.ARVENTO_USER;\nconst password = $env.ARVENTO_PASS;\nif (!userName || !password) {\n  throw new Error(\n    'ARVENTO_USER / ARVENTO_PASS ortam degiskenleri tanimli degil. ' +\n    'n8n Settings > Environment Variables altindan girilmeli. ' +\n    'Bu degerler workflow JSON dosyasina YAZILMAZ.'\n  );\n}\n\nlet res;\ntry {\n  res = await this.helpers.httpRequest({\n    method: 'POST',\n    url: 'https://ws.arvento.com/api/v1/login',\n    headers: { 'Content-Type': 'application/json' },\n    body: { UserName: userName, Password: password },\n    json: true,\n    timeout: 30000,\n  });\n} catch (e) {\n  throw new Error('Arvento login istegi basarisiz: ' + (e && e.message ? e.message : e));\n}\n\nif (res && res.HasError === true) {\n  const msg = (res.Error && res.Error.Message) || res.Message || '(mesaj yok)';\n  throw new Error('Arvento login reddetti - Status=' + res.Status + ', Message=' + msg);\n}\n\nconst sid = res && res.Record ? res.Record.sessionId : null;\nif (!sid) {\n  throw new Error('Arvento login yanitinda Record.sessionId yok: ' + JSON.stringify(res).slice(0, 300));\n}\n\nsd.arventoSid = sid;\nsd.arventoSidExpiry = Date.now() + 30 * 60 * 1000;\nsd.arventoSidAlindi = new Date().toISOString();\n\nreturn [{ json: { sid: sid, is_turu: isTuru, oturum_kaynagi: 'tazelendi-401' } }];\n"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "arvento00-0000-4000-8000-000000000016",
+      "name": "Son Konum Cek (Tekrar)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1780,
+        140
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://ws.arvento.com/api/v1/vehicle/lastEvents",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "=sid {{ $json.sid }}"
+            },
+            {
+              "name": "ln",
+              "value": "tr-TR"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { Nodes: [] } }}"
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "id": "arvento00-0000-4000-8000-000000000017",
+      "name": "Dogrula ve Normalize",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2020,
+        300
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// =========================================================================\n// lastEvents yanitini dogrula + Supabase satirlarina cevir\n// =========================================================================\n// Dogrulama sirasi bilerek katmanli: google-places-prospecting'te\n// 2026-09-14'te yasanan bug tam olarak \"401 govdesi hata sayilmadan asagi\n// akti\" idi. neverError:true kullandigimiz icin HTTP katmani sessiz -\n// kontrolu burada acikca yapiyoruz.\n//\n// Arvento sozlesmesi (2026-09-14 canli test):\n//   - HTTP kodu her zaman 200; hata HasError/Status alanlarinda.\n//     Tek istisna gecersiz sid -> gercek 401 + bos body.\n//   - Status 0 = basarili, 1000 = null reference, 1012 = InvalidDateInterval.\n//   - Date alani \"20260914095947\" = TURKIYE YEREL SAATI (UTC+3), UTC DEGIL.\n//     HTTP date header 06:59:47 GMT iken API 09:59:47 dondu.\n//   - Gecersiz node hata vermiyor, satiri sessizce listeden dusuruyor.\n// =========================================================================\n\nconst TR_OFFSET = '+03:00';\n\nfunction tarihCevir(ham) {\n  const m = /^(\\d{4})(\\d{2})(\\d{2})(\\d{2})(\\d{2})(\\d{2})$/.exec(String(ham == null ? '' : ham).trim());\n  if (!m) return null;\n  const d = new Date(m[1] + '-' + m[2] + '-' + m[3] + 'T' + m[4] + ':' + m[5] + ':' + m[6] + TR_OFFSET);\n  return Number.isNaN(d.getTime()) ? null : d.toISOString();\n}\n\nfunction sayi(v) {\n  if (v === null || v === undefined || v === '') return null;\n  const n = Number(v);\n  return Number.isFinite(n) ? n : null;\n}\n\nfunction metin(v) {\n  const s = String(v == null ? '' : v).trim();\n  return s === '' ? null : s;\n}\n\nconst items = $input.all();\nif (items.length === 0) {\n  throw new Error('lastEvents dugumunden hic item gelmedi.');\n}\n\nconst res = items[0].json;\nconst status = res.statusCode;\nconst body = res.body !== undefined ? res.body : res;\n\nif (status === 401) {\n  throw new Error(\n    'Arvento oturumu gecersiz (401) - yeniden login denemesi de basarisiz oldu. ' +\n    'Tek-oturum kisiti: ayni hesapla baska bir yerden login atilmis olabilir.'\n  );\n}\nif (typeof status === 'number' && (status < 200 || status >= 300)) {\n  throw new Error('Arvento lastEvents HTTP ' + status + ': ' + JSON.stringify(body).slice(0, 400));\n}\nif (!body || typeof body !== 'object') {\n  throw new Error('Arvento lastEvents govdesi nesne degil: ' + String(body).slice(0, 300));\n}\nif (body.HasError === true) {\n  const msg = (body.Error && body.Error.Message) || body.Message || '(mesaj yok)';\n  throw new Error('Arvento lastEvents hata dondu - Status=' + body.Status + ', Message=' + msg);\n}\nif (body.Status !== 0) {\n  throw new Error('Arvento lastEvents beklenmeyen Status=' + body.Status + ' (0 bekleniyordu): ' + JSON.stringify(body).slice(0, 300));\n}\nif (!Array.isArray(body.List)) {\n  throw new Error('Arvento lastEvents yanitinda List dizisi yok: ' + JSON.stringify(body).slice(0, 400));\n}\n\nconst cekildiAt = new Date().toISOString();\nconst son = [];\nconst gecmis = [];\nconst atlanan = { koordinatsiz: 0, tarihsiz: 0, nodesuz: 0 };\n\nfor (const ham of body.List) {\n  const node = metin(ham.Node);\n  if (!node) { atlanan.nodesuz += 1; continue; }\n\n  const olcum = tarihCevir(ham.Date);\n  if (!olcum) { atlanan.tarihsiz += 1; continue; }\n\n  const lat = sayi(ham.Latitude);\n  const lon = sayi(ham.Longitude);\n  // Koordinat filtresi: 0/null sahte konumdur, yazilmaz.\n  // (Repo geneli kural - musteri geocode'unda da ayni filtre var.)\n  if (lat === null || lon === null || lat === 0 || lon === 0) { atlanan.koordinatsiz += 1; continue; }\n\n  const hizHam = sayi(ham.Speed);\n  const hiz = hizHam === null ? null : Math.max(0, hizHam);\n  const yonHam = sayi(ham.Course);\n  const yon = yonHam === null ? null : ((yonHam % 360) + 360) % 360;\n  const odo = sayi(ham.Odometer);\n\n  son.push({\n    node: node,\n    olcum_zamani: olcum,\n    ham_tarih: metin(ham.Date),\n    lat: lat,\n    lon: lon,\n    hiz_kmh: hiz,\n    yon_derece: yon,\n    rakim_m: sayi(ham.Altitude),\n    odometre_km: odo,\n    adres: metin(ham.Address),\n    bolge: metin(ham.Region),\n    cekildi_at: cekildiAt,\n  });\n\n  gecmis.push({\n    node: node,\n    olcum_zamani: olcum,\n    lat: lat,\n    lon: lon,\n    hiz_kmh: hiz,\n    yon_derece: yon,\n    odometre_km: odo,\n  });\n}\n\n// List bos gelmesi hata DEGIL (tum cihazlar sessiz olabilir) - yazim atlanir.\n// Ama satir gelip hicbiri kullanilabilir degilse bu bir bug'dir, gurultu cikar.\nif (body.List.length > 0 && son.length === 0) {\n  throw new Error(\n    'Arvento ' + body.List.length + ' satir dondurdu ama hicbiri yazilabilir degil ' +\n    '(koordinatsiz: ' + atlanan.koordinatsiz + ', tarihsiz: ' + atlanan.tarihsiz +\n    ', nodesuz: ' + atlanan.nodesuz + ').'\n  );\n}\n\nreturn [{\n  json: {\n    is_turu: 'konum',\n    son: son,\n    gecmis: gecmis,\n    satir: son.length,\n    ham_satir: body.List.length,\n    atlanan: atlanan,\n    cekildi_at: cekildiAt,\n  },\n}];\n"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "arvento00-0000-4000-8000-000000000019",
+      "name": "Yazilacak Satir Var mi",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2240,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "arvento00-0000-4000-8000-000000000018",
+              "leftValue": "={{ $json.satir }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "arvento00-0000-4000-8000-000000000020",
+      "name": "Upsert Son Konum",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2480,
+        220
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $credentials.host }}/rest/v1/arac_konum_son?on_conflict=node",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates,return=minimal"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        },
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.son }}"
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "id": "arvento00-0000-4000-8000-000000000021",
+      "name": "Insert Gecmis",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2700,
+        220
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $credentials.host }}/rest/v1/arac_konum_gecmis?on_conflict=node,olcum_zamani",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "resolution=ignore-duplicates,return=minimal"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        },
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $('Dogrula ve Normalize').first().json.gecmis }}"
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "id": "arvento00-0000-4000-8000-000000000022",
+      "name": "Konum Yazim Kontrol",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2920,
+        220
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// =========================================================================\n// PostgREST yazim sonucunu dogrula\n// =========================================================================\n// neverError:true kullandigimiz icin 4xx/5xx sessizce akiyor. Places\n// workflow'undaki 2026-09-14 bug'i (PostgREST 401 govdesi hata sayilmadan\n// gecti) tam olarak bu kontrolun eksikligiydi.\n// =========================================================================\n\nfunction kontrol(ad, res) {\n  const st = res ? res.statusCode : undefined;\n  if (typeof st !== 'number') {\n    throw new Error(ad + ': yanit alinamadi - ' + JSON.stringify(res).slice(0, 300));\n  }\n  if (st < 200 || st >= 300) {\n    const govde = typeof res.body === 'string' ? res.body : JSON.stringify(res.body || {});\n    throw new Error(ad + ': PostgREST HTTP ' + st + ' - ' + govde.slice(0, 400));\n  }\n}\n\nconst norm = $('Dogrula ve Normalize').first().json;\nkontrol('arac_konum_son upsert', $('Upsert Son Konum').first().json);\nkontrol('arac_konum_gecmis insert', $('Insert Gecmis').first().json);\n\nlet oturum = '(bilinmiyor)';\ntry { oturum = $('Oturum Al').first().json.oturum_kaynagi; } catch (e) {}\n\nreturn [{\n  json: {\n    is_turu: 'konum',\n    durum: 'completed',\n    yazilan_son: norm.satir,\n    gecmis_aday: norm.gecmis.length,\n    ham_satir: norm.ham_satir,\n    atlanan: norm.atlanan,\n    oturum_kaynagi: oturum,\n  },\n}];\n"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "arvento00-0000-4000-8000-000000000023",
+      "name": "Arac Listesi",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1120,
+        880
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "https://ws.arvento.com/api/v1/vehicle",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "=sid {{ $('Oturum Al').first().json.sid }}"
+            },
+            {
+              "name": "ln",
+              "value": "tr-TR"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "id": "arvento00-0000-4000-8000-000000000024",
+      "name": "Filo Normalize",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1340,
+        880
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// =========================================================================\n// /v1/vehicle yanitini arvento_araclar satirlarina cevir\n// =========================================================================\n// PLAKA NORMALIZE ZORUNLU: 2026-09-14 testinde API tutarsiz dondu -\n// 7 arac bitisik (\"34PDV735\"), 1 arac bosluklu (\"34 PDV 736\"). Orijinal\n// plaka_ham'da saklanir.\n//\n// Payload'da BILEREK OLMAYAN iki alan:\n//   arac_kod    -> elle yapilan rota araci eslemesi. PostgREST upsert yalniz\n//                  govdedeki kolonlari UPDATE eder; buraya koymazsak her\n//                  gunluk senkron elle yapilan eslemeyi EZMEZ.\n//   ilk_gorulme -> insert'te default now(), update'te dokunulmaz.\n//\n// CompanyName / ChassisNumber okunmuyor: swagger'da tanimli ama API bu iki\n// alani hic dondurmuyor (2026-09-14 testi).\n// =========================================================================\n\nfunction plakaNormalize(v) {\n  return String(v == null ? '' : v).toUpperCase().replace(/[^0-9A-Z]/g, '');\n}\n\nfunction metin(v) {\n  const s = String(v == null ? '' : v).trim();\n  return s === '' ? null : s;\n}\n\nconst items = $input.all();\nif (items.length === 0) {\n  throw new Error('Arac Listesi dugumunden hic item gelmedi.');\n}\n\nconst res = items[0].json;\nconst status = res.statusCode;\nconst body = res.body !== undefined ? res.body : res;\n\nif (status === 401) {\n  throw new Error('Arvento oturumu gecersiz (401) - /v1/vehicle cagrisi reddedildi.');\n}\nif (typeof status === 'number' && (status < 200 || status >= 300)) {\n  throw new Error('Arvento /v1/vehicle HTTP ' + status + ': ' + JSON.stringify(body).slice(0, 400));\n}\nif (!body || typeof body !== 'object') {\n  throw new Error('Arvento /v1/vehicle govdesi nesne degil: ' + String(body).slice(0, 300));\n}\nif (body.HasError === true) {\n  const msg = (body.Error && body.Error.Message) || body.Message || '(mesaj yok)';\n  throw new Error('Arvento /v1/vehicle hata dondu - Status=' + body.Status + ', Message=' + msg);\n}\nif (!Array.isArray(body.List)) {\n  throw new Error('Arvento /v1/vehicle yanitinda List dizisi yok: ' + JSON.stringify(body).slice(0, 400));\n}\nif (body.List.length === 0) {\n  throw new Error('Arvento /v1/vehicle bos liste dondurdu - hesapta arac gorunmuyor.');\n}\n\nconst gorulduAt = new Date().toISOString();\nconst rows = [];\nconst plakaSahibi = new Map();\n\nfor (const ham of body.List) {\n  const node = metin(ham.Node);\n  if (!node) continue;\n\n  const plakaHam = metin(ham.LicensePlate);\n  const plaka = plakaNormalize(plakaHam);\n  if (!plaka) {\n    throw new Error('Node ' + node + ' icin plaka bos geldi - arvento_araclar.plaka NOT NULL.');\n  }\n  if (plakaSahibi.has(plaka)) {\n    throw new Error(\n      'Ayni plaka iki node\\'da: ' + plaka + ' -> ' + plakaSahibi.get(plaka) + ' ve ' + node +\n      '. arvento_araclar.plaka UNIQUE oldugu icin yazim durduruldu.'\n    );\n  }\n  plakaSahibi.set(plaka, node);\n\n  rows.push({\n    node: node,\n    plaka: plaka,\n    plaka_ham: plakaHam,\n    surucu: metin(ham.Driver),\n    arac_sinifi: metin(ham.VehicleClass),\n    grup: metin(ham.NodeGroup),\n    ekip: metin(ham.Crew),\n    aktif: true,\n    son_gorulme: gorulduAt,\n  });\n}\n\nreturn [{ json: { is_turu: 'filo_bakim', rows: rows, satir: rows.length } }];\n"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "arvento00-0000-4000-8000-000000000025",
+      "name": "Upsert Arvento Araclar",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1560,
+        880
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $credentials.host }}/rest/v1/arvento_araclar?on_conflict=node",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates,return=minimal"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        },
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.rows }}"
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "id": "arvento00-0000-4000-8000-000000000026",
+      "name": "Bakim Pencereleri",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1780,
+        880
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// =========================================================================\n// Maintenance tarih pencereleri\n// =========================================================================\n// 2026-09-14 canli test: {\"StartDate\":\"20250101000000\",\"EndDate\":\"20261231000000\"}\n// (1,5 yil) -> Status 1012 \"InvalidDateInterval\". 3 aylik pencere kabul\n// edildi (bos liste dondu - Arvento'da hic bakim kaydi girilmemis).\n//\n// Pencere araligi: gecmis 24 ay + gelecek 12 ay, 3'er aylik = 12 istek.\n// Gelecek pencereler planlanmis bakimlar icin - Maintenance ucunun\n// planlanmis kayit dondurup dondurmedigi DOGRULANMADI (kayit yok).\n//\n// Sinir gunleri konteyner saat dilimine gore hesaplaniyor; Maintenance\n// filtresi gun hassasiyetinde oldugu icin birkac saatlik kayma onemsiz.\n// =========================================================================\n\nconst GECMIS_AY = 24;\nconst GELECEK_AY = 12;\nconst ADIM_AY = 3;\n\nfunction fmt(d) {\n  const p = (n) => String(n).padStart(2, '0');\n  return String(d.getFullYear()) + p(d.getMonth() + 1) + p(d.getDate()) +\n         p(d.getHours()) + p(d.getMinutes()) + p(d.getSeconds());\n}\n\nconst simdi = new Date();\nconst out = [];\n\nfor (let ay = -GECMIS_AY; ay < GELECEK_AY; ay += ADIM_AY) {\n  const bas = new Date(simdi.getFullYear(), simdi.getMonth() + ay, 1, 0, 0, 0, 0);\n  const bit = new Date(simdi.getFullYear(), simdi.getMonth() + ay + ADIM_AY, 1, 0, 0, 0, 0);\n  out.push({ json: { StartDate: fmt(bas), EndDate: fmt(bit), pencere: fmt(bas) + '..' + fmt(bit) } });\n}\n\nreturn out;\n"
+      }
+    },
+    {
+      "id": "arvento00-0000-4000-8000-000000000027",
+      "name": "Bakim Cek",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2020,
+        880
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://ws.arvento.com/api/v1/FleetReport/Maintenance",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "=sid {{ $('Oturum Al').first().json.sid }}"
+            },
+            {
+              "name": "ln",
+              "value": "tr-TR"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          },
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 1000
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { StartDate: $json.StartDate, EndDate: $json.EndDate } }}"
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "id": "arvento00-0000-4000-8000-000000000028",
+      "name": "Bakim Normalize",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2240,
+        880
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// =========================================================================\n// Maintenance pencerelerini birlestir + arac_bakim satirlarina cevir\n// =========================================================================\n// ⚠ BU KODUN PARSE VARSAYIMLARI DOGRULANMADI. 2026-09-14 itibariyla\n// Arvento'da hic bakim kaydi yok, her sorgu List: [] donuyor. Su alanlarin\n// gercek formati bilinmiyor:\n//   - Km / PlannedKm / Amount string doner; ondalik ayirici virgul mu nokta\n//     mi, Amount'ta \"TL\"/\"₺\" eki var mi?\n//   - StartDate / EndDate / PlannedDate hangi formatta doner?\n//   - RecordNo global unique mi?\n// Bu yuzden her satirin TAMAMI ham_kayit jsonb kolonunda saklaniyor -\n// parse yanlis cikarsa tablo veri kaybi olmadan yeniden uretilebilir.\n//\n// Istek/yanit alan adi tutarsizligi: ISTEKTE \"LicencePlate\" (c ile),\n// YANITTA \"LicensePlate\" (s ile). Ikisi de okunuyor.\n// =========================================================================\n\nfunction plakaNormalize(v) {\n  return String(v == null ? '' : v).toUpperCase().replace(/[^0-9A-Z]/g, '');\n}\n\nfunction metin(v) {\n  const s = String(v == null ? '' : v).trim();\n  return s === '' ? null : s;\n}\n\n// Ondalik ayirici belirsiz oldugu icin sezgisel: son ayiricidan sonra 1-2\n// hane varsa o ondaliktir (\"15,50\" -> 15.5), 3 hane varsa binlik ayiricidir\n// (\"15.000\" -> 15000).\nfunction sayiCevir(v) {\n  if (v === null || v === undefined) return null;\n  let s = String(v).replace(/[^\\d.,-]/g, '').trim();\n  if (s === '' || s === '-') return null;\n  const son = Math.max(s.lastIndexOf(','), s.lastIndexOf('.'));\n  let birlesik;\n  if (son === -1) {\n    birlesik = s;\n  } else {\n    const kuyruk = s.length - son - 1;\n    const tam = s.slice(0, son).replace(/[.,]/g, '');\n    if (kuyruk >= 1 && kuyruk <= 2) {\n      birlesik = tam + '.' + s.slice(son + 1);\n    } else {\n      birlesik = tam + s.slice(son + 1).replace(/[.,]/g, '');\n    }\n  }\n  const n = Number(birlesik);\n  return Number.isFinite(n) ? n : null;\n}\n\nfunction tarihCevir(v) {\n  const s = String(v == null ? '' : v).trim();\n  if (!s) return null;\n  let m = /^(\\d{4})(\\d{2})(\\d{2})(\\d{2})(\\d{2})(\\d{2})$/.exec(s);\n  if (m) return m[1] + '-' + m[2] + '-' + m[3];\n  m = /^(\\d{4})-(\\d{2})-(\\d{2})/.exec(s);\n  if (m) return m[1] + '-' + m[2] + '-' + m[3];\n  m = /^(\\d{1,2})[./](\\d{1,2})[./](\\d{4})/.exec(s);\n  if (m) return m[3] + '-' + String(m[2]).padStart(2, '0') + '-' + String(m[1]).padStart(2, '0');\n  return null;\n}\n\n// Plaka -> node cozumu icin filo senkronunun ciktisi\nconst plakaNode = new Map();\ntry {\n  const filo = $('Filo Normalize').first().json.rows || [];\n  for (const r of filo) plakaNode.set(r.plaka, r.node);\n} catch (e) { /* filo kolu calismadiysa node null kalir */ }\n\nconst items = $input.all();\nconst kayitlar = new Map();\nconst bosPencere = [];\n\n// fullResponse:true HTTP ciktisini {statusCode, headers, body}'ye cevirdigi icin\n// pencere etiketi yanitta TASINMIYOR - girdi item'lariyla index uzerinden\n// eslestiriliyor (httpRequest her girdi icin sirayla bir cikti uretir).\nlet pencereler = [];\ntry { pencereler = $('Bakim Pencereleri').all().map((i) => i.json.pencere); } catch (e) {}\n\nfor (let i = 0; i < items.length; i += 1) {\n  const it = items[i];\n  const res = it.json;\n  const pencere = pencereler[i] || '(pencere ' + (i + 1) + ')';\n  const status = res.statusCode;\n  const body = res.body !== undefined ? res.body : res;\n\n  if (status === 401) {\n    throw new Error('Arvento oturumu gecersiz (401) - Maintenance penceresi ' + pencere);\n  }\n  if (typeof status === 'number' && (status < 200 || status >= 300)) {\n    throw new Error('Arvento Maintenance HTTP ' + status + ' (pencere ' + pencere + '): ' + JSON.stringify(body).slice(0, 300));\n  }\n  if (body && body.HasError === true) {\n    const msg = (body.Error && body.Error.Message) || body.Message || '(mesaj yok)';\n    throw new Error(\n      'Arvento Maintenance hata dondu (pencere ' + pencere + ') - Status=' + body.Status + ', Message=' + msg +\n      (body.Status === 1012 ? ' | InvalidDateInterval: pencere genisligi API sinirini asiyor, ADIM_AY kucultulmeli.' : '')\n    );\n  }\n  if (!body || !Array.isArray(body.List)) {\n    throw new Error('Arvento Maintenance yanitinda List dizisi yok (pencere ' + pencere + '): ' + JSON.stringify(body).slice(0, 300));\n  }\n  if (body.List.length === 0) { bosPencere.push(pencere); continue; }\n\n  for (const ham of body.List) {\n    const kayitNo = Number(ham.RecordNo);\n    if (!Number.isFinite(kayitNo)) continue;\n\n    const plakaHam = metin(ham.LicensePlate) || metin(ham.LicencePlate);\n    const plaka = plakaNormalize(plakaHam) || null;\n\n    kayitlar.set(kayitNo, {\n      kayit_no: kayitNo,\n      plaka: plaka,\n      node: plaka && plakaNode.has(plaka) ? plakaNode.get(plaka) : null,\n      tip: metin(ham.Type),\n      firma: metin(ham.Firm),\n      not_metni: metin(ham.Note),\n      baslangic_tarihi: tarihCevir(ham.StartDate),\n      bitis_tarihi: tarihCevir(ham.EndDate),\n      planlanan_tarih: tarihCevir(ham.PlannedDate),\n      km: sayiCevir(ham.Km),\n      planlanan_km: sayiCevir(ham.PlannedKm),\n      tutar: sayiCevir(ham.Amount),\n      ham_kayit: ham,\n      guncellendi: new Date().toISOString(),\n    });\n  }\n}\n\nconst rows = Array.from(kayitlar.values());\n\nreturn [{\n  json: {\n    is_turu: 'filo_bakim',\n    rows: rows,\n    satir: rows.length,\n    pencere_sayisi: items.length,\n    bos_pencere_sayisi: bosPencere.length,\n  },\n}];\n"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "arvento00-0000-4000-8000-000000000030",
+      "name": "Bakim Kaydi Var mi",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2480,
+        880
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "arvento00-0000-4000-8000-000000000029",
+              "leftValue": "={{ $json.satir }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "arvento00-0000-4000-8000-000000000031",
+      "name": "Upsert Bakim",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2700,
+        800
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $credentials.host }}/rest/v1/arac_bakim?on_conflict=kayit_no",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates,return=minimal"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        },
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.rows }}"
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "id": "arvento00-0000-4000-8000-000000000032",
+      "name": "Sync Run Hazirla",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2920,
+        880
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// =========================================================================\n// Filo/bakim kolunun tek sync_runs satirini hazirla\n// =========================================================================\n// BILEREK \"running\" satiri ACILMIYOR. Panorama'da her zincir once running\n// satiri acip sonra completed'a cekiyor; hicbir error branch olmadigi icin\n// zincir ortada coktugunde satir sonsuza kadar running kaliyor ve\n// /api/sync/panorama/manual 409 dondurup \"Simdi cek\" butonunu kilitliyordu\n// (bkz. sql/panorama_sync_stale_sweep.sql - o sorunu temizlemek icin ayri\n// bir pg_cron isi yazilmak zorunda kalinmis).\n//\n// Burada tek satir EN SONDA, kesinlesmis durumla yaziliyor. Yetim \"running\"\n// diye bir durum hic olusmuyor, dolayisiyla supurucu cron'a da gerek yok.\n// Hata olursa Hata Kaydi kolu 'failed' satirini yaziyor.\n// =========================================================================\n\n// neverError:true yuzunden PostgREST 4xx/5xx sessizce akiyor - filo kolunun\n// yazimlari burada acikca dogrulanir. (Konum kolunda ayni isi 'Konum Yazim\n// Kontrol' yapiyor. Bu kontrol olmadan Places workflow'undaki 2026-09-14\n// bug'inin aynisi olusur: PostgREST hata govdesi basari sayilip sync_runs'a\n// 'completed' yazilir.)\nfunction yazimKontrol(ad, dugum, zorunlu) {\n  let res;\n  try { res = $(dugum).first().json; }\n  catch (e) {\n    if (zorunlu) throw new Error(ad + ': dugum hic calismadi - ' + e.message);\n    return;\n  }\n  const st = res ? res.statusCode : undefined;\n  if (typeof st !== 'number') {\n    throw new Error(ad + ': yanit alinamadi - ' + JSON.stringify(res).slice(0, 300));\n  }\n  if (st < 200 || st >= 300) {\n    const govde = typeof res.body === 'string' ? res.body : JSON.stringify(res.body || {});\n    throw new Error(ad + ': PostgREST HTTP ' + st + ' - ' + govde.slice(0, 400));\n  }\n}\n\nyazimKontrol('arvento_araclar upsert', 'Upsert Arvento Araclar', true);\n// Bakim upsert'i yalniz kayit varken calisir (Bakim Kaydi Var mi false dali).\nyazimKontrol('arac_bakim upsert', 'Upsert Bakim', false);\n\nfunction guvenliSayi(dugum, alan) {\n  try {\n    const v = $(dugum).first().json[alan];\n    return Number.isFinite(Number(v)) ? Number(v) : 0;\n  } catch (e) { return 0; }\n}\n\nconst filoSatir = guvenliSayi('Filo Normalize', 'satir');\nconst bakimSatir = guvenliSayi('Bakim Normalize', 'satir');\n\nreturn [{\n  json: {\n    rows: [{\n      is_turu: 'filo_bakim',\n      durum: 'completed',\n      satir_sayisi: filoSatir + bakimSatir,\n      hata: null,\n      tamamlandi_at: new Date().toISOString(),\n    }],\n    filo_satir: filoSatir,\n    bakim_satir: bakimSatir,\n  },\n}];\n"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "arvento00-0000-4000-8000-000000000033",
+      "name": "Sync Run Kaydet",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3140,
+        880
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $credentials.host }}/rest/v1/arvento_sync_runs",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=minimal"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        },
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.rows }}"
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "id": "arvento00-0000-4000-8000-000000000034",
+      "name": "Hata Hazirla",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2480,
+        1260
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// =========================================================================\n// Hata satirini hazirla - her iki kolun error cikislari buraya baglidir\n// =========================================================================\n// n8n onError:\"continueErrorOutput\" ile gelen item'da $json.error bulunur.\n// Mesaj 2000 karaktere kirpiliyor: arvento_sync_runs.hata text ama\n// devasa HTML hata sayfalari tabloyu kirletmesin.\n// =========================================================================\n\nconst IZINLI = ['konum', 'filo_bakim'];\n\nconst items = $input.all();\nconst ilk = (items[0] && items[0].json) || {};\nconst hataObj = ilk.error || ilk;\n\nlet mesaj =\n  (hataObj && (hataObj.message || hataObj.description || hataObj.reason)) ||\n  JSON.stringify(hataObj);\nmesaj = String(mesaj).slice(0, 2000);\n\nlet isTuru = ilk.is_turu;\nif (!IZINLI.includes(isTuru)) {\n  try { isTuru = $('Oturum Al').first().json.is_turu; } catch (e) { isTuru = null; }\n}\nif (!IZINLI.includes(isTuru)) isTuru = 'konum';\n\nreturn [{\n  json: {\n    rows: [{\n      is_turu: isTuru,\n      durum: 'failed',\n      satir_sayisi: null,\n      hata: mesaj,\n      tamamlandi_at: new Date().toISOString(),\n    }],\n    is_turu: isTuru,\n    hata: mesaj,\n  },\n}];\n"
+      }
+    },
+    {
+      "id": "arvento00-0000-4000-8000-000000000035",
+      "name": "Hata Kaydi",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2700,
+        1260
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $credentials.host }}/rest/v1/arvento_sync_runs",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=minimal"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        },
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.rows }}"
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    }
+  ],
+  "connections": {
+    "Schedule Konum": {
+      "main": [
+        [
+          {
+            "node": "Is Turu Konum",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Turu Konum": {
+      "main": [
+        [
+          {
+            "node": "Oturum Al",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Filo Bakim": {
+      "main": [
+        [
+          {
+            "node": "Is Turu Filo Bakim",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Turu Filo Bakim": {
+      "main": [
+        [
+          {
+            "node": "Oturum Al",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Oturum Al": {
+      "main": [
+        [
+          {
+            "node": "Konum Kolu mu",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Hata Hazirla",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Konum Kolu mu": {
+      "main": [
+        [
+          {
+            "node": "Son Konum Cek",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Arac Listesi",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Son Konum Cek": {
+      "main": [
+        [
+          {
+            "node": "Oturum Dustu mu",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Oturum Dustu mu": {
+      "main": [
+        [
+          {
+            "node": "Oturumu Tazele",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Dogrula ve Normalize",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Oturumu Tazele": {
+      "main": [
+        [
+          {
+            "node": "Son Konum Cek (Tekrar)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Hata Hazirla",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Son Konum Cek (Tekrar)": {
+      "main": [
+        [
+          {
+            "node": "Dogrula ve Normalize",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Dogrula ve Normalize": {
+      "main": [
+        [
+          {
+            "node": "Yazilacak Satir Var mi",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Hata Hazirla",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Yazilacak Satir Var mi": {
+      "main": [
+        [
+          {
+            "node": "Upsert Son Konum",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Upsert Son Konum": {
+      "main": [
+        [
+          {
+            "node": "Insert Gecmis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Gecmis": {
+      "main": [
+        [
+          {
+            "node": "Konum Yazim Kontrol",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Konum Yazim Kontrol": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Hata Hazirla",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Arac Listesi": {
+      "main": [
+        [
+          {
+            "node": "Filo Normalize",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filo Normalize": {
+      "main": [
+        [
+          {
+            "node": "Upsert Arvento Araclar",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Hata Hazirla",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upsert Arvento Araclar": {
+      "main": [
+        [
+          {
+            "node": "Bakim Pencereleri",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Bakim Pencereleri": {
+      "main": [
+        [
+          {
+            "node": "Bakim Cek",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Bakim Cek": {
+      "main": [
+        [
+          {
+            "node": "Bakim Normalize",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Bakim Normalize": {
+      "main": [
+        [
+          {
+            "node": "Bakim Kaydi Var mi",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Hata Hazirla",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Bakim Kaydi Var mi": {
+      "main": [
+        [
+          {
+            "node": "Upsert Bakim",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Sync Run Hazirla",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upsert Bakim": {
+      "main": [
+        [
+          {
+            "node": "Sync Run Hazirla",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sync Run Hazirla": {
+      "main": [
+        [
+          {
+            "node": "Sync Run Kaydet",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Hata Hazirla",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Hata Hazirla": {
+      "main": [
+        [
+          {
+            "node": "Hata Kaydi",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Europe/Istanbul"
+  }
+}

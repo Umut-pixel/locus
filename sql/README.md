@@ -35,6 +35,23 @@ Sırayla uygulanır — `siparis_yuk_view.sql` `urun_olcu`'ya, plan şeması `ar
 | `araclar_sema.sql` | Filo tanımı — ERP'de araç verisi olmadığı için tek kaynak |
 | `sevkiyat_plani_sema.sql` | Kaydedilen araç planları — araç/yük geçmişi burada birikir |
 
+## Arvento araç takibi (GPS)
+
+Sırayla uygulanır — konum/bakım şemaları `arvento_araclar`'a, o da `araclar`'a
+bağlı. n8n tarafı: `backend/n8n/Arvento Arac Takibi.json`.
+
+| Dosya | İş |
+|---|---|
+| `arvento_arac_sema.sql` | Arvento GPS cihaz kaydı + `arac_kod` ile rota aracı eşlemesi (ELLE doldurulur) |
+| `arvento_konum_sema.sql` | `arac_konum_son` (Realtime) + `arac_konum_gecmis` (90 gün, pg_cron) + `v_arac_konum_son` view'ı |
+| `arvento_bakim_sema.sql` | Filo bakım kayıtları — Arvento'da bugün hiç kayıt yok, boru hattı boş çalışıyor |
+| `arvento_sync_runs_sema.sql` | Çekim günlüğü — konum kolu yalnız hata yazar, filo/bakım kolu her çalıştırmayı |
+
+**Neden geçmişi biz tutuyoruz:** Arvento'nun geçmiş iz uçlarının üçü de
+(`/v1/vehicle/events`, `/v1/report/general`, `/v1/report/vehicleOperating`)
+hesabımızda kapalı. `arac_konum_gecmis` "planlanan vs gerçekleşen rota"nın tek
+dayanağı — polling durursa o zaman dilimi kalıcı olarak kayıptır.
+
 ## Yakıt fiyatları (EPDK)
 
 | Dosya | İş |

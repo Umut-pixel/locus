@@ -63,6 +63,7 @@ import type { RotaAgentBaglamGirdisi } from "@/lib/rota/agentBaglami";
 import { bolgeRengi } from "@/lib/rota/bolge-renk";
 import { bulanikBul } from "@/lib/rota/bulanikEslesme";
 import { kriterleriHesapla, type KriterAnahtari } from "@/lib/rota/kriter";
+import { planMetrigi } from "@/lib/rota/planla";
 import { cn } from "@/lib/utils";
 
 import { useRotaPlaniBaglami } from "../RotaPlaniProvider";
@@ -86,16 +87,21 @@ function tarihMetni(iso: string): string {
 }
 
 /**
- * Haritanın görünüm filtresi — TEK bir seçim, dört mod. Eskiden `odak`
- * (araç) ve `karneAnahtari` (karne satırı) AYRI state'lerdi ve birbirini
- * "elle" temizliyorlardı (bir yeri seçince diğerini `null`'lamak gerekiyordu)
- * — bu senkronizasyonu unutan bir çağrı, iki filtrenin birden aktif kalıp
+ * Haritanın görünüm filtresi — dört mod. Eskiden `odak` (araç) ve
+ * `karneAnahtari` (karne satırı) AYRI state'lerdi ve birbirini "elle"
+ * temizliyorlardı (bir yeri seçince diğerini `null`'lamak gerekiyordu) — bu
+ * senkronizasyonu unutan bir çağrı, iki filtrenin birden aktif kalıp
  * `gorunenRotalar`'ı beklenmedik şekilde boşaltmasına yol açabiliyordu.
  * Ayrı bir "bölge" modu da bu yüzden buraya, aynı ayrık birliğe eklendi.
+ *
+ * `arac` ÇOKLU seçim — `aracKodlari` boş olamaz (boşalırsa `hepsi`'ye döner,
+ * bkz. `araciFiltrele`/self-heal). Bölge ve karne tek seçim olarak kalıyor;
+ * yalnız araç filtresi çoklu seçim istiyor (bkz. `kriterler`'in bu seçime
+ * göre kapsamlanması).
  */
 type GorunumFiltresi =
   | { tur: "hepsi" }
-  | { tur: "arac"; aracKod: string }
+  | { tur: "arac"; aracKodlari: string[] }
   | { tur: "bolge"; bolgeKod: string }
   | { tur: "karne"; anahtar: KriterAnahtari };
 
@@ -155,34 +161,50 @@ export default function RotaHaritasiSayfasi() {
   /** Sipariş verisinin yaşı — güvenilirlik kriterine giriyor (yalnız canlı modda). */
   const { saatOnce } = useRaporTazeligi(ROTA_REPORT_ID);
 
-  const kriterler = useMemo(
-    () =>
-      gecmisMod
-        ? []
-        : kriterleriHesapla({
-            metrik: canli.mevcutMetrik,
-            yukler: canli.mevcutSonuc.yukler,
-            filo: canli.filo,
-            yerlesmeyen: canli.mevcutSonuc.yerlesmeyen,
-            rotaBilgileri: canli.rotaBilgileri,
-            veriYasiSaat: saatOnce,
-            yakitFiyatlari: canli.yakitFiyatlari,
-          }),
-    [
-      gecmisMod,
-      canli.mevcutMetrik,
-      canli.mevcutSonuc,
-      canli.filo,
-      canli.rotaBilgileri,
-      canli.yakitFiyatlari,
-      saatOnce,
-    ]
-  );
-
   /** Görünüm filtresi — bkz. `GorunumFiltresi` tanımı. */
   const [filtre, setFiltre] = useState<GorunumFiltresi>(() =>
-    odakAracParam ? { tur: "arac", aracKod: odakAracParam } : { tur: "hepsi" }
+    odakAracParam ? { tur: "arac", aracKodlari: [odakAracParam] } : { tur: "hepsi" }
   );
+
+  /**
+   * Plan karnesi — araç filtresi seçiliyken YALNIZ seçili araçların verisine
+   * göre yeniden hesaplanır (bir araç seçiliyse o aracın, iki araç seçiliyse
+   * ikisinin, filtre "hepsi"ye dönünce tüm filonun). `filtre` (ham state)
+   * üzerinden okunuyor, `gecerliFiltre` (aşağıda, kendisi karne self-heal'i
+   * için bu diziye bakıyor) üzerinden DEĞİL — aksi halde döngüsel bağımlılık
+   * olurdu. Havuzdaki yerleşmeyen yük (`yerlesmeyen`) hiçbir araca ait
+   * olmadığı için araç seçimine göre kapsanmıyor, her zaman plan geneli.
+   */
+  const kriterler = useMemo(() => {
+    if (gecmisMod) return [];
+    const gecerliKodlar =
+      filtre.tur === "arac"
+        ? filtre.aracKodlari.filter((kod) => canli.mevcutSonuc.yukler.some((y) => y.arac.kod === kod))
+        : [];
+    const kapsamli = gecerliKodlar.length > 0;
+    const yukler = kapsamli
+      ? canli.mevcutSonuc.yukler.filter((y) => gecerliKodlar.includes(y.arac.kod))
+      : canli.mevcutSonuc.yukler;
+    const metrik = kapsamli ? planMetrigi({ yukler, yerlesmeyen: [] }) : canli.mevcutMetrik;
+    return kriterleriHesapla({
+      metrik,
+      yukler,
+      filo: canli.filo,
+      yerlesmeyen: canli.mevcutSonuc.yerlesmeyen,
+      rotaBilgileri: canli.rotaBilgileri,
+      veriYasiSaat: saatOnce,
+      yakitFiyatlari: canli.yakitFiyatlari,
+    });
+  }, [
+    gecmisMod,
+    filtre,
+    canli.mevcutMetrik,
+    canli.mevcutSonuc,
+    canli.filo,
+    canli.rotaBilgileri,
+    canli.yakitFiyatlari,
+    saatOnce,
+  ]);
   const [havuzGoster, setHavuzGoster] = useState(true);
   /** Sol üst karttaki liste sekmesi — araç/bölge filtresi + kayıtlı plan geçmişi aynı kartı paylaşıyor. */
   const [liste, setListe] = useState<"araclar" | "bolgeler" | "kaydedilenler">("araclar");
@@ -465,7 +487,14 @@ export default function RotaHaritasiSayfasi() {
    */
   const gecerliFiltre = useMemo<GorunumFiltresi>(() => {
     if (filtre.tur === "arac") {
-      return yuklu.some((r) => r.aracKod === filtre.aracKod) ? filtre : { tur: "hepsi" };
+      const kalanlar = filtre.aracKodlari.filter((kod) => yuklu.some((r) => r.aracKod === kod));
+      if (kalanlar.length === 0) return { tur: "hepsi" };
+      // Uzunluk aynıysa (hiçbir araç düşmediyse) AYNI referansı döndür —
+      // "hepsi" dalındaki gerekçeyle aynı: self-heal effect'in sonsuz
+      // döngüye girmemesi için.
+      return kalanlar.length === filtre.aracKodlari.length
+        ? filtre
+        : { tur: "arac", aracKodlari: kalanlar };
     }
     // `filtre` zaten "hepsi" ise AYNI referansı döndür — aksi halde her
     // render'da yeni bir nesne üretilir, alttaki self-heal effect'i bunu
@@ -497,7 +526,14 @@ export default function RotaHaritasiSayfasi() {
     if (gecerliFiltre !== filtre) setFiltre(gecerliFiltre);
   }, [gecerliFiltre, filtre]);
 
-  const gecerliOdak = gecerliFiltre.tur === "arac" ? gecerliFiltre.aracKod : null;
+  /** Yalnız TEK araç seçiliyken dolu — "rotaya ekle" tek-hedef modu, tekil
+   * doluluk kartı ve AI bağlamındaki durak listesi çoklu seçimde anlamsız. */
+  const gecerliOdak =
+    gecerliFiltre.tur === "arac" && gecerliFiltre.aracKodlari.length === 1
+      ? gecerliFiltre.aracKodlari[0]!
+      : null;
+  /** Araç filtresinde seçili TÜM kodlar — harita/karne kapsamlaması için. */
+  const gecerliAracKodlari = gecerliFiltre.tur === "arac" ? gecerliFiltre.aracKodlari : null;
 
   /**
    * Odaklanılan aracın tam kaydı — yalnız CANLI modda: `canli.aracBul` bugünün
@@ -558,8 +594,11 @@ export default function RotaHaritasiSayfasi() {
   /** Geçerli seçimin insan-okur açıklaması — AI bağlamı için (bkz. `agentBaglami.ts`). */
   const secimAciklamasi = useMemo<string | null>(() => {
     if (gecerliFiltre.tur === "arac") {
-      const rota = yuklu.find((r) => r.aracKod === gecerliFiltre.aracKod);
-      return rota ? `${rota.aracAd} aracı` : null;
+      const adlar = gecerliFiltre.aracKodlari
+        .map((kod) => yuklu.find((r) => r.aracKod === kod)?.aracAd)
+        .filter((ad): ad is string => Boolean(ad));
+      if (adlar.length === 0) return null;
+      return adlar.length === 1 ? `${adlar[0]} aracı` : `${adlar.join(", ")} araçları`;
     }
     if (gecerliFiltre.tur === "bolge") {
       const bolge = canli.bolgeler.find((b) => b.kod === gecerliFiltre.bolgeKod);
@@ -581,7 +620,7 @@ export default function RotaHaritasiSayfasi() {
   const { gorunenRotalar, gorunenHavuz } = useMemo(() => {
     if (gecerliFiltre.tur === "arac") {
       return {
-        gorunenRotalar: yuklu.filter((r) => r.aracKod === gecerliFiltre.aracKod),
+        gorunenRotalar: yuklu.filter((r) => gecerliFiltre.aracKodlari.includes(r.aracKod)),
         gorunenHavuz: havuzGoster ? havuz : [],
       };
     }
@@ -610,8 +649,20 @@ export default function RotaHaritasiSayfasi() {
     return { gorunenRotalar: yuklu, gorunenHavuz: havuzGoster ? havuz : [] };
   }, [gecerliFiltre, secilenKriter, yuklu, havuz, havuzGoster, canli.durakBolgesi]);
 
+  /**
+   * ÇOKLU seçim toggle'ı: araç zaten seçiliyse listeden çıkar (boşalırsa
+   * "hepsi"ye döner), değilse listeye ekler. Başka bir filtre modundan
+   * (bölge/karne/hepsi) geliniyorsa tek elemanlı yeni bir seçim başlatır.
+   */
   const araciFiltrele = (aracKod: string) =>
-    setFiltre((f) => (f.tur === "arac" && f.aracKod === aracKod ? { tur: "hepsi" } : { tur: "arac", aracKod }));
+    setFiltre((f) => {
+      if (f.tur !== "arac") return { tur: "arac", aracKodlari: [aracKod] };
+      const zatenSecili = f.aracKodlari.includes(aracKod);
+      const sonraki = zatenSecili
+        ? f.aracKodlari.filter((k) => k !== aracKod)
+        : [...f.aracKodlari, aracKod];
+      return sonraki.length > 0 ? { tur: "arac", aracKodlari: sonraki } : { tur: "hepsi" };
+    });
 
   /**
    * Bölgeye tıklayınca filtrelemenin YANINDA harita da o bölgeye kayar —
@@ -657,7 +708,11 @@ export default function RotaHaritasiSayfasi() {
           // hiçbir yere atanmamış bir "araç" olmaz.
           const rota = bulanikBul(yuklu, eylem.sorgu, (r) => r.aracAd);
           if (!rota) return;
-          setFiltre({ tur: "arac", aracKod: rota.aracKod });
+          // AI eylemi bilerek TEK seçime SET eder, mevcut seçime EKLEMEZ —
+          // çoklu-seçim toggle'ı (`araciFiltrele`) yalnız insan tıklaması
+          // için; model "şunu göster" dediğinde önceki seçim sessizce
+          // genişlerse kafa karıştırır.
+          setFiltre({ tur: "arac", aracKodlari: [rota.aracKod] });
           break;
         }
         case "sekmeyi_degistir": {
@@ -1021,8 +1076,8 @@ export default function RotaHaritasiSayfasi() {
                 ) : (
                   <ul className="divide-y divide-border/30">
                     {yuklu.map((r) => {
-                      const secili = gecerliOdak === r.aracKod;
-                      const solgun = gecerliOdak != null && !secili;
+                      const secili = gecerliAracKodlari?.includes(r.aracKod) ?? false;
+                      const solgun = (gecerliAracKodlari?.length ?? 0) > 0 && !secili;
                       const arac = canli.aracBul(r.aracKod);
                       const doluluk = arac ? dolulukHesapla(arac, r.duraklar) : null;
                       const yuzde =
@@ -1044,8 +1099,8 @@ export default function RotaHaritasiSayfasi() {
                             )}
                             title={
                               secili
-                                ? `${r.aracAd} — tıkla, tüm araçlara dön`
-                                : `${r.aracAd} — yalnız bu aracı göster`
+                                ? `${r.aracAd} — tıkla, seçimden çıkar`
+                                : `${r.aracAd} — tıkla, karşılaştırmaya ekle`
                             }
                           >
                             <span

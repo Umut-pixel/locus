@@ -2,55 +2,83 @@
 
 ## ⚠️ Bu dosyalara ASLA gerçek sır yazma
 
-`panorama-otomasyon.json` içindeki Config düğümleri iki yer tutucu taşır:
+**2026-09-14 itibarıyla bu kural gerçekten uygulanıyor — üç workflow'un
+hiçbirinde düz metin sır yok.** Doğrula:
 
-```
-<<SUPABASESERVICEROLEKEY_BURAYA>>
-<<PANORAMAPASS_BURAYA>>
-```
-
-n8n'e içe aktardıktan **sonra** kendi n8n arayüzünde doldur. Dosyaya geri
-yazıp commit etme.
-
-**Neden:** 2026-08-19'da bu dosya gerçek `service_role` anahtarı ve Panorama
-parolasıyla commit edildi ve herkese açık depoya push edildi. `service_role`
-tüm RLS politikalarını atlar — sızdığında veritabanının tamamı okunup
-yazılabilir hale gelir. İkisi de 2026-08-22'de döndürüldü/temizlendi.
-
-## Mevcut durum (2026-09-04) — dosyada GERÇEK kimlik bilgileri var
-
-Yukarıdaki kural hâlâ doğru hedeftir, ama **şu an uygulanmıyor.** Dosya
-gerçek `panoramaPass` ve gerçek `supabaseServiceRoleKey` değerlerini düz
-metin taşıyor.
-
-**Neden böyle:** 2026-09-03'te bu alanlar `{{ $vars.… }}` ifadeleriyle
-değiştirildi, ama karşılık gelen n8n değişkenleri **hiç oluşturulmamıştı**.
-Sonuç: `Login *` düğümleri "Config.panoramaUser / panoramaPass gerekli"
-hatasıyla patladı, tüm zincirler durdu. Çalışan sürüme geri dönüldü ve
-otomasyon özellikleri o sürümün üzerine yeniden eklendi.
-
-**Ders:** Çalışan bir kimlik bilgisini değişken referansına çevirmeden önce
-değişkenin n8n'de **var olduğunu doğrula ve bir çekim testi yap.** Sıra:
-önce değişkeni oluştur → tek zincirle test et → sonra dosyayı temizle.
-
-Temizliğe dönmek istediğinde:
-
-```
-{{ $vars.SUPABASE_SERVICE_ROLE_KEY }}
-{{ $vars.PANORAMA_PASS }}
+```bash
+grep -nE "eyJhbGciO|arma123|\"panoramaPass\"|\"supabaseServiceRoleKey\"" backend/n8n/*.json
 ```
 
-n8n'de: Settings → Variables. Self-hosted'da `N8N_VARIABLES_*` ortam
-değişkenleriyle de beslenebilir. Değişken adında tire varsa
-(`$vars['ad-tireli']`) köşeli parantez şart — nokta gösterimi geçersiz JS olur.
+Çıktı **boş olmalı**. Çıktı verirse dışa aktarılan dosyaya sır sızmış demektir,
+commit etme.
 
-`Login *` düğümleri ayrıca `$env.PANORAMA_PASS` / `$env.PANORAMA_USER`
-yedeğini de okuyor (kod satır 3-4), yani Config alanını boşaltmak yerine
-ortam değişkeni de kullanılabilir.
+### Sırlar nerede duruyor
 
-⚠️ Anahtar döndürme ayrı iş: bu değerler git geçmişinde zaten duruyor
-(`098b118` ve öncesi). Dosyayı temizlemek yetmez — gerçek çözüm anahtarı
-Supabase ve Panorama tarafında döndürmek.
+| Sır | Yer |
+|---|---|
+| Supabase URL + `service_role` key | n8n credential deposu, tip `supabaseApi` |
+| Panorama ERP kullanıcı/parola | n8n ortam değişkeni: `PANORAMA_USER`, `PANORAMA_PASS` |
+| Arvento kullanıcı/parola | n8n ortam değişkeni: `ARVENTO_USER`, `ARVENTO_PASS` |
+| Google Places API key | n8n credential, tip `httpHeaderAuth` |
+| Manuel sync webhook sırrı | `$vars.PANORAMA_MANUAL_SYNC_SECRET` veya `$env.N8N_PANORAMA_MANUAL_WEBHOOK_SECRET` |
+
+**Neden:** 2026-08-19'da Panorama dosyası gerçek `service_role` anahtarı ve ERP
+parolasıyla commit edilip herkese açık depoya push edildi. `service_role` tüm
+RLS politikalarını atlar — sızdığında veritabanının tamamı okunup yazılabilir.
+
+## Panorama credential taşıması (2026-09-14)
+
+Panorama zincirleri EPDK ve Google Places'in çoktan geçtiği desene taşındı.
+Değişen:
+
+| Önce | Sonra |
+|---|---|
+| `Config*` düğümlerinde `supabaseServiceRoleKey`, `supabaseUrl`, `panoramaUser`, `panoramaPass` (8 düğüm × 4 alan) | Bu alanlar **silindi** |
+| HTTP düğümlerinde elle `apikey` + `Authorization: Bearer {{ $json.supabaseServiceRoleKey }}` | `authentication: predefinedCredentialType`, `nodeCredentialType: supabaseApi` |
+| `{{ $json.supabaseUrl }}/rest/v1/…` | `{{ $credentials.host }}/rest/v1/…` |
+| Kimliğin item zincirinde düğümden düğüme taşınması (104 satır) | Kaldırıldı — credential doğrudan HTTP düğümünde |
+| `cfg.panoramaUser \|\| $env.PANORAMA_USER` | Yalnız `$env.PANORAMA_USER` |
+
+24 HTTP düğümü (`Create Sync Run *`, `Insert Rows Batch *`, `Complete Sync Run *`)
+etkilendi. Bağlantılar, cron takvimi, `disabled` bayrakları ve düğüm sayısı
+değişmedi (yalnız bir kurulum sticky'si eklendi).
+
+### İçe aktardıktan sonra ZORUNLU iki adım
+
+Bunlar yapılmazsa **8 zincirin hepsi patlar**:
+
+1. **Ortam değişkenleri** — n8n Settings → Environment Variables:
+   `PANORAMA_USER`, `PANORAMA_PASS`.
+   Eksikse `Login *` düğümleri şu mesajla durur:
+   *"PANORAMA_USER / PANORAMA_PASS ortam değişkenleri tanımlı değil."*
+2. **Supabase credential** — 24 HTTP düğümünde `supabaseApi` credential'ı elle seç.
+
+Sonra **tek bir zincirle** (örn. Yaşlandırma 5530) manuel çekim testi yap,
+`panorama_sync_runs`'ta `completed` satırı gördükten sonra diğerlerini aç.
+
+### `$vars` neden kullanılmadı
+
+2026-09-03'te tam bu alanlar `{{ $vars.… }}`'e çevrildi ama karşılık gelen n8n
+değişkenleri **hiç oluşturulmamıştı** — `Login *` düğümleri patladı, tüm
+zincirler durdu, çalışan sürüme geri dönüldü.
+
+`$env` ve credential deposu bu riski taşımıyor: credential seçilmemişse n8n
+düğümü zaten çalıştırmaz ve arayüzde kırmızı gösterir; ortam değişkeni yoksa
+`Login` ilk satırda açık mesajla durur. İkisi de **sessizce yanlış davranmaz**.
+
+**Ders (hâlâ geçerli):** çalışan bir kimlik bilgisini referansa çevirmeden önce
+referansın hedefinin var olduğunu doğrula ve tek zincirle çekim testi yap.
+
+### ⚠️ Anahtar rotasyonu — HENÜZ YAPILMADI
+
+Dosyayı temizlemek anahtarı geçersiz kılmaz. `service_role` JWT ve ERP parolası
+**git geçmişinde duruyor** (`098b118` ve öncesi). Gerçek çözüm:
+
+1. Supabase → Settings → API → `service_role` anahtarını yeniden üret,
+   n8n credential'ını güncelle.
+2. Panorama ERP parolasını değiştir, `PANORAMA_PASS` ortam değişkenini güncelle.
+
+Bu iki adım tamamlanana kadar eski anahtarlar geçerli sayılmalı.
 
 ## Manuel sync (ana sayfa “Şimdi çek”)
 
@@ -201,14 +229,180 @@ Kurulum: workflow'u içe aktar → "Upsert Fuel Prices" node'unu aç → Supabas
 API credential'ını seç/oluştur (host + secret/service_role key) → manuel
 çalıştır → şema doğruysa Schedule'ı aktif et. Hiçbir secret JSON'da yok.
 
+## Google Places Prospecting — Supabase auth (2026-09-14)
+
+`google-places-prospecting (1).json`. Belirti: **"Expand Ilce Rows" düğümü
+`{"message":"Invalid API key","hint":"Double check your Supabase anon or
+service_role API key."}` ile patlıyordu.**
+
+Gerçek hata `Expand Ilce Rows`'da değil, bir önceki `Fetch Ilce Merkezleri`
+HTTP düğümündeydi. O düğümde `neverError: true` açık olduğu için PostgREST'in
+401 gövdesi hata sayılmadan aşağı akıyor, kod düğümü de onu "dizi değil" diye
+yakalayıp fırlatıyordu. Kök neden: `Config.supabaseServiceRoleKey` hâlâ
+`REPLACE_ME_SERVICE_ROLE_JWT` yer tutucusuydu ve o dize `apikey` başlığı
+olarak gönderiliyordu.
+
+**Çözüm — secret Config'ten çıkarıldı, n8n credential deposuna taşındı.**
+EPDK'daki `Upsert Fuel Prices` ile aynı desen (yukarıdaki bölüm):
+
+- Supabase'e giden 7 HTTP Request düğümü artık
+  `Authentication = Predefined Credential Type → Supabase API` kullanıyor.
+  Credential kendi `apikey` + `Authorization: Bearer` başlıklarını ekler;
+  düğümlerdeki elle yazılmış iki başlık silindi.
+- URL tabanı `{{ $credentials.host }}` (EPDK'da çalıştığı doğrulanmış kullanım).
+- `Config` düğümünde artık `supabaseServiceRoleKey` alanı **yok**; kod
+  düğümlerinin item'dan item'a taşıdığı 25 ölü referans da temizlendi.
+- `Expand Ilce Rows` içindeki "Config.supabaseServiceRoleKey doldur" kontrolü
+  kaldırıldı; yerine auth hatasını tanıyıp hangi düğümlerde credential
+  seçileceğini söyleyen bir mesaj kondu.
+
+İçe aktardıktan sonra Supabase API credential'ı seçilecek 7 düğüm:
+`Fetch Ilce Merkezleri`, `Fetch Musteriler`, `Fetch Existing Place Ids`,
+`Insert New`, `Update Fresh Fields`, `Mark Son Tarama`, `Mark Yogun Bolge`.
+(Google tarafı ayrı: `Nearby/Text/Deep*` düğümleri Header Auth credential.)
+
+**Neden yerleşik Supabase node değil:** aynı gerekçe EPDK bölümündekiyle —
+node'da upsert operasyonu yok, bu akışın 4 yazması da PostgREST upsert'ü
+(`on_conflict=...` + `Prefer: resolution=merge-duplicates`). Ayrıca CLAUDE.md
+"ingestion katmanını kaynak-agnostik tut" diyor; düz HTTP + REST, Aralık
+2026'daki veritabanı geçişinde node değiştirmeden taşınabilir.
+
+Canlı şemaya karşı doğrulandı (2026-09-14): `ilce_merkezleri` 134 satır
+(kod ≥100 bekliyor), kolon adı gerçekten `yoğun_bolge` (Türkçe ğ ile — URL'de
+öyle duruyor, doğru), `son_tarama` var; `potansiyel_musteriler` 3.794 satır ve
+`UNIQUE (kaynak, kaynak_id)`, `ilce_merkezleri` `UNIQUE (il, ilce)` — her iki
+`on_conflict` hedefi de mevcut. `musteriler` 1.432 satır (Range 0-4999 yeterli).
+
+## Arvento Araç Takibi (2026-09-14)
+
+Dosya: `Arvento Arac Takibi.json` · 29 düğüm · `active: false` (import sonrası
+elle açılır) · `timezone: Europe/Istanbul`.
+
+Araçların anlık konumunu ve bakım kayıtlarını Arvento Service API'sinden çekip
+Supabase'e yazar. Şema: `sql/arvento_*.sql`.
+
+### Neden TEK workflow (bölünemez)
+
+Arvento'da **tek-oturum kısıtı** var: her `POST /v1/login` yeni `sessionId`
+üretiyor ve **öncekini anında öldürüyor** (eski sid → HTTP 401, boş body,
+2026-09-14 canlı testinde doğrulandı). Konum ve filo/bakım ayrı workflow olsaydı
+her biri diğerinin oturumunu keserdi. İkisi de `Oturum Al` düğümünü ve aynı
+`$getWorkflowStaticData('global')` cache'ini paylaşıyor.
+
+Aynı sebeple: **bu hesapla Postman'den veya Arvento web arayüzünden login
+atmak, çalışan workflow'un oturumunu öldürür.** Workflow bunu 401 dalıyla
+toparlar ama gereksiz login üretir.
+
+### Ortam değişkenleri (JSON'da sır YOK)
+
+```
+ARVENTO_USER
+ARVENTO_PASS
+```
+n8n Settings → Environment Variables. Code node'ları `$env` üzerinden okur —
+Panorama'nın `Login` düğümündeki `$env.PANORAMA_USER` yedeğiyle aynı mekanizma.
+`$vars` **kullanılmadı** (2026-09-03 dersi: değişken yoksa zincir patlıyor).
+Supabase tarafı `predefinedCredentialType: supabaseApi`.
+
+### Cron
+
+| Tetikleyici | İfade | Ne |
+|---|---|---|
+| `Schedule Konum` | `*/1 7-19 * * 1-6` | Mesai içi, dakikada bir |
+| `Schedule Konum` | `*/15 0-6,20-23 * * *` | Mesai dışı + Pazar, 15 dk |
+| `Schedule Filo Bakim` | `7 5 * * *` | Araç listesi + bakım, günde 1 |
+
+`05:07` bilerek seçildi: EPDK 06:00 ve Panorama 07:00 dalgalarından önce, ve
+mesai dışı tetikleyicinin `:00/:15/:30/:45` dakikalarıyla çakışmıyor.
+
+### İlk import — SIRA ÖNEMLİ
+
+1. Mevcut workflow üzerine import et, credential'ları elle seç.
+2. Workflow'u **kapat ve tekrar aç**.
+3. Önce **`Schedule Filo Bakim`**'i manuel çalıştır → `arvento_araclar` 8 satır.
+4. Sonra **`Schedule Konum`**'u manuel çalıştır → `v_arac_konum_son` dolmalı.
+5. `arvento_araclar.arac_kod`'u elle doldur (bkz. aşağıda).
+6. Active yap.
+
+3. adım atlanırsa konum satırları yine yazılır (FK bilerek yok) ama
+`v_arac_konum_son` inner join olduğu için arayüzde **hiçbir araç görünmez**.
+
+### Araç eşlemesi elle yapılır
+
+`arvento_araclar.arac_kod` NULL başlar. Arvento 8 araç döndürüyor, bunların
+3'ü sevkiyat (`35ASM899`, `34UBB75`, `42ENL50` — "PATİGO SEVKİYAT 1/2/3"),
+5'i şahıs aracı görünüyor. Bizim `araclar` tablosunda ise 4 rota aracı var.
+**Melih'e sorulacak:** 4. rota aracında cihaz yok mu? Otomatik tahmin
+yapılmıyor — API yalnız "OTOMOBIL"/"KAMYON" ayrımı veriyor, hangi kamyonun
+NPR 10 hangisinin 3D olduğunu bilmiyor.
+
+### Hata yönetimi — Panorama'dan farkı
+
+Panorama her zincirde önce `running` satırı açıp sonra `completed`'a çekiyor;
+hiçbir error branch olmadığı için zincir çökünce satır sonsuza kadar `running`
+kalıyor ve `sql/panorama_sync_stale_sweep.sql` diye ayrı bir pg_cron süpürücü
+yazmak gerekmiş.
+
+Burada **`running` durumu hiç oluşmuyor**: filo/bakım kolu tek satırı EN SONDA,
+kesinleşmiş durumla yazıyor. 6 düğümde `onError: continueErrorOutput` tanımlı,
+hepsi `Hata Hazirla` → `Hata Kaydi` koluna bağlı ve `failed` satırı yazıyor.
+Süpürücü cron'a gerek yok.
+
+**Konum kolu başarılı çalıştırmada sync_runs satırı YAZMAZ** — dakikada bir
+çalıştığı için günde ~800 satır gürültü olurdu. Tazelik
+`arac_konum_son.cekildi_at`'ten okunur.
+
+### API sözleşmesi (2026-09-14 canlı test)
+
+- **HTTP kodu her zaman 200**, hata `HasError`/`Status` alanlarında. Tek
+  istisna geçersiz sid → gerçek 401. Status: `0`=OK, `1000`=null reference,
+  `1012`=InvalidDateInterval.
+- **`Date` alanı Türkiye yerel saati (UTC+3), UTC DEĞİL.** HTTP `date` header'ı
+  `06:59:47 GMT` iken API `20260914095947` döndü. Normalize `+03:00` offset'iyle
+  parse ediyor, orijinali `ham_tarih`'te saklıyor.
+- `{"Nodes": []}` tüm araçları döndürür; `{}` → Status 1000.
+- Plaka formatı tutarsız: 7 araç bitişik, 1 araç boşluklu (`"34 PDV 736"`).
+  Normalize upper + boşluksuz yapıyor, orijinali `plaka_ham`'da tutuyor.
+- Maintenance 1,5 yıllık aralıkta `InvalidDateInterval` veriyor → 3'er aylık
+  12 pencereye bölünüyor (geçmiş 24 ay + gelecek 12 ay), pencereler arası 1 sn.
+
+**Hesabımızda KAPALI uçlar** ("Bu servisi kullanmaya yetkiniz yoktur"):
+`/v1/vehicle/events`, `/v1/report/general`, `/v1/report/vehicleOperating`,
+`/v1/vehicle/lastEventsIgnition`, `/v1/vehicle/lastEventsV2`,
+`/v1/vehicle/groups`. Bu yüzden düz `lastEvents` kullanılıyor ve plaka
+`arvento_araclar` üzerinden join ediliyor.
+
+### Arvento'ya sorulacaklar
+
+| Soru | Şimdiki varsayım |
+|---|---|
+| `sessionId` gerçek ömrü | `Oturum Al`'da `TTL_MS` = 30 dk + 401'de yeniden login |
+| Cihaz değişince `Node` değişir mi | `plaka` UNIQUE tutularak ikincil kimlik korunuyor |
+| Günlük/aylık API kotası | ~800 çağrı/gün; 32 ardışık istekte limit görülmedi |
+| Kalıcı `SecretKey` (`/v1/externalLogin`) | Parola ile devam — key gelirse `Oturum Al` tek yerde değişir |
+| IP whitelist gerekiyor mu | Test edilen IP'den çalıştı; n8n sunucusu farklı IP'deyse gerekebilir |
+
+### Kod düğümlerini n8n olmadan test etme
+
+```bash
+node backend/n8n/test/arvento-code-nodes.test.mjs
+```
+
+`Code` düğümlerinin gövdesi saf JS; `$input` / `$('Düğüm Adı')` / `$env` /
+`$getWorkflowStaticData` sahtelenince JSON'dan çıkarılıp doğrudan koşturulabilir.
+26 test, girdileri 2026-09-14 canlı Postman yanıtlarından birebir alınmış.
+UTC+3 çevrimi, plaka normalize, dedup anahtarları, `HasError` yakalama ve
+PostgREST hata kontrolü bu şekilde doğrulandı — import etmeden.
+
+**Workflow'daki düğüm adlarını değiştirirsen bu dosyayı da güncelle** —
+testler koda düğüm adıyla erişiyor.
+
 ## Dışa aktarmadan önce kontrol
 
 ```bash
-grep -nE "eyJhbGciO|\"panoramaPass\": \"[^<]" backend/n8n/*.json
+grep -nE "eyJhbGciO|arma123|\"panoramaPass\"|\"supabaseServiceRoleKey\"" backend/n8n/*.json
 ```
 
-⚠️ **Şu an bu komut ÇIKTI VERİR** — dosya bilerek gerçek kimlik bilgileri
-taşıyor (bkz. "Mevcut durum" bölümü). Yukarıdaki "çıktı boş olmalı" hedefi,
-n8n değişkenleri kurulup bir çekim testiyle doğrulandıktan sonra geçerli
-olacak. O zamana kadar bu kontrol yalnız *başka* bir sır türü sızmış mı diye
-bakmak için kullanılabilir.
+**Çıktı boş olmalı.** 2026-09-14'ten beri üç workflow da bu kontrolü geçiyor.
+Çıktı verirse n8n'den dışa aktarırken sır sızmış demektir — commit etme,
+değeri credential'a/ortam değişkenine taşı ve yeniden dışa aktar.
