@@ -127,8 +127,8 @@ export function KullanicilarBolum() {
 
   return (
     <AyarlarBolum
-      id="kullanicilar"
       baslik="Kullanıcılar"
+      aciklama="Kullanıcıları ve rollerini yönetin."
       aksiyon={
         <Button size="sm" variant="outline" onClick={() => setDialogAcik(true)}>
           <PlusIcon className="size-3.5" />

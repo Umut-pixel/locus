@@ -31,8 +31,8 @@ export function AnalystDurumu() {
 
   return (
     <AyarlarBolum
-      id="analyst"
       baslik="Analyst"
+      aciklama="AI Analyst sunucu sağlığı ve kullanım raporu."
       aksiyon={
         <>
           <div className="flex rounded-md border border-border p-0.5">
@@ -118,7 +118,7 @@ export function AnalystDurumu() {
       ) : usage.loading && !usage.payload ? (
         <div className="grid grid-cols-2 gap-px border-b border-border bg-border lg:grid-cols-4">
           {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="h-[104px] animate-pulse bg-background" />
+            <div key={i} className="h-[104px] animate-pulse bg-card" />
           ))}
         </div>
       ) : null}
@@ -140,7 +140,7 @@ function SaglikHucresi({
   alt: string;
 }) {
   return (
-    <div className="flex flex-col justify-center gap-1 bg-background px-3.5 py-4">
+    <div className="flex flex-col justify-center gap-1 bg-card px-3.5 py-4">
       <span className="flex items-center gap-1.5 text-[12px] tracking-[0.06em] text-muted-foreground uppercase">
         <span
           className={cn(

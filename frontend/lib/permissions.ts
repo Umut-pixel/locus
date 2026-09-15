@@ -58,7 +58,9 @@ const SAYFA_IZIN_HARITASI: RouteIzinEntry[] = [
   { prefix: "/harita", izin: "harita" },
   { prefix: "/sohbet", izin: "ai_sohbet" },
   { prefix: "/home", izin: "ai_sohbet" },
-  { prefix: "/ayarlar", izin: "ayarlar" },
+  // /ayarlar BİLEREK yok — herkes girebilir (Hesabım sekmesi evrensel),
+  // admin'e özel sekmeler (Veri/Analyst/Harita/Bildirimler/Kullanıcılar)
+  // sayfa İÇİNDE lib/ayarlar-nav.ts'teki izin alanıyla filtreleniyor.
 ];
 
 /**

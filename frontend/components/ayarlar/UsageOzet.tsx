@@ -35,7 +35,7 @@ export function UsageOzetSerit({ ozet, loading }: { ozet: UsageOzet; loading: bo
 
   return (
     <div className="grid grid-cols-2 gap-px border-b border-border bg-border lg:grid-cols-4">
-      <div className="flex flex-col justify-center gap-1 bg-background px-3.5 py-4">
+      <div className="flex flex-col justify-center gap-1 bg-card px-3.5 py-4">
         <span className="text-[12px] tracking-[0.06em] text-muted-foreground uppercase">
           Maliyet
         </span>
@@ -90,7 +90,7 @@ function StatKutusu({
   loading: boolean;
 }) {
   return (
-    <div className="flex flex-col justify-center gap-1 bg-background px-3.5 py-4">
+    <div className="flex flex-col justify-center gap-1 bg-card px-3.5 py-4">
       <span className="flex items-center gap-1.5 text-[12px] tracking-[0.06em] text-muted-foreground uppercase">
         <Icon className="size-3.5" strokeWidth={1.75} aria-hidden />
         {etiket}
@@ -150,7 +150,7 @@ function tokenToplam(g: { uncachedInput: number; cacheRead: number; cacheCreate:
 export function UsageTablolar({ ozet }: { ozet: UsageOzet }) {
   return (
     <div className="grid grid-cols-1 gap-px bg-border lg:grid-cols-2">
-      <section className="bg-background">
+      <section className="bg-card">
         <h2 className="border-b border-border px-3.5 py-2.5 text-[13px] font-medium">
           Modele göre
         </h2>
@@ -187,7 +187,7 @@ export function UsageTablolar({ ozet }: { ozet: UsageOzet }) {
           </table>
         )}
       </section>
-      <section className="bg-background">
+      <section className="bg-card">
         <h2 className="border-b border-border px-3.5 py-2.5 text-[13px] font-medium">
           Kalemler
         </h2>

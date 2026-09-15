@@ -106,7 +106,10 @@ export function BildirimAyarlari() {
   };
 
   return (
-    <AyarlarBolum id="bildirimler" baslik="Bildirimler">
+    <AyarlarBolum
+      baslik="Bildirimler"
+      aciklama="Bildirimleri nasıl ve ne zaman alacağınızı yönetin."
+    >
       {satirlar === null ? (
         <p className="px-3.5 py-3 text-[13px] text-muted-foreground">Yükleniyor…</p>
       ) : (

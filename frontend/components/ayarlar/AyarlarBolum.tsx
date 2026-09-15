@@ -1,25 +1,36 @@
 import type { ReactNode } from "react";
 
+import {
+  Card,
+  CardAction,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+
 export function AyarlarBolum({
-  id,
   baslik,
+  aciklama,
   aksiyon,
   children,
 }: {
-  id: string;
   baslik: string;
+  aciklama?: string;
   aksiyon?: ReactNode;
   children: ReactNode;
 }) {
   return (
-    <section id={id} className="border-b border-border">
-      <div className="flex min-h-10 items-center justify-between gap-3 border-b border-border px-3.5">
-        <h2 className="py-2.5 text-[12px] font-medium tracking-[0.06em] text-muted-foreground uppercase">
-          {baslik}
-        </h2>
-        {aksiyon ? <div className="flex shrink-0 items-center gap-1.5">{aksiyon}</div> : null}
-      </div>
+    <Card className="gap-0 border border-border py-0 ring-0">
+      <CardHeader className="border-b border-border px-3.5 py-3">
+        <CardTitle>{baslik}</CardTitle>
+        {aciklama ? <CardDescription>{aciklama}</CardDescription> : null}
+        {aksiyon ? (
+          <CardAction className="flex items-center gap-1.5 self-center">
+            {aksiyon}
+          </CardAction>
+        ) : null}
+      </CardHeader>
       {children}
-    </section>
+    </Card>
   );
 }

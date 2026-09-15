@@ -52,7 +52,10 @@ export function VeriDurumu() {
         };
 
   return (
-    <AyarlarBolum id="veri" baslik="Veri">
+    <AyarlarBolum
+      baslik="Veri"
+      aciklama="Panorama senkronizasyon durumu ve rapor tazeliği."
+    >
       <div className="grid grid-cols-2 gap-px border-b border-border bg-border lg:grid-cols-4">
         <Kpi
           etiket="Son çekim"
@@ -143,7 +146,7 @@ function Kpi({
   degerSinif?: string;
 }) {
   return (
-    <div className="flex flex-col justify-center gap-1 bg-background px-3.5 py-4">
+    <div className="flex flex-col justify-center gap-1 bg-card px-3.5 py-4">
       <span className="text-[12px] tracking-[0.06em] text-muted-foreground uppercase">
         {etiket}
       </span>

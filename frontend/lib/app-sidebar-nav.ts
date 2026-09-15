@@ -161,13 +161,9 @@ export const NAV_SECTIONS: NavSectionConfig[] = [
 ];
 
 export const FOOTER_NAV: SidebarNavLeaf[] = [
-  {
-    id: "ayarlar",
-    label: "Ayarlar",
-    icon: SettingsIcon,
-    href: "/ayarlar",
-    izin: "ayarlar",
-  },
+  // izin YOK, bilerek — Ayarlar'daki Hesabım sekmesi (şifre değiştirme)
+  // herkese açık, admin'e özel sekmeler sayfa içinde filtreleniyor.
+  { id: "ayarlar", label: "Ayarlar", icon: SettingsIcon, href: "/ayarlar" },
 ];
 
 /**

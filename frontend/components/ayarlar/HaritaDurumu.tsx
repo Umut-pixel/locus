@@ -31,9 +31,12 @@ export function HaritaDurumu() {
   const [lon, lat] = DEPOT.lngLat;
 
   return (
-    <AyarlarBolum id="harita" baslik="Harita">
+    <AyarlarBolum
+      baslik="Harita"
+      aciklama="Müşteri konumlandırma kapsamı ve geocode durumu."
+    >
       <div className="grid grid-cols-2 gap-px border-b border-border bg-border lg:grid-cols-4">
-        <div className="flex flex-col justify-center gap-1 bg-background px-3.5 py-4">
+        <div className="flex flex-col justify-center gap-1 bg-card px-3.5 py-4">
           <span className="text-[12px] tracking-[0.06em] text-muted-foreground uppercase">
             Konumlanan
           </span>
@@ -52,7 +55,7 @@ export function HaritaDurumu() {
         {HASSASIYET_SIRA.map((k) => {
           const n = data?.hassasiyet[k] ?? 0;
           return (
-            <div key={k} className="flex flex-col justify-center gap-1 bg-background px-3.5 py-4">
+            <div key={k} className="flex flex-col justify-center gap-1 bg-card px-3.5 py-4">
               <span className="text-[12px] tracking-[0.06em] text-muted-foreground uppercase">
                 {HASSASIYET_KISA[k]}
               </span>
@@ -77,7 +80,7 @@ export function HaritaDurumu() {
       ) : null}
 
       <div className="grid grid-cols-1 gap-px border-b border-border bg-border sm:grid-cols-2">
-        <div className="flex flex-col justify-center gap-1 bg-background px-3.5 py-4">
+        <div className="flex flex-col justify-center gap-1 bg-card px-3.5 py-4">
           <span className="text-[12px] tracking-[0.06em] text-muted-foreground uppercase">
             {DEPOT.label}
           </span>
@@ -86,7 +89,7 @@ export function HaritaDurumu() {
             {lat.toFixed(5)}, {lon.toFixed(4)}
           </span>
         </div>
-        <div className="flex flex-col justify-center gap-1 bg-background px-3.5 py-4">
+        <div className="flex flex-col justify-center gap-1 bg-card px-3.5 py-4">
           <span className="text-[12px] tracking-[0.06em] text-muted-foreground uppercase">
             Geocode
           </span>
