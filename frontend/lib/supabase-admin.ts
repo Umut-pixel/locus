@@ -38,3 +38,7 @@ export const ENTITY_NOTLAR_TABLE = "entity_notlar";
 export const AGENT_KONUSMALAR_TABLE = "agent_konusmalar";
 export const AGENT_KONUSMA_MESAJLARI_TABLE = "agent_konusma_mesajlari";
 export const BILDIRIM_AYARLARI_TABLE = "bildirim_ayarlari";
+export const KULLANICILAR_TABLE = "kullanicilar";
+export const ROLLER_TABLE = "roller";
+export const IZINLER_TABLE = "izinler";
+export const ROL_IZINLERI_TABLE = "rol_izinleri";

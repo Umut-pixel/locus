@@ -5,6 +5,7 @@ import { Typography } from "@heroui/react";
 import { AnalystDurumu } from "@/components/ayarlar/AnalystDurumu";
 import { BildirimAyarlari } from "@/components/ayarlar/BildirimAyarlari";
 import { HaritaDurumu } from "@/components/ayarlar/HaritaDurumu";
+import { KullanicilarBolum } from "@/components/ayarlar/KullanicilarBolum";
 import { VeriDurumu } from "@/components/ayarlar/VeriDurumu";
 import { AppSidebarMobileTrigger } from "@/components/sidebar/AppSidebar";
 
@@ -28,6 +29,7 @@ export default function AyarlarPage() {
         <AnalystDurumu />
         <HaritaDurumu />
         <BildirimAyarlari />
+        <KullanicilarBolum />
       </div>
     </div>
   );

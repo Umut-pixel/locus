@@ -508,7 +508,9 @@ export default function Home() {
     };
     let hasUpdated = false;
     for (const row of filteredRows) {
-      dagilim[row.risk_durumu] += 1;
+      // null (rol maskesi — bkz. sql/musteriler_rapor_maskeleme.sql): bu
+      // satırın gerçek risk durumunu bilmiyoruz, hiçbir bandı büyütme.
+      if (row.risk_durumu) dagilim[row.risk_durumu] += 1;
       if (!hasUpdated && highlightSet?.has(row.musteri_kodu)) {
         hasUpdated = true;
       }

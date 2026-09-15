@@ -20,13 +20,15 @@ export interface MusteriHarita {
   ilk_teslimat_tarihi: string | null;
   toplam_teslimat_sayisi: number;
   toplam_agirlik: number;
-  toplam_tutar: number;
+  /** Rol/izin maskesi (musteri_finansal_detay yoksa) null gelir — bkz. sql/musteriler_rapor_maskeleme.sql. */
+  toplam_tutar: number | null;
   son_teslimattan_gecen_gun: number | null;
   durum: string | null;
   /** ERP Musterigrup — örn. "201 - PETSHOP", "200 - VETERİNER". */
   musteri_grubu?: string | null;
   geocode_hassasiyet: GeocodeHassasiyet | null;
-  risk_durumu: RiskDurumu;
+  /** Rol/izin maskesi (musteri_finansal_detay yoksa) null gelir. */
+  risk_durumu: RiskDurumu | null;
   /** Harita kanal filtresi — GeoJSON’da türetilir (petshop / veteriner / diger). */
   tip_kanal?: TipKanal;
   /** ISO timestamptz — satırın son güncellenme anı */

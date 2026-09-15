@@ -1,7 +1,5 @@
-import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
-import { readSessionUsername, SESSION_COOKIE } from "@/lib/auth";
 import { istanbulIsoGun } from "@/lib/donem";
 import { gecerliPlaka, ilAdi } from "@/lib/iller";
 import {
@@ -17,6 +15,7 @@ import {
   type TaramaKotasi,
 } from "@/lib/potansiyel-tarama";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -219,8 +218,15 @@ async function calisanOku(admin: ReturnType<typeof createSupabaseAdmin>) {
 }
 
 async function oturumVar(): Promise<string | null> {
-  const store = await cookies();
-  return readSessionUsername(store.get(SESSION_COOKIE)?.value);
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return null;
+  const appMeta = (user.app_metadata ?? {}) as Record<string, unknown>;
+  return typeof appMeta.kullanici_adi === "string"
+    ? appMeta.kullanici_adi
+    : (user.email?.split("@")[0] ?? null);
 }
 
 // ---------------------------------------------------------------- GET

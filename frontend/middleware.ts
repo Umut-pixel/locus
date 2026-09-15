@@ -1,6 +1,12 @@
+import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-import { SESSION_COOKIE, verifySessionToken } from "@/lib/auth";
+import {
+  defaultRouteForIzinler,
+  hasRequiredIzin,
+  izinForPathname,
+  parseIzinler,
+} from "@/lib/permissions";
 
 const PUBLIC_PATHS = new Set(["/login", "/api/auth/login"]);
 
@@ -47,6 +53,17 @@ function secretMatches(header: string | null, secret: string): boolean {
   return diff === 0;
 }
 
+/** Olası oturum-yenileme cookie'lerini hedef response'a taşır. */
+function withRefreshedCookies(
+  target: NextResponse,
+  source: NextResponse
+): NextResponse {
+  for (const cookie of source.cookies.getAll()) {
+    target.cookies.set(cookie);
+  }
+  return target;
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
@@ -76,13 +93,47 @@ export async function middleware(request: NextRequest) {
     // bu route'ları tarayıcıdan kullanıyor).
   }
 
-  const token = request.cookies.get(SESSION_COOKIE)?.value;
-  const isAuthed = await verifySessionToken(token);
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!supabaseUrl || !anonKey) {
+    return NextResponse.json(
+      { error: "Sunucu yapılandırma hatası" },
+      { status: 500 }
+    );
+  }
+
+  let response = NextResponse.next({ request });
+
+  const supabase = createServerClient(supabaseUrl, anonKey, {
+    cookies: {
+      getAll() {
+        return request.cookies.getAll();
+      },
+      setAll(cookiesToSet) {
+        for (const { name, value } of cookiesToSet) {
+          request.cookies.set(name, value);
+        }
+        response = NextResponse.next({ request });
+        for (const { name, value, options } of cookiesToSet) {
+          response.cookies.set(name, value, options);
+        }
+      },
+    },
+  });
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const isAuthed = Boolean(user);
   const isPublic = PUBLIC_PATHS.has(pathname);
 
   if (!isAuthed && !isPublic) {
     if (pathname.startsWith("/api/")) {
-      return NextResponse.json({ error: "Oturum gerekli" }, { status: 401 });
+      return withRefreshedCookies(
+        NextResponse.json({ error: "Oturum gerekli" }, { status: 401 }),
+        response
+      );
     }
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = "/login";
@@ -90,17 +141,49 @@ export async function middleware(request: NextRequest) {
     if (pathname !== "/") {
       loginUrl.searchParams.set("next", pathname);
     }
-    return NextResponse.redirect(loginUrl);
+    return withRefreshedCookies(NextResponse.redirect(loginUrl), response);
   }
 
-  if (isAuthed && (pathname === "/login" || pathname === "/")) {
-    const home = request.nextUrl.clone();
-    home.pathname = "/home";
-    home.search = "";
-    return NextResponse.redirect(home);
+  if (isAuthed) {
+    const izinler = parseIzinler(user!.app_metadata?.izinler);
+
+    if (pathname === "/login" || pathname === "/") {
+      if (izinler.length > 0) {
+        const home = request.nextUrl.clone();
+        home.pathname = defaultRouteForIzinler(izinler);
+        home.search = "";
+        return withRefreshedCookies(NextResponse.redirect(home), response);
+      }
+      // İzin yok (bozuk/rolsüz hesap) — login sayfasını normal göster,
+      // döngüye girme.
+      return response;
+    }
+
+    const required = izinForPathname(pathname);
+    if (!hasRequiredIzin(izinler, required)) {
+      if (pathname.startsWith("/api/")) {
+        return withRefreshedCookies(
+          NextResponse.json({ error: "Yetkisiz" }, { status: 403 }),
+          response
+        );
+      }
+      if (izinler.length === 0) {
+        const loginUrl = request.nextUrl.clone();
+        loginUrl.pathname = "/login";
+        loginUrl.search = "";
+        return withRefreshedCookies(
+          NextResponse.redirect(loginUrl),
+          response
+        );
+      }
+      const fallback = request.nextUrl.clone();
+      fallback.pathname = defaultRouteForIzinler(izinler);
+      fallback.search = "";
+      return withRefreshedCookies(NextResponse.redirect(fallback), response);
+    }
   }
 
-  return NextResponse.next();
+  return response;
 }
 
 export const config = {

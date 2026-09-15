@@ -12,12 +12,14 @@
     "lint": "eslint",
     "test:stream": "npx --yes tsx lib/agent-stream.test.ts && npx --yes tsx lib/agent-blocks.test.ts && npx --yes tsx lib/depot.test.ts && npx --yes tsx lib/agent-status.test.ts && npx --yes tsx lib/agent-playbook.test.ts && npx --yes tsx lib/agent-reveal.test.ts && npx --yes tsx lib/rota/atama.test.ts && npx --yes tsx lib/rota/planla.test.ts && npx --yes tsx lib/rota/palet.test.ts && npx --yes tsx lib/donem.test.ts && npx --yes tsx lib/import/parse-depo-skt.test.ts && npx --yes tsx lib/rota/bolge.test.ts && npx --yes tsx lib/rota/kriter.test.ts && npx --yes tsx lib/iller.test.ts && npx --yes tsx lib/prospecting-workflow.test.ts && npx --yes tsx lib/arama.test.ts",
     "dogrula:bolge": "npx --yes tsx --env-file=.env.local scripts/dogrula-bolge.ts",
-    "dogrula:donem": "npx --yes tsx --env-file=.env.local scripts/dogrula-donem.ts"
+    "dogrula:donem": "npx --yes tsx --env-file=.env.local scripts/dogrula-donem.ts",
+    "seed:kullanicilar": "npx --yes tsx --env-file=.env.local scripts/seed-kullanicilar.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",
     "@heroui/react": "^3.2.4",
     "@heroui/styles": "^3.2.4",
+    "@supabase/ssr": "^0.7.0",
     "@supabase/supabase-js": "^2.110.8",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

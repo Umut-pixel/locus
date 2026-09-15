@@ -1,27 +1,11 @@
 import { NextResponse } from "next/server";
 
-import {
-  SESSION_COOKIE,
-  SESSION_MAX_AGE_SEC,
-  createSessionToken,
-  getExpectedCredentials,
-  verifyCredentials,
-} from "@/lib/auth";
+import { usernameToEmail } from "@/lib/kullanici-email";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
-  const expected = getExpectedCredentials();
-  if (!expected.username || !expected.password) {
-    return NextResponse.json(
-      {
-        error:
-          "Giriş bilgileri yapılandırılmamış. .env içinde AUTH_USERNAME ve AUTH_PASSWORD tanımlayın.",
-      },
-      { status: 503 }
-    );
-  }
-
   let body: { username?: string; password?: string };
   try {
     body = await request.json();
@@ -29,7 +13,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Geçersiz istek" }, { status: 400 });
   }
 
-  const username = typeof body.username === "string" ? body.username.trim() : "";
+  const username =
+    typeof body.username === "string" ? body.username.trim() : "";
   const password = typeof body.password === "string" ? body.password : "";
 
   if (!username || !password) {
@@ -39,27 +24,24 @@ export async function POST(request: Request) {
     );
   }
 
-  if (!verifyCredentials(username, password)) {
-    return NextResponse.json(
-      { error: "Kullanıcı adı veya şifre hatalı" },
-      { status: 401 }
-    );
-  }
-
   try {
-    const token = await createSessionToken(username);
-    const response = NextResponse.json({ ok: true });
-    response.cookies.set(SESSION_COOKIE, token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      path: "/",
-      maxAge: SESSION_MAX_AGE_SEC,
+    const supabase = await createSupabaseServerClient();
+    const { error } = await supabase.auth.signInWithPassword({
+      email: usernameToEmail(username),
+      password,
     });
-    return response;
+
+    if (error) {
+      return NextResponse.json(
+        { error: "Kullanıcı adı veya şifre hatalı" },
+        { status: 401 }
+      );
+    }
+
+    return NextResponse.json({ ok: true });
   } catch {
     return NextResponse.json(
-      { error: "Oturum oluşturulamadı. AUTH_SECRET değerini kontrol edin." },
+      { error: "Oturum oluşturulamadı." },
       { status: 503 }
     );
   }

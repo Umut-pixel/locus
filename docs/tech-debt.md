@@ -1,5 +1,27 @@
 # Tech debt
 
+## ROUTE_IZIN_MAP, DB'deki rol_izinleri'nin statik bir aynası (2026-09-15)
+
+`frontend/lib/permissions.ts`'teki `ROUTE_IZIN_MAP` (middleware route guard +
+nav filtreleme) ile `frontend/middleware.ts`'in kullandığı
+`user.app_metadata.izinler` (login/rol değişikliğinde yazılır, bkz.
+`frontend/app/api/kullanicilar/route.ts`) — gerçek veri sınırı HER ZAMAN
+Postgres'teki `has_izin()`'in canlı okuduğu `public.rol_izinleri`. İkisi
+senkron tutuluyor ama otomatik değil: SQL ile 3. bir rol eklenir ve o rolün
+sayfa erişimi kodda karşılığı olmayan yeni bir izin koduna bağlanırsa,
+middleware o kod için `ROUTE_IZIN_MAP`'te eşleşme bulamaz (route izinsiz kabul
+edilir) — veri sızmaz (RLS zaten engeller) ama nav/route gate ile gerçek erişim
+arasında kafa karıştırıcı bir UX tutarsızlığı oluşur.
+
+**Doğru çözüm:** yeni rol/izin eklerken `frontend/lib/permissions.ts`
+(`IZIN_KODLARI`, `SAYFA_IZIN_HARITASI`, `API_IZIN_HARITASI`,
+`VARSAYILAN_ROTA_ONCELIGI`) ve `frontend/lib/app-sidebar-nav.ts`'teki `izin`
+etiketlerini de güncellemek. Bugün 2 rol (admin, satis_temsilcisi) olduğu için
+kabul edilebilir bir taviz.
+
+**İlgili:** `sql/roller_izinler_sema.sql`, `frontend/lib/permissions.ts`,
+`frontend/middleware.ts`.
+
 ## Panorama transform cron güvenilir değil (2026-08-06)
 
 **Belirti:** n8n landing ~19:00 TR’de `panorama_sync_runs`’a yazıyor; harita güncellenmiyor. UI “Sync alındı — harita bekleniyor” (`transformPending`).

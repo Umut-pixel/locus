@@ -88,7 +88,7 @@ export function borcOnemli(tutar: number | null | undefined): boolean {
 export function effectiveRiskDurumu(
   row: Pick<MusteriHarita, "risk_durumu" | "yas_toplam" | "yas_riskli_tutar">,
   mode: RiskMetricMode
-): RiskDurumu {
+): RiskDurumu | null {
   if (mode === "borc") return debtRiskDurumu(row);
   return row.risk_durumu;
 }

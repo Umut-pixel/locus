@@ -755,7 +755,11 @@ export const CustomerDetailPanel = memo(function CustomerDetailPanel({
     else sheetDragRef.current = null;
   };
 
-  const accent = RISK_COLORS[musteri.risk_durumu];
+  // null (rol maskesi — bkz. sql/musteriler_rapor_maskeleme.sql): satış
+  // temsilcisi risk/borç görmüyor, nötr renk + "erişiminiz yok" etiketi.
+  const accent = musteri.risk_durumu
+    ? RISK_COLORS[musteri.risk_durumu]
+    : "var(--muted-foreground)";
   const hicTeslimat = musteri.risk_durumu === "hic_teslimat_yok";
   const gecikmeGun = musteri.son_teslimattan_gecen_gun;
   const gecikmeYuzde =
@@ -930,7 +934,9 @@ export const CustomerDetailPanel = memo(function CustomerDetailPanel({
         >
           <RiskPeekSummary
             accent={accent}
-            riskLabel={riskLabels[musteri.risk_durumu]}
+            riskLabel={
+              musteri.risk_durumu ? riskLabels[musteri.risk_durumu] : "Erişiminiz yok"
+            }
             gecikmeYuzde={gecikmeYuzde}
             hicTeslimat={hicTeslimat}
             gecikmeGun={gecikmeGun}
@@ -1087,7 +1093,11 @@ export const CustomerDetailPanel = memo(function CustomerDetailPanel({
                   />
                   <MetricRow
                     label="Toplam ciro"
-                    value={formatCurrency(musteri.toplam_tutar)}
+                    value={
+                      musteri.toplam_tutar != null
+                        ? formatCurrency(musteri.toplam_tutar)
+                        : "Erişiminiz yok"
+                    }
                     strong
                   />
                   <MetricRow
@@ -1842,6 +1852,16 @@ function DegisimPage({
     );
   }
 
+  // null (rol maskesi): risk bandı geçişleri de borç/risk bilgisinin bir
+  // parçası — Borçlar sekmesiyle aynı gerekçeyle satış temsilcisine kapalı.
+  if (musteri.risk_durumu == null) {
+    return (
+      <Typography.Paragraph size="xs" color="muted">
+        Bu bilgiye erişiminiz yok.
+      </Typography.Paragraph>
+    );
+  }
+
   const onceki: SnapshotMetrics | null =
     snapshot?.onceki_risk_durumu != null
       ? {
@@ -1866,7 +1886,7 @@ function DegisimPage({
     : {
         risk_durumu: musteri.risk_durumu,
         toplam_teslimat_sayisi: musteri.toplam_teslimat_sayisi,
-        toplam_tutar: musteri.toplam_tutar,
+        toplam_tutar: musteri.toplam_tutar ?? 0,
         toplam_agirlik: musteri.toplam_agirlik,
         son_teslimattan_gecen_gun: musteri.son_teslimattan_gecen_gun,
         son_teslimat_tarihi: musteri.son_teslimat_tarihi,

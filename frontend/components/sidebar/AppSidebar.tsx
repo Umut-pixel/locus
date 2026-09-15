@@ -29,7 +29,13 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { KonusmalarNav } from "@/components/sidebar/KonusmalarNav";
-import { FOOTER_NAV, NAV_SECTIONS } from "@/lib/app-sidebar-nav";
+import {
+  filterFooterNavByIzinler,
+  filterNavByIzinler,
+  FOOTER_NAV,
+  NAV_SECTIONS,
+} from "@/lib/app-sidebar-nav";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useHaritaKapsami } from "@/hooks/useHaritaKapsami";
 import { usePanoramaSyncStatus } from "@/hooks/usePanoramaSyncStatus";
 import { useAgentSession } from "@/hooks/useAgentSession";
@@ -191,6 +197,7 @@ function SidebarNavAndFooter({ open }: { open: boolean }) {
   const panoramaLive = status.transformPending || Boolean(status.syncError);
   const { busy: analystBusy } = useAgentSession();
   const { data: kapsami } = useHaritaKapsami();
+  const { izinler, loading: userLoading } = useCurrentUser();
 
   const defaultCollapsed = useMemo(() => {
     const map: Record<string, boolean> = {};
@@ -201,10 +208,22 @@ function SidebarNavAndFooter({ open }: { open: boolean }) {
   }, []);
   const [collapsedSections, toggleSection] = useCollapsedSections(defaultCollapsed);
 
+  // Yüklenirken tam ağacı göster — izinler gelince daralır. Aksi halde her
+  // sayfa açılışında sidebar bir an boşalıp dolar (güvenlik sınırı zaten
+  // middleware'de, burası yalnız görünürlük).
+  const visibleSections = useMemo(
+    () => (userLoading ? NAV_SECTIONS : filterNavByIzinler(NAV_SECTIONS, izinler)),
+    [userLoading, izinler]
+  );
+  const visibleFooterNav = useMemo(
+    () => (userLoading ? FOOTER_NAV : filterFooterNavByIzinler(FOOTER_NAV, izinler)),
+    [userLoading, izinler]
+  );
+
   return (
     <>
       <nav className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain pt-2 pb-3">
-        {NAV_SECTIONS.map((section, sectionIndex) => {
+        {visibleSections.map((section, sectionIndex) => {
           const sectionCollapsed =
             open && section.collapsible
               ? Boolean(collapsedSections[section.id])
@@ -266,7 +285,7 @@ function SidebarNavAndFooter({ open }: { open: boolean }) {
       <div className="shrink-0">
         <div className="px-0">
           <SidebarThemeToggle open={open} />
-          {FOOTER_NAV.map((item) => (
+          {visibleFooterNav.map((item) => (
             <AppSidebarNavItem key={item.id} item={item} open={open} />
           ))}
           <SidebarCoverage

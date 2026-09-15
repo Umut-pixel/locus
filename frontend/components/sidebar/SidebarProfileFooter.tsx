@@ -10,9 +10,18 @@ import {
   SidebarLabel,
 } from "@/components/sidebar/AppSidebarNavItem";
 import { useTheme } from "@/components/theme/ThemeProvider";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { SIDEBAR_ROW, sidebarTween } from "@/lib/sidebar-layout";
 import { cn } from "@/lib/utils";
 import { motion } from "motion/react";
+
+function initialsFromName(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "PE";
+  const first = parts[0]!.charAt(0);
+  const last = parts.length > 1 ? parts[parts.length - 1]!.charAt(0) : "";
+  return (first + last).toLocaleUpperCase("tr-TR");
+}
 
 export function SidebarProfileFooter({ open }: { open: boolean }) {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -23,6 +32,10 @@ export function SidebarProfileFooter({ open }: { open: boolean }) {
   const { theme, toggleTheme } = useTheme();
   const isDark = theme === "dark";
   const wasOpen = useRef(open);
+  const { user } = useCurrentUser();
+  const adSoyad = user?.adSoyad || "Peritas ekibi";
+  const rolAdi = user?.rolAdi || "Patigo";
+  const initials = user ? initialsFromName(user.adSoyad) : "PE";
 
   useEffect(() => {
     if (wasOpen.current && !open) setMenuOpen(false);
@@ -73,7 +86,7 @@ export function SidebarProfileFooter({ open }: { open: boolean }) {
       >
         <SidebarIconCell className="h-9">
           <span className="flex size-7 items-center justify-center rounded-md bg-sidebar-accent text-[10px] font-semibold tracking-wide text-sidebar-accent-foreground">
-            PE
+            {initials}
           </span>
         </SidebarIconCell>
         <SidebarLabel
@@ -81,9 +94,9 @@ export function SidebarProfileFooter({ open }: { open: boolean }) {
           className="flex items-center justify-between gap-1 pr-3 text-[13px] font-medium text-sidebar-foreground"
         >
           <span className="min-w-0 truncate">
-            Peritas ekibi
+            {adSoyad}
             <span className="mt-0 block truncate text-[11px] font-normal text-muted-foreground">
-              Patigo
+              {rolAdi}
             </span>
           </span>
           <ChevronDownIcon

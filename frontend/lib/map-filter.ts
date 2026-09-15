@@ -21,7 +21,7 @@ export interface MapFilterState {
 export function filterRowsLocally<
   T extends {
     sehir: string | null;
-    risk_durumu: RiskDurumu;
+    risk_durumu: RiskDurumu | null;
     musteri_grubu?: string | null;
   },
 >(rows: T[], state: MapFilterState): T[] {

@@ -1,4 +1,4 @@
-import { createClient } from "@supabase/supabase-js";
+import { createBrowserClient } from "@supabase/ssr";
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -11,12 +11,14 @@ if (!url || !anonKey) {
 }
 
 /**
- * Sadece anon key kullanır — RLS ile korunan `musteriler_harita` view'ından
- * salt okunur veri çeker. service_role anahtarı bu dosyada YOK ve olmamalı.
+ * Sadece anon key kullanır, ama `@supabase/ssr`'ın oturum-farkında client'ı —
+ * Supabase Auth cookie'sini okur ve her isteğe kullanıcının JWT'sini ekler.
+ * Bu sayede RLS (`has_izin()`) `auth.uid()`'i görür: `musteriler_harita` vb.
+ * view'lardaki rol/izin bazlı maskeleme burada değil, veritabanında uygulanır
+ * — bu dosyayı kullanan hook'ların hiçbiri bunun için değişmedi.
+ * service_role anahtarı bu dosyada YOK ve olmamalı.
  */
-export const supabase = createClient(url, anonKey, {
-  auth: { persistSession: false },
-});
+export const supabase = createBrowserClient(url, anonKey);
 
 /** Harita katmani — yalnizca koordinati olan musteriler (lat/lon dolu). */
 export const MUSTERILER_HARITA_VIEW = "musteriler_harita";
